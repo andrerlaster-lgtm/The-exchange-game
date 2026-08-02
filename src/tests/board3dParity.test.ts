@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
-import { isBoard3DCommand } from '../utils/sync3dBoard';
-import { patch, rollTo, started } from './helpers';
+import { COMMAND_PREFIX, isBoard3DCommand, takeNextBoard3DCommand } from '../utils/sync3dBoard';
+import { dispatch, patch, rng, rollTo, started } from './helpers';
 
 describe('3D command boundary', () => {
   it('accepts complete gameplay actions and rejects setup or malformed actions', () => {
@@ -18,6 +18,23 @@ describe('3D command boundary', () => {
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'sell', qty: 1 } })).toBe(false);
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'draw', deck: 'IPO' } })).toBe(false);
     expect(isBoard3DCommand({ t: 'roll', ts: now })).toBe(false);
+  });
+
+  it('preserves rapid IPO Buy then Done commands instead of overwriting the purchase', () => {
+    const entries = new Map<string, string>([
+      [`${COMMAND_PREFIX}0000000000001:000001`, JSON.stringify({ t: 'dispatch', ts: 1, action: { t: 'ipoBuyShare' } })],
+      [`${COMMAND_PREFIX}0000000000002:000002`, JSON.stringify({ t: 'dispatch', ts: 2, action: { t: 'ipoBuyDone' } })],
+    ]);
+    const storage = {
+      get length() { return entries.size; },
+      key: (index: number) => [...entries.keys()][index] ?? null,
+      getItem: (key: string) => entries.get(key) ?? null,
+      removeItem: (key: string) => { entries.delete(key); },
+    };
+
+    expect(takeNextBoard3DCommand(storage)).toMatchObject({ action: { t: 'ipoBuyShare' } });
+    expect(takeNextBoard3DCommand(storage)).toMatchObject({ action: { t: 'ipoBuyDone' } });
+    expect(entries.size).toBe(0);
   });
 });
 
@@ -89,6 +106,17 @@ describe('3D Action Center parity', () => {
     });
     const buy = buildActionCenter(buyState).required.find((entry) => entry.id === 'ipo-buy');
     expect(buy?.buttons?.map((entry) => entry.action.t)).toEqual(['ipoBuyShare', 'ipoBuyDone']);
+  });
+
+  it('lets a fresh IPO landing buy through the same action exposed in 3D', () => {
+    let s = rollTo(started(2), 10);
+    const code = s.ipoBuy!.code;
+    const buy = buildActionCenter(s).required.find((entry) => entry.id === 'ipo-buy');
+
+    expect(buy?.buttons?.[0]).toMatchObject({ action: { t: 'ipoBuyShare' }, disabled: false });
+    s = dispatch(s, buy!.buttons![0].action, rng());
+    expect(s.players[s.cur].shares[code]).toBe(1);
+    expect(buildActionCenter(s).required.find((entry) => entry.id === 'ipo-buy')?.description).toContain('1/2 bought');
   });
 
   it('keeps final standings and new-game setup reachable from 3D after Market Close', () => {

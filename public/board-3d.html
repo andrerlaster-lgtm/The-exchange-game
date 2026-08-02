@@ -1576,9 +1576,16 @@
 
     let currentPlayers = DEFAULT_COLORS.slice(0,4).map((c,i)=>({pos:1,piece:DEFAULT_PIECES[i],color:c,name:`P${i+1}`}));
 
-    // Clear any stale command left from a prior session so the main app's poller
-    // doesn't pick it up and fire an unexpected roll when this page reopens.
-    localStorage.removeItem('exchange_3d_cmd');
+    const COMMAND_KEY = 'exchange_3d_cmd';
+    const COMMAND_PREFIX = `${COMMAND_KEY}:`;
+    let commandSeq = 0;
+
+    // Clear stale commands left from a prior session so the main app's poller
+    // doesn't pick them up when this page reopens.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key === COMMAND_KEY || key?.startsWith(COMMAND_PREFIX)) localStorage.removeItem(key);
+    }
 
     // Back button: post message to parent when embedded as iframe, close tab when standalone
     document.getElementById('back').addEventListener('click', () => {
@@ -1595,9 +1602,13 @@
     });
 
     // ── Roll controls panel ──────────────────────────────────────────────────────
-    const COMMAND_KEY = 'exchange_3d_cmd';
     function sendAction(action) {
-      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'dispatch', action, ts: Date.now() }));
+      const ts = Date.now();
+      // A unique key preserves rapid sequences such as IPO Buy → Done or
+      // Buy → Buy. A single shared slot allowed the later click to overwrite
+      // the earlier purchase before the React game consumed it.
+      const queueKey = `${COMMAND_PREFIX}${String(ts).padStart(13, '0')}:${String(commandSeq++).padStart(6, '0')}`;
+      localStorage.setItem(queueKey, JSON.stringify({ t: 'dispatch', action, ts }));
     }
     const btnRoll = document.getElementById('btn-roll-3d');
     const btnDraw = document.getElementById('btn-draw-3d');
@@ -1973,9 +1984,17 @@
       return panel;
     }
 
+    let previousRequiredSignature = '';
     function updateActionCenter(payload) {
       const data = payload?.actionCenter;
       if (!data) return;
+      const requiredSignature = (data.required || []).map(panel => panel.id).join('|');
+      const hasNewRequiredAction = !!requiredSignature && requiredSignature !== previousRequiredSignature;
+      if (hasNewRequiredAction) {
+        actionCenter.classList.remove('collapsed');
+        actionCenterToggle.textContent = '−';
+        actionCenterToggle.title = 'Collapse Action Center';
+      }
       actionCenterStatus.textContent = data.status;
       actionCenterBody.replaceChildren();
 
@@ -1993,6 +2012,8 @@
       const close = document.createElement('button'); close.className = 'ac-btn danger'; close.textContent = 'Call Market Close'; close.disabled = !data.canCallClose;
       close.addEventListener('click', () => { if (!close.disabled && confirm('Call Market Close?')) sendAction({ t:'callClose' }); });
       actionCenterBody.appendChild(close);
+      if (hasNewRequiredAction) actionCenterBody.scrollTop = 0;
+      previousRequiredSignature = requiredSignature;
     }
 
     function deckBannerBg(col) {

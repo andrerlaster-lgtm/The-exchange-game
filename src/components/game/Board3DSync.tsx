@@ -4,7 +4,7 @@ import { blocked, canTradeNow, fedSignalForStock, getRankedPlayers, getStockMove
 import { SECTORS, STOCK_BY_CODE, STOCKS } from '../../data';
 import { useGameState, useDispatch } from '../../store';
 import { buildActionCenter } from '../../utils/buildBoard3DActionCenter';
-import { sync3dBoard, COMMAND_KEY, isBoard3DCommand } from '../../utils/sync3dBoard';
+import { sync3dBoard, isBoard3DCommand, takeNextBoard3DCommand } from '../../utils/sync3dBoard';
 
 export default function Board3DSync() {
   const s = useGameState();
@@ -15,16 +15,11 @@ export default function Board3DSync() {
   // Poll for commands from 3D board (polling is reliable; cross-tab storage events can be suppressed)
   useEffect(() => {
     const interval = setInterval(() => {
-      const raw = localStorage.getItem(COMMAND_KEY);
-      if (!raw) return;
-      localStorage.removeItem(COMMAND_KEY); // consume first to prevent double-dispatch
-      try {
-        const cmd: unknown = JSON.parse(raw);
-        if (!isBoard3DCommand(cmd)) return;
-        const fresh = Date.now() - cmd.ts < 5000 && cmd.ts <= Date.now() + 1000;
-        // Reject stale commands (older than 5s) — guards against leftover keys from crashed sessions
-        if (fresh && (s.phase === 'play' || cmd.action.t === 'newGame')) dispatch(cmd.action);
-      } catch { /* malformed — ignore */ }
+      const cmd = takeNextBoard3DCommand(localStorage);
+      if (!isBoard3DCommand(cmd)) return;
+      const fresh = Date.now() - cmd.ts < 5000 && cmd.ts <= Date.now() + 1000;
+      // Reject stale commands (older than 5s) — guards against leftover keys from crashed sessions
+      if (fresh && (s.phase === 'play' || cmd.action.t === 'newGame')) dispatch(cmd.action);
     }, 100);
     return () => clearInterval(interval);
   }, [dispatch, s.phase]);

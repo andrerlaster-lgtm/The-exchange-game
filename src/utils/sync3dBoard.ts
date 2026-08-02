@@ -204,6 +204,26 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
 
 export const STORAGE_KEY = 'exchange_3d_state';
 export const COMMAND_KEY = 'exchange_3d_cmd';
+export const COMMAND_PREFIX = `${COMMAND_KEY}:`;
+
+type CommandStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
+
+/** Consume the oldest queued 3D command. The legacy single-slot key remains a
+    fallback for boards opened from an older cached HTML bundle. */
+export function takeNextBoard3DCommand(storage: CommandStorage): unknown {
+  const queuedKeys: string[] = [];
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i);
+    if (key?.startsWith(COMMAND_PREFIX)) queuedKeys.push(key);
+  }
+  queuedKeys.sort();
+  const key = queuedKeys[0] ?? (storage.getItem(COMMAND_KEY) ? COMMAND_KEY : null);
+  if (!key) return null;
+  const raw = storage.getItem(key);
+  storage.removeItem(key);
+  if (!raw) return null;
+  try { return JSON.parse(raw) as unknown; } catch { return null; }
+}
 
 export function sync3dBoard(payload: Board3DPayload): void {
   const json = JSON.stringify(payload);
