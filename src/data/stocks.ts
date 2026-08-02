@@ -42,9 +42,9 @@ export const PAYOUT_TIER_LOW_SECTOR = 300;
 export const PAYOUT_TIER_MID_SECTOR = 500;
 export const PAYOUT_TIER_CONTROL_SECTOR = 1_200;
 // ── Diversification (Market Open income bonus) ───────────────────────────────
-export const DIVERSIFIED_SECTORS = 4;    // distinct sectors for the Diversified bonus
+export const DIVERSIFIED_SECTORS = 3;    // distinct regular-stock sectors for Diversified status + bonus
 export const BROAD_MARKET_SECTORS = 6;   // distinct sectors for the Broad Market bonus
-export const DIVERSIFIED_BONUS = 300;    // paid at Market Open for 4-5 sectors
+export const DIVERSIFIED_BONUS = 300;    // paid at Market Open for 3-5 sectors
 export const BROAD_MARKET_BONUS = 600;   // paid instead for 6+ sectors
 // ── Market trade limits ─────────────────────────────────────────────────────
 export const MAX_TRADE_QTY = 2; // max shares per single SELL action against the bank (buying is all-or-nothing — see REGULAR_SUPPLY)

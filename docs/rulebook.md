@@ -355,12 +355,13 @@ Diversified Portfolio is a separate stock-market-style feature. It rewards sprea
 
 | Badge | Requirement | Market Open bonus |
 |---|---|---|
-| Diversified Portfolio | Own at least 1 regular share in 4 different sectors | $300 |
+| Diversified Portfolio | Own at least 1 regular share in 3 different sectors | $300 |
 | Broad Market Portfolio | Own at least 1 regular share in 6 different sectors | $600 instead of $300 |
 
 **Diversification rules**
 - Only regular stock shares count toward Diversified Portfolio and Broad Market Portfolio by default.
 - IPOs and ETFs do not count unless a specific rule/card says otherwise.
+- Only the number of distinct regular-stock sectors matters. Share quantity and Margin balance do not change Diversified status.
 - A player receives only the highest diversification bonus they qualify for at Market Open.
 - Sector Portfolio and Diversified Portfolio are separate because they reward different strategies.
 

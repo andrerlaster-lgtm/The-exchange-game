@@ -1,8 +1,9 @@
 // Scoring: net worth, share value, diversification check (Rules 9, 11).
 
-import { STOCK_BY_CODE, etfValue, isIpoCode } from '../data';
+import { DIVERSIFIED_SECTORS, etfValue } from '../data';
 import type { GameState, Player } from './types';
 import { priceOf } from './selectors';
+import { distinctSectors } from './sector';
 
 /** Total dollar value of all a player's stock holdings (regular + IPO) at current prices. */
 export function sharesValue(s: GameState, p: Player): number {
@@ -17,18 +18,9 @@ export function netWorth(s: GameState, p: Player): number {
 }
 
 /**
- * Diversified Portfolio status (Rule 9): shares in at least 5 sectors, no margin.
- * IPO shares do not count toward sector diversification.
+ * Diversified Portfolio status (Rule 9): holdings in at least 3 distinct
+ * regular-stock sectors. Margin, share quantity, IPOs, and ETFs do not affect it.
  */
 export function isDiversified(_s: GameState, p: Player): boolean {
-  if (p.margin > 0) return false;
-  const bySector: Record<string, number> = {};
-  for (const code of Object.keys(p.shares)) {
-    if (isIpoCode(code)) continue;
-    const sec = STOCK_BY_CODE[code].sector;
-    bySector[sec] = (bySector[sec] || 0) + p.shares[code];
-  }
-  let qualifying = 0;
-  for (const sec of Object.keys(bySector)) if (bySector[sec] >= 1) qualifying++;
-  return qualifying >= 5;
+  return distinctSectors(p) >= DIVERSIFIED_SECTORS;
 }

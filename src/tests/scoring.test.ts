@@ -26,32 +26,30 @@ describe('Rule 8 — Market Open base income + dividends', () => {
 });
 
 describe('Rule 9 — Diversified Portfolio status', () => {
-  it('qualifies with any shares in 5 different sectors and no margin', () => {
+  it('qualifies with holdings in 3 different sectors, regardless of margin', () => {
     const base = started(2);
-    // One share each across 5 sectors
-    const diversified = patch(base, (d) => { d.players[0].shares = { SAFE: 1, MTRO: 1, FTRB: 1, IRON: 1, CARE: 1 }; });
+    const diversified = patch(base, (d) => { d.players[0].shares = { SAFE: 11, MTRO: 11, FTRB: 11 }; });
     expect(isDiversified(diversified, diversified.players[0])).toBe(true);
 
-    // Margin disqualifies
+    // Diversification now depends only on distinct regular-stock sectors.
     const withMargin = patch(diversified, (d) => { d.players[0].margin = 2000; });
-    expect(isDiversified(withMargin, withMargin.players[0])).toBe(false);
+    expect(isDiversified(withMargin, withMargin.players[0])).toBe(true);
 
-    // Only four sectors doesn't qualify
-    const onlyFour = patch(base, (d) => { d.players[0].shares = { SAFE: 1, MTRO: 1, FTRB: 1, IRON: 1 }; });
-    expect(isDiversified(onlyFour, onlyFour.players[0])).toBe(false);
+    const onlyTwo = patch(base, (d) => { d.players[0].shares = { SAFE: 11, MTRO: 11 }; });
+    expect(isDiversified(onlyTwo, onlyTwo.players[0])).toBe(false);
   });
 
   it('IPO shares do not count toward sector diversification', () => {
     const base = started(2);
     // NDRV is an IPO — does not count as a sector
-    const s = patch(base, (d) => { d.players[0].shares = { SAFE: 1, MTRO: 1, FTRB: 1, IRON: 1, NDRV: 1 }; });
+    const s = patch(base, (d) => { d.players[0].shares = { SAFE: 11, MTRO: 11, NDRV: 5 }; });
     expect(isDiversified(s, s.players[0])).toBe(false);
   });
 
   it('diversified player gets crash protection pick when a crash card fires', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].shares = { SAFE: 1, MTRO: 1, FTRB: 1, IRON: 1, CARE: 1 };
+      d.players[0].shares = { SAFE: 11, MTRO: 11, FTRB: 11 };
     });
     expect(isDiversified(s, s.players[0])).toBe(true);
     // Simulate a Flash Crash effect (all -2, crash: true) via pendingDraws

@@ -149,7 +149,7 @@ export default function Portfolio() {
         </div>
       )}
 
-      {/* Diversification bonus (Diversified 4+ / Broad Market 6+ distinct sectors) */}
+      {/* Diversification bonus (Diversified 3+ / Broad Market 6+ distinct sectors) */}
       {divTier !== 'none' && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '0 2px' }}>
           <span style={{ color: 'var(--muted)' }}>

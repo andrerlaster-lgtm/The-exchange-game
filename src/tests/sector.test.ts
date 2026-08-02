@@ -61,13 +61,21 @@ describe('Sector Portfolio boosts Payout Claim rent', () => {
 });
 
 describe('Diversified / Broad Market Portfolio', () => {
-  it('qualifies for Diversified at 4 distinct sectors', () => {
+  it('qualifies for Diversified at 3 distinct sectors', () => {
     const s = started(2);
-    const shares = { SAFE: 1, MTRO: 1, FTRB: 1, IRON: 1 }; // consumer, realestate, finance, industrials
+    const shares = { SAFE: 11, MTRO: 11, FTRB: 11 }; // consumer, realestate, finance
     const s2 = patch(s, (d) => { d.players[0].shares = shares; });
-    expect(distinctSectors(s2.players[0])).toBe(4);
+    expect(distinctSectors(s2.players[0])).toBe(3);
     expect(diversificationTier(s2.players[0])).toBe('diversified');
     expect(diversificationBonus(s2.players[0])).toBe(DIVERSIFIED_BONUS);
+  });
+
+  it('does not count multiple companies from one sector as diversified', () => {
+    const s = started(2);
+    const s2 = patch(s, (d) => { d.players[0].shares = { SAFE: 11, FRSH: 11, SNKR: 11 }; });
+    expect(distinctSectors(s2.players[0])).toBe(1);
+    expect(diversificationTier(s2.players[0])).toBe('none');
+    expect(diversificationBonus(s2.players[0])).toBe(0);
   });
 
   it('qualifies for Broad Market at 6+ distinct sectors, paying the higher bonus', () => {
