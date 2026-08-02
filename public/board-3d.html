@@ -326,6 +326,62 @@
     #btn-trade-buy  { background: linear-gradient(135deg,#22c55e,#15803d); color:#fff; }
     #btn-trade-sell { background: linear-gradient(135deg,#ef4444,#991b1b); color:#fff; }
 
+    /* ── Full-play Action Center ── */
+    #action-center {
+      position: fixed; z-index: 50; top: 56px; right: 14px; bottom: 66px;
+      width: 370px; max-width: calc(100vw - 28px);
+      display: flex; flex-direction: column;
+      background: rgba(14,11,8,.96); border: 1px solid rgba(212,165,53,.35);
+      border-radius: 12px; box-shadow: 0 12px 42px rgba(0,0,0,.65);
+      color: rgba(235,226,210,.95); font-family: 'IBM Plex Mono', monospace;
+      overflow: hidden; transition: width .2s, height .2s;
+    }
+    #action-center.collapsed { width: 168px; bottom: auto; }
+    #action-center.collapsed #action-center-body { display: none; }
+    #action-center-head {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-bottom: 1px solid rgba(74,56,32,.55); background: rgba(212,165,53,.06);
+    }
+    #action-center-title { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; flex: 1; }
+    #action-center-status { font-size: 8px; color: #d4a535; letter-spacing: .4px; }
+    #action-center-toggle {
+      border: 1px solid rgba(212,165,53,.28); background: transparent; color: #d4a535;
+      border-radius: 5px; cursor: pointer; padding: 3px 7px; font-size: 11px;
+    }
+    #action-center-body { overflow-y: auto; padding: 9px; display: flex; flex-direction: column; gap: 9px; }
+    .ac-section-label { font-size: 8px; letter-spacing: 1.8px; color: rgba(212,165,53,.58); text-transform: uppercase; padding: 2px 2px 0; }
+    .ac-panel { --ac:#d4a535; border: 1px solid color-mix(in srgb,var(--ac) 45%,transparent); border-left: 3px solid var(--ac); border-radius: 8px; padding: 9px; background: rgba(255,255,255,.025); }
+    .ac-panel.urgent { box-shadow: inset 0 0 18px color-mix(in srgb,var(--ac) 7%,transparent); }
+    .ac-title { color: var(--ac); font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
+    .ac-description { margin-top: 5px; color: rgba(192,180,162,.85); font-size: 9px; line-height: 1.45; }
+    .ac-rows { margin-top: 7px; display: flex; flex-direction: column; gap: 5px; max-height: 230px; overflow-y: auto; }
+    .ac-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; align-items: center; padding: 6px; border-radius: 6px; background: rgba(255,255,255,.035); }
+    .ac-row-title { font-size: 10px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ac-row-detail { color: rgba(138,122,104,.95); font-size: 8px; }
+    .ac-row-value { color: #3ed598; font-size: 9px; text-align: right; }
+    .ac-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+    .ac-row .ac-actions { grid-column: 1 / -1; margin-top: 2px; }
+    .ac-btn {
+      font-family: inherit; border: 1px solid rgba(138,122,104,.45); border-radius: 5px;
+      background: rgba(255,255,255,.05); color: rgba(235,226,210,.95); cursor: pointer;
+      padding: 5px 8px; font-size: 9px; font-weight: 700;
+    }
+    .ac-btn.primary { background:#15803d; border-color:#22c55e; color:#fff; }
+    .ac-btn.danger { background:#991b1b; border-color:#ef4444; color:#fff; }
+    .ac-btn.gold { background:#8a6a20; border-color:#d4a535; color:#fff; }
+    .ac-btn:disabled { opacity:.32; cursor:not-allowed; }
+    .ac-number { margin-top:7px; display:grid; grid-template-columns:1fr auto; gap:5px; }
+    .ac-number label { grid-column:1/-1; font-size:8px; color:#8a7a68; }
+    .ac-number input, .ac-form select, .ac-form input { width:100%; background:#17120d; color:#ede8de; border:1px solid rgba(138,122,104,.45); border-radius:5px; padding:6px; font:10px inherit; }
+    .ac-form { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:7px; }
+    .ac-form label { color:#8a7a68; font-size:8px; display:flex; flex-direction:column; gap:3px; }
+    .ac-form .wide { grid-column:1/-1; }
+    .ac-empty { color:#8a7a68; font-size:9px; font-style:italic; padding:4px 1px; }
+    @media (max-width: 900px) {
+      #action-center { width: min(350px, calc(100vw - 28px)); }
+      #legend { display:none; }
+    }
+
     /* bear back (flip reveal) */
     #trade-back {
       position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
@@ -359,7 +415,7 @@
     <div class="leg"><div class="dot" style="background:#ff5c5c"></div> Market Event</div>
     <div class="leg"><div class="dot" style="background:#f0b429"></div> The Fed</div>
     <div class="leg"><div class="dot" style="background:#4da3ff"></div> ETF Funds (×4)</div>
-    <div class="leg"><div class="dot" style="background:#c4b5fd"></div> After-Hours</div>
+    <div class="leg"><div class="dot" style="background:#c4b5fd"></div> Investor Day</div>
     <div class="leg"><div class="dot" style="background:#9aa5b1"></div> Portfolio Tax · Audit</div>
   </div>
   <div id="left-panel">
@@ -370,6 +426,16 @@
   </div>
   <div id="move-toast"></div>
   <div id="tile-tip"></div>
+  <aside id="action-center" aria-label="3D gameplay action center">
+    <div id="action-center-head">
+      <div>
+        <div id="action-center-title">ACTION CENTER</div>
+        <div id="action-center-status">Waiting for game…</div>
+      </div>
+      <button id="action-center-toggle" title="Collapse Action Center">−</button>
+    </div>
+    <div id="action-center-body"></div>
+  </aside>
   <div id="trade-panel">
     <div id="trade-glow"></div>
     <!-- bear back (flip reveal) -->
@@ -486,7 +552,7 @@
       26:{color:'#f0b429',label:'THE\nFED',glyph:'%'},
       28:{color:'#4ade80',label:'IPO',glyph:'↑',corner:true},
       30:{color:'#ff9442',label:'ENERGY\nFUND',glyph:'◆',etf:true},
-      31:{color:'#c4b5fd',label:'AFTER\nHRS',glyph:'☾'},
+      31:{color:'#c4b5fd',label:'INVESTOR\nDAY',glyph:'★'},
       34:{color:'#e8b44c',label:'AUDIT\nNOTICE',glyph:'⚑'},
     };
     // risk: 1=Low, 2=Med, 3=High (mirrors src/data/stocks.ts)
@@ -722,16 +788,15 @@
     }
 
     // Center panel: green club-felt well framed in brass on walnut, hosting the
-    // guilloche medallion, Marcellus logo lockup, four printed deck wells, and
+    // guilloche medallion, Marcellus logo lockup, three printed deck wells, and
     // the bear mascot (loaded async → texture repaints when it arrives).
     const _mascotImg = new Image();
     let _mascotReady = false;
     let _centerTex = null, _centerCanvas = null, _centerCtx = null;
     const DECK_SLOTS = [ // world (x,z) of each deck, for printed wells beneath them
-      { x:-3.3, z:2.1, label:'MARKET EVENT', color:'#a02231' },
-      { x:-1.1, z:2.1, label:'THE FED',      color:'#c9a24f' },
-      { x: 1.1, z:2.1, label:'AFTER-HOURS',  color:'#7c6bb0' },
-      { x: 3.3, z:2.1, label:'IPO',          color:'#2f8f52' },
+      { x:-2.5, z:2.1, label:'MARKET EVENT', color:'#a02231' },
+      { x: 0.0, z:2.1, label:'THE FED',      color:'#c9a24f' },
+      { x: 2.5, z:2.1, label:'IPO',          color:'#2f8f52' },
     ];
     function paintCenter() {
       const S = 1024, ctx = _centerCtx;
@@ -998,11 +1063,9 @@
     // ── Card decks (center of board) ────────────────────────────────────────────
     const DECK_DEFS = {
       ME:  { label: 'MARKET EVENT', glyph: '◈', color: '#ef4444',
-             purpose: 'Drawn when landing on the Market Event space (19)' },
+             purpose: 'Market Event and former After-Hours cards' },
       FED: { label: 'THE FED',      glyph: '%', color: '#d4a535',
              purpose: 'Drawn when landing on a Fed space' },
-      AH:  { label: 'AFTER-HOURS',  glyph: '☾', color: '#a78bfa',
-             purpose: 'Drawn when landing on After-Hours' },
       IPO: { label: 'IPO',          glyph: '↑', color: '#4ade80',
              purpose: 'New listing launches on IPO spaces' },
     };
@@ -1114,13 +1177,12 @@
       return group;
     }
     // Row across the lower half of the center panel — clear of the tiles and title
-    createDeck('ME',  -3.3, 2.1);
-    createDeck('FED', -1.1, 2.1);
-    createDeck('AH',   1.1, 2.1);
-    createDeck('IPO',  3.3, 2.1);
+    createDeck('ME',  -2.5, 2.1);
+    createDeck('FED',  0.0, 2.1);
+    createDeck('IPO',  2.5, 2.1);
 
     // Adjust visible stack height to match cards remaining
-    const DECK_TOTALS = { ME: 18, FED: 12, AH: 12, IPO: 4 };
+    const DECK_TOTALS = { ME: 31, FED: 12, IPO: 4 };
     let latestDeckCounts = null;
     function updateDeckCounts(counts) {
       if (!counts) return;
@@ -1523,6 +1585,9 @@
 
     // ── Roll controls panel ──────────────────────────────────────────────────────
     const COMMAND_KEY = 'exchange_3d_cmd';
+    function sendAction(action) {
+      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'dispatch', action, ts: Date.now() }));
+    }
     const btnRoll = document.getElementById('btn-roll-3d');
     const btnDraw = document.getElementById('btn-draw-3d');
     const dieA    = document.getElementById('die-a');
@@ -1536,14 +1601,14 @@
 
     btnDraw.addEventListener('click', () => {
       if (!pendingDrawGlobal) return;
-      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'draw', deck: pendingDrawGlobal, ts: Date.now() }));
+      sendAction({ t: 'draw', deck: pendingDrawGlobal });
       btnDraw.disabled = true;
       btnDraw.textContent = 'Drawing…';
     });
 
     btnEndTurn.addEventListener('click', () => {
       if (btnEndTurn.disabled) return;
-      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'endTurn', ts: Date.now() }));
+      sendAction({ t: 'endTurn' });
       btnEndTurn.disabled = true;
       rollStatus.textContent = 'Ending turn…';
     });
@@ -1658,7 +1723,9 @@
 
     function sendTradeCmd(t) {
       if (!tradeInfoGlobal) return;
-      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t, code: tradeInfoGlobal.code, qty: tradeQty, ts: Date.now() }));
+      sendAction(t === 'buyStock'
+        ? { t: 'buy', code: tradeInfoGlobal.code }
+        : { t: 'sell', code: tradeInfoGlobal.code, qty: tradeQty });
       btnTradeBuy.disabled  = true;
       btnTradeSell.disabled = true;
     }
@@ -1668,16 +1735,246 @@
 
     // ── Card preview ─────────────────────────────────────────────────────────────
     const cardPanel   = document.getElementById('card-preview');
-    const DECK_COLORS  = { ME: '#ef4444', FED: '#d4a535', AH: '#a78bfa' };
-    const DECK_LABELS  = { ME: 'MARKET EVENT', FED: 'THE FED', AH: 'AFTER-HOURS' };
-    const DECK_ICONS   = { ME: '📈', FED: '🏛️', AH: '🌙' };
-    const DECK_SYMBOLS = { ME: '📊', FED: '🏦', AH: '🏙️' };
+    const DECK_COLORS  = { ME: '#ef4444', FED: '#d4a535' };
+    const DECK_LABELS  = { ME: 'MARKET EVENT', FED: 'THE FED' };
+    const DECK_ICONS   = { ME: '📈', FED: '🏛️' };
+    const DECK_SYMBOLS = { ME: '📊', FED: '🏦' };
 
     let prevCardKey  = null;
     let cardFlipTimer = null;
 
     function escHtml(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Full-play Action Center ─────────────────────────────────────────────────
+    const actionCenter = document.getElementById('action-center');
+    const actionCenterBody = document.getElementById('action-center-body');
+    const actionCenterStatus = document.getElementById('action-center-status');
+    const actionCenterToggle = document.getElementById('action-center-toggle');
+
+    actionCenterToggle.addEventListener('click', () => {
+      const collapsed = actionCenter.classList.toggle('collapsed');
+      actionCenterToggle.textContent = collapsed ? '+' : '−';
+      actionCenterToggle.title = collapsed ? 'Open Action Center' : 'Collapse Action Center';
+    });
+
+    function makeAcButton(def) {
+      const el = document.createElement('button');
+      el.className = `ac-btn ${def.tone || 'neutral'}`;
+      el.textContent = def.label;
+      el.disabled = !!def.disabled;
+      el.addEventListener('click', () => {
+        if (el.disabled) return;
+        sendAction(def.action);
+        el.disabled = true;
+      });
+      return el;
+    }
+
+    function makeActionStrip(buttons) {
+      const strip = document.createElement('div');
+      strip.className = 'ac-actions';
+      (buttons || []).forEach(def => strip.appendChild(makeAcButton(def)));
+      return strip;
+    }
+
+    function renderAcPanel(def) {
+      const panel = document.createElement('section');
+      panel.className = `ac-panel${def.urgent ? ' urgent' : ''}`;
+      panel.style.setProperty('--ac', def.accent || '#d4a535');
+
+      const title = document.createElement('div');
+      title.className = 'ac-title';
+      title.textContent = def.title;
+      panel.appendChild(title);
+
+      if (def.description) {
+        const desc = document.createElement('div');
+        desc.className = 'ac-description';
+        desc.textContent = def.description;
+        panel.appendChild(desc);
+      }
+
+      if (def.rows?.length) {
+        const rows = document.createElement('div');
+        rows.className = 'ac-rows';
+        def.rows.forEach(rowDef => {
+          const row = document.createElement('div');
+          row.className = 'ac-row';
+          if (rowDef.color) row.style.borderLeft = `2px solid ${rowDef.color}`;
+          const rowTitle = document.createElement('div');
+          rowTitle.className = 'ac-row-title';
+          rowTitle.textContent = rowDef.title;
+          row.appendChild(rowTitle);
+          if (rowDef.value) {
+            const value = document.createElement('div');
+            value.className = 'ac-row-value';
+            value.textContent = rowDef.value;
+            row.appendChild(value);
+          }
+          if (rowDef.detail) {
+            const detail = document.createElement('div');
+            detail.className = 'ac-row-detail';
+            detail.textContent = rowDef.detail;
+            row.appendChild(detail);
+          }
+          if (rowDef.buttons?.length) row.appendChild(makeActionStrip(rowDef.buttons));
+          rows.appendChild(row);
+        });
+        panel.appendChild(rows);
+      }
+
+      if (def.numberAction) {
+        const wrap = document.createElement('div');
+        wrap.className = 'ac-number';
+        const label = document.createElement('label');
+        label.textContent = def.numberAction.label;
+        const input = document.createElement('input');
+        input.type = 'number'; input.min = def.numberAction.min; input.step = def.numberAction.step;
+        if (Number.isFinite(def.numberAction.max)) input.max = def.numberAction.max;
+        input.value = def.numberAction.value;
+        const bid = document.createElement('button');
+        bid.className = 'ac-btn gold'; bid.textContent = 'Place Bid';
+        const sync = () => {
+          const value = Number(input.value);
+          bid.disabled = !Number.isFinite(value) || value < def.numberAction.min || (Number.isFinite(def.numberAction.max) && value > def.numberAction.max);
+        };
+        input.addEventListener('input', sync); sync();
+        bid.addEventListener('click', () => {
+          if (bid.disabled) return;
+          sendAction({ t: def.numberAction.action, amount: Number(input.value) });
+          bid.disabled = true;
+        });
+        wrap.append(label, input, bid);
+        panel.appendChild(wrap);
+      }
+
+      if (def.buttons?.length) panel.appendChild(makeActionStrip(def.buttons));
+      return panel;
+    }
+
+    function sectionLabel(text) {
+      const label = document.createElement('div');
+      label.className = 'ac-section-label';
+      label.textContent = text;
+      return label;
+    }
+
+    function renderTradeDesk(data, currentPlayerIdx) {
+      const panel = document.createElement('section');
+      panel.className = 'ac-panel'; panel.style.setProperty('--ac', '#4da3ff');
+      const title = document.createElement('div'); title.className = 'ac-title'; title.textContent = 'Player Trading';
+      const desc = document.createElement('div'); desc.className = 'ac-description'; desc.textContent = 'Negotiate cash-for-shares deals without moving market prices.';
+      panel.append(title, desc);
+
+      const players = data.players || [];
+      if (players.length > 1) {
+        const form = document.createElement('div'); form.className = 'ac-form';
+        const sellerLabel = document.createElement('label'); sellerLabel.textContent = 'Seller';
+        const seller = document.createElement('select'); sellerLabel.appendChild(seller);
+        const buyerLabel = document.createElement('label'); buyerLabel.textContent = 'Buyer';
+        const buyer = document.createElement('select'); buyerLabel.appendChild(buyer);
+        const stockLabel = document.createElement('label'); stockLabel.className = 'wide'; stockLabel.textContent = 'Stock / IPO';
+        const stock = document.createElement('select'); stockLabel.appendChild(stock);
+        const qtyLabel = document.createElement('label'); qtyLabel.textContent = 'Quantity';
+        const qty = document.createElement('input'); qty.type = 'number'; qty.min = 1; qty.value = 1; qtyLabel.appendChild(qty);
+        const priceLabel = document.createElement('label'); priceLabel.textContent = 'Total Price ($)';
+        const price = document.createElement('input'); price.type = 'number'; price.min = 0; price.step = 50; price.value = 0; priceLabel.appendChild(price);
+        const submit = document.createElement('button'); submit.className = 'ac-btn primary wide'; submit.textContent = 'Send Offer';
+
+        players.forEach(p => {
+          const option = document.createElement('option'); option.value = p.index; option.textContent = p.name;
+          if (p.index === currentPlayerIdx) option.selected = true;
+          seller.appendChild(option);
+        });
+
+        function selectedPlayer(select) { return players.find(p => p.index === Number(select.value)); }
+        function updateBuyer() {
+          const previous = Number(buyer.value);
+          buyer.replaceChildren();
+          players.filter(p => p.index !== Number(seller.value)).forEach(p => {
+            const option = document.createElement('option'); option.value = p.index; option.textContent = `${p.name} · $${p.cash.toLocaleString()}`;
+            if (p.index === previous) option.selected = true;
+            buyer.appendChild(option);
+          });
+          updateStock();
+        }
+        function updateStock() {
+          const previous = stock.value;
+          stock.replaceChildren();
+          const owner = selectedPlayer(seller);
+          (owner?.holdings || []).forEach(h => {
+            const option = document.createElement('option'); option.value = h.code; option.dataset.qty = h.qty;
+            option.textContent = `${h.code} — ${h.name} (×${h.qty})`;
+            if (h.code === previous) option.selected = true;
+            stock.appendChild(option);
+          });
+          syncTradeForm();
+        }
+        function syncTradeForm() {
+          const option = stock.selectedOptions[0];
+          const maxQty = Number(option?.dataset.qty || 0);
+          qty.max = Math.max(maxQty, 1);
+          if (Number(qty.value) > maxQty) qty.value = Math.max(maxQty, 1);
+          const buyerPlayer = selectedPlayer(buyer);
+          price.max = buyerPlayer?.cash ?? 0;
+          submit.disabled = !stock.value || Number(qty.value) < 1 || Number(qty.value) > maxQty || Number(price.value) < 0 || Number(price.value) > (buyerPlayer?.cash ?? 0);
+        }
+        seller.addEventListener('change', updateBuyer);
+        buyer.addEventListener('change', syncTradeForm);
+        stock.addEventListener('change', syncTradeForm);
+        qty.addEventListener('input', syncTradeForm);
+        price.addEventListener('input', syncTradeForm);
+        submit.addEventListener('click', () => {
+          if (submit.disabled) return;
+          sendAction({ t: 'proposeP2POffer', from: Number(seller.value), to: Number(buyer.value), code: stock.value, qty: Number(qty.value), direction: 'sell', price: Number(price.value) });
+          submit.disabled = true;
+        });
+        updateBuyer();
+        form.append(sellerLabel, buyerLabel, stockLabel, qtyLabel, priceLabel, submit);
+        panel.appendChild(form);
+      }
+
+      if (data.offers?.length) {
+        const rows = document.createElement('div'); rows.className = 'ac-rows';
+        data.offers.forEach(offer => {
+          const row = document.createElement('div'); row.className = 'ac-row';
+          const summary = document.createElement('div'); summary.className = 'ac-row-title'; summary.style.whiteSpace = 'normal'; summary.textContent = offer.summary;
+          row.appendChild(summary);
+          if (offer.warning) { const warning = document.createElement('div'); warning.className = 'ac-row-detail'; warning.style.color = '#ef4444'; warning.textContent = offer.warning; row.appendChild(warning); }
+          row.appendChild(makeActionStrip([
+            { label:'Accept', action:{ t:'acceptP2POffer', id:offer.id }, tone:'primary', disabled:!offer.canAccept },
+            { label:'Decline', action:{ t:'declineP2POffer', id:offer.id } },
+            { label:'Withdraw', action:{ t:'cancelP2POffer', id:offer.id } },
+          ]));
+          rows.appendChild(row);
+        });
+        panel.appendChild(rows);
+      } else {
+        const empty = document.createElement('div'); empty.className = 'ac-empty'; empty.textContent = 'No pending offers'; panel.appendChild(empty);
+      }
+      return panel;
+    }
+
+    function updateActionCenter(payload) {
+      const data = payload?.actionCenter;
+      if (!data) return;
+      actionCenterStatus.textContent = data.status;
+      actionCenterBody.replaceChildren();
+
+      actionCenterBody.appendChild(sectionLabel('Landing & Required Actions'));
+      if (data.required?.length) data.required.forEach(panel => actionCenterBody.appendChild(renderAcPanel(panel)));
+      else { const empty = document.createElement('div'); empty.className = 'ac-empty'; empty.textContent = 'No unresolved landing or card action.'; actionCenterBody.appendChild(empty); }
+
+      actionCenterBody.appendChild(sectionLabel('Portfolio & Bank Sales'));
+      actionCenterBody.appendChild(renderAcPanel(data.portfolio));
+      actionCenterBody.appendChild(sectionLabel('Private Trades'));
+      actionCenterBody.appendChild(renderTradeDesk(data.tradeDesk, payload.currentPlayerIdx));
+
+      const close = document.createElement('button'); close.className = 'ac-btn danger'; close.textContent = 'Call Market Close'; close.disabled = !data.canCallClose;
+      close.addEventListener('click', () => { if (!close.disabled && confirm('Call Market Close?')) sendAction({ t:'callClose' }); });
+      actionCenterBody.appendChild(close);
     }
 
     function deckBannerBg(col) {
@@ -1786,6 +2083,7 @@
       if (!payload) return;
       updateLeaderboard(payload);
       updateCardPreview(payload);
+      updateActionCenter(payload);
       updateTradePanel(payload);
       refreshStockTiles(payload.prices);
       updateDeckCounts(payload.deckCounts);
@@ -1831,12 +2129,12 @@
         btnRoll.style.display = 'none';
         btnDraw.style.display = 'none';
         if (!isAnimating) rollStatus.textContent = '';
-      } else if (payload.blockedHint) {
-        // A prompt that only exists in the 2D view is holding the turn open.
+      } else if (payload.actionCenter?.required?.length) {
+        // The complete prompt is available in the 3D Action Center.
         btnDraw.style.display = 'none';
         btnEndTurn.style.display = 'none';
         btnRoll.style.display = 'none';
-        rollStatus.textContent = payload.blockedHint;
+        rollStatus.textContent = 'Use Action Center →';
       } else {
         btnDraw.style.display = 'none';
         btnEndTurn.style.display = 'none';
@@ -1860,7 +2158,7 @@
     btnRoll.addEventListener('click', () => {
       if (!canRollGlobal || isAnimating || rollPending) return;
       rollPending = true;
-      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'roll', ts: Date.now() }));
+      sendAction({ t: 'roll' });
       syncRollButton();
       // Safety timeout — if no state arrives in 3s, unlock the button
       clearTimeout(rollTimeoutId);

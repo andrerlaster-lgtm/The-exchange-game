@@ -1,9 +1,10 @@
 import type { Card } from './types';
+import { MARKET_EVENT_ADDITIONS } from './afterHoursDeck';
 
 const mk = (title: string, story: string, effect: string, eff: Card['eff']): Card =>
   ({ deck: 'ME', title, story, effect, eff });
 
-export const ME_CARDS: Card[] = [
+const CORE_ME_CARDS: Card[] = [
   mk('Tech Earnings High',    'AI and cloud demand beat forecasts across the sector.',      'All Technology stocks move UP 1 step.',                                   { k: 'sector', sec: 'tech',     d: 1  }),
   mk('Tech Earnings Low',     'Customers slow software and cloud spending.',                'All Technology stocks move DOWN 1 step.',                                 { k: 'sector', sec: 'tech',     d: -1 }),
   mk('Finance Rally',         'Banks report stronger lending income.',                      'All Finance stocks move UP 1 step.',                                      { k: 'sector', sec: 'finance',  d: 1  }),
@@ -23,3 +24,6 @@ export const ME_CARDS: Card[] = [
   mk('Melt-Up Rally',         'Momentum buyers chase the whole market higher.',            'Every stock moves UP 2 steps.',                                           { k: 'all', d: 2              }),
   mk('Market Close',          'The closing bell rings across the exchange.',                'The game ends now — unless a player holds Extended Hours.',               { k: 'close'                  }),
 ];
+
+export const ME_CARDS: Card[] = [...CORE_ME_CARDS, ...MARKET_EVENT_ADDITIONS];
+export const CIRCUIT_BREAKER_INDEX = ME_CARDS.findIndex((card) => card.eff.k === 'circuitBreaker');

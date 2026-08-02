@@ -1,5 +1,5 @@
 import { LADDER, PLAYER_COLORS, SECTORS, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
-import { getStockMovementStatus, isWeakDemandProtected } from '../../engine';
+import { getStockMovementStatus } from '../../engine';
 import { useGameState } from '../../store';
 import investabearImg from '../../assets/investabear.png';
 
@@ -35,7 +35,7 @@ const SPECIAL_3D: Record<number, { color: string; label: string; glyph: string; 
   26: { color: '#f0b429', label: 'THE\nFED',       glyph: '%' },
   28: { color: '#4ade80', label: 'IPO',            glyph: '↑', corner: true },
   30: { color: '#ff9442', label: 'ENERGY\nFUND',   glyph: '◆', etf: true },
-  31: { color: '#c4b5fd', label: 'AFTER\nHRS',     glyph: '☾' },
+  31: { color: '#c4b5fd', label: 'INVESTOR\nDAY',  glyph: '★' },
   34: { color: '#e8b44c', label: 'AUDIT\nNOTICE',  glyph: '⚑' },
 };
 
@@ -170,7 +170,6 @@ export default function BoardTrack() {
             const stock = STOCK_BY_CODE[sp.code!];
             const price = LADDER[s.prices[sp.code!]];
             const weakCount = s.skips[sp.code!] ?? 0;
-            const protectedStock = isWeakDemandProtected(s, sp.code!);
             const soldOut = s.soldOut[sp.code!];
             const claimIdx = soldOut?.claimHolder ?? null;
             const claimColor = claimIdx !== null ? PLAYER_COLORS[claimIdx] : null;
@@ -249,14 +248,8 @@ export default function BoardTrack() {
                   </div>
                 )}
 
-                {/* Weak-demand marker / protection shield — bottom-right corner */}
-                {!soldOut && protectedStock && (
-                  <span title="Protected from Weak Demand (3+ shares held)" style={{
-                    position: 'absolute', bottom: 1, right: 2,
-                    fontSize: 7, fontWeight: 700, color: '#2a9d68', lineHeight: 1,
-                  }}>🛡</span>
-                )}
-                {!soldOut && !protectedStock && weakCount > 0 && (
+                {/* Weak-demand marker — bottom-right corner */}
+                {!soldOut && weakCount > 0 && (
                   <span style={{
                     position: 'absolute', bottom: 1, right: 1,
                     fontSize: 6, fontWeight: 700,

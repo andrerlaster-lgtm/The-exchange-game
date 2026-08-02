@@ -23,13 +23,12 @@ describe('Event card draw', () => {
     expect(s.pendingDraws).toHaveLength(0);
   });
 
-  it('drawing an AH card on After-Hours space sets card state', () => {
+  it('Investor Day replaces the former After-Hours draw space', () => {
     let s = started();
+    const cash = s.players[0].cash;
     s = rollTo(s, 31);
-    expect(s.pendingDraws[0]).toBe('AH');
-    s = dispatch(s, { t: 'draw', deck: 'AH' }, scriptedRng([]));
-    expect(s.card?.deck).toBe('AH');
     expect(s.pendingDraws).toHaveLength(0);
+    expect(s.players[0].cash).toBe(cash + 500);
   });
 
   it('deck reshuffles from discard when exhausted', () => {
@@ -41,6 +40,7 @@ describe('Event card draw', () => {
       const before = s.decks.ME.length;
       s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());
       expect(s.decks.ME.length).toBeLessThan(before); // draw must consume a card
+      if (s.circuitBreakerPrompt) s = dispatch(s, { t: 'passCircuitBreaker' }, rng());
       if (s.pick) s = dispatch(s, { t: 'skipPick' }, rng());
       if (!s.closing && s.phase !== 'over') {
         s = dispatch(s, { t: 'endTurn' }, rng());

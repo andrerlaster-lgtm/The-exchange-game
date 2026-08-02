@@ -177,6 +177,8 @@ export default function ActionPanel() {
           continue until this button is pressed, so make it impossible to miss. */}
       {nextDraw && <PendingDrawBanner deck={nextDraw} count={s.pendingDraws.length} dispatch={dispatch} />}
 
+      {s.pick?.source === 'investor' && <InvestorDayPanel s={s} dispatch={dispatch} />}
+
       {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
     </div>
   );
@@ -186,7 +188,6 @@ export default function ActionPanel() {
 const DRAW_META: Record<string, { color: string; label: string; icon: string }> = {
   ME:  { color: '#ef4444', label: 'Market Event', icon: '📈' },
   FED: { color: '#d4a535', label: 'Fed',          icon: '🏛️' },
-  AH:  { color: '#a78bfa', label: 'After-Hours',  icon: '🌙' },
 };
 
 function PendingDrawBanner({ deck, count, dispatch }: {
@@ -220,9 +221,36 @@ function PendingDrawBanner({ deck, count, dispatch }: {
           color: '#14100a', cursor: 'pointer', flexShrink: 0,
           boxShadow: `0 2px 14px ${meta.color}66`,
         }}
-        onClick={() => dispatch({ t: 'draw', deck: deck as 'ME' | 'FED' | 'AH' })}>
+        onClick={() => dispatch({ t: 'draw', deck: deck as 'ME' | 'FED' })}>
         Draw Card
       </button>
+    </div>
+  );
+}
+
+function InvestorDayPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const pick = s.pick!;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '11px 13px', borderRadius: 8,
+      background: 'rgba(167,139,250,0.10)',
+      border: '1px solid rgba(167,139,250,0.38)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#c4b5fd', letterSpacing: 0.5 }}>
+        ★ INVESTOR DAY
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{pick.label}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {(pick.codes ?? []).map((code) => (
+          <button key={code}
+            style={{ fontSize: 11, padding: '6px 10px' }}
+            title={`Move ${STOCK_BY_CODE[code]?.name ?? code} up 1 price step`}
+            onClick={() => dispatch({ t: 'pickTarget', code })}>
+            {code} · ${priceOf(s, code).toLocaleString()} →
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

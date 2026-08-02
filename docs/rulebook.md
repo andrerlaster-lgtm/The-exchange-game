@@ -17,7 +17,7 @@ Consolidated Rules — July 2, 2026
 6. Market Open
 7. Regular Stocks
 8. Dividends
-9. Protected Weak Demand
+9. Weak Demand
 10. Sold-Out and Payout Claim
 11. Selling Shares and Bank Auctions
 12. Trading
@@ -66,8 +66,8 @@ The winner is the player with the highest Final Portfolio Value when the game en
 - 4 ETF spaces/cards
 - 2 IPO spaces and 4 IPO cards (shared reveal queue — see Section 16)
 - 3 The Fed spaces and Fed cards
-- 1 Market Event space and Market Event deck
-- 1 After-Hours space and After-Hours deck
+- 1 Market Event space and the combined Market Event deck
+- 1 Investor Day space
 - 1 Portfolio Tax space
 - 1 Audit Notice space
 - 1 Market Open corner/space
@@ -88,7 +88,7 @@ The winner is the player with the highest Final Portfolio Value when the game en
 - Place all player tokens on Market Open.
 - Set each regular stock to its starting market price using the app price ladder or printed stock card. No stock may start above the $5,000 ceiling or below the $100 floor.
 - Place 11 market shares in supply for each regular stock.
-- Shuffle the Market Event, The Fed, After-Hours, and IPO decks separately.
+- Shuffle the combined Market Event deck and The Fed deck separately. Shuffle the 4 IPO cards into their own shared reveal queue.
 - Set all 4 IPO cards face down in a single shared reveal queue (see Section 16). None are available for purchase until revealed.
 - Set up ETF spaces/cards according to current app data.
 - Place Payout Claim cards/markers, Weak Demand markers, Sector Portfolio badges, and Diversification badges near the bank.
@@ -109,7 +109,7 @@ The board has 36 spaces. The current rule direction preserves the board count an
 | Market Event | 1 | Dedicated Market Event space; space 19 |
 | Market Open | 1 | Payday only, then Market Open Trading Window |
 | Portfolio Tax | 1 | Penalty space based on net worth |
-| After-Hours | 1 | Draw and resolve an After-Hours card |
+| Investor Day | 1 | Move 1 owned regular company up 1 price step; if no owned company can rise, collect $500 |
 | Audit Notice | 1 | Penalty space with extra cost if Margin balance is outstanding |
 
 **Board rule locks**
@@ -184,7 +184,7 @@ Fresh shares can only be bought by landing on that stock space, winning an appro
 - A full-company purchase uses the company's printed acquisition tier: Starter $5,000, Growth $7,500, or Premium $10,000. Their tier-aligned opening share prices are $500, $750, and $1,000 respectively, keeping the acquired portfolio value close to the cash paid.
 - The buyer receives all 11 shares, normal market supply becomes 0, the company becomes permanently Sold Out, and the buyer receives its Payout Claim.
 - The purchase does not move the live per-share market price.
-- If the player skips, apply Protected Weak Demand if the stock is eligible.
+- If the player explicitly skips, add a Weak Demand marker.
 - Once another player owns the company, landing there does not open a normal buy step. Resolve the Sold-Out Payout Claim instead.
 
 **Sold-Out landing payout**
@@ -210,18 +210,17 @@ Dividends are a passive Market Open income stream, separate from and stacking wi
 
 **Note:** Dividends and Payout Claim are two separate, stacking income layers on the same stock: Dividends reward raw position size every Market Open; Payout Claim rewards being the top owner of a Sold-Out stock whenever anyone lands on it.
 
-## 9. Protected Weak Demand
+## 9. Weak Demand
 
-Weak Demand exists to make ignored stocks lose value, but it cannot be weaponized against stocks where a player has already built a serious position.
+Weak Demand makes ignored, untouched companies lose value. Ownership never grants automatic price protection.
 
-**Protected Weak Demand rule**
+**Weak Demand rule**
 - Each regular stock can hold up to 2 Weak Demand markers.
-- When a player lands on a regular stock and buys 0 shares, add 1 Weak Demand marker only if no player owns 3 or more shares of that stock.
+- When a player lands on an untouched regular stock and explicitly skips the purchase, add 1 Weak Demand marker.
 - When a stock reaches 2 Weak Demand markers, move its market price down 1 step immediately and clear the markers, unless the stock is already at the $100 floor.
-- If any player buys shares of a stock that currently holds Weak Demand markers, remove all Weak Demand markers from that stock immediately as part of resolving the purchase.
-- If any player owns 3 or more shares of that stock, the stock is protected from Weak Demand.
-- Protected stocks do not gain Weak Demand markers and cannot lose market value from skipped purchases.
-- If a stock becomes protected, immediately clear all Weak Demand markers from it.
+- Buying the full company clears all Weak Demand markers on it.
+- Share count, Controller status, Sector Portfolio, and Diversified Portfolio never protect a price automatically.
+- Sold-Out spaces no longer offer a buy/skip choice, so they do not gain new Weak Demand markers; their prices can still fall through Market Events and qualifying bank sales.
 
 ## 10. Sold-Out and Payout Claim
 
@@ -363,6 +362,7 @@ Diversified Portfolio is a separate stock-market-style feature. It rewards sprea
 **Diversification rules**
 - Only regular stock shares count toward Diversified Portfolio and Broad Market Portfolio by default.
 - IPOs and ETFs do not count unless a specific rule/card says otherwise.
+- Diversification pays only the listed Market Open cash bonus. It does not automatically protect any company from price movement.
 - Only the number of distinct regular-stock sectors matters. Share quantity and Margin balance do not change Diversified status.
 - A player receives only the highest diversification bonus they qualify for at Market Open.
 - Sector Portfolio and Diversified Portfolio are separate because they reward different strategies.
@@ -453,9 +453,18 @@ The Exchange is a net-worth race, not a bankruptcy-elimination game (see Section
 | Market Event — space 19 | Draw and resolve 1 Market Event card. Also triggered automatically if any stock reaches the $5,000 price ceiling. |
 | The Fed | Draw and resolve 1 Fed card. |
 | IPO | Resolve IPO reveal/purchase per Section 16. |
-| After-Hours | Draw and resolve 1 After-Hours card. |
+| Investor Day — space 31 | Choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step. Reaching $5,000 triggers a Market Event. If you own no eligible company, collect $500 instead. |
 | Portfolio Tax | Player pays 10% of current net worth. Net worth uses the same formula as Final Portfolio Value (see Section 1): cash + current value of regular stock shares + IPO holdings + ETF holdings - outstanding Margin balance. ETF holdings are valued at their fixed purchase/card price (see Section 15). |
 | Audit Notice | Player pays $500. If they have any outstanding Margin balance, pay an extra $250. In standard mode, with Margin off by default, this extra fee is normally dormant. |
+
+**Circuit Breaker — Market Event hold card**
+- The former After-Hours cards are part of the combined Market Event deck; there is no separate After-Hours deck or board space.
+- There is 1 Circuit Breaker card in the Market Event deck.
+- When drawn, the player keeps it; it remains out of the deck until played.
+- When any negative Market Event would lower the price of a company that player owns, pause before applying the card's price effect.
+- The holder may play Circuit Breaker to protect 1 affected company they own from that Market Event's entire downward move, or pass and keep it for later.
+- Playing it is optional and single-use. After play, discard it into the Market Event discard pile.
+- It does not stop Weak Demand, bank-sale price movement, or Fed cards.
 
 ## 19. Price Movement
 
@@ -470,7 +479,7 @@ The price ladder is the source of truth for each stock's market value. Exact lad
 | Weak Demand reaches 2 markers | Price moves down 1 step and markers clear, unless already at the $100 floor |
 | Stock becomes Sold Out | This happens as part of the full-company purchase; no price increase is applied |
 | Stock reaches $5,000 ceiling | Price movement stops; triggers a global Market Event card |
-| Card effect | Follow the card text |
+| Card effect | Follow the card text; no portfolio or share-count protection applies automatically |
 
 **Per-action price movement:** A full-company purchase does not move the share price. A qualifying bank sell-back is one market action regardless of the number of shares sold in that action.
 
@@ -496,7 +505,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 |---|---|
 | Starting cash | $30,000 default; setup choices are $30,000, $40,000, or $50,000 |
 | Margin trading | Off by default |
-| Weak Demand | On, in Protected Weak Demand form |
+| Weak Demand | On; 2 explicit skips drop an untouched company's price 1 step; no ownership protection |
 | Short Sell | Off / removed from standard game flow |
 | Direct rent before sellout | Off; landing payments start only after Sold-Out status |
 | Regular stock dividends | On — Always On, flat per-share, 2x Controller multiplier |
@@ -507,6 +516,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 | Sell-to-bank window | Trade Step only (not Market Open) |
 | Price floor / ceiling | On — $100 floor / $5,000 ceiling |
 | Extended Hours | On — confirmed active |
+| Investor Day | Space 31; owned regular company +1 step, or $500 when none can rise |
 | Market Close mode | App toggle: Card mode or Rounds mode, chosen pre-game |
 | Last Trader Standing / bankruptcy elimination | Optional variant only, not default |
 
@@ -517,7 +527,7 @@ Use this checklist when sending the rules to code.
 | Area | Implementation requirement |
 |---|---|
 | Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares; fixed acquisition tiers = $5,000 / $7,500 / $10,000; regular control = 6; IPO supply = 5; IPO control = 3; market sell cap = 2; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
-| Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance |
+| Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance, Circuit Breaker holder |
 | Stock landing | If untouched, offer a full 11-share company buyout at its fixed tier price or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment, with no payment when the owner lands on their own company |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
 | Sell-back | Trade Step action only; pay seller 1 step below market (or floor), move price down 1 step (unless at floor), put shares into Bank Auction Pool, do not reopen normal supply |
@@ -528,7 +538,9 @@ Use this checklist when sending the rules to code.
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default |
 | Insolvency | Standard mode: if a player can't cover a required payment, force-sell regular stock only (not IPO/ETF) at sell-back price until covered or shares exhausted; unpaid shortfall after that is waived, cash floors at $0, no elimination |
 | Market Open | Pay salary, dividends, ETF payouts, diversification bonuses, resolve Margin repayment, then open Market Open Trading Window |
-| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, auction pool count, dividend income per Market Open, Margin balance |
+| Circuit Breaker | One held Market Event card; on a later negative Market Event, holder may protect 1 affected owned company from that card's entire downward move, then discard it |
+| Investor Day | Space 31; choose 1 owned regular company below the ceiling to move up 1 step, otherwise collect $500 |
+| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance |
 | Logs | Separate bank payout, player-paid payout, private trade, full-company buy, bank sell-back, Weak Demand, auction sale, Payout Claim transfer, dividend payout, Margin draw/repay |
 
 ## 23. Open Balance Items

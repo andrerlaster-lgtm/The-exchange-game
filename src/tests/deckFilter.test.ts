@@ -1,23 +1,27 @@
-// Phase 9: Extended Hours is now active in standard mode (rulebook §20/§21) —
-// it's no longer excluded from the shuffled After-Hours deck.
+// Former After-Hours cards now live in the single Market Event deck.
 
 import { describe, it, expect } from 'vitest';
 import { CARDS } from '../data';
 import { freshDecks } from '../engine/gameState';
 import { dispatch, patch, rng, started } from './helpers';
 
-describe('After-Hours deck', () => {
-  it('the shuffled AH deck includes every AH card, including Extended Hours', () => {
+describe('merged Market Event deck', () => {
+  it('includes every Market Event card, including Extended Hours and Circuit Breaker', () => {
     const decks = freshDecks(rng());
-    expect(decks.AH.length).toBe(CARDS.AH.length);
-    const drawnTitles = decks.AH.map((idx) => CARDS.AH[idx].title);
+    expect(decks.ME.length).toBe(CARDS.ME.length);
+    const drawnTitles = decks.ME.map((idx) => CARDS.ME[idx].title);
     expect(drawnTitles).toContain('Extended Hours');
+    expect(drawnTitles).toContain('Circuit Breaker');
   });
 
   it('Extended Hours is no longer flagged strategyOnly', () => {
-    const extendedHours = CARDS.AH.find((c) => c.title === 'Extended Hours');
+    const extendedHours = CARDS.ME.find((c) => c.title === 'Extended Hours');
     expect(extendedHours).toBeDefined();
     expect(extendedHours?.strategyOnly).toBeUndefined();
+  });
+
+  it('has no separate After-Hours deck', () => {
+    expect('AH' in CARDS).toBe(false);
   });
 });
 

@@ -14,7 +14,7 @@ const SPECIAL: Record<number, [BoardSpace['type'], string, string, string]> = {
   26: ['fed',         'THE FED',          '%', '#E8B44C'],
   28: ['ipo',         'IPO',              '↑', '#3ED598'],
   30: ['etf',         'ENERGY FUND',      '▲', '#FF9442'],
-  31: ['after',       'AFTER-HOURS',      '☾', '#9FB4FF'],
+  31: ['investor',    'INVESTOR DAY',     '★', '#C4B5FD'],
   34: ['audit',       'AUDIT NOTICE',     '⚑', '#E8B44C'],
 };
 
@@ -31,7 +31,6 @@ export const SPACES: BoardSpace[] = Array.from({ length: 36 }, (_, i) => {
 export const DECK_META: Record<DeckId, DeckMeta> = {
   ME:  { label: 'MARKET EVENT', glyph: '◈', color: '#FF5C5C' },
   FED: { label: 'FED RATE',     glyph: '%',  color: '#E8B44C' },
-  AH:  { label: 'AFTER-HOURS',  glyph: '☾',  color: '#9FB4FF' },
 };
 
 export const VOL_NAME: Record<IpoDef['vol'], string> = {

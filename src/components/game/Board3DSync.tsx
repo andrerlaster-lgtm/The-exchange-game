@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { useGameState, useDispatch } from '../../store';
-import { sync3dBoard, COMMAND_KEY } from '../../utils/sync3dBoard';
-import type { Board3DCommand } from '../../utils/sync3dBoard';
 import type { TurnPhase } from '../../engine';
-import { getRankedPlayers, blocked, priceOf, canTradeNow, getStockMovementStatus } from '../../engine';
-import type { DeckId } from '../../data';
-import { STOCK_BY_CODE, SECTORS, STOCKS } from '../../data';
+import { blocked, canTradeNow, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
+import { SECTORS, STOCK_BY_CODE, STOCKS } from '../../data';
+import { useGameState, useDispatch } from '../../store';
+import { buildActionCenter } from '../../utils/buildBoard3DActionCenter';
+import { sync3dBoard, COMMAND_KEY, isBoard3DCommand } from '../../utils/sync3dBoard';
 
 export default function Board3DSync() {
   const s = useGameState();
@@ -20,18 +19,15 @@ export default function Board3DSync() {
       if (!raw) return;
       localStorage.removeItem(COMMAND_KEY); // consume first to prevent double-dispatch
       try {
-        const cmd: Board3DCommand = JSON.parse(raw);
-        const fresh = Date.now() - cmd.ts < 5000;
+        const cmd: unknown = JSON.parse(raw);
+        if (!isBoard3DCommand(cmd)) return;
+        const fresh = Date.now() - cmd.ts < 5000 && cmd.ts <= Date.now() + 1000;
         // Reject stale commands (older than 5s) — guards against leftover keys from crashed sessions
-        if (cmd.t === 'roll' && fresh) dispatch({ t: 'roll' });
-        if (cmd.t === 'draw' && fresh && cmd.deck) dispatch({ t: 'draw', deck: cmd.deck as DeckId });
-        if (cmd.t === 'endTurn' && fresh) dispatch({ t: 'endTurn' });
-        if (cmd.t === 'buyStock' && fresh && cmd.code) dispatch({ t: 'buy', code: cmd.code });
-        if (cmd.t === 'sellStock' && fresh && cmd.code) dispatch({ t: 'sell', code: cmd.code, qty: cmd.qty ?? 1 });
+        if (fresh && (s.phase === 'play' || cmd.action.t === 'newGame')) dispatch(cmd.action);
       } catch { /* malformed — ignore */ }
     }, 100);
     return () => clearInterval(interval);
-  }, [dispatch]);
+  }, [dispatch, s.phase]);
 
   // Sync state to 3D board on every render
   useEffect(() => {
@@ -48,6 +44,8 @@ export default function Board3DSync() {
       piece: p.piece,
       color: p.color,
       name: p.name,
+      cash: p.cash,
+      margin: p.margin,
     }));
 
     let move: { from: number; to: number; playerIdx: number } | undefined;
@@ -112,36 +110,25 @@ export default function Board3DSync() {
       };
     }
 
-    // Prompts that only render in the 2D view — tell the 3D player what to resolve.
-    const blockedHint = s.auction ? `Bank Auction (${s.auction.code}) — bid in 2D view`
-      : s.marketOpenWindow ? 'Market Open Trading Window — resolve in 2D view'
-      : s.marginCall ? 'Margin call — resolve in 2D view'
-      : s.insolvency ? 'Insufficient funds — resolve in 2D view'
-      : s.etfPick ? 'ETF offer — buy or skip in 2D view'
-      : (s.ipoListPick || s.ipoBuy || s.ipoChoice) ? 'IPO offer — resolve in 2D view'
-      : s.pick ? 'Pick a card target in 2D view'
-      : null;
-
     sync3dBoard({
       players,
       move,
       ts: Date.now(),
-      canRoll: s.turnPhase === 'preRoll',
+      canRoll: s.phase === 'play' && s.turnPhase === 'preRoll',
       dice: s.dice as [number | null, number | null],
       bonusRoll: s.bonusRollPending ? 'earned' : (s.turnPhase === 'preRoll' && s.bonusRollUsed ? 'active' : null),
       currentPlayerIdx: s.cur,
       leaderboard,
       card,
       pendingDraw: nextDraw,
-      canEndTurn: s.turnPhase === 'acted' && !blocked(s),
+      canEndTurn: s.phase === 'play' && s.turnPhase === 'acted' && !blocked(s),
       tradeInfo,
+      actionCenter: buildActionCenter(s),
       prices,
-      blockedHint,
       drawEvent: s.lastDraw,
       deckCounts: {
         ME: s.decks.ME.length,
         FED: s.decks.FED.length,
-        AH: s.decks.AH.length,
         IPO: s.ipos.filter((ip) => !ip.revealed).length,
       },
     });

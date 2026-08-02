@@ -6,14 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { CARDS } from '../data';
 import { dispatch, patch, rng, started } from './helpers';
 
-const AH_IDX = CARDS.AH.findIndex((c) => c.title === 'Extended Hours');
+const ME_IDX = CARDS.ME.findIndex((c) => c.title === 'Extended Hours');
 
 function drawExtendedHours(s: ReturnType<typeof started>) {
   const withDraw = patch(s, (d) => {
-    d.pendingDraws = ['AH'];
-    d.decks.AH = [AH_IDX, ...d.decks.AH.filter((i) => i !== AH_IDX)];
+    d.pendingDraws = ['ME'];
+    d.decks.ME = [ME_IDX, ...d.decks.ME.filter((i) => i !== ME_IDX)];
   });
-  return dispatch(withDraw, { t: 'draw', deck: 'AH' }, rng());
+  return dispatch(withDraw, { t: 'draw', deck: 'ME' }, rng());
 }
 
 describe('Extended Hours — banking the extension', () => {

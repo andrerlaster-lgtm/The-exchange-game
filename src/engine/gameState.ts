@@ -1,6 +1,6 @@
 // Factory functions for fresh game state.
 
-import { IPO_DEFS, IPO_SUPPLY, PLAYER_COLORS, REGULAR_SUPPLY, STOCK_BY_CODE, CARDS, getActiveAfterHoursDeck, DEFAULT_PIECES } from '../data';
+import { IPO_DEFS, IPO_SUPPLY, PLAYER_COLORS, REGULAR_SUPPLY, STOCK_BY_CODE, CARDS, DEFAULT_PIECES } from '../data';
 import type { Rng } from '../utils/rng';
 import type { GameState } from './types';
 import { DEFAULT_OPTIONS } from './types';
@@ -18,9 +18,7 @@ export function buildMarketEventDeck(rng: Rng): number[] {
 
 export function freshDecks(rng: Rng): GameState['decks'] {
   const seq = (n: number) => rng.shuffle(Array.from({ length: n }, (_, i) => i));
-  const activeAH = getActiveAfterHoursDeck();
-  const ahIndices = activeAH.map(c => CARDS.AH.indexOf(c));
-  return { ME: buildMarketEventDeck(rng), FED: seq(CARDS.FED.length), AH: rng.shuffle(ahIndices) };
+  return { ME: buildMarketEventDeck(rng), FED: seq(CARDS.FED.length) };
 }
 
 export function freshIpos(): GameState['ipos'] {
@@ -56,9 +54,10 @@ export function initialState(rng: Rng): GameState {
     trade: null, pendingDraws: [], card: null, pick: null, shortPick: false,
     ipos: freshIpos(),
     ipoChoice: false, ipoListPick: false, ipoBuy: null,
-    decks: freshDecks(rng), discard: { ME: [], FED: [], AH: [] },
+    decks: freshDecks(rng), discard: { ME: [], FED: [] },
     shorts: [], closing: false, closeDrawer: null,
     extendedHoursAvailable: false, extendedRoundsLeft: 0,
+    circuitBreakerHolder: null, circuitBreakerPrompt: null,
     etfPick: null,
     marginCall: null,
     insolvency: null,

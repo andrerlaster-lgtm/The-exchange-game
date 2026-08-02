@@ -6,7 +6,7 @@
 // buy-the-whole-company-or-skip decision.
 
 import { REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, WEAK_DEMAND_THRESHOLD } from '../../data';
-import { priceOf, isWeakDemandProtected } from '../../engine';
+import { priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 
 interface Props {
@@ -37,7 +37,6 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
   const price = priceOf(s, code);
   const supply = s.supply[code] ?? 0;
   const stepDiff = (s.prices[code] ?? stock.step) - stock.step;
-  const protectedStock = isWeakDemandProtected(s, code);
   const [riskLabel, riskColor] = RISK_MAP[stock.risk] ?? ['—', '#555'];
 
   const dirColor = stepDiff > 0 ? '#1f7a44' : stepDiff < 0 ? '#c0392b' : '#8a7a68';
@@ -164,9 +163,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
           color: 'rgba(200,188,168,0.7)', cursor: 'pointer',
         }}
         onClick={() => dispatch({ t: 'skipStock', code })}>
-        Skip {protectedStock
-          ? '(🛡 protected — no weak demand)'
-          : weakCount > 0 ? `(${weakCount + 1}/${WEAK_DEMAND_THRESHOLD} — price drops next skip)` : ''}
+        Skip {weakCount > 0 ? `(${weakCount + 1}/${WEAK_DEMAND_THRESHOLD} — price drops next skip)` : ''}
       </button>
     </div>
   );

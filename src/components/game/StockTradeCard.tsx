@@ -5,7 +5,7 @@
 
 import { MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { Stock } from '../../data/types';
-import { canTradeNow, priceOf, sellBackPrice, isWeakDemandProtected } from '../../engine';
+import { canTradeNow, priceOf, sellBackPrice } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 import TradeTicket from './TradeTicket';
 
@@ -30,7 +30,6 @@ export default function StockTradeCard() {
   const weakCount = isStock && s.trade?.code ? (s.skips[s.trade.code] ?? 0) : 0;
   const canAct = actionsLeft > 0;
   const hasTradeOrIpo = !!s.trade || s.ipoListPick || !!s.ipoBuy;
-  const stockProtected = isStock && s.trade?.code ? isWeakDemandProtected(s, s.trade.code) : false;
 
   return (
     <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -51,14 +50,7 @@ export default function StockTradeCard() {
         }}>
           {isStock ? 'Buy the Company or Skip' : `${actionsLeft} action${actionsLeft !== 1 ? 's' : ''} left`}
         </span>
-        {isStock && stockProtected && (
-          <span style={{
-            fontSize: 10, padding: '1px 7px', borderRadius: 3,
-            background: 'rgba(61,213,152,0.12)', color: 'var(--green)',
-            border: '1px solid rgba(61,213,152,0.3)',
-          }}>🛡 Protected</span>
-        )}
-        {isStock && !stockProtected && weakCount > 0 && (
+        {isStock && weakCount > 0 && (
           <span style={{
             fontSize: 10, padding: '1px 7px', borderRadius: 3,
             background: 'var(--red-dim)', color: 'var(--red)',

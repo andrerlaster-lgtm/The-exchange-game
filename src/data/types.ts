@@ -9,13 +9,13 @@ export type SectorId =
   | 'tech' | 'consumer' | 'health' | 'energy'
   | 'finance' | 'realestate' | 'industrials' | 'comm';
 
-export type DeckId = 'ME' | 'FED' | 'AH';
+export type DeckId = 'ME' | 'FED';
 
 export type Volatility = 'mod' | 'high' | 'spec';
 
 export type SpaceType =
   | 'open' | 'stock' | 'event' | 'fed' | 'ipo'
-  | 'tax' | 'free' | 'short' | 'after' | 'placeholder'
+  | 'tax' | 'free' | 'short' | 'investor' | 'placeholder'
   | 'etf' | 'audit';
 
 export interface Sector {
@@ -61,6 +61,7 @@ export type Effect =
   | { k: 'pick'; d: number; label: string }
   | { k: 'cash'; amt: number }
   | { k: 'margin'; amt: number }
+  | { k: 'circuitBreaker' }
   | { k: 'extend' }
   | { k: 'close' }
   | { k: 'none' };

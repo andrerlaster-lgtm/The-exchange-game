@@ -1,7 +1,7 @@
 // Engine state + action types. State is a plain serializable object; the reducer
 // produces new state via Immer. No DOM, no React here.
 
-import type { Card, DeckId } from '../data/types';
+import type { Card, DeckId, Effect } from '../data/types';
 
 export type Phase = 'setup' | 'play' | 'over';
 export type TurnPhase = 'preRoll' | 'acted';
@@ -62,6 +62,15 @@ export interface PickContext {
   d: number;
   label: string;
   codes?: string[];   // optional restrict to these codes (UI hint)
+  protectedCodes?: string[]; // Circuit Breaker choices that ignore negative movement from this card
+  source?: 'card' | 'investor';
+}
+
+/** A negative Market Event paused before its price effect so the holder can
+    play or retain the single Circuit Breaker card. */
+export interface CircuitBreakerPrompt {
+  player: number;
+  effect: Effect;
 }
 
 export interface LogEntry {
@@ -107,7 +116,7 @@ export interface Insolvency {
 /** Most recent card draw / IPO reveal — seq is unique per draw so views can
     animate exactly once per event. */
 export interface DrawEvent {
-  deck: string;     // 'ME' | 'FED' | 'AH' | 'IPO'
+  deck: string;     // 'ME' | 'FED' | 'IPO'
   title: string;    // drawn card title or launched IPO name
   seq: number;      // monotonically increasing per draw
 }
@@ -205,6 +214,8 @@ export interface GameState {
   closeDrawer: number | null;
   extendedHoursAvailable: boolean; // an Extended Hours card was drawn and hasn't been consumed yet
   extendedRoundsLeft: number;      // rounds still owed before Market Close actually ends the game
+  circuitBreakerHolder: number | null; // player holding the single Circuit Breaker card outside its deck
+  circuitBreakerPrompt: CircuitBreakerPrompt | null; // pending play/pass response to a negative Market Event
   testMode: boolean;
   opts: GameOptions;
   etfPick: string | null;   // ETF code player landed on, awaiting buy/skip
@@ -244,6 +255,8 @@ export type Action =
   | { t: 'draw'; deck: DeckId }
   | { t: 'pickTarget'; code: string }
   | { t: 'skipPick' }
+  | { t: 'playCircuitBreaker'; code: string }
+  | { t: 'passCircuitBreaker' }
   | { t: 'callClose' }
   | { t: 'buyEtf'; code: string }
   | { t: 'skipEtf' }

@@ -1,6 +1,6 @@
 // Rule-checking functions: pure reads used to gate actions and compute payouts.
 
-import { IPO_BY_CODE, IPO_INDEX, LADDER, STOCK_BY_CODE, WEAK_DEMAND_PROTECTION_SHARES, isIpoCode } from '../data';
+import { IPO_BY_CODE, IPO_INDEX, LADDER, STOCK_BY_CODE, isIpoCode } from '../data';
 import type { GameState, IpoState } from './types';
 
 export function clampStep(x: number): number {
@@ -39,12 +39,6 @@ export function eventPool(s: GameState): Array<{ code: string; sec: string }> {
   return arr;
 }
 
-/** True once any player owns 3+ shares of a regular stock — it can no longer
-    gain Weak Demand markers or lose value from skipped purchases. */
-export function isWeakDemandProtected(s: GameState, code: string): boolean {
-  return s.players.some((p) => (p.shares[code] ?? 0) >= WEAK_DEMAND_PROTECTION_SHARES);
-}
-
 /** Whether the current player can trade right now. */
 export function canTradeNow(s: GameState): boolean {
   if (s.auction) return false; // trading is frozen while a Bank Auction is live
@@ -75,6 +69,7 @@ export function blocked(s: GameState): boolean {
   if (s.auction) return true;  // a live Bank Auction must be resolved first
   if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
   if (s.pendingDraws.length > 0) return true;
+  if (s.circuitBreakerPrompt) return true;
   if (s.pick) return true;
   if (s.ipoChoice || s.ipoListPick || s.ipoBuy) return true;
   if (s.etfPick) return true;  // ETF buy/skip prompt must be answered explicitly

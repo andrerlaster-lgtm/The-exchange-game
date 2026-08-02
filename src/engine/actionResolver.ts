@@ -9,12 +9,12 @@ import {
 import { money } from '../utils/formatMoney';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
-import { canTradeNow, canMarketSell, blocked, ipoOf, priceOf, sellBackPrice, isWeakDemandProtected } from './rules';
+import { canTradeNow, canMarketSell, blocked, ipoOf, priceOf, sellBackPrice } from './rules';
 import { freshDecks, freshIpos, resetPlayers } from './gameState';
 import { payMarketOpen } from './playerState';
 import { moveTradePrice, moveEventPrice, settleShorts } from './stockState';
 import { startLap, clearTurnState } from './turnState';
-import { applyEffect, triggerClose } from './eventCardResolver';
+import { applyEffect, beginMarketEventEffect, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
 import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayout } from './soldOut';
@@ -53,14 +53,7 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   addLog(s, `${seller.name} sells ${offer.qty}× ${offer.code} to ${buyer.name} for ${money(offer.price)} (private trade)`, 'b');
   addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name}`, offer.price, seller.name);
   if (recomputeClaim(s, offer.code)) logClaimHandover(s, offer.code);
-  clearWeakDemandIfProtected(s, offer.code);
   return true;
-}
-
-/** Ownership shifts (P2P, forced margin sale) can newly protect a stock —
-    clear its Weak Demand markers immediately, matching a market purchase. */
-function clearWeakDemandIfProtected(s: GameState, code: string): void {
-  if (s.skips[code] && isWeakDemandProtected(s, code)) s.skips[code] = 0;
 }
 
 /** Log a Payout Claim handover after ownership shifts (fires only on real changes). */
@@ -128,10 +121,24 @@ function resolveLanding(s: GameState, pi: number): void {
       s.pendingDraws.push('FED');
       addLog(s, 'The Fed — draw a Fed Rate card.', 'y');
       break;
-    case 'after':
-      s.pendingDraws.push('AH');
-      addLog(s, 'After-Hours — draw a card.', 'b');
+    case 'investor': {
+      const eligible = Object.keys(p.shares).filter((code) =>
+        !isIpoCode(code) && (p.shares[code] ?? 0) > 0 && s.prices[code] < LADDER.length - 1,
+      );
+      if (eligible.length === 0) {
+        p.cash += 500;
+        addLog(s, `${p.name} lands on Investor Day with no company able to rise — collects ${money(500)}.`, 'g');
+      } else {
+        s.pick = {
+          d: 1,
+          label: 'Investor Day — choose one company you own to move UP 1 step',
+          codes: eligible,
+          source: 'investor',
+        };
+        addLog(s, `${p.name} lands on Investor Day — choose one owned company to move up 1 step.`, 'g');
+      }
       break;
+    }
     case 'ipo': {
       if (!s.opts.ipos) { addLog(s, 'IPO space — IPOs disabled in this game.'); break; }
       const hiddenIdx = s.ipos.map((_, i) => i).filter((i) => !s.ipos[i].revealed);
@@ -245,10 +252,11 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         s.supply[st.code] = REGULAR_SUPPLY;
       }
       s.skips = {}; s.soldOut = {}; s.bankPool = {}; s.lap = 1; s.log = []; s.tradeLog = []; s.feeLog = [];
-      s.decks = freshDecks(rng); s.discard = { ME: [], FED: [], AH: [] };
+      s.decks = freshDecks(rng); s.discard = { ME: [], FED: [] };
       s.ipos = freshIpos();
       s.shorts = []; s.closing = false; s.closeDrawer = null; s.etfPick = null;
       s.extendedHoursAvailable = false; s.extendedRoundsLeft = 0;
+      s.circuitBreakerHolder = null; s.circuitBreakerPrompt = null;
       s.lastDraw = null;
       s.p2pOffers = []; s.p2pSeq = 0;
       s.auction = null; s.auctionQueue = []; s.marketOpenWindow = false;
@@ -352,17 +360,12 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const t = s.trade;
       if (!t || t.scope !== 'stock' || t.code !== code) break;
       if ((s.supply[code] || 0) > 0) {
-        if (isWeakDemandProtected(s, code)) {
-          if (s.skips[code]) s.skips[code] = 0;
-          addLog(s, `${s.players[s.cur].name} skips ${code} — protected from Weak Demand (3+ shares held).`);
-        } else {
-          s.skips[code] = (s.skips[code] || 0) + 1;
-          addLog(s, `${s.players[s.cur].name} skips ${code} — weak-demand marker ${s.skips[code]}/${WEAK_DEMAND_THRESHOLD}.`, 'r');
-          if (s.skips[code] >= WEAK_DEMAND_THRESHOLD) {
-            moveTradePrice(s, code, -1);
-            s.skips[code] = 0;
-            addLog(s, `Weak demand: ${code} drops 1 step (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
-          }
+        s.skips[code] = (s.skips[code] || 0) + 1;
+        addLog(s, `${s.players[s.cur].name} skips ${code} — weak-demand marker ${s.skips[code]}/${WEAK_DEMAND_THRESHOLD}.`, 'r');
+        if (s.skips[code] >= WEAK_DEMAND_THRESHOLD) {
+          moveTradePrice(s, code, -1);
+          s.skips[code] = 0;
+          addLog(s, `Weak demand: ${code} drops 1 step (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
         }
       } else {
         addLog(s, `${code} is sold out — no marker added.`);
@@ -547,27 +550,42 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // in drawn order would repeat the exact same card sequence.
       if (s.decks[deck].length === 0) { s.decks[deck] = rng.shuffle(s.discard[deck]); s.discard[deck] = []; }
       const idx = s.decks[deck].shift()!;
-      s.discard[deck].push(idx);
       const c = CARDS[deck][idx];
+      // Circuit Breaker physically leaves the Market Event deck while held. It
+      // returns to that discard pile only after the holder plays it.
+      if (c.eff.k !== 'circuitBreaker') s.discard[deck].push(idx);
       s.card = c;
       s.pendingDraws.shift();
       s.lastDraw = { deck, title: c.title, seq: (s.lastDraw?.seq ?? 0) + 1 };
       // NOTE: do NOT clear s.trade here. A player can owe a forced draw (e.g. from
-      // landing on The Fed / After-Hours / Market Event) while also holding a trade
+      // landing on The Fed / Market Event) while also holding a trade
       // interaction; clearing trade would silently strip their landing trade.
       addLog(s, `Drew ${DECK_META[deck].label}: ${c.title}`, deck === 'ME' ? 'r' : deck === 'FED' ? 'y' : 'b');
-      applyEffect(s, c.eff);
+      if (deck === 'ME') beginMarketEventEffect(s, c.eff);
+      else applyEffect(s, c.eff);
       break;
     }
     case 'pickTarget': {
       if (!s.pick) break;
-      moveEventPrice(s, action.code, s.pick.d);
-      addLog(s, `${action.code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
+      if (s.pick.codes && !s.pick.codes.includes(action.code)) break;
+      if (s.pick.d < 0 && s.pick.protectedCodes?.includes(action.code)) {
+        addLog(s, `Circuit Breaker shields ${action.code} from this card's price drop.`, 'g');
+      } else {
+        if (s.pick.source === 'investor') moveTradePrice(s, action.code, s.pick.d);
+        else moveEventPrice(s, action.code, s.pick.d);
+        addLog(s, `${action.code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
+      }
       s.pick = null;
       break;
     }
     case 'skipPick':
       s.pick = null;
+      break;
+    case 'playCircuitBreaker':
+      resolveCircuitBreaker(s, action.code);
+      break;
+    case 'passCircuitBreaker':
+      resolveCircuitBreaker(s, null);
       break;
 
     // ---- ETF ----

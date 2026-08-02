@@ -46,7 +46,7 @@ describe('Rule 9 — Diversified Portfolio status', () => {
     expect(isDiversified(s, s.players[0])).toBe(false);
   });
 
-  it('diversified player gets crash protection pick when a crash card fires', () => {
+  it('diversification does not automatically protect a stock during a crash', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.players[0].shares = { SAFE: 11, MTRO: 11, FTRB: 11 };
@@ -61,22 +61,8 @@ describe('Rule 9 — Diversified Portfolio status', () => {
       d.decks.ME = [crashIdx, ...d.decks.ME.filter((i) => i !== crashIdx)];
     });
     s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());
-    expect(s.pick).not.toBeNull();
-    expect(s.pick!.d).toBe(1);
-    expect(s.pick!.codes).toBeDefined();
-  });
-
-  it('non-diversified player gets no crash protection pick', () => {
-    let s = started(2);
-    s = patch(s, (d) => { d.players[0].shares = { SAFE: 1 }; }); // only 1 sector
-    s = patch(s, (d) => {
-      d.turnPhase = 'acted';
-      d.pendingDraws = ['ME'];
-      const crashIdx = 15;
-      d.decks.ME = [crashIdx, ...d.decks.ME.filter((i) => i !== crashIdx)];
-    });
-    s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());
     expect(s.pick).toBeNull();
+    expect(s.prices.SAFE).toBe(STOCK_BY_CODE.SAFE.step - 2);
   });
 });
 

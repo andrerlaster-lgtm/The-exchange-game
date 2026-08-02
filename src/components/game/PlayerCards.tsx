@@ -57,6 +57,11 @@ export default function PlayerCards() {
               background: 'rgba(34,197,94,0.12)', padding: '1px 5px',
               borderRadius: 3, border: '1px solid rgba(34,197,94,0.25)',
             }}>DIV</span>}
+            {s.circuitBreakerHolder === i && <span title="Circuit Breaker — may protect one owned company from a negative Market Event" style={{
+              fontSize: 9, color: 'var(--gold)', fontWeight: 800,
+              background: 'rgba(212,165,53,0.12)', padding: '1px 5px',
+              borderRadius: 3, border: '1px solid rgba(212,165,53,0.28)',
+            }}>⚡ CB</span>}
             <span className="mono" style={{
               fontSize: active ? 12 : 11,
               color: active ? 'var(--green)' : 'var(--muted)',

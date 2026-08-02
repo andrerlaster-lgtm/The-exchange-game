@@ -30,7 +30,6 @@ export default function App() {
   }, []);
 
   if (s.phase === 'setup') return <SetupScreen />;
-  if (s.phase === 'over') return <GameOver />;
 
   return (
     <>
@@ -68,7 +67,7 @@ export default function App() {
       </div>
 
       {/* 2D view — unmount when 3D is active (all game state lives in Zustand) */}
-      {view === '2d' && <GameScreen />}
+      {view === '2d' && (s.phase === 'over' ? <GameOver /> : <GameScreen />)}
 
       {/* 3D view — lazy-mounted on first switch, kept alive to preserve camera */}
       {has3DLoaded && (

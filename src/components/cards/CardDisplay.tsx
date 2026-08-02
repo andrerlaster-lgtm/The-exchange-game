@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { LADDER, STOCK_BY_CODE, STOCKS, isIpoCode } from '../../data';
-import { priceOf } from '../../engine';
+import { IPO_BY_CODE, STOCK_BY_CODE, STOCKS, isIpoCode } from '../../data';
+import { circuitBreakerOptions, priceOf } from '../../engine';
 import type { Action } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -75,11 +75,11 @@ export default function CardDisplay() {
   const deckId = s.card.deck;
   const isStrategyOnly = s.card.strategyOnly === true;
   // Deck colors mirror the 3D board's DECK_COLORS (strategy cards go grey there too)
-  const baseColor = deckId === 'ME' ? '#ef4444' : deckId === 'FED' ? '#d4a535' : '#a78bfa';
+  const baseColor = deckId === 'ME' ? '#ef4444' : '#d4a535';
   const deckColorHex = isStrategyOnly ? '#666666' : baseColor;
-  const deckLabel  = deckId === 'ME' ? 'MARKET EVENT' : deckId === 'FED' ? 'THE FED' : 'AFTER-HOURS';
-  const deckIcon   = deckId === 'ME' ? '📈' : deckId === 'FED' ? '🏛️' : '🌙';
-  const deckSymbol = deckId === 'ME' ? '📊' : deckId === 'FED' ? '🏦' : '🏙️';
+  const deckLabel  = deckId === 'ME' ? 'MARKET EVENT' : 'THE FED';
+  const deckIcon   = deckId === 'ME' ? '📈' : '🏛️';
+  const deckSymbol = deckId === 'ME' ? '📊' : '🏦';
 
   if (phase === 'back') {
     // Face-down back — mirrors the 3D .card3d-back
@@ -169,8 +169,12 @@ export default function CardDisplay() {
         )}
       </div>
 
+      {s.circuitBreakerPrompt && (
+        <CircuitBreakerDecision s={s} dispatch={dispatch} />
+      )}
+
       {/* Pick target */}
-      {s.pick && !isStrategyOnly && (
+      {s.pick && s.pick.source !== 'investor' && !isStrategyOnly && (
         <div style={{ padding: '0 10px 10px' }}>
           <PickTarget
             label={s.pick.label}
@@ -192,6 +196,48 @@ export default function CardDisplay() {
   );
 }
 
+function CircuitBreakerDecision({ s, dispatch }: {
+  s: ReturnType<typeof useGameState>;
+  dispatch: (a: Action) => void;
+}) {
+  const prompt = s.circuitBreakerPrompt!;
+  const holder = s.players[prompt.player];
+  const options = circuitBreakerOptions(s);
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      margin: '0 10px 10px', padding: 10, borderRadius: 7,
+      background: 'rgba(212,165,53,0.10)',
+      border: '1px solid rgba(212,165,53,0.38)',
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--gold)' }}>
+        ⚡ {holder.name} holds Circuit Breaker
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45 }}>
+        Protect one affected company you own from this card’s entire price drop, or keep the card for later.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {options.map((code) => {
+          const name = isIpoCode(code) ? (IPO_BY_CODE[code]?.name ?? code) : (STOCK_BY_CODE[code]?.name ?? code);
+          return (
+            <button key={code}
+              style={{ fontSize: 11, padding: '5px 9px' }}
+              title={`Protect ${name}`}
+              onClick={() => dispatch({ t: 'playCircuitBreaker', code })}>
+              Protect {code}
+            </button>
+          );
+        })}
+      </div>
+      <button style={{ alignSelf: 'flex-start', fontSize: 11 }}
+        onClick={() => dispatch({ t: 'passCircuitBreaker' })}>
+        Keep Card for Later
+      </button>
+    </div>
+  );
+}
+
 function PickTarget({ label, codes, d, s, dispatch }: {
   label: string;
   codes?: string[];
@@ -199,9 +245,6 @@ function PickTarget({ label, codes, d, s, dispatch }: {
   s: ReturnType<typeof useGameState>;
   dispatch: (a: Action) => void;
 }) {
-  const isCrashProtection = d > 0 && codes != null;
-  const curPlayer = s.players[s.cur];
-
   // Determine which stocks to show.
   const pickable = codes
     ? codes.map((c) => ({ code: c, name: isIpoCode(c) ? c : (STOCK_BY_CODE[c]?.name ?? c) }))
@@ -211,14 +254,9 @@ function PickTarget({ label, codes, d, s, dispatch }: {
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 8,
       padding: 10, borderRadius: 6,
-      background: isCrashProtection ? 'rgba(34,197,94,0.08)' : 'rgba(201,162,79,0.08)',
-      border: `1px solid ${isCrashProtection ? 'rgba(34,197,94,0.3)' : 'rgba(201,162,79,0.3)'}`,
+      background: 'rgba(201,162,79,0.08)',
+      border: '1px solid rgba(201,162,79,0.3)',
     }}>
-      {isCrashProtection && (
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)' }}>
-          🛡 {curPlayer.name}'s Diversified Portfolio Protection
-        </div>
-      )}
       <div style={{ fontSize: 11, color: 'var(--muted)' }}>{label}</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {pickable.map(({ code, name }) => {
@@ -229,11 +267,7 @@ function PickTarget({ label, codes, d, s, dispatch }: {
               title={name}
               onClick={() => dispatch({ t: 'pickTarget', code })}>
               <span>{code}</span>
-              {price != null && isCrashProtection && (
-                <span style={{ fontSize: 9, color: 'var(--muted)' }}>
-                  ${LADDER[Math.min(11, s.prices[code] + 1)]?.toLocaleString()}
-                </span>
-              )}
+              {price != null && <span style={{ fontSize: 9, color: 'var(--muted)' }}>${price.toLocaleString()}</span>}
             </button>
           );
         })}
@@ -241,7 +275,7 @@ function PickTarget({ label, codes, d, s, dispatch }: {
       <button
         style={{ alignSelf: 'flex-start', fontSize: 11 }}
         onClick={() => dispatch({ t: 'skipPick' })}>
-        {isCrashProtection ? 'Skip Protection' : 'Skip'}
+        Skip
       </button>
     </div>
   );

@@ -1,6 +1,6 @@
 // Market Open is payday only; Market Event draws come solely from landing on
 // space 19. These tests pin that separation and confirm a forced draw from a
-// draw-space (Fed/After-Hours/Market Event) never strips a concurrent trade.
+// draw-space (Fed/Market Event) never strips a concurrent trade.
 
 import { describe, expect, it } from 'vitest';
 import { SPACES } from '../data';

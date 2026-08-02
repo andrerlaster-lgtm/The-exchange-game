@@ -1,10 +1,6 @@
-// Phase 6: Protected Weak Demand — 2-marker threshold, immune once any player
-// holds 3+ shares of that stock, and markers clear on any ownership change
-// that grants protection (not just a market purchase).
+// Weak Demand — 2-marker threshold with no automatic ownership protection.
 
 import { describe, expect, it } from 'vitest';
-import { WEAK_DEMAND_PROTECTION_SHARES } from '../data';
-import { isWeakDemandProtected } from '../engine';
 import { dispatch, patch, rng, started } from './helpers';
 
 describe('Weak Demand markers — 2-marker threshold', () => {
@@ -58,26 +54,18 @@ describe('Weak Demand markers — 2-marker threshold', () => {
   });
 });
 
-describe('Protected Weak Demand — immune once any player holds 3+ shares', () => {
-  it('isWeakDemandProtected is true once a player owns 3 shares, false below that', () => {
+describe('Weak Demand — ownership grants no automatic protection', () => {
+  it('a large holding does not stop skips from lowering an untouched company', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].shares.MEDI = WEAK_DEMAND_PROTECTION_SHARES; });
-    expect(isWeakDemandProtected(s, 'MEDI')).toBe(true);
-    s = patch(s, (d) => { d.players[0].shares.MEDI = WEAK_DEMAND_PROTECTION_SHARES - 1; });
-    expect(isWeakDemandProtected(s, 'MEDI')).toBe(false);
-  });
-
-  it('a protected stock gains no marker on skip, even repeatedly', () => {
-    let s = started(2);
-    s = patch(s, (d) => { d.players[1].shares.MEDI = WEAK_DEMAND_PROTECTION_SHARES; });
+    s = patch(s, (d) => { d.players[1].shares.MEDI = 11; });
     const base = s.prices.MEDI;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 2; i++) {
       s = patch(s, (d) => { d.cur = 0; d.turnPhase = 'acted'; d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
       s = dispatch(s, { t: 'skipStock', code: 'MEDI' }, rng());
     }
     expect(s.skips.MEDI ?? 0).toBe(0);
-    expect(s.prices.MEDI).toBe(base);
-    expect(s.log.some((l) => /protected/i.test(l.text))).toBe(true);
+    expect(s.prices.MEDI).toBe(base - 1);
+    expect(s.log.some((l) => /protected/i.test(l.text))).toBe(false);
   });
 
   it('an existing marker is cleared immediately by any purchase of that stock', () => {
@@ -91,18 +79,17 @@ describe('Protected Weak Demand — immune once any player holds 3+ shares', () 
     expect(s.skips.MEDI ?? 0).toBe(0);
   });
 
-  it('an existing marker is cleared when a P2P trade newly protects the stock', () => {
+  it('a P2P ownership change does not clear an existing marker', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.skips.MEDI = 1;
-      d.players[0].shares.MEDI = WEAK_DEMAND_PROTECTION_SHARES - 1; // 1 short of protection
+      d.players[0].shares.MEDI = 2;
       d.players[1].shares.MEDI = 1;
     });
     s = dispatch(s, { t: 'proposeP2POffer', from: 1, to: 0, code: 'MEDI', qty: 1, direction: 'sell', price: 100 }, rng());
     const id = s.p2pOffers[0].id;
     s = dispatch(s, { t: 'acceptP2POffer', id }, rng());
-    expect(s.players[0].shares.MEDI).toBe(WEAK_DEMAND_PROTECTION_SHARES);
-    expect(isWeakDemandProtected(s, 'MEDI')).toBe(true);
-    expect(s.skips.MEDI ?? 0).toBe(0);
+    expect(s.players[0].shares.MEDI).toBe(3);
+    expect(s.skips.MEDI).toBe(1);
   });
 });
