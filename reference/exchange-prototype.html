@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE EXCHANGE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #070A11; }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #2A3340; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  @keyframes pop { 0%{transform:scale(0.6);opacity:0} 60%{transform:scale(1.12)} 100%{transform:scale(1);opacity:1} }
+  @keyframes glowpulse { 0%,100%{box-shadow:0 0 0 0 rgba(62,213,152,0.0)} 50%{box-shadow:0 0 0 4px rgba(62,213,152,0.25)} }
+  @keyframes flash { 0%{background:rgba(62,213,152,0.18)} 100%{background:transparent} }
+  input { font-family:'IBM Plex Mono',monospace; }
+  button { font-family:'Space Grotesk',sans-serif; cursor:pointer; }
+  button:disabled { cursor:not-allowed; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+
+/* ============================================================================
+   THE EXCHANGE — standalone hot-seat board-game prototype.
+   Ported from the Claude Design prototype (The Exchange Game.dc.html).
+   No framework, no build step, local state only. All game logic lives in the
+   Component class below; the render() method rebuilds the DOM from state.
+   ========================================================================== */
+
+class Component {
+  constructor(rootEl) {
+    this.root = rootEl;
+    this._handlers = {};   // id -> click handler
+    this._inputs = {};     // id -> input handler
+    this._hid = 0;
+
+    this.D = this.buildData();
+    const prices = {}; this.D.STOCKS.forEach(s => { prices[s.code] = s.step; });
+    const supply = {}; this.D.STOCKS.forEach(s => { supply[s.code] = 10; });
+    this.state = {
+      phase: 'setup',
+      numPlayers: 4,
+      names: ['Morgan', 'Riley', 'Avery', 'Quinn', 'Sage', 'Devon'],
+      players: [],
+      cur: 0,
+      turnPhase: 'preRoll',          // preRoll | acted
+      dice: [null, null],
+      rolling: false,
+      prices: prices,
+      supply: supply,
+      skips: {},                      // { code: [playerIdx,...] }  distinct skippers
+      skipDropped: {},                // { code: true } dropped from skips this round
+      lap: 1,
+      log: [],
+      trade: null,                    // {scope:'stock'|'one', code?, used:false}
+      pendingDraw: null,              // 'ME' | 'FED' | 'AH'
+      card: null,
+      pick: null,                     // {d, label}
+      shortPick: false,
+      ipos: this.buildIpos(),
+      ipoChoice: false,
+      ipoListPick: false,
+      ipoBuy: null,                   // {code, max, bought, price, mode}
+      decks: this.initDecks(),
+      discard: { ME: [], FED: [], AH: [] },
+      shorts: [],                     // {owner, ownerName, pcolor, code, entryStep}
+      closing: false,
+      closeDrawer: null,
+      testMode: false
+    };
+
+    // Delegated event listeners — handlers are re-registered each render.
+    this.root.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-h]');
+      if (!t || t.disabled) return;
+      const fn = this._handlers[t.getAttribute('data-h')];
+      if (fn) fn(e);
+    });
+    this.root.addEventListener('input', (e) => {
+      const t = e.target.closest('[data-i]');
+      if (!t) return;
+      const fn = this._inputs[t.getAttribute('data-i')];
+      if (fn) fn(e);
+    });
+
+    this.render();
+  }
+
+  // re-render driver (replaces the framework's reactive setState)
+  setState(updater) { this.state = updater(this.state); this.render(); }
+
+  // ----------------------------------------------------------------- data
+  buildData() {
+    const SEC = {
+      tech:        { color: '#4DA3FF', glyph: '◆' },
+      consumer:    { color: '#F0C53D', glyph: '●' },
+      health:      { color: '#2DD4BF', glyph: '✚' },
+      energy:      { color: '#FF9442', glyph: '▲' },
+      finance:     { color: '#3ED598', glyph: '■' },
+      realestate:  { color: '#A78BFA', glyph: '⌂' },
+      industrials: { color: '#9AA5B1', glyph: '▮' },
+      comm:        { color: '#F87171', glyph: '▶' }
+    };
+    const SECNAME = { tech: 'Technology', consumer: 'Consumer', health: 'Healthcare', energy: 'Energy', finance: 'Finance', realestate: 'Real Estate', industrials: 'Industrials', comm: 'Comms/Media' };
+    const LADDER = [100, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000, 4000, 5000];
+    const RAW = [
+      [2, 'CloudCore AI', 'tech', 1000, 'High', 'CCAI'],
+      [3, 'SafeMart Stores', 'consumer', 500, 'Low', 'SAFE'],
+      [5, 'MediCore Health', 'health', 750, 'Med', 'MEDI'],
+      [6, 'OilWorks Energy', 'energy', 1000, 'Med', 'OILW'],
+      [8, 'FirstTrust Bank', 'finance', 1250, 'Low', 'FTRB'],
+      [9, 'MetroHomes REIT', 'realestate', 1000, 'Low', 'MTRO'],
+      [11, 'IronRail Logistics', 'industrials', 750, 'Low', 'IRON'],
+      [12, 'StreamWave Media', 'comm', 1000, 'High', 'STRM'],
+      [14, 'CyberShield Systems', 'tech', 750, 'High', 'CYBS'],
+      [15, 'FreshBite Foods', 'consumer', 250, 'Low', 'FRSH'],
+      [17, 'BioQuest Labs', 'health', 1000, 'High', 'BIOQ'],
+      [18, 'SolarGrid Power', 'energy', 750, 'High', 'SOLR'],
+      [20, 'PayWave Credit', 'finance', 750, 'Med', 'PAYW'],
+      [21, 'TowerPoint Realty', 'realestate', 1250, 'Med', 'TWPT'],
+      [23, 'BuildMax Materials', 'industrials', 500, 'Med', 'BLDM'],
+      [24, 'SignalOne Wireless', 'comm', 750, 'Low', 'SGNL'],
+      [26, 'PhonePeak', 'tech', 1250, 'Med', 'PHPK'],
+      [27, 'SneakerStreet', 'consumer', 750, 'Med', 'SNKR'],
+      [29, 'CarePlus Clinics', 'health', 500, 'Low', 'CARE'],
+      [30, 'BatteryBridge', 'energy', 500, 'High', 'BATB'],
+      [32, 'Apex Investments', 'finance', 1500, 'High', 'APEX'],
+      [33, 'RentWell Properties', 'realestate', 750, 'Low', 'RENT'],
+      [35, 'AeroLift Manufacturing', 'industrials', 1000, 'Med', 'AERO'],
+      [36, 'GameBox Studios', 'comm', 500, 'High', 'GMBX']
+    ];
+    // printed dividend per share (placeholder scale by risk; see notes)
+    const DIV = { Low: 100, Med: 50, High: 0 };
+    const STOCKS = RAW.map(r => ({
+      space: r[0], name: r[1], sec: r[2], base: r[3], risk: r[4], code: r[5],
+      step: LADDER.indexOf(r[3]), color: SEC[r[2]].color, div: DIV[r[4]]
+    }));
+    const byCode = {}; STOCKS.forEach(s => { byCode[s.code] = s; });
+    const bySpace = {}; STOCKS.forEach(s => { bySpace[s.space] = s; });
+
+    // IPO listings (rule 5)
+    const IPOS = [
+      ['NDRV', 'NovaDrive EV', 'tech', 500, 0, 'spec'],
+      ['QCRT', 'QuickCart Delivery', 'consumer', 250, 0, 'high'],
+      ['GNSP', 'GeneSpark Labs', 'health', 750, 0, 'spec'],
+      ['SRSH', 'SolarRush Energy', 'energy', 500, 0, 'high'],
+      ['BBPY', 'BlockBridge Pay', 'finance', 500, 0, 'high'],
+      ['RNST', 'RentNest Homes', 'realestate', 750, 50, 'mod'],
+      ['DRNH', 'DroneHaul Systems', 'industrials', 500, 0, 'high'],
+      ['SFRG', 'StreamForge Media', 'comm', 500, 0, 'mod']
+    ];
+    const ipoData = {}, IPOCODES = {}, ipoIndex = {};
+    IPOS.forEach((r, i) => {
+      ipoData[r[0]] = { code: r[0], name: r[1], sec: r[2], start: r[3], div: r[4], vol: r[5], color: SEC[r[2]].color };
+      IPOCODES[r[0]] = true; ipoIndex[r[0]] = i;
+    });
+
+    // 36 spaces
+    const SPECW = {
+      1: ['open', 'MARKET OPEN', '▲', '#3ED598'],
+      4: ['event', 'MARKET EVENT', '◈', '#FF5C5C'],
+      7: ['fed', 'THE FED', '%', '#E8B44C'],
+      10: ['ipo', 'IPO', '↑', '#3ED598'],
+      13: ['event', 'MARKET EVENT', '◈', '#FF5C5C'],
+      16: ['tax', 'TAX FILING', '$', '#9AA5B1'],
+      19: ['free', 'FREE TRADING DAY', '⇄', '#3ED598'],
+      22: ['event', 'MARKET EVENT', '◈', '#FF5C5C'],
+      25: ['short', 'SHORT SELL', '▼', '#FF5C5C'],
+      28: ['fed', 'THE FED', '%', '#E8B44C'],
+      31: ['after', 'AFTER-HOURS', '☾', '#9FB4FF'],
+      34: ['event', 'MARKET EVENT', '◈', '#FF5C5C']
+    };
+    const corners = { 1: 1, 10: 1, 19: 1, 28: 1 };
+    const SPACES = [];
+    for (let n = 1; n <= 36; n++) {
+      if (bySpace[n]) SPACES.push({ n: n, type: 'stock', code: bySpace[n].code });
+      else { const w = SPECW[n]; SPACES.push({ n: n, type: w[0], name: w[1], glyph: w[2], color: w[3], corner: !!corners[n] }); }
+    }
+
+    const PCOLORS = ['#3ED598', '#4DA3FF', '#F0C53D', '#FF5C5C', '#A78BFA', '#2DD4BF'];
+
+    const mk = (deck, title, story, effect, eff) => ({ deck, title, story, effect, eff });
+    const CARDS = {
+      ME: [
+        mk('ME', 'Tech Earnings High', 'AI and cloud demand beat forecasts across the sector.', 'All Technology stocks move UP 1 step.', { k: 'sector', sec: 'tech', d: 1 }),
+        mk('ME', 'Tech Earnings Low', 'Customers slow software and cloud spending.', 'All Technology stocks move DOWN 1 step.', { k: 'sector', sec: 'tech', d: -1 }),
+        mk('ME', 'Finance Rally', 'Banks report stronger lending income.', 'All Finance stocks move UP 1 step.', { k: 'sector', sec: 'finance', d: 1 }),
+        mk('ME', 'Energy Crash', 'Fuel prices soften while costs stay high.', 'All Energy stocks move DOWN 1 step.', { k: 'sector', sec: 'energy', d: -1 }),
+        mk('ME', 'Healthcare Beat', 'Medical demand stays steady and margins improve.', 'All Healthcare stocks move UP 1 step.', { k: 'sector', sec: 'health', d: 1 }),
+        mk('ME', 'Consumer Slump', 'Households cut back on nonessential spending.', 'All Consumer stocks move DOWN 1 step.', { k: 'sector', sec: 'consumer', d: -1 }),
+        mk('ME', 'Bull Run', 'Investors rush back in after strong economic news.', 'Every stock moves UP 1 step.', { k: 'all', d: 1 }),
+        mk('ME', 'Market Pullback', 'Investors take profits after a long run-up.', 'Every stock moves DOWN 1 step. (Bear Market)', { k: 'all', d: -1, crash: true }),
+        mk('ME', 'Earnings Beat', 'One company crushes its sales and profit targets.', 'Choose a company — it moves UP 2 steps.', { k: 'pick', d: 2, label: 'Choose a company to move UP 2 steps' }),
+        mk('ME', 'Earnings Miss', 'One company badly misses expectations.', 'Choose a company — it moves DOWN 2 steps.', { k: 'pick', d: -2, label: 'Choose a company to move DOWN 2 steps' }),
+        mk('ME', 'Short Squeeze', 'Traders betting against the cheapest stock scramble to cover.', 'The lowest-priced company moves UP 2 steps.', { k: 'lowest', d: 2 }),
+        mk('ME', 'Bad Press', 'Negative headlines hit the market leader.', 'The highest-priced company moves DOWN 1 step.', { k: 'highest', d: -1 }),
+        mk('ME', 'Safety Rally', 'Investors move into stable names amid uncertainty.', 'All Low-Risk stocks move UP 1 step.', { k: 'risk', risk: 'Low', d: 1 }),
+        mk('ME', 'Speculation Surge', 'Traders pile into risky names chasing upside.', 'All High-Risk stocks move UP 1 step.', { k: 'risk', risk: 'High', d: 1 }),
+        mk('ME', 'Speculation Selloff', 'Fear drives investors out of risky names.', 'All High-Risk stocks move DOWN 1 step.', { k: 'risk', risk: 'High', d: -1 }),
+        mk('ME', 'Flash Crash', 'Selling hits fast before buyers respond.', 'Every stock moves DOWN 2 steps. (Market Crash)', { k: 'all', d: -2, crash: true }),
+        mk('ME', 'Melt-Up Rally', 'Momentum buyers chase the whole market higher.', 'Every stock moves UP 2 steps.', { k: 'all', d: 2 }),
+        mk('ME', 'Market Close', 'The closing bell rings across the exchange.', 'The game ends now — unless a player holds Extended Hours.', { k: 'close' })
+      ],
+      FED: [
+        mk('FED', 'Rate Hike', 'The Fed raises rates to fight inflation.', 'Finance UP 1 step · Real Estate DOWN 1 step.', { k: 'multi', m: [{ sec: 'finance', d: 1 }, { sec: 'realestate', d: -1 }] }),
+        mk('FED', 'Rate Cut', 'The Fed lowers rates to support spending.', 'Real Estate UP 1 step · High-Risk UP 1 step.', { k: 'multi', m: [{ sec: 'realestate', d: 1 }, { risk: 'High', d: 1 }] }),
+        mk('FED', 'Rate Hold', 'The Fed waits for more data.', 'No price movement this turn.', { k: 'none' }),
+        mk('FED', 'Inflation Warning', 'The Fed signals policy may stay tight.', 'Consumer DOWN 1 step · High-Risk DOWN 1 step.', { k: 'multi', m: [{ sec: 'consumer', d: -1 }, { risk: 'High', d: -1 }] }),
+        mk('FED', 'Soft Landing Hopes', 'Investors believe inflation is cooling without a recession.', 'All Medium-Risk stocks move UP 1 step.', { k: 'risk', risk: 'Med', d: 1 }),
+        mk('FED', 'Tight Money', 'Credit conditions get stricter.', 'All High-Risk stocks move DOWN 1 step.', { k: 'risk', risk: 'High', d: -1 }),
+        mk('FED', 'Easy Money', 'Borrowing conditions improve.', 'All High-Risk stocks move UP 1 step.', { k: 'risk', risk: 'High', d: 1 }),
+        mk('FED', 'Mortgage Pressure', 'Higher borrowing costs hit property demand.', 'Real Estate DOWN 1 step · Finance UP 1 step.', { k: 'multi', m: [{ sec: 'realestate', d: -1 }, { sec: 'finance', d: 1 }] }),
+        mk('FED', 'Bank Margin Boost', 'Lending income improves faster than funding costs.', 'All Finance stocks move UP 1 step.', { k: 'sector', sec: 'finance', d: 1 }),
+        mk('FED', 'Credit Stress', 'Investors worry debt is harder to repay.', 'Finance DOWN 1 step · Consumer DOWN 1 step.', { k: 'multi', m: [{ sec: 'finance', d: -1 }, { sec: 'consumer', d: -1 }] }),
+        mk('FED', 'Bond Yields Rise', 'Safer income investments get more attractive.', 'All High-Risk stocks move DOWN 1 step.', { k: 'risk', risk: 'High', d: -1 }),
+        mk('FED', 'Risk-On Rally', 'Investors expect future cuts and chase growth.', 'Technology UP 1 step · Consumer UP 1 step.', { k: 'multi', m: [{ sec: 'tech', d: 1 }, { sec: 'consumer', d: 1 }] })
+      ],
+      AH: [
+        mk('AH', 'Insider Tip', 'A whisper reaches you before the market reacts.', 'Peek at the market — no price change.', { k: 'none' }),
+        mk('AH', 'Late Earnings Beat', 'A company reports strong results after the bell.', 'Choose a company — it moves UP 2 steps.', { k: 'pick', d: 2, label: 'Choose a company to move UP 2 steps' }),
+        mk('AH', 'Late Earnings Miss', 'A company reports weak results after the bell.', 'Choose a company — it moves DOWN 2 steps.', { k: 'pick', d: -2, label: 'Choose a company to move DOWN 2 steps' }),
+        mk('AH', 'Margin Call', 'The desk demands cash from borrowers.', 'Every player with a loan pays $500 now.', { k: 'margin', amt: 500 }),
+        mk('AH', 'Extended Hours', 'Trading stays open past the bell.', 'Keep this — if Market Close is drawn, the table gets one final round.', { k: 'extend' }),
+        mk('AH', 'Thin Liquidity', 'Few buyers and sellers are active.', 'No price movement this turn.', { k: 'none' }),
+        mk('AH', 'Price Whipsaw', 'Small orders swing one stock around.', 'Choose a company — it moves DOWN 1 step.', { k: 'pick', d: -1, label: 'Choose a company to move DOWN 1 step' }),
+        mk('AH', 'Forced Cover', 'Short sellers rush to buy back the cheapest name.', 'The lowest-priced company moves UP 1 step.', { k: 'lowest', d: 1 }),
+        mk('AH', 'No Fill', 'Your order sits open with no taker.', 'Nothing happens. End your turn.', { k: 'none' }),
+        mk('AH', 'Late Tape Leak', 'A headline hits before most investors notice.', 'Peek at the market — no price change.', { k: 'none' }),
+        mk('AH', 'Wide Spread', 'The gap between buyers and sellers widens.', 'No price movement this turn.', { k: 'none' }),
+        mk('AH', 'Cash Cushion', 'Holding cash gives you flexibility.', 'Collect $1,000.', { k: 'cash', amt: 1000 })
+      ]
+    };
+    const DECKMETA = {
+      ME: { label: 'MARKET EVENT', glyph: '◈', color: '#FF5C5C', tint: 'rgba(255,92,92,0.10)', line: 'rgba(255,92,92,0.30)', effBg: 'rgba(255,92,92,0.08)' },
+      FED: { label: 'FED RATE', glyph: '%', color: '#E8B44C', tint: 'rgba(232,180,76,0.10)', line: 'rgba(232,180,76,0.30)', effBg: 'rgba(232,180,76,0.08)' },
+      AH: { label: 'AFTER-HOURS', glyph: '☾', color: '#9FB4FF', tint: 'rgba(159,180,255,0.10)', line: 'rgba(159,180,255,0.30)', effBg: 'rgba(159,180,255,0.08)' }
+    };
+    const VOLNAME = { mod: 'Moderate', high: 'High-Vol', spec: 'Speculative' };
+
+    return { SEC, SECNAME, LADDER, STOCKS, byCode, bySpace, SPACES, PCOLORS, CARDS, DECKMETA,
+      IPOS, ipoData, IPOCODES, ipoIndex, VOLNAME,
+      SALARY: 500, START: 10000, TAX: 0.10, LOAN: 2000 };
+  }
+
+  buildIpos() {
+    const L = [100, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000, 4000, 5000];
+    const IPOS = [
+      ['NDRV', 500], ['QCRT', 250], ['GNSP', 750], ['SRSH', 500],
+      ['BBPY', 500], ['RNST', 750], ['DRNH', 500], ['SFRG', 500]
+    ];
+    return IPOS.map(r => ({ code: r[0], startStep: L.indexOf(r[1]), step: L.indexOf(r[1]), supply: 5, revealed: false }));
+  }
+
+  initDecks() {
+    const sh = (n) => { const a = []; for (let i = 0; i < n; i++) a.push(i); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; };
+    return { ME: sh(18), FED: sh(12), AH: sh(12) };
+  }
+
+  // ----------------------------------------------------------------- helpers
+  money(v) { const neg = v < 0; return (neg ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US'); }
+  clampStep(x) { return Math.max(0, Math.min(11, x)); }
+  ipoOf(s, code) { return s.ipos[this.D.ipoIndex[code]]; }
+  stepOf(code, s) { return this.D.IPOCODES[code] ? this.ipoOf(s, code).step : s.prices[code]; }
+  priceOf(code, s) { return this.D.LADDER[this.stepOf(code, s)]; }
+  pos(n) {
+    if (n === 1) return [10, 10];
+    if (n <= 9) return [11 - n, 10];
+    if (n === 10) return [1, 10];
+    if (n <= 18) return [1, 20 - n];
+    if (n === 19) return [1, 1];
+    if (n <= 27) return [n - 18, 1];
+    if (n === 28) return [10, 1];
+    return [10, n - 27];
+  }
+  net(p, s) { return p.cash + this.sharesVal(p, s) - p.loans; }
+  sharesVal(p, s) { let sv = 0; Object.keys(p.shares).forEach(c => { sv += p.shares[c] * this.priceOf(c, s); }); return sv; }
+  isDiversified(p, s) {
+    if (p.loans > 0) return false;
+    const sectors = {};
+    Object.keys(p.shares).forEach(c => {
+      if (this.D.IPOCODES[c]) return;           // IPO shares do not count
+      const sec = this.D.byCode[c].sec;
+      sectors[sec] = (sectors[sec] || 0) + p.shares[c];
+    });
+    let qualifying = 0;
+    Object.keys(sectors).forEach(sec => { if (sectors[sec] >= 2) qualifying++; });
+    return qualifying >= 5;
+  }
+  mutate(fn) { this.setState(prev => { const s = JSON.parse(JSON.stringify(prev)); fn(s); return s; }); }
+  pushLog(s, text, kind) { s.log.unshift({ text, kind: kind || 'n', t: (s.lap || 1) }); if (s.log.length > 40) s.log.pop(); }
+
+  // ----------------------------------------------------------------- setup
+  setNum(n) { this.mutate(s => { s.numPlayers = n; }); }
+  // names are stored without a re-render so the focused input keeps its caret
+  setName(i, v) { this.state.names[i] = v; }
+  startGame() {
+    this.mutate(s => {
+      s.players = [];
+      for (let i = 0; i < s.numPlayers; i++) {
+        s.players.push({ name: (s.names[i] || ('Player ' + (i + 1))).trim() || ('Player ' + (i + 1)),
+          color: this.D.PCOLORS[i], cash: this.D.START, pos: 1, shares: {}, loans: 0, eh: false, rebalanceUsed: false });
+      }
+      const prices = {}; this.D.STOCKS.forEach(st => { prices[st.code] = st.step; });
+      const supply = {}; this.D.STOCKS.forEach(st => { supply[st.code] = 10; });
+      s.prices = prices; s.supply = supply; s.skips = {}; s.skipDropped = {}; s.lap = 1;
+      s.log = [];
+      s.decks = this.initDecks(); s.discard = { ME: [], FED: [], AH: [] };
+      s.ipos = this.buildIpos();
+      s.shorts = []; s.closing = false; s.closeDrawer = null;
+      s.trade = null; s.card = null; s.pendingDraw = null; s.pick = null; s.shortPick = false;
+      s.ipoChoice = false; s.ipoListPick = false; s.ipoBuy = null;
+      s.dice = [null, null]; s.rolling = false;
+      s.phase = 'play'; s.cur = 0; s.turnPhase = 'preRoll';
+      this.pushLog(s, 'Market open. ' + s.players[0].name + ' starts.', 'g');
+    });
+  }
+  newGame() { this.mutate(s => { s.phase = 'setup'; }); }
+  toggleTest() { this.mutate(s => { s.testMode = !s.testMode; }); }
+
+  // ----------------------------------------------------------------- roll & move
+  roll() {
+    if (this.state.turnPhase !== 'preRoll' || this.state.rolling) return;
+    const a = 1 + Math.floor(Math.random() * 6);
+    const b = 1 + Math.floor(Math.random() * 6);
+    this.mutate(s => { s.rolling = true; s.dice = [a, b]; });
+    setTimeout(() => this.applyMove(a + b), 360);
+  }
+  applyMove(steps) {
+    this.mutate(s => {
+      s.rolling = false;
+      const p = s.players[s.cur];
+      const from = p.pos;
+      const passed = Math.floor((from - 1 + steps) / 36) >= 1;
+      p.pos = ((from - 1 + steps) % 36) + 1;
+      this.pushLog(s, p.name + ' rolls ' + steps + ' → space ' + p.pos, 'n');
+      if (passed || p.pos === 1) this.payMarketOpen(s, p);
+      s.turnPhase = 'acted';
+      this.resolveLanding(s, p);
+    });
+  }
+  payMarketOpen(s, p) {
+    const diversified = this.isDiversified(p, s);
+    let div = 0, payouts = 0;
+    Object.keys(p.shares).forEach(c => {
+      const printed = this.D.IPOCODES[c] ? this.D.ipoData[c].div : this.D.byCode[c].div;
+      if (printed > 0) {
+        let pay = printed * p.shares[c];
+        if (diversified) pay += 200;            // Dividend Bonus: +$200 per payout
+        div += pay; payouts++;
+      }
+    });
+    p.cash += this.D.SALARY + div;
+    this.pushLog(s, p.name + ' Market Open: +' + this.money(this.D.SALARY) + ' income' +
+      (div ? ' +' + this.money(div) + ' dividends' + (diversified && payouts ? ' (incl. diversified bonus)' : '') : ''), 'g');
+  }
+  resolveLanding(s, p) {
+    const sp = this.D.SPACES[p.pos - 1];
+    if (sp.type === 'stock') {
+      s.trade = { scope: 'stock', code: sp.code, used: false };
+      this.pushLog(s, 'Landed on ' + this.D.byCode[sp.code].name + ' — buy, sell, or skip this stock.', 'n');
+    } else if (sp.type === 'event') {
+      s.trade = { scope: 'one', used: false };
+      s.pendingDraw = 'ME';
+      this.pushLog(s, 'Market Event — one optional trade, then draw.', 'r');
+    } else if (sp.type === 'fed') {
+      s.pendingDraw = 'FED';
+      this.pushLog(s, 'The Fed — draw a Fed Rate card.', 'y');
+    } else if (sp.type === 'after') {
+      s.pendingDraw = 'AH';
+      this.pushLog(s, 'After-Hours — draw a card.', 'b');
+    } else if (sp.type === 'ipo') {
+      s.ipoChoice = true;
+      this.pushLog(s, 'IPO space — launch a new IPO or buy a known one.', 'g');
+    } else if (sp.type === 'free') {
+      s.trade = { scope: 'one', used: false };
+      this.pushLog(s, 'Free Trading Day — make one trade action.', 'g');
+    } else if (sp.type === 'short') {
+      if (s.shorts.some(sh => sh.owner === s.cur)) {
+        this.pushLog(s, p.name + ' already holds a short — settle it first.', 'r');
+      } else {
+        s.shortPick = true;
+        this.pushLog(s, 'Short Sell — bet against one stock (settles next turn).', 'r');
+      }
+    } else if (sp.type === 'tax') {
+      const tax = Math.round(p.cash * this.D.TAX / 100) * 100;
+      p.cash -= tax;
+      this.pushLog(s, p.name + ' pays Tax Filing: −' + this.money(tax), 'r');
+    } else if (sp.type === 'open') {
+      this.pushLog(s, 'Market Open — income collected.', 'g');
+    }
+  }
+
+  // ----------------------------------------------------------------- trading
+  canTradeNow(s) {
+    const t = s.trade;
+    if (!t) return false;
+    if (t.scope === 'one' && t.used) return false;
+    return true;
+  }
+  buy(code) {
+    this.mutate(s => {
+      if (!this.canTradeNow(s)) return;
+      if (this.D.IPOCODES[code]) return;        // IPO bought only at the IPO space
+      const t = s.trade;
+      if (t.scope === 'stock' && t.code !== code) return;
+      if ((s.supply[code] || 0) <= 0) return;   // no shares remain
+      const p = s.players[s.cur];
+      const price = this.priceOf(code, s);
+      if (p.cash < price) return;
+      p.cash -= price; p.shares[code] = (p.shares[code] || 0) + 1; s.supply[code] -= 1;
+      if (s.skips[code] && s.skips[code].length) s.skips[code].pop();   // buying removes a skip token
+      s.prices[code] = this.clampStep(s.prices[code] + 1);             // price up 1 after purchase
+      if (t.scope !== 'stock') t.used = true;
+      this.pushLog(s, p.name + ' buys 1 ' + code + ' @ ' + this.money(price) + ' (▲1 step)', 'g');
+    });
+  }
+  sell(code) {
+    this.mutate(s => {
+      if (!this.canTradeNow(s)) return;
+      if (this.D.IPOCODES[code]) return;
+      const t = s.trade;
+      if (t.scope === 'stock' && t.code !== code) return;
+      const p = s.players[s.cur];
+      if (!p.shares[code]) return;
+      const diversified = this.isDiversified(p, s);
+      const price = this.priceOf(code, s);
+      p.cash += price; p.shares[code] -= 1; if (p.shares[code] === 0) delete p.shares[code];
+      s.supply[code] = (s.supply[code] || 0) + 1;                      // shares return to supply
+      let dropped = true;
+      if (diversified && !p.rebalanceUsed) {                           // Rebalance Protection
+        p.rebalanceUsed = true; dropped = false;
+        this.pushLog(s, p.name + ' uses Rebalance Protection — ' + code + ' price holds.', 'y');
+      }
+      if (dropped) s.prices[code] = this.clampStep(s.prices[code] - 1);
+      if (t.scope !== 'stock') t.used = true;
+      this.pushLog(s, p.name + ' sells 1 ' + code + ' @ ' + this.money(price) + (dropped ? ' (▼1 step)' : ''), 'r');
+    });
+  }
+  skipStock(code) {
+    this.mutate(s => {
+      const t = s.trade;
+      if (!t || t.scope !== 'stock' || t.code !== code) return;
+      if ((s.supply[code] || 0) > 0) {
+        if (!s.skips[code]) s.skips[code] = [];
+        if (!s.skips[code].includes(s.cur)) s.skips[code].push(s.cur);
+        this.pushLog(s, s.players[s.cur].name + ' skips ' + code + ' — weak-demand token added.', 'r');
+        const heavy = s.players.some(pl => (pl.shares[code] || 0) >= 6);
+        const needed = heavy ? 4 : 3;
+        if (s.skips[code].length >= needed && !s.skipDropped[code]) {
+          s.prices[code] = this.clampStep(s.prices[code] - 1);
+          s.skipDropped[code] = true; s.skips[code] = [];
+          this.pushLog(s, 'Weak demand: ' + code + ' drops 1 step (' + needed + ' skip tokens).', 'r');
+        }
+      } else {
+        this.pushLog(s, code + ' is sold out — no token added.', 'n');
+      }
+      s.trade = null;
+    });
+  }
+
+  // ----------------------------------------------------------------- loans
+  takeLoan() { this.mutate(s => { const p = s.players[s.cur]; p.cash += this.D.LOAN; p.loans += this.D.LOAN; this.pushLog(s, p.name + ' takes a loan +' + this.money(this.D.LOAN), 'y'); }); }
+  repayLoan() { this.mutate(s => { const p = s.players[s.cur]; if (p.loans <= 0 || p.cash < this.D.LOAN) return; p.cash -= this.D.LOAN; p.loans -= this.D.LOAN; this.pushLog(s, p.name + ' repays ' + this.money(this.D.LOAN), 'g'); }); }
+
+  // ----------------------------------------------------------------- short sell
+  doShort(code) {
+    this.mutate(s => {
+      if (this.D.IPOCODES[code]) return;        // IPO cannot be shorted
+      if (s.shorts.some(sh => sh.owner === s.cur)) return;  // one active short
+      const p = s.players[s.cur];
+      s.shorts.push({ owner: s.cur, ownerName: p.name, pcolor: p.color, code: code, entryStep: s.prices[code] });
+      this.pushLog(s, p.name + ' shorts ' + code + ' @ ' + this.money(this.priceOf(code, s)), 'r');
+      s.shortPick = false;
+    });
+  }
+  skipShort() { this.mutate(s => { s.shortPick = false; }); }
+  shortPayout(delta) {
+    if (delta <= -2) return 1000;   // down 2+
+    if (delta === -1) return 500;   // down 1
+    if (delta === 0) return 0;      // same
+    if (delta === 1) return -500;   // up 1
+    return -1000;                   // up 2+
+  }
+  settleShorts(s) {
+    const keep = [];
+    s.shorts.forEach(sh => {
+      if (sh.owner === s.cur) {
+        const delta = s.prices[sh.code] - sh.entryStep;
+        const pl = this.shortPayout(delta);
+        s.players[s.cur].cash += pl;
+        this.pushLog(s, sh.ownerName + ' settles short ' + sh.code + ': ' + (pl >= 0 ? '+' : '') + this.money(pl), pl >= 0 ? 'g' : 'r');
+      } else keep.push(sh);
+    });
+    s.shorts = keep;
+  }
+
+  // ----------------------------------------------------------------- IPO actions
+  chooseIpoNew() {
+    this.mutate(s => {
+      const hidden = s.ipos.map((ip, i) => i).filter(i => !s.ipos[i].revealed);
+      if (!hidden.length) { this.pushLog(s, 'No unlisted IPOs remain to launch.', 'n'); s.ipoChoice = false; return; }
+      const i = hidden[Math.floor(Math.random() * hidden.length)];
+      const ip = s.ipos[i]; ip.revealed = true; ip.step = ip.startStep;
+      s.ipoChoice = false;
+      s.ipoBuy = { code: ip.code, max: 3, bought: 0, price: this.D.LADDER[ip.startStep], mode: 'new' };
+      this.pushLog(s, 'Launched IPO: ' + this.D.ipoData[ip.code].name + ' @ ' + this.money(this.D.LADDER[ip.startStep]), 'g');
+    });
+  }
+  chooseIpoKnown() {
+    this.mutate(s => {
+      if (!s.ipos.some(ip => ip.revealed && ip.supply > 0)) { this.pushLog(s, 'No known IPOs available to buy.', 'n'); return; }
+      s.ipoChoice = false; s.ipoListPick = true;
+    });
+  }
+  pickKnownIpo(code) {
+    this.mutate(s => {
+      const ip = this.ipoOf(s, code);
+      if (!ip.revealed || ip.supply <= 0) return;
+      const price = this.D.LADDER[this.clampStep(ip.step - 1)];   // 1 step below current
+      s.ipoListPick = false;
+      s.ipoBuy = { code: code, max: 2, bought: 0, price: price, mode: 'known' };
+      this.pushLog(s, 'Buying known IPO ' + code + ' @ ' + this.money(price) + ' (1 step below market).', 'g');
+    });
+  }
+  ipoBuyShare() {
+    this.mutate(s => {
+      const b = s.ipoBuy; if (!b) return;
+      const ip = this.ipoOf(s, b.code);
+      const p = s.players[s.cur];
+      if (b.bought >= b.max || ip.supply <= 0 || p.cash < b.price) return;
+      p.cash -= b.price; p.shares[b.code] = (p.shares[b.code] || 0) + 1; ip.supply -= 1; b.bought += 1;
+      this.pushLog(s, p.name + ' buys 1 ' + b.code + ' (IPO) @ ' + this.money(b.price), 'g');
+    });
+  }
+  ipoBuyDone() { this.mutate(s => { s.ipoBuy = null; s.ipoChoice = false; s.ipoListPick = false; }); }
+  skipIpo() { this.mutate(s => { s.ipoChoice = false; s.ipoListPick = false; }); }
+
+  // ----------------------------------------------------------------- draw & effects
+  draw(deck) {
+    this.mutate(s => {
+      if (s.pendingDraw !== deck) return;
+      if (s.decks[deck].length === 0) { s.decks[deck] = s.discard[deck]; s.discard[deck] = []; }
+      const idx = s.decks[deck].shift();
+      s.discard[deck].push(idx);
+      const c = this.D.CARDS[deck][idx];
+      s.card = c;
+      s.pendingDraw = null;
+      s.trade = null;
+      this.pushLog(s, 'Drew ' + this.D.DECKMETA[deck].label + ': ' + c.title, deck === 'ME' ? 'r' : deck === 'FED' ? 'y' : 'b');
+      this.applyEffect(s, c.eff);
+    });
+  }
+  eventPool(s) {
+    const arr = this.D.STOCKS.map(x => ({ code: x.code, sec: x.sec }));
+    s.ipos.forEach(ip => { if (ip.revealed) arr.push({ code: ip.code, sec: this.D.ipoData[ip.code].sec }); });
+    return arr;
+  }
+  moveEventPrice(s, code, d) {
+    if (this.D.IPOCODES[code]) {
+      const ip = this.ipoOf(s, code);
+      if (!ip.revealed) return;
+      let dd = d;
+      const vol = this.D.ipoData[code].vol;
+      if ((vol === 'high' || vol === 'spec') && d !== 0) dd = d + (d > 0 ? 1 : -1);  // volatility amplifies event moves
+      ip.step = this.clampStep(ip.step + dd);
+    } else {
+      s.prices[code] = this.clampStep(s.prices[code] + d);
+    }
+  }
+  applyEffect(s, e) {
+    const pool = this.eventPool(s);
+    if (e.k === 'sector') { pool.filter(x => x.sec === e.sec).forEach(x => this.moveEventPrice(s, x.code, e.d)); }
+    else if (e.k === 'all') { pool.forEach(x => this.moveEventPrice(s, x.code, e.d)); }
+    else if (e.k === 'risk') { this.D.STOCKS.filter(x => x.risk === e.risk).forEach(x => this.moveEventPrice(s, x.code, e.d)); }
+    else if (e.k === 'multi') { e.m.forEach(mv => { if (mv.sec) pool.filter(x => x.sec === mv.sec).forEach(x => this.moveEventPrice(s, x.code, mv.d)); else this.D.STOCKS.filter(x => x.risk === mv.risk).forEach(x => this.moveEventPrice(s, x.code, mv.d)); }); }
+    else if (e.k === 'lowest') { const t = pool.slice().sort((a, b) => this.stepOf(a.code, s) - this.stepOf(b.code, s))[0]; this.moveEventPrice(s, t.code, e.d); this.pushLog(s, t.code + ' (lowest) moves ' + (e.d > 0 ? '+' : '') + e.d, 'n'); }
+    else if (e.k === 'highest') { const t = pool.slice().sort((a, b) => this.stepOf(b.code, s) - this.stepOf(a.code, s))[0]; this.moveEventPrice(s, t.code, e.d); this.pushLog(s, t.code + ' (highest) moves ' + (e.d > 0 ? '+' : '') + e.d, 'n'); }
+    else if (e.k === 'pick') { s.pick = { d: e.d, label: e.label }; }
+    else if (e.k === 'cash') { s.players[s.cur].cash += e.amt; this.pushLog(s, s.players[s.cur].name + ' collects ' + this.money(e.amt), 'g'); }
+    else if (e.k === 'margin') { s.players.forEach(p => { if (p.loans > 0) { p.cash -= e.amt; this.pushLog(s, p.name + ' margin call −' + this.money(e.amt), 'r'); } }); }
+    else if (e.k === 'extend') { s.players[s.cur].eh = true; this.pushLog(s, s.players[s.cur].name + ' holds Extended Hours.', 'b'); }
+    else if (e.k === 'close') { this.triggerClose(s); }
+  }
+  pickTarget(code) {
+    this.mutate(s => {
+      if (!s.pick) return;
+      this.moveEventPrice(s, code, s.pick.d);
+      this.pushLog(s, code + ' moves ' + (s.pick.d > 0 ? '+' : '') + s.pick.d + ' step', s.pick.d > 0 ? 'g' : 'r');
+      s.pick = null;
+    });
+  }
+  skipPick() { this.mutate(s => { s.pick = null; }); }
+
+  // ----------------------------------------------------------------- market close & turns
+  triggerClose(s) {
+    if (s.closing) return;
+    s.closing = true; s.closeDrawer = s.cur;
+    const anyEH = s.players.some(p => p.eh);
+    if (anyEH) {
+      s.players.forEach(p => p.eh = false);
+      this.pushLog(s, 'MARKET CLOSE — Extended Hours! Final round ends before ' + s.players[s.closeDrawer].name + '.', 'b');
+    } else {
+      this.pushLog(s, 'MARKET CLOSE — the market shuts. Final scoring.', 'r');
+      s.phase = 'over';
+    }
+  }
+  callClose() { this.mutate(s => { this.triggerClose(s); }); }
+  blocked(s) {
+    if (s.rolling) return true;
+    if (s.turnPhase === 'preRoll') return true;
+    if (s.pendingDraw) return true;
+    if (s.pick) return true;
+    if (s.shortPick) return true;
+    if (s.ipoChoice || s.ipoListPick || s.ipoBuy) return true;
+    return false;
+  }
+  startLap(s) {
+    s.lap = (s.lap || 1) + 1;
+    s.skipDropped = {}; s.skips = {};
+    s.players.forEach(p => { p.rebalanceUsed = false; });
+  }
+  endTurn() {
+    this.mutate(s => {
+      if (this.blocked(s)) return;
+      const n = s.players.length;
+      if (s.closing) {
+        const next = (s.cur + 1) % n;
+        if (next === s.closeDrawer) { s.phase = 'over'; return; }
+      }
+      s.cur = (s.cur + 1) % n;
+      if (s.cur === 0) this.startLap(s);
+      s.turnPhase = 'preRoll';
+      s.dice = [null, null];
+      s.trade = null; s.card = null; s.pendingDraw = null; s.pick = null; s.shortPick = false;
+      s.ipoChoice = false; s.ipoListPick = false; s.ipoBuy = null;
+      this.settleShorts(s);
+      this.pushLog(s, '— ' + s.players[s.cur].name + "'s turn —", 'n');
+    });
+  }
+
+  // ----------------------------------------------------------------- render values
+  renderVals() {
+    const S = this.state;
+    const D = this.D;
+    const money = (v) => this.money(v);
+    const LOGCOL = { g: '#7FE9BD', r: '#FF9B9B', y: '#F0C53D', b: '#A9BEFF', n: '#9AA5B1' };
+
+    // ---- SETUP ----
+    if (S.phase === 'setup') {
+      const numOpts = [2, 3, 4, 5, 6].map(n => ({
+        n: n, onClick: () => this.setNum(n),
+        style: 'flex:1;padding:14px;border-radius:10px;font-size:18px;font-weight:700;border:1px solid ' +
+          (n === S.numPlayers ? '#3ED598;background:rgba(62,213,152,0.14);color:#3ED598' : '#1F2733;background:#0A0F18;color:#8B95A3')
+      }));
+      const setupRows = [];
+      for (let i = 0; i < S.numPlayers; i++) {
+        setupRows.push({ idx: i, name: S.names[i] || '', color: D.PCOLORS[i], label: String(i + 1),
+          set: (e) => this.setName(i, e.target.value) });
+      }
+      return { isSetup: true, isPlay: false, isOver: false, numOpts, setupRows, startGame: () => this.startGame() };
+    }
+
+    // ---- OVER ----
+    if (S.phase === 'over') {
+      const ranked = S.players.map((p, i) => ({ p, i, net: this.net(p, S) })).sort((a, b) => b.net - a.net);
+      const finalStandings = ranked.map((r, rank) => ({
+        name: r.p.name, color: r.p.color,
+        rankTxt: (rank + 1) + (rank === 0 ? 'st' : rank === 1 ? 'nd' : rank === 2 ? 'rd' : 'th'),
+        rankCol: rank === 0 ? '#F0C53D' : '#8B95A3',
+        netFmt: money(r.net), cashFmt: money(r.p.cash), sharesFmt: money(this.sharesVal(r.p, S)), loanFmt: money(r.p.loans),
+        rowStyle: 'display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:13px;border:1px solid ' +
+          (rank === 0 ? 'rgba(240,197,61,0.4);background:rgba(240,197,61,0.07)' : '#1F2733;background:#0A0F18')
+      }));
+      return { isSetup: false, isPlay: false, isOver: true, finalStandings, newGame: () => this.newGame() };
+    }
+
+    // ---- PLAY ----
+    const p = S.players[S.cur];
+
+    // board cells
+    const cells = D.SPACES.map(sp => {
+      const [gc, gr] = this.pos(sp.n);
+      const tokens = [];
+      S.players.forEach((pl, i) => {
+        if (pl.pos === sp.n) tokens.push({ initial: pl.name.slice(0, 1).toUpperCase(),
+          style: 'width:14px;height:14px;border-radius:50%;background:' + pl.color + ';color:#06210F;font-family:IBM Plex Mono,monospace;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;border:' + (i === S.cur ? '1.5px solid #fff' : '1px solid rgba(0,0,0,0.3)') });
+      });
+      const isHere = p.pos === sp.n;
+      const cellBase = 'grid-column:' + gc + ';grid-row:' + gr + ';position:relative;border-radius:4px;overflow:hidden;background:#0F1626;' +
+        (isHere ? 'box-shadow:inset 0 0 0 2px #3ED598;' : '');
+      if (sp.type === 'stock') {
+        const st = D.byCode[sp.code];
+        const step = S.prices[sp.code], base = st.step;
+        const delta = step - base;
+        return { isStock: true, isSpecial: false, isCorner: false, cellStyle: cellBase,
+          code: sp.code, num2: String(sp.n).padStart(2, '0'), color: st.color,
+          priceFmt: money(D.LADDER[step]),
+          deltaTxt: delta === 0 ? '—' : (delta > 0 ? '▲' + delta : '▼' + Math.abs(delta)),
+          deltaCol: delta > 0 ? '#3ED598' : delta < 0 ? '#FF5C5C' : '#525D6B',
+          supplyTxt: (S.supply[sp.code] || 0) + '/10 sh',
+          tokens };
+      }
+      const corner = !!sp.corner;
+      return { isStock: false, isSpecial: !corner, isCorner: corner, cellStyle: cellBase,
+        color: sp.color, glyph: sp.glyph, label: sp.name, tokens };
+    });
+
+    // dice
+    const dieStyle = (v) => 'width:46px;height:46px;border-radius:11px;background:#11182A;border:1px solid #2A3550;display:flex;align-items:center;justify-content:center;font-family:IBM Plex Mono,monospace;font-size:24px;font-weight:700;color:' +
+      (v ? '#F4F8FC' : '#3A434F') + (v && !S.rolling ? ';animation:pop 0.3s ease' : '');
+    const diceA = S.dice[0] || '·', diceB = S.dice[1] || '·';
+    const diceCaption = S.rolling ? 'rolling…' : (S.dice[0] ? ('moved ' + (S.dice[0] + S.dice[1]) + ' spaces') : 'roll to move');
+
+    // deck piles
+    const piles = ['ME', 'FED', 'AH'].map(k => {
+      const m = D.DECKMETA[k];
+      const active = S.pendingDraw === k;
+      return { key: k, label: m.label, glyph: m.glyph, color: m.color, count: S.decks[k].length, draw: () => this.draw(k),
+        style: 'width:96px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 8px;border-radius:11px;background:' + m.tint + ';border:1px solid ' +
+          (active ? m.color + ';animation:glowpulse 1.4s infinite;cursor:pointer' : m.line + ';opacity:' + (S.pendingDraw ? '0.4' : '0.78')) };
+    });
+
+    // current player panel
+    const sp = D.SPACES[p.pos - 1];
+    const spaceName = sp.type === 'stock' ? D.byCode[sp.code].name : sp.name;
+    const holdings = Object.keys(p.shares).map(c => {
+      const ipo = !!D.IPOCODES[c];
+      return { code: c, color: ipo ? D.ipoData[c].color : D.byCode[c].color, qty: p.shares[c],
+        priceFmt: money(this.priceOf(c, S)), valueFmt: money(p.shares[c] * this.priceOf(c, S)),
+        tag: ipo ? 'IPO' : '', tagCol: ipo ? '#3ED598' : '#525D6B' };
+    }).sort((a, b) => a.code < b.code ? -1 : 1);
+    const cur = {
+      name: p.name, color: p.color, initial: p.name.slice(0, 1).toUpperCase(),
+      posNum: p.pos, spaceName: spaceName, diversified: this.isDiversified(p, S),
+      cashFmt: money(p.cash), netFmt: money(this.net(p, S)),
+      loanFmt: money(p.loans), loanCol: p.loans > 0 ? '#FF8A8A' : '#525D6B',
+      holdings, holdCount: holdings.length, hasHoldings: holdings.length > 0, empty: holdings.length === 0
+    };
+
+    // buttons
+    const btn = (bg, col, extra) => 'flex:1;padding:13px;border-radius:11px;font-size:15px;font-weight:700;border:none;background:' + bg + ';color:' + col + ';' + (extra || '');
+    const dim = ';opacity:0.4';
+    const rollDisabled = S.turnPhase !== 'preRoll' || S.rolling;
+    const endDisabled = this.blocked(S);
+    const repayDisabled = p.loans <= 0 || p.cash < D.LOAN;
+
+    // action panel context
+    let actionTitle = 'AWAITING ROLL', actionDesc = 'No trading before you roll. Press Roll Dice to take your turn.', actionDotCol = '#525D6B';
+    let showTrade = false, tradeRows = [], showPick = false, pickList = [], showShort = false, shortList = [], showCard = false, card = null;
+    let showSkip = false, doSkip = null;
+    let showIpoChoice = false, ipoKnownDisabled = true, ipoKnownSub = '', ipoKnownStyle = '';
+    let showIpoList = false, ipoPickList = [], showIpoBuy = false, ipoBuy = null, ipoBuyDisabled = true, ipoBuyStyle = '';
+
+    if (S.turnPhase === 'preRoll') {
+      actionTitle = 'AWAITING ROLL'; actionDotCol = '#525D6B';
+      actionDesc = 'No trading before you roll. Press Roll Dice to move.';
+    } else {
+      if (S.card) {
+        showCard = true;
+        const m = D.DECKMETA[S.card.deck];
+        card = { deckLabel: m.label, glyph: m.glyph, color: m.color, tint: m.tint, line: m.line, effBg: m.effBg,
+          title: S.card.title, story: S.card.story, effect: S.card.effect };
+      }
+      if (S.pick) {
+        showPick = true; actionTitle = 'CHOOSE A COMPANY'; actionDotCol = '#F0C53D';
+        actionDesc = S.pick.label + '.';
+        pickList = this.eventPool(S).map(x => ({ code: x.code, color: D.IPOCODES[x.code] ? D.ipoData[x.code].color : D.byCode[x.code].color, line: '#1F2733',
+          priceFmt: money(this.priceOf(x.code, S)), pick: () => this.pickTarget(x.code) }));
+      } else if (S.shortPick) {
+        showShort = true; actionTitle = 'SHORT SELL'; actionDotCol = '#FF5C5C';
+        actionDesc = 'Bet against a stock. Settles at the start of your next turn by fixed payout.';
+        shortList = D.STOCKS.map(st => ({ code: st.code, color: st.color,
+          priceFmt: money(this.priceOf(st.code, S)), pick: () => this.doShort(st.code) }));
+      } else if (S.ipoChoice) {
+        showIpoChoice = true; actionTitle = 'IPO — CHOOSE'; actionDotCol = '#3ED598';
+        actionDesc = 'Launch a brand-new IPO, or buy shares of a known one already on the board.';
+        const known = S.ipos.filter(ip => ip.revealed && ip.supply > 0);
+        ipoKnownDisabled = known.length === 0;
+        ipoKnownSub = ipoKnownDisabled ? 'No known IPOs yet — launch one first.' : 'Up to 2 shares at 1 step below current price.';
+        ipoKnownStyle = 'text-align:left;background:' + (ipoKnownDisabled ? '#0A0F18' : 'rgba(77,163,255,0.08)') + ';border:1px solid ' + (ipoKnownDisabled ? '#1F2733' : 'rgba(77,163,255,0.4)') + ';border-radius:10px;padding:12px 14px;color:#E8EDF4;display:flex;flex-direction:column;gap:3px' + (ipoKnownDisabled ? ';opacity:0.5' : '');
+      } else if (S.ipoListPick) {
+        showIpoList = true; actionTitle = 'BUY KNOWN IPO'; actionDotCol = '#4DA3FF';
+        actionDesc = 'Pick a listed IPO to buy up to 2 shares at 1 step below current price.';
+        ipoPickList = S.ipos.filter(ip => ip.revealed && ip.supply > 0).map(ip => ({ code: ip.code, color: D.ipoData[ip.code].color,
+          priceFmt: money(D.LADDER[this.clampStep(ip.step - 1)]), supply: ip.supply, pick: () => this.pickKnownIpo(ip.code) }));
+      } else if (S.ipoBuy) {
+        showIpoBuy = true; actionTitle = 'IPO — BUY SHARES'; actionDotCol = '#3ED598';
+        actionDesc = 'Buy shares of this IPO, then press Done.';
+        const b = S.ipoBuy; const ip = this.ipoOf(S, b.code); const dd = D.ipoData[b.code];
+        const disabled = b.bought >= b.max || ip.supply <= 0 || p.cash < b.price;
+        ipoBuyDisabled = disabled;
+        ipoBuyStyle = 'flex:1;padding:11px;border-radius:9px;font-size:13px;font-weight:700;border:none;background:' + (disabled ? '#161D29;color:#3A434F' : '#3ED598;color:#06210F') + (disabled ? ';opacity:0.7' : '');
+        ipoBuy = { code: b.code, name: dd.name, color: dd.color, volTxt: D.VOLNAME[dd.vol],
+          priceFmt: money(b.price), bought: b.bought, max: b.max, supply: ip.supply };
+      } else if (S.pendingDraw) {
+        const m = D.DECKMETA[S.pendingDraw];
+        actionTitle = m.label + ' — DRAW'; actionDotCol = m.color;
+        actionDesc = S.pendingDraw === 'ME'
+          ? 'You may make one trade below, then click the glowing deck to draw.'
+          : 'Click the glowing ' + m.label + ' deck in the center to draw your card.';
+        if (S.trade) showTrade = true;
+      } else if (S.trade) {
+        const t = S.trade;
+        if (t.scope === 'stock') {
+          actionTitle = 'TRADE — ' + D.byCode[t.code].code; actionDotCol = D.byCode[t.code].color;
+          actionDesc = 'Stock space: buy or sell only ' + D.byCode[t.code].name + ', or skip it.';
+          showSkip = true; doSkip = () => this.skipStock(t.code);
+        } else {
+          actionTitle = 'ONE FREE TRADE'; actionDotCol = '#3ED598';
+          actionDesc = t.used ? 'Trade used. End your turn when ready.' : 'Make one trade — buy or sell any stock.';
+        }
+        showTrade = true;
+      } else {
+        actionTitle = 'TURN ACTIONS'; actionDotCol = '#3ED598';
+        actionDesc = 'Nothing to resolve here. End your turn when ready.';
+      }
+
+      if (showTrade) {
+        const t = S.trade;
+        const list = t.scope === 'stock' ? [D.byCode[t.code]] : D.STOCKS;
+        const canNow = this.canTradeNow(S);
+        tradeRows = list.map(st => {
+          const price = this.priceOf(st.code, S);
+          const owned = p.shares[st.code] || 0;
+          const sup = S.supply[st.code] || 0;
+          const noBuy = !canNow || p.cash < price || sup <= 0;
+          const noSell = !canNow || owned === 0;
+          const bs = (ok, kind) => 'flex:none;width:54px;padding:9px 0;border-radius:8px;font-size:12px;font-weight:700;border:none;background:' +
+            (ok ? (kind === 'b' ? '#3ED598;color:#06210F' : '#FF5C5C;color:#2A0A0A') : '#161D29;color:#3A434F') + (ok ? '' : ';opacity:0.7');
+          return { code: st.code, name: st.name, color: st.color, riskTxt: st.risk, owned: owned,
+            supplyTxt: sup + ' left', priceFmt: money(price), noBuy, noSell,
+            buyStyle: bs(!noBuy, 'b'), sellStyle: bs(!noSell, 's'),
+            buy: () => this.buy(st.code), sell: () => this.sell(st.code) };
+        });
+      }
+    }
+
+    // price track tiles
+    const ladderTiles = D.STOCKS.map(st => {
+      const step = S.prices[st.code], delta = step - st.step;
+      const tokens = (S.skips[st.code] || []).length;
+      return { code: st.code, color: st.color, priceFmt: money(D.LADDER[step]),
+        deltaTxt: delta === 0 ? '—' : (delta > 0 ? '▲' + delta : '▼' + Math.abs(delta)),
+        deltaCol: delta > 0 ? '#3ED598' : delta < 0 ? '#FF5C5C' : '#525D6B',
+        skipTxt: tokens > 0 ? '⊘' + tokens : '', skipCol: '#FF8A8A',
+        supplyTxt: (S.supply[st.code] || 0) + '/10 sh',
+        barStyle: 'height:100%;width:' + Math.round((step / 11) * 100) + '%;background:' + st.color };
+    });
+
+    // IPO market tiles
+    const ipoTiles = S.ipos.map(ip => {
+      const dd = D.ipoData[ip.code];
+      const delta = ip.step - ip.startStep;
+      return { code: ip.code, name: dd.name, color: dd.color, revealed: ip.revealed, hidden: !ip.revealed,
+        priceFmt: money(D.LADDER[ip.step]), volTxt: D.VOLNAME[dd.vol], supplyTxt: ip.supply + '/5 sh',
+        deltaTxt: delta === 0 ? '—' : (delta > 0 ? '▲' + delta : '▼' + Math.abs(delta)),
+        deltaCol: delta > 0 ? '#3ED598' : delta < 0 ? '#FF5C5C' : '#525D6B',
+        boxStyle: 'background:#0A0F18;border:1px solid ' + (ip.revealed ? '#233052' : '#1A2230') + ';border-radius:9px;padding:9px 11px' };
+    });
+
+    // shorts tracker
+    const shortTracker = S.shorts.map(sh => {
+      const delta = S.prices[sh.code] - sh.entryStep;
+      const pl = this.shortPayout(delta);
+      const moveTxt = delta === 0 ? 'flat' : (delta > 0 ? 'up ' + delta : 'down ' + Math.abs(delta));
+      return { player: sh.ownerName, pcolor: sh.pcolor, code: sh.code,
+        entryFmt: money(D.LADDER[sh.entryStep]), moveTxt: moveTxt, settleTxt: sh.ownerName + "'s turn",
+        plFmt: (pl >= 0 ? '+' : '') + money(pl), plCol: pl >= 0 ? '#7FE9BD' : '#FF9B9B' };
+    });
+
+    // log
+    const log = S.log.slice(0, 14).map(l => ({ tag: 'L' + l.t, text: l.text, color: LOGCOL[l.kind] || '#9AA5B1' }));
+
+    // standings
+    const standings = S.players.map((pl, i) => ({
+      name: pl.name, color: pl.color, netFmt: money(this.net(pl, S)), diversified: this.isDiversified(pl, S),
+      cashFmt: money(pl.cash), sharesFmt: money(this.sharesVal(pl, S)),
+      boxStyle: 'display:flex;flex-direction:column;gap:5px;padding:12px 14px;border-radius:11px;background:#0A0F18;border:1px solid ' +
+        (i === S.cur ? '#3ED598' : '#1F2733')
+    }));
+
+    // close text
+    let closeText = '', closeColor = '#76808E';
+    if (S.closing) { closeText = 'Final round — ends before ' + S.players[S.closeDrawer].name; closeColor = '#FF8A8A'; }
+    else { closeText = 'Market open'; closeColor = '#7FE9BD'; }
+
+    const phaseHint = S.turnPhase === 'preRoll' ? 'roll to begin' : (endDisabled ? 'resolve the highlighted action' : 'trade or end turn');
+    const phaseColor = endDisabled && S.turnPhase !== 'preRoll' ? '#F0C53D' : '#76808E';
+    const testBtnStyle = 'background:' + (S.testMode ? 'rgba(240,197,61,0.14)' : 'transparent') + ';color:' + (S.testMode ? '#F0C53D' : '#76808E') + ';border:1px solid ' + (S.testMode ? 'rgba(240,197,61,0.45)' : '#2A3340') + ';border-radius:9px;padding:8px 11px;font-size:12px;font-weight:600';
+
+    return {
+      isSetup: false, isPlay: true, isOver: false,
+      cells, piles,
+      diceA, diceB, diceStyleA: dieStyle(S.dice[0]), diceStyleB: dieStyle(S.dice[1]), diceCaption,
+      cur,
+      roll: () => this.roll(), rollDisabled, rollLabel: S.rolling ? 'Rolling…' : (S.turnPhase === 'preRoll' ? '🎲 Roll Dice' : 'Rolled ' + (S.dice[0] + S.dice[1])),
+      rollStyle: btn(S.turnPhase === 'preRoll' && !S.rolling ? '#4DA3FF' : '#161D29', S.turnPhase === 'preRoll' && !S.rolling ? '#06182E' : '#3A434F', rollDisabled ? dim : ''),
+      endTurn: () => this.endTurn(), endDisabled,
+      endStyle: btn(endDisabled ? '#161D29' : '#3ED598', endDisabled ? '#3A434F' : '#06210F', endDisabled ? dim : ''),
+      takeLoan: () => this.takeLoan(), loanDisabled: false, loanStyle: 'flex:1;padding:10px;border-radius:9px;font-size:12px;font-weight:600;border:1px solid #2A3340;background:#0A0F18;color:#C7D0DC',
+      repayLoan: () => this.repayLoan(), repayDisabled, repayStyle: 'flex:1;padding:10px;border-radius:9px;font-size:12px;font-weight:600;border:1px solid #2A3340;background:#0A0F18;color:' + (repayDisabled ? '#3A434F' : '#C7D0DC') + (repayDisabled ? ';opacity:0.5' : ''),
+      actionTitle, actionDesc, actionDotCol,
+      showTrade, tradeRows, showSkip, doSkip,
+      showPick, pickList, skipPick: () => this.skipPick(),
+      showShort, shortList, skipShort: () => this.skipShort(),
+      showCard, card,
+      showIpoChoice, ipoNew: () => this.chooseIpoNew(), ipoKnown: () => this.chooseIpoKnown(), ipoKnownDisabled, ipoKnownSub, ipoKnownStyle, skipIpo: () => this.skipIpo(),
+      showIpoList, ipoPickList,
+      showIpoBuy, ipoBuy, ipoBuyShare: () => this.ipoBuyShare(), ipoBuyDone: () => this.ipoBuyDone(), ipoBuyDisabled, ipoBuyStyle,
+      ladderTiles, ipoTiles,
+      hasShorts: shortTracker.length > 0, noShorts: shortTracker.length === 0, shortTracker,
+      log,
+      standings, standCols: Math.min(S.players.length, 6),
+      phaseHint, phaseColor, closeText, closeColor,
+      testMode: S.testMode, toggleTest: () => this.toggleTest(), testBtnStyle,
+      callClose: () => this.callClose(), newGame: () => this.newGame()
+    };
+  }
+
+  // ----------------------------------------------------------------- render (DOM)
+  // small templating helpers — register dynamic closures, emit data attrs
+  _h(fn) { const id = ++this._hid; this._handlers[id] = fn; return 'data-h="' + id + '"'; }
+  _i(fn) { const id = ++this._hid; this._inputs[id] = fn; return 'data-i="' + id + '"'; }
+  esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  render() {
+    this._handlers = {}; this._inputs = {}; this._hid = 0;
+    const V = this.renderVals();
+    let html = '';
+    if (V.isSetup) html = this.viewSetup(V);
+    else if (V.isPlay) html = this.viewPlay(V);
+    else if (V.isOver) html = this.viewOver(V);
+    this.root.innerHTML =
+      '<div style="min-height:100vh;background:radial-gradient(circle at 50% 0%,#0C1424,#070A11 60%);font-family:\'Space Grotesk\',sans-serif;color:#E8EDF4;padding:22px 26px 60px;display:flex;flex-direction:column;align-items:center;gap:18px">' +
+      html + '</div>';
+  }
+
+  viewSetup(V) {
+    const e = (s) => this.esc(s);
+    return '' +
+    '<div style="width:100%;max-width:680px;margin-top:5vh;background:#0C121C;border:1px solid #232C39;border-radius:22px;padding:42px 44px;display:flex;flex-direction:column;gap:26px">' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">' +
+        '<div style="display:flex;align-items:center;gap:9px;font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:0.3em;color:#3ED598"><span style="font-size:9px">●</span>MARKET LIVE</div>' +
+        '<div style="font-size:48px;font-weight:700;letter-spacing:0.05em;line-height:1;white-space:nowrap">THE EXCHANGE</div>' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;letter-spacing:0.14em;color:#8B95A3">BUILD. TRADE. HOLD. SURVIVE THE MARKET.</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:11px">' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:#76808E">NUMBER OF PLAYERS</div>' +
+        '<div style="display:flex;gap:9px">' +
+          V.numOpts.map(o => '<button ' + this._h(o.onClick) + ' style="' + o.style + '">' + o.n + '</button>').join('') +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:#76808E">PLAYERS</div>' +
+        V.setupRows.map(r => '' +
+          '<div style="display:flex;align-items:center;gap:12px;background:#0A0F18;border:1px solid #1F2733;border-radius:11px;padding:10px 14px">' +
+            '<span style="width:16px;height:16px;border-radius:50%;background:' + r.color + ';flex:none"></span>' +
+            '<input value="' + e(r.name) + '" ' + this._i(r.set) + ' maxlength="14" style="flex:1;background:transparent;border:none;outline:none;color:#EDF2F8;font-size:16px;font-weight:600" />' +
+            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#525D6B">PLAYER ' + r.label + '</span>' +
+          '</div>').join('') +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:14px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#76808E;line-height:1.6">' +
+        '<div style="flex:1">Each player starts with <span style="color:#3ED598">$10,000</span>. Base income <span style="color:#3ED598">$500</span> + dividends at Market Open. Hot-seat — pass the device between turns.</div>' +
+      '</div>' +
+      '<button ' + this._h(V.startGame) + ' style="background:#3ED598;color:#06210F;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:700;letter-spacing:0.04em">OPEN THE MARKET →</button>' +
+    '</div>';
+  }
+
+  viewOver(V) {
+    const e = (s) => this.esc(s);
+    return '' +
+    '<div style="width:100%;max-width:720px;margin-top:4vh;background:#0C121C;border:1px solid #232C39;border-radius:22px;padding:42px 44px;display:flex;flex-direction:column;gap:24px">' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">' +
+        '<div style="display:flex;align-items:center;gap:9px;font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:0.26em;color:#FF8A8A"><span style="font-size:13px">◷</span>MARKET CLOSED</div>' +
+        '<div style="font-size:44px;font-weight:700;letter-spacing:0.03em;white-space:nowrap">Final Bell</div>' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#8B95A3">Portfolio value = cash + share value − loans</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:11px">' +
+        V.finalStandings.map(p => '' +
+          '<div style="' + p.rowStyle + '">' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:22px;font-weight:700;color:' + p.rankCol + ';width:40px">' + p.rankTxt + '</div>' +
+            '<span style="width:18px;height:18px;border-radius:5px;background:' + p.color + '"></span>' +
+            '<div style="font-size:19px;font-weight:700;flex:1">' + e(p.name) + '</div>' +
+            '<div style="display:flex;flex-direction:column;align-items:flex-end">' +
+              '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:22px;font-weight:700;color:#3ED598">' + p.netFmt + '</div>' +
+              '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#76808E">cash ' + p.cashFmt + ' · stk ' + p.sharesFmt + ' · loans ' + p.loanFmt + '</div>' +
+            '</div>' +
+          '</div>').join('') +
+      '</div>' +
+      '<button ' + this._h(V.newGame) + ' style="background:#3ED598;color:#06210F;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700">New Game</button>' +
+    '</div>';
+  }
+
+  viewPlay(V) {
+    const e = (s) => this.esc(s);
+    const cur = V.cur;
+
+    // board cells
+    const cellsHtml = V.cells.map(c => {
+      let inner = '';
+      if (c.isStock) {
+        inner = '<div style="position:absolute;inset:0;display:flex;flex-direction:column">' +
+          '<div style="flex:none;height:14px;background:' + c.color + ';display:flex;align-items:center;padding:0 5px;font-family:\'IBM Plex Mono\',monospace;font-size:6.5px;font-weight:700;letter-spacing:0.06em;color:#0A1020">' + c.code + '<span style="margin-left:auto">' + c.num2 + '</span></div>' +
+          '<div style="flex:1;display:flex;flex-direction:column;padding:4px 5px;gap:1px">' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;font-weight:700;color:#FFFFFF;line-height:1">' + c.priceFmt + '</div>' +
+            '<div style="font-size:6px;color:' + c.deltaCol + ';font-family:\'IBM Plex Mono\',monospace">' + c.deltaTxt + '</div>' +
+            '<div style="font-size:5.5px;color:#5A6675;font-family:\'IBM Plex Mono\',monospace">' + c.supplyTxt + '</div>' +
+          '</div></div>';
+      } else if (c.isSpecial) {
+        inner = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px;padding:3px">' +
+          '<div style="font-size:15px;line-height:1;color:' + c.color + '">' + c.glyph + '</div>' +
+          '<div style="font-size:6px;font-weight:700;letter-spacing:0.04em;color:#D5DCE6;line-height:1.05">' + c.label + '</div></div>';
+      } else if (c.isCorner) {
+        inner = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;padding:5px">' +
+          '<div style="font-size:24px;line-height:1;color:' + c.color + '">' + c.glyph + '</div>' +
+          '<div style="font-size:8px;font-weight:700;letter-spacing:0.06em;color:#EDF2F8;line-height:1.1">' + c.label + '</div></div>';
+      }
+      const tokens = '<div style="position:absolute;bottom:2px;left:0;right:0;display:flex;flex-wrap:wrap;gap:2px;justify-content:center;padding:0 2px">' +
+        c.tokens.map(t => '<span style="' + t.style + '">' + e(t.initial) + '</span>').join('') + '</div>';
+      return '<div style="' + c.cellStyle + '">' + inner + tokens + '</div>';
+    }).join('');
+
+    const center = '' +
+      '<div style="grid-column:2 / span 8;grid-row:2 / span 8;position:relative;background:#0A101F;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;overflow:hidden;padding:18px">' +
+        '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(120,145,190,0.045) 0 1px,transparent 1px 42px),repeating-linear-gradient(90deg,rgba(120,145,190,0.045) 0 1px,transparent 1px 42px)"></div>' +
+        '<div style="position:relative;font-size:28px;font-weight:700;letter-spacing:0.1em;color:#F4F8FC;white-space:nowrap">THE EXCHANGE</div>' +
+        '<div style="position:relative;font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:0.16em;color:#525D6B;margin-top:-8px">EVERY TRADE MOVES THE MARKET</div>' +
+        '<div style="position:relative;display:flex;gap:14px;align-items:center">' +
+          '<div style="' + V.diceStyleA + '">' + V.diceA + '</div>' +
+          '<div style="' + V.diceStyleB + '">' + V.diceB + '</div>' +
+        '</div>' +
+        '<div style="position:relative;font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:#8B95A3;margin-top:-6px">' + V.diceCaption + '</div>' +
+        '<div style="position:relative;display:flex;gap:12px;margin-top:4px">' +
+          V.piles.map(pi => '<div ' + this._h(pi.draw) + ' style="' + pi.style + '">' +
+            '<div style="font-size:18px;color:' + pi.color + '">' + pi.glyph + '</div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;letter-spacing:0.08em;color:#B0B9C6;text-align:center;line-height:1.3">' + pi.label + '</div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:#525D6B">' + pi.count + ' left</div></div>').join('') +
+        '</div>' +
+      '</div>';
+
+    const board = '' +
+      '<div style="flex:none;background:#0C121C;border:1px solid #232C39;border-radius:16px;padding:14px">' +
+        '<div style="display:grid;grid-template-columns:96px repeat(8,76px) 96px;grid-template-rows:96px repeat(8,76px) 96px;gap:3px;background:#141C2C;padding:3px;border:1px solid #233052;border-radius:8px">' +
+          cellsHtml + center +
+        '</div>' +
+      '</div>';
+
+    // action panel pieces
+    let panel = '';
+    if (V.showCard && V.card) {
+      const cd = V.card;
+      panel += '<div style="border:1px solid ' + cd.line + ';border-radius:12px;overflow:hidden;background:linear-gradient(165deg,' + cd.tint + ',#0A0F1A 60%)">' +
+        '<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid ' + cd.line + '">' +
+          '<div style="width:30px;height:30px;border-radius:50%;border:1.5px solid ' + cd.color + ';display:flex;align-items:center;justify-content:center;font-size:15px;color:' + cd.color + '">' + cd.glyph + '</div>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;letter-spacing:0.13em;color:#8B95A3">' + cd.deckLabel + '</span>' +
+        '</div>' +
+        '<div style="padding:13px 15px;display:flex;flex-direction:column;gap:8px">' +
+          '<div style="font-size:19px;font-weight:700;color:#F4F8FC;line-height:1.15">' + e(cd.title) + '</div>' +
+          '<div style="font-size:12.5px;line-height:1.45;color:#AEB8C4">' + e(cd.story) + '</div>' +
+          '<div style="border-left:3px solid ' + cd.color + ';background:' + cd.effBg + ';border-radius:0 7px 7px 0;padding:9px 12px;font-size:13px;font-weight:500;color:#F0F4F9;line-height:1.4">' + e(cd.effect) + '</div>' +
+        '</div></div>';
+    }
+    if (V.showIpoChoice) {
+      panel += '<div style="display:flex;flex-direction:column;gap:9px">' +
+        '<button ' + this._h(V.ipoNew) + ' style="text-align:left;background:rgba(62,213,152,0.10);border:1px solid rgba(62,213,152,0.4);border-radius:10px;padding:12px 14px;color:#E8EDF4;display:flex;flex-direction:column;gap:3px">' +
+          '<span style="font-size:14px;font-weight:700;color:#3ED598">A · Launch New IPO</span>' +
+          '<span style="font-size:11.5px;color:#9AA5B1">Draw a hidden IPO and buy up to 3 shares at its starting price.</span></button>' +
+        '<button ' + this._h(V.ipoKnown) + (V.ipoKnownDisabled ? ' disabled' : '') + ' style="' + V.ipoKnownStyle + '">' +
+          '<span style="font-size:14px;font-weight:700;color:#4DA3FF">B · Buy Known IPO</span>' +
+          '<span style="font-size:11.5px;color:#9AA5B1">' + e(V.ipoKnownSub) + '</span></button>' +
+        '<button ' + this._h(V.skipIpo) + ' style="align-self:flex-start;background:transparent;border:1px solid #2A3340;border-radius:8px;padding:6px 12px;color:#8B95A3;font-size:12px">Skip IPO</button>' +
+      '</div>';
+    }
+    if (V.showIpoList) {
+      panel += '<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;flex-wrap:wrap;gap:6px">' +
+        V.ipoPickList.map(t => '<button ' + this._h(t.pick) + ' style="display:flex;align-items:center;gap:6px;background:#0A0F18;border:1px solid rgba(77,163,255,0.35);border-radius:8px;padding:7px 10px;color:#E8EDF4">' +
+          '<span style="width:8px;height:8px;border-radius:2px;background:' + t.color + '"></span>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;font-weight:600">' + t.code + '</span>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8B95A3">' + t.priceFmt + '</span>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:#525D6B">' + t.supply + ' left</span></button>').join('') +
+        '</div><button ' + this._h(V.skipIpo) + ' style="align-self:flex-start;background:transparent;border:1px solid #2A3340;border-radius:8px;padding:6px 12px;color:#8B95A3;font-size:12px">Cancel</button></div>';
+    }
+    if (V.showIpoBuy && V.ipoBuy) {
+      const b = V.ipoBuy;
+      panel += '<div style="display:flex;flex-direction:column;gap:10px;background:#0A0F18;border:1px solid rgba(62,213,152,0.3);border-radius:11px;padding:13px 15px">' +
+        '<div style="display:flex;align-items:center;gap:9px">' +
+          '<span style="width:10px;height:10px;border-radius:2px;background:' + b.color + '"></span>' +
+          '<div style="font-size:15px;font-weight:700">' + e(b.name) + '</div>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8B95A3">' + b.volTxt + '</span></div>' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#9AA5B1">' + b.priceFmt + ' / share · bought ' + b.bought + '/' + b.max + ' · ' + b.supply + ' shares left</div>' +
+        '<div style="display:flex;gap:10px">' +
+          '<button ' + this._h(V.ipoBuyShare) + (V.ipoBuyDisabled ? ' disabled' : '') + ' style="' + V.ipoBuyStyle + '">Buy 1 share</button>' +
+          '<button ' + this._h(V.ipoBuyDone) + ' style="flex:1;padding:11px;border-radius:9px;font-size:13px;font-weight:700;border:none;background:#3ED598;color:#06210F">Done</button>' +
+        '</div></div>';
+    }
+    if (V.showPick) {
+      panel += '<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow:auto">' +
+        V.pickList.map(t => '<button ' + this._h(t.pick) + ' style="display:flex;align-items:center;gap:6px;background:#0A0F18;border:1px solid ' + t.line + ';border-radius:8px;padding:7px 10px;color:#E8EDF4">' +
+          '<span style="width:8px;height:8px;border-radius:2px;background:' + t.color + '"></span>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;font-weight:600">' + t.code + '</span>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8B95A3">' + t.priceFmt + '</span></button>').join('') +
+        '</div><button ' + this._h(V.skipPick) + ' style="align-self:flex-start;background:transparent;border:1px solid #2A3340;border-radius:8px;padding:6px 12px;color:#8B95A3;font-size:12px">Skip</button></div>';
+    }
+    if (V.showTrade) {
+      panel += '<div style="display:flex;flex-direction:column;gap:7px;max-height:300px;overflow:auto;padding-right:2px">' +
+        V.tradeRows.map(r => '<div style="display:flex;align-items:center;gap:10px;background:#0A0F18;border:1px solid #1F2733;border-left:3px solid ' + r.color + ';border-radius:9px;padding:9px 12px">' +
+          '<div style="display:flex;flex-direction:column;min-width:0;flex:1">' +
+            '<div style="font-size:13px;font-weight:600;color:#EDF2F8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + e(r.name) + '</div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#76808E">' + r.code + ' · ' + r.riskTxt + ' · ' + r.supplyTxt + ' · own ' + r.owned + '</div>' +
+          '</div>' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:15px;font-weight:700;color:#FFFFFF">' + r.priceFmt + '</div>' +
+          '<button ' + this._h(r.buy) + (r.noBuy ? ' disabled' : '') + ' style="' + r.buyStyle + '">Buy</button>' +
+          '<button ' + this._h(r.sell) + (r.noSell ? ' disabled' : '') + ' style="' + r.sellStyle + '">Sell</button>' +
+        '</div>').join('') + '</div>';
+    }
+    if (V.showSkip) {
+      panel += '<button ' + this._h(V.doSkip) + ' style="align-self:flex-start;background:transparent;border:1px solid rgba(255,92,92,0.35);border-radius:8px;padding:7px 13px;color:#FF9B9B;font-size:12px;font-weight:600">Skip this stock — add weak-demand token</button>';
+    }
+    if (V.showShort) {
+      panel += '<div style="display:flex;flex-direction:column;gap:9px">' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#76808E">One active short per player · regular stocks only · settles at the start of your next turn</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow:auto">' +
+        V.shortList.map(t => '<button ' + this._h(t.pick) + ' style="display:flex;align-items:center;gap:6px;background:#0A0F18;border:1px solid rgba(255,92,92,0.3);border-radius:8px;padding:7px 10px;color:#E8EDF4">' +
+          '<span style="width:8px;height:8px;border-radius:2px;background:' + t.color + '"></span>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;font-weight:600">' + t.code + '</span>' +
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8B95A3">' + t.priceFmt + '</span></button>').join('') +
+        '</div><button ' + this._h(V.skipShort) + ' style="align-self:flex-start;background:transparent;border:1px solid #2A3340;border-radius:8px;padding:6px 12px;color:#8B95A3;font-size:12px">Skip</button></div>';
+    }
+
+    const controlCol = '' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">' +
+        // current player
+        '<div style="background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">' +
+          '<div style="display:flex;align-items:center;gap:11px">' +
+            '<span style="width:30px;height:30px;border-radius:8px;background:' + cur.color + ';display:flex;align-items:center;justify-content:center;font-weight:700;color:#06210F;font-size:15px">' + e(cur.initial) + '</span>' +
+            '<div style="display:flex;flex-direction:column">' +
+              '<div style="display:flex;align-items:center;gap:8px">' +
+                '<div style="font-size:17px;font-weight:700;line-height:1.1">' + e(cur.name) + '</div>' +
+                (cur.diversified ? '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:8.5px;font-weight:700;letter-spacing:0.08em;color:#F0C53D;background:rgba(240,197,61,0.12);border:1px solid rgba(240,197,61,0.4);border-radius:5px;padding:2px 6px">★ DIVERSIFIED</span>' : '') +
+              '</div>' +
+              '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#76808E">SPACE ' + cur.posNum + ' · ' + e(cur.spaceName) + '</div>' +
+            '</div>' +
+            '<div style="margin-left:auto;text-align:right">' +
+              '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:22px;font-weight:700;color:#3ED598">' + cur.cashFmt + '</div>' +
+              '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#76808E">NET ' + cur.netFmt + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px">' +
+            '<button ' + this._h(V.roll) + (V.rollDisabled ? ' disabled' : '') + ' style="' + V.rollStyle + '">' + V.rollLabel + '</button>' +
+            '<button ' + this._h(V.endTurn) + (V.endDisabled ? ' disabled' : '') + ' style="' + V.endStyle + '">End Turn →</button>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px">' +
+            '<button ' + this._h(V.takeLoan) + ' style="' + V.loanStyle + '">Take Loan +$2,000</button>' +
+            '<button ' + this._h(V.repayLoan) + (V.repayDisabled ? ' disabled' : '') + ' style="' + V.repayStyle + '">Repay −$2,000</button>' +
+            '<div style="flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 12px;background:#0A0F18;border:1px solid #1F2733;border-radius:9px">' +
+              '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;font-weight:700;color:' + cur.loanCol + '">' + cur.loanFmt + '</span>' +
+              '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:#525D6B">LOANS</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        // action panel
+        '<div style="background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-height:120px">' +
+          '<div style="display:flex;align-items:center;gap:9px">' +
+            '<span style="width:8px;height:8px;border-radius:50%;background:' + V.actionDotCol + '"></span>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.14em;color:#B0B9C6">' + e(V.actionTitle) + '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;line-height:1.5;color:#9AA5B1">' + e(V.actionDesc) + '</div>' +
+          panel +
+        '</div>' +
+        // portfolio
+        '<div style="background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:11px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between">' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.14em;color:#76808E">' + e(cur.name) + ' · PORTFOLIO</div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#76808E">' + cur.holdCount + ' holdings</div>' +
+          '</div>' +
+          (cur.hasHoldings ?
+            '<div style="display:flex;flex-direction:column;gap:6px">' +
+              cur.holdings.map(h => '<div style="display:flex;align-items:center;gap:10px">' +
+                '<span style="width:9px;height:9px;border-radius:2px;background:' + h.color + ';flex:none"></span>' +
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:600;color:#D5DCE6;width:52px">' + h.code + '</span>' +
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:' + h.tagCol + '">' + h.tag + '</span>' +
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#8B95A3">' + h.qty + ' sh</span>' +
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#76808E">@ ' + h.priceFmt + '</span>' +
+                '<span style="margin-left:auto;font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:700;color:#F0F4F9">' + h.valueFmt + '</span>' +
+              '</div>').join('') +
+            '</div>'
+            : '<div style="font-size:12px;color:#525D6B;font-style:italic">No shares yet — land on a stock space to trade.</div>') +
+        '</div>' +
+      '</div>';
+
+    const priceTrack = '' +
+      '<div style="background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:12px">' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:#3ED598">PRICE TRACK</div>' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#76808E">12-step track · 24 listed companies · 10 shares each</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:7px">' +
+          V.ladderTiles.map(t => '<div style="background:#0A0F18;border:1px solid #1F2733;border-top:3px solid ' + t.color + ';border-radius:8px;padding:8px 9px;display:flex;flex-direction:column;gap:3px">' +
+            '<div style="display:flex;align-items:center;gap:5px">' +
+              '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;font-weight:700;color:#D5DCE6">' + t.code + '</span>' +
+              '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:' + t.skipCol + '">' + t.skipTxt + '</span>' +
+              '<span style="margin-left:auto;font-size:9px;color:' + t.deltaCol + ';font-family:\'IBM Plex Mono\',monospace">' + t.deltaTxt + '</span>' +
+            '</div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:14px;font-weight:700;color:#FFFFFF">' + t.priceFmt + '</div>' +
+            '<div style="height:4px;border-radius:3px;background:#161D29;overflow:hidden"><div style="' + t.barStyle + '"></div></div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8px;color:#5A6675">' + t.supplyTxt + '</div>' +
+          '</div>').join('') +
+        '</div>' +
+      '</div>';
+
+    const ipoMarket = '' +
+      '<div style="background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:12px">' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:#3ED598">IPO MARKET</div>' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#76808E">8 listings · 5 shares each · launch or buy at the IPO space</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px">' +
+          V.ipoTiles.map(t => '<div style="' + t.boxStyle + '">' +
+            (t.revealed ?
+              '<div style="display:flex;flex-direction:column;gap:4px">' +
+                '<div style="display:flex;align-items:center;gap:6px">' +
+                  '<span style="width:8px;height:8px;border-radius:2px;background:' + t.color + '"></span>' +
+                  '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;font-weight:700;color:#D5DCE6">' + t.code + '</span>' +
+                  '<span style="margin-left:auto;font-size:9px;color:' + t.deltaCol + ';font-family:\'IBM Plex Mono\',monospace">' + t.deltaTxt + '</span>' +
+                '</div>' +
+                '<div style="font-size:11px;font-weight:600;color:#EDF2F8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + e(t.name) + '</div>' +
+                '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:14px;font-weight:700;color:#FFFFFF">' + t.priceFmt + '</div>' +
+                '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8.5px;color:#8B95A3">' + t.volTxt + ' · ' + t.supplyTxt + '</div>' +
+              '</div>'
+              : '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:64px">' +
+                '<div style="font-size:20px;color:#3A434F">?</div>' +
+                '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:8.5px;color:#525D6B;letter-spacing:0.1em">UNLISTED IPO</div></div>') +
+          '</div>').join('') +
+        '</div>' +
+      '</div>';
+
+    const bottom = '' +
+      '<div style="display:flex;gap:16px;align-items:stretch">' +
+        '<div style="flex:1;background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:11px">' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:#FF8A8A">SHORT SELL TRACKER</div>' +
+          (V.hasShorts ?
+            '<div style="display:flex;flex-direction:column;gap:7px">' +
+              V.shortTracker.map(sh => '<div style="display:flex;align-items:center;gap:10px;background:#0A0F18;border:1px solid #1F2733;border-radius:9px;padding:8px 12px">' +
+                '<span style="width:9px;height:9px;border-radius:50%;background:' + sh.pcolor + ';flex:none"></span>' +
+                '<span style="font-size:12px;font-weight:600;color:#D5DCE6">' + e(sh.player) + '</span>' +
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#8B95A3">short ' + sh.code + '</span>' +
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#76808E">entry ' + sh.entryFmt + ' · ' + sh.moveTxt + '</span>' +
+                '<span style="margin-left:auto;font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#525D6B">settles ' + e(sh.settleTxt) + '</span>' +
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:700;color:' + sh.plCol + '">' + sh.plFmt + '</span>' +
+              '</div>').join('') +
+            '</div>'
+            : '<div style="font-size:12px;color:#525D6B;font-style:italic">No open short positions. Land on Short Sell to bet against a stock.</div>') +
+        '</div>' +
+        '<div style="flex:1;background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:9px">' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:#76808E">MARKET LOG</div>' +
+          '<div style="display:flex;flex-direction:column;gap:5px;max-height:170px;overflow:auto">' +
+            V.log.map(l => '<div style="display:flex;gap:9px;align-items:baseline">' +
+              '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:#3A434F;flex:none;width:26px">' + l.tag + '</span>' +
+              '<span style="font-size:12px;line-height:1.4;color:' + l.color + '">' + e(l.text) + '</span></div>').join('') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    const standings = '' +
+      '<div style="background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:11px">' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:#76808E">STANDINGS · PORTFOLIO VALUE = CASH + SHARES − LOANS</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(' + V.standCols + ',1fr);gap:10px">' +
+          V.standings.map(p => '<div style="' + p.boxStyle + '">' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+              '<span style="width:14px;height:14px;border-radius:4px;background:' + p.color + '"></span>' +
+              '<span style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + e(p.name) + '</span>' +
+              (p.diversified ? '<span style="margin-left:auto;font-size:11px;color:#F0C53D">★</span>' : '') +
+            '</div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:18px;font-weight:700;color:#F4F8FC">' + p.netFmt + '</div>' +
+            '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#76808E">cash ' + p.cashFmt + ' · stk ' + p.sharesFmt + '</div>' +
+          '</div>').join('') +
+        '</div>' +
+      '</div>';
+
+    const topBar = '' +
+      '<div style="display:flex;align-items:center;gap:18px;background:#0C121C;border:1px solid #232C39;border-radius:14px;padding:12px 20px">' +
+        '<div style="font-size:20px;font-weight:700;letter-spacing:0.06em">THE EXCHANGE</div>' +
+        '<div style="width:1px;height:24px;background:#232C39"></div>' +
+        '<div style="display:flex;align-items:center;gap:9px">' +
+          '<span style="width:13px;height:13px;border-radius:50%;background:' + cur.color + '"></span>' +
+          '<span style="font-size:15px;font-weight:600">' + e(cur.name) + '\'s turn</span>' +
+        '</div>' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:' + V.phaseColor + '">' + e(V.phaseHint) + '</div>' +
+        '<div style="margin-left:auto;display:flex;align-items:center;gap:10px">' +
+          '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:' + V.closeColor + '">' + e(V.closeText) + '</div>' +
+          '<button ' + this._h(V.toggleTest) + ' style="' + V.testBtnStyle + '">⚙ Test</button>' +
+          (V.testMode ? '<button ' + this._h(V.callClose) + ' style="background:transparent;color:#FF8A8A;border:1px solid rgba(255,92,92,0.4);border-radius:9px;padding:8px 13px;font-size:12px;font-weight:600">Call Market Close</button>' : '') +
+          '<button ' + this._h(V.newGame) + ' style="background:transparent;color:#8B95A3;border:1px solid #2A3340;border-radius:9px;padding:8px 13px;font-size:12px;font-weight:600">New Game</button>' +
+        '</div>' +
+      '</div>';
+
+    return '<div style="width:100%;max-width:1520px;display:flex;flex-direction:column;gap:16px">' +
+      topBar +
+      '<div style="display:flex;gap:16px;align-items:flex-start">' + board + controlCol + '</div>' +
+      priceTrack + ipoMarket + bottom + standings +
+    '</div>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  new Component(document.getElementById('app'));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+// Engine state + action types. State is a plain serializable object; the reducer
+// produces new state via Immer. No DOM, no React here.
+
+import type { Card, DeckId } from '../data/types';
+
+export type Phase = 'setup' | 'play' | 'over';
+export type TurnPhase = 'preRoll' | 'acted';
+export type LogKind = 'g' | 'r' | 'y' | 'b' | 'n';
+export type TradeKind = 'buy' | 'sell' | 'ipo' | 'short' | 'settle' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
+
+export interface TradeEntry {
+  kind: TradeKind;
+  text: string;
+  amount: number;   // positive = cash in, negative = cash out
+  player: string;
+  t: number;        // lap number
+}
+
+export interface Player {
+  name: string;
+  color: string;
+  piece: string;                     // piece key (see PIECES in data/pieces.ts)
+  cash: number;
+  pos: number;                       // board space 1..36
+  shares: Record<string, number>;    // code -> qty (regular + IPO)
+  etfShares: Record<string, number>; // ETF code -> qty held
+  margin: number;                    // total outstanding margin dollars
+  prevRank: number | null;           // rank at end of previous turn (null = first turn)
+}
+
+export interface IpoState {
+  code: string;
+  startStep: number;
+  step: number;       // current ladder step
+  supply: number;     // shares remaining
+  revealed: boolean;
+}
+
+export interface Short {
+  owner: number;       // player index
+  ownerName: string;
+  pcolor: string;
+  code: string;
+  entryStep: number;
+}
+
+export interface TradeContext {
+  scope: 'stock' | 'free';   // stock-space (one code) vs free-trading (any stock)
+  code?: string;              // for scope === 'stock'
+  actionsLeft: number;        // decrements on each buy/sell; 0 = exhausted
+}
+
+export interface IpoBuyContext {
+  code: string;
+  max: number;
+  bought: number;
+  price: number;
+  actor: number;   // player index currently deciding — may differ from s.cur during a reveal group-buy
+}
+
+/** On a new IPO reveal, the revealer buys first (via IpoBuyContext); this
+    tracks the other players still owed their one-time buy turn, in clockwise
+    order, before the reveal sequence closes (rulebook §16). */
+export interface IpoRevealQueue {
+  code: string;
+  queue: number[]; // remaining player indices, in clockwise order
+}
+
+export interface PickContext {
+  d: number;
+  label: string;
+  codes?: string[];   // optional restrict to these codes (UI hint)
+}
+
+export interface LogEntry {
+  text: string;
+  kind: LogKind;
+  t: number;          // lap number
+}
+
+/** Taxes & Fees panel entry kinds. */
+export type FeeEventKind = 'marginCall' | 'income' | 'audit' | 'tax' | 'payout';
+
+/** One Taxes & Fees event: a margin call, Market Open income, Audit Notice,
+    Portfolio Tax, or a forced-sale-settled Payout Claim shortfall. */
+export interface FeeEventEntry {
+  kind: FeeEventKind;
+  player: string;
+  color: string;
+  lap: number;
+  amount: number;   // signed: positive for income, negative otherwise
+}
+
+/** Active margin call awaiting forced-sell resolution by the current player. */
+export interface MarginCall {
+  player: number;   // player index who owes the call
+  owed: number;     // remaining dollars that must be paid down on margin
+}
+
+/** What kind of required payment triggered an Insolvency (Phase 8). */
+export type InsolvencyReason = 'tax' | 'audit' | 'payout';
+
+/** Active forced-sale resolution: a player owes more than their cash covers
+    for a required payment (Portfolio Tax, Audit Notice, or a Sold-Out Payout
+    Claim landing payment) and must sell regular stock to raise the rest, or
+    exhaust their holdings and have the remainder waived (rulebook §17). */
+export interface Insolvency {
+  player: number;              // player index who owes the payment
+  owed: number;                // remaining dollars still needed
+  reason: InsolvencyReason;
+  payTo: number | null;        // player index to receive the payment; null = paid to the bank
+  label: string;                // short human label for UI/log text, e.g. "Portfolio Tax"
+}
+
+/** Most recent card draw / IPO reveal — seq is unique per draw so views can
+    animate exactly once per event. */
+export interface DrawEvent {
+  deck: string;     // 'ME' | 'FED' | 'AH' | 'IPO'
+  title: string;    // drawn card title or launched IPO name
+  seq: number;      // monotonically increasing per draw
+}
+
+/** One regular stock's Sold-Out / Payout-Claim record. Created on the buy that
+    first exhausts supply; never removed (Sold-Out is permanent). */
+export interface SoldOutInfo {
+  code: string;
+  claimHolder: number | null; // player index of the sole top owner; null = Contested (tie) / nobody
+}
+
+/** Active Bank Auction of one stock's pooled shares, held at Market Open.
+    Ascending, turn-order bidding: each active player may raise or pass; the last
+    remaining bidder wins one share. Payout Claim is frozen until the stock's
+    auction fully closes (rulebook §10). */
+export interface Auction {
+  code: string;
+  poolLeft: number;          // shares from the bank pool still to be auctioned
+  startPrice: number;        // minimum first bid — one step below market
+  highBid: number;           // current high bid in dollars; 0 = no bid yet
+  highBidder: number | null; // player index of the current high bidder
+  actor: number;             // player index whose turn it is to bid or pass
+  active: number[];          // player indices still competing for the current lot
+}
+
+/**
+ * A negotiated player-to-player share trade offer. Cash-for-shares only, never
+ * involves ETFs, never moves the market ladder or the bank's supply pool —
+ * shares and cash transfer directly between the two named players.
+ */
+export interface P2POffer {
+  id: number;
+  from: number;                 // proposing player index
+  to: number;                   // counterparty player index
+  code: string;                 // regular stock or IPO code (never an ETF)
+  qty: number;                  // shares changing hands
+  direction: 'sell' | 'buy';    // from the proposer's perspective
+  price: number;                // total negotiated cash amount (not per-share)
+}
+
+export interface GameOptions {
+  startCash: number;          // starting cash per player
+  margin: boolean;            // margin trading allowed
+  shorts: boolean;            // short selling allowed
+  ipos: boolean;              // IPO spaces active
+  closeMode: 'card' | 'rounds';
+  closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
+}
+
+export const DEFAULT_OPTIONS: GameOptions = {
+  startCash: 30_000,
+  margin: false, // advanced-mode toggle — off by default in standard mode (rulebook §21)
+  shorts: false, // Short Sell is off / removed from standard game flow (rulebook §21)
+  ipos: true,
+  closeMode: 'card',
+  closeRounds: 5,
+};
+
+export interface GameState {
+  phase: Phase;
+  numPlayers: number;
+  names: string[];
+  pieces: string[];                    // selected piece key per player slot
+  players: Player[];
+  cur: number;                         // current player index
+  turnPhase: TurnPhase;
+  dice: [number | null, number | null];
+  rolling: boolean;
+  prices: Record<string, number>;      // regular stock code -> ladder step
+  supply: Record<string, number>;      // regular stock code -> shares remaining
+  skips: Record<string, number>;       // code -> weak-demand marker count (0-3)
+  soldOut: Record<string, SoldOutInfo>; // presence of key ⇔ stock is permanently sold out
+  bankPool: Record<string, number>;    // shares sold back into a sold-out stock, awaiting auction
+  auction: Auction | null;             // active Bank Auction (blocks End Turn until resolved)
+  auctionQueue: string[];              // codes with pooled shares awaiting their Market Open auction
+  marketOpenWindow: boolean;           // Market Open Trading Window open (blocks End Turn until closed)
+  lap: number;
+  log: LogEntry[];
+  tradeLog: TradeEntry[];
+  trade: TradeContext | null;
+  pendingDraws: DeckId[];              // ordered queue of forced draws, resolved one at a time
+  card: Card | null;                   // most recently drawn card (display)
+  pick: PickContext | null;
+  shortPick: boolean;
+  ipos: IpoState[];
+  ipoChoice: boolean;
+  ipoListPick: boolean;
+  ipoBuy: IpoBuyContext | null;
+  ipoReveal: IpoRevealQueue | null;
+  decks: Record<DeckId, number[]>;     // shuffled index queues
+  discard: Record<DeckId, number[]>;
+  shorts: Short[];
+  closing: boolean;
+  closeDrawer: number | null;
+  extendedHoursAvailable: boolean; // an Extended Hours card was drawn and hasn't been consumed yet
+  extendedRoundsLeft: number;      // rounds still owed before Market Close actually ends the game
+  testMode: boolean;
+  opts: GameOptions;
+  etfPick: string | null;   // ETF code player landed on, awaiting buy/skip
+  marginCall: MarginCall | null; // active forced-sell margin call, if any
+  insolvency: Insolvency | null; // active forced-sale resolution for an unaffordable tax/audit/payout, if any
+  feeLog: FeeEventEntry[];           // Taxes & Fees panel: margin calls, income, audit notices (most recent first)
+  lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
+  p2pOffers: P2POffer[];             // pending player-to-player trade offers
+  p2pSeq: number;                    // monotonically increasing id source for p2pOffers
+}
+
+// Actions the reducer accepts. Kept explicit for testability.
+export type Action =
+  | { t: 'setNum'; n: number }
+  | { t: 'setName'; i: number; name: string }
+  | { t: 'setPiece'; i: number; piece: string }
+  | { t: 'setOpt'; opt: Partial<GameOptions> }
+  | { t: 'startGame' }
+  | { t: 'newGame' }
+  | { t: 'toggleTest' }
+  | { t: 'roll' }                      // rolls dice + resolves move + landing
+  | { t: 'buy'; code: string }             // all-or-nothing: buys out the whole 11-share company
+  | { t: 'sell'; code: string; qty?: number }
+  | { t: 'skipStock'; code: string }
+  | { t: 'takeMargin' }
+  | { t: 'repayMargin' }
+  | { t: 'marginSell'; code: string }
+  | { t: 'payMarginCall' }
+  | { t: 'forcedSell'; code: string }
+  | { t: 'payInsolvency' }
+  | { t: 'doShort'; code: string }
+  | { t: 'skipShort' }
+  | { t: 'pickKnownIpo'; code: string }
+  | { t: 'ipoBuyShare' }
+  | { t: 'ipoBuyDone' }
+  | { t: 'skipIpo' }
+  | { t: 'draw'; deck: DeckId }
+  | { t: 'pickTarget'; code: string }
+  | { t: 'skipPick' }
+  | { t: 'callClose' }
+  | { t: 'buyEtf'; code: string }
+  | { t: 'skipEtf' }
+  | { t: 'proposeP2POffer'; from: number; to: number; code: string; qty: number; direction: 'sell' | 'buy'; price: number }
+  | { t: 'acceptP2POffer'; id: number }
+  | { t: 'declineP2POffer'; id: number }
+  | { t: 'cancelP2POffer'; id: number }
+  | { t: 'auctionBid'; amount: number }
+  | { t: 'auctionPass' }
+  | { t: 'closeMarketOpenWindow' }
+  | { t: 'endTurn' };

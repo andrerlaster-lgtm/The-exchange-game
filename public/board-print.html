@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>THE EXCHANGE — Printable Board</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: #fff;
+    color: #111;
+    width: 410mm;
+    height: 277mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .page {
+    width: 400mm;
+    height: 267mm;
+    display: flex;
+    flex-direction: column;
+    gap: 4mm;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 0.5mm solid #1a1a2e;
+    padding-bottom: 2mm;
+  }
+  .header-title { display: flex; flex-direction: column; }
+  .header-sub { font-size: 7pt; letter-spacing: 3px; color: #6366f1; text-transform: uppercase; }
+  .header-main { font-size: 22pt; font-weight: 900; letter-spacing: 2px; color: #1a1a2e; line-height: 1; }
+  .header-tag { font-size: 6.5pt; color: #666; letter-spacing: 1px; }
+  .header-right { font-size: 6pt; color: #999; text-align: right; line-height: 1.6; }
+
+  /* ── Board grid ── */
+  .board {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 1.2mm;
+    border: 0.6mm solid #1a1a2e;
+    border-radius: 3mm;
+    padding: 1.5mm;
+    background: #f8f7ff;
+  }
+
+  /* ── Center ── */
+  .center {
+    grid-column: 2 / 10;
+    grid-row: 2 / 10;
+    background: linear-gradient(160deg, #1a1a2e 0%, #0d0b22 100%);
+    border-radius: 2mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2mm;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .center::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+    background-size: 8mm 8mm;
+  }
+  .center-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 2mm; }
+  .c-sub { font-size: 6pt; letter-spacing: 5px; color: rgba(99,102,241,0.6); text-transform: uppercase; }
+  .c-title { font-size: 28pt; font-weight: 900; letter-spacing: 5px; color: #c7d2fe; line-height: 1; }
+  .c-game { font-size: 5.5pt; letter-spacing: 3px; color: rgba(200,210,255,0.35); text-transform: uppercase; }
+  .c-rule { font-size: 5.5pt; color: rgba(200,210,255,0.5); max-width: 90mm; text-align: center; line-height: 1.5; }
+  .c-divider { width: 20mm; height: 0.3mm; background: rgba(99,102,241,0.4); }
+  .c-mascot { width: 22mm; height: 22mm; border-radius: 50%; border: 0.4mm solid rgba(240,197,61,0.5); overflow: hidden; background: #f5f3ee; }
+  .c-mascot img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+  .c-mascot-label { font-size: 5pt; font-weight: 700; letter-spacing: 1.5px; color: rgba(240,197,61,0.8); text-transform: uppercase; }
+  .c-mascot-tip { font-size: 4.5pt; color: rgba(200,210,255,0.45); font-style: italic; }
+  .c-est { font-size: 5pt; color: rgba(99,102,241,0.3); letter-spacing: 2px; }
+
+  /* ── Board spaces ── */
+  .space {
+    border-radius: 1.5mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1mm;
+    position: relative;
+    border: 0.3mm solid #ddd;
+    background: #fff;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .space-num {
+    position: absolute; top: 0.5mm; left: 0.8mm;
+    font-size: 4pt; color: #bbb; font-weight: 600;
+  }
+
+  /* Stock spaces */
+  .space.stock { border-left: 1mm solid var(--sc); background: color-mix(in srgb, var(--sc) 8%, #fff); }
+  .space.stock .code { font-size: 6.5pt; font-weight: 800; color: var(--sc); letter-spacing: 0.5px; line-height: 1; }
+  .space.stock .sname { font-size: 3.8pt; color: #555; text-align: center; line-height: 1.2; margin-top: 0.5mm; }
+  .space.stock .price { font-size: 5.5pt; font-weight: 700; color: #333; margin-top: 0.8mm; }
+  .space.stock .sector-dot { width: 2mm; height: 2mm; border-radius: 50%; background: var(--sc); margin-bottom: 0.5mm; }
+
+  /* Corner / special spaces */
+  .space.special { border: 0.4mm solid var(--sc); background: color-mix(in srgb, var(--sc) 12%, #fff); }
+  .space.corner { border-width: 0.5mm; }
+  .space.special .glyph { font-size: 11pt; color: var(--sc); line-height: 1; }
+  .space.special .sname { font-size: 4pt; font-weight: 700; letter-spacing: 0.5px; color: var(--sc); text-align: center; text-transform: uppercase; margin-top: 0.5mm; }
+
+  /* ── Price ladder footer ── */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 0.4mm solid #e0e0ef;
+    padding-top: 2mm;
+    font-size: 5.5pt;
+    color: #555;
+  }
+  .ladder { display: flex; gap: 1.5mm; align-items: center; }
+  .ladder-label { font-weight: 700; color: #1a1a2e; letter-spacing: 0.5px; }
+  .ladder-step { background: #1a1a2e; color: #fff; border-radius: 1mm; padding: 0.5mm 1.5mm; font-size: 5pt; font-weight: 600; }
+  .rules-col { display: flex; flex-direction: column; gap: 0.8mm; text-align: right; }
+  .rule-line { font-size: 5pt; color: #666; }
+  .sectors-row { display: flex; gap: 3mm; align-items: center; }
+  .sect { display: flex; align-items: center; gap: 1mm; font-size: 4.8pt; color: #444; }
+  .sect-dot { width: 2.5mm; height: 2.5mm; border-radius: 50%; }
+
+  @media print {
+    body { width: 100%; height: 100%; }
+    .page { width: 100%; height: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">
+      <div class="header-sub">The Exchange</div>
+      <div class="header-main">STOCK MARKET GAME</div>
+      <div class="header-tag">2–6 Players · Hot Seat · Ages 12+ · Fast Prototype Edition</div>
+    </div>
+    <div class="header-right">
+      Roll · Move · Resolve<br>
+      Net Worth = Cash + Stocks + ETFs − Margin<br>
+      Highest Net Worth Wins
+    </div>
+  </div>
+
+  <!-- Board -->
+  <div class="board" id="board"></div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>
+      <div class="ladder">
+        <span class="ladder-label">PRICE LADDER ▸</span>
+        <span class="ladder-step">$100</span>
+        <span class="ladder-step">$250</span>
+        <span class="ladder-step">$500</span>
+        <span class="ladder-step">$750</span>
+        <span class="ladder-step">$1k</span>
+        <span class="ladder-step">$1.25k</span>
+        <span class="ladder-step">$1.5k</span>
+        <span class="ladder-step">$2k</span>
+        <span class="ladder-step">$2.5k</span>
+        <span class="ladder-step">$3k</span>
+        <span class="ladder-step">$4k</span>
+        <span class="ladder-step">$5k</span>
+      </div>
+    </div>
+    <div class="sectors-row" id="sectors"></div>
+    <div class="rules-col">
+      <div class="rule-line">Buy 2+ shares → price moves UP 1 step</div>
+      <div class="rule-line">Sell 2+ shares → price moves DOWN 1 step</div>
+      <div class="rule-line">Skip stock space 3× → price moves DOWN 1 step</div>
+      <div class="rule-line">© THE EXCHANGE · Fast Prototype Edition</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const SECTORS = {
+  tech:        { name: 'Technology',    color: '#4DA3FF' },
+  consumer:    { name: 'Consumer',      color: '#F0C53D' },
+  health:      { name: 'Healthcare',    color: '#2DD4BF' },
+  energy:      { name: 'Energy',        color: '#FF9442' },
+  finance:     { name: 'Finance',       color: '#3ED598' },
+  realestate:  { name: 'Real Estate',   color: '#A78BFA' },
+  industrials: { name: 'Industrials',   color: '#9AA5B1' },
+  comm:        { name: 'Comms/Media',   color: '#F87171' },
+};
+
+const STOCKS = [
+  [2,  'CloudCore AI',          'tech',        '$1k',   'CCAI'],
+  [3,  'SafeMart Stores',       'consumer',    '$500',  'SAFE'],
+  [5,  'MediCore Health',       'health',      '$750',  'MEDI'],
+  [6,  'OilWorks Energy',       'energy',      '$1k',   'OILW'],
+  [8,  'FirstTrust Bank',       'finance',     '$1.25k','FTRB'],
+  [9,  'MetroHomes REIT',       'realestate',  '$1k',   'MTRO'],
+  [11, 'IronRail Logistics',    'industrials', '$750',  'IRON'],
+  [12, 'StreamWave Media',      'comm',        '$1k',   'STRM'],
+  [14, 'CyberShield Systems',   'tech',        '$750',  'CYBS'],
+  [15, 'FreshBite Foods',       'consumer',    '$250',  'FRSH'],
+  [17, 'BioQuest Labs',         'health',      '$1k',   'BIOQ'],
+  [18, 'SolarGrid Power',       'energy',      '$750',  'SOLR'],
+  [20, 'PayWave Credit',        'finance',     '$750',  'PAYW'],
+  [21, 'TowerPoint Realty',     'realestate',  '$1.25k','TWPT'],
+  [23, 'BuildMax Materials',    'industrials', '$500',  'BLDM'],
+  [24, 'VitalSign Devices',     'health',      '$750',  'VSGN'],
+  [27, 'SneakerStreet',         'consumer',    '$750',  'SNKR'],
+  [29, 'CarePlus Clinics',      'health',      '$500',  'CARE'],
+  [32, 'Apex Investments',      'finance',     '$1.5k', 'APEX'],
+  [33, 'RentWell Properties',   'realestate',  '$750',  'RENT'],
+  [35, 'AeroLift Manufacturing','industrials', '$1k',   'AERO'],
+  [36, 'GameBox Studios',       'comm',        '$500',  'GMBX'],
+];
+
+const SPECIALS = {
+  1:  { glyph: '▲', name: 'MARKET OPEN',      color: '#22c55e', corner: true  },
+  4:  { glyph: '◆', name: 'GROWTH FUND',      color: '#4da3ff', corner: false },
+  7:  { glyph: '%', name: 'THE FED',           color: '#f0b429', corner: false },
+  10: { glyph: '↑', name: 'IPO',               color: '#22c55e', corner: true  },
+  13: { glyph: '■', name: 'INCOME FUND',       color: '#3ed598', corner: false },
+  16: { glyph: '%', name: 'THE FED',           color: '#f0b429', corner: false },
+  19: { glyph: '◈', name: 'MARKET EVENT',     color: '#FF5C5C', corner: true  },
+  22: { glyph: '⌂', name: 'PROPERTY FUND',    color: '#a78bfa', corner: false },
+  25: { glyph: '$', name: 'PORTFOLIO TAX',     color: '#94a3b8', corner: false },
+  26: { glyph: '%', name: 'THE FED',           color: '#f0b429', corner: false },
+  28: { glyph: '↑', name: 'IPO',               color: '#22c55e', corner: true  },
+  30: { glyph: '▲', name: 'ENERGY FUND',       color: '#ff9442', corner: false },
+  31: { glyph: '☾', name: 'AFTER-HOURS',       color: '#818cf8', corner: false },
+  34: { glyph: '⚑', name: 'AUDIT NOTICE',      color: '#e8b44c', corner: false },
+};
+
+const STOCK_BY_SPACE = {};
+STOCKS.forEach(([sp, name, sector, price, code]) => {
+  STOCK_BY_SPACE[sp] = { name, sector, price, code };
+});
+
+// ── Grid position ──────────────────────────────────────────────────────────────
+function gridPos(n) {
+  if (n <= 10) return { col: n,          row: 1 };
+  if (n <= 18) return { col: 10,         row: n - 9 };
+  if (n === 19) return { col: 10,        row: 10 };
+  if (n <= 27) return { col: 10 - (n - 19), row: 10 };
+  if (n === 28) return { col: 1,         row: 10 };
+  return              { col: 1,          row: 10 - (n - 28) };
+}
+
+// ── Build board ────────────────────────────────────────────────────────────────
+const board = document.getElementById('board');
+
+// Center panel
+const center = document.createElement('div');
+center.className = 'center';
+center.style.gridColumn = '2 / 10';
+center.style.gridRow = '2 / 10';
+center.innerHTML = `
+  <div class="center-inner">
+    <div class="c-sub">The</div>
+    <div class="c-title">EXCHANGE</div>
+    <div class="c-game">Stock Market Game</div>
+    <div class="c-divider"></div>
+    <div class="c-mascot">
+      <img src="/assets/investabear.jpeg" alt="InvestaBear"
+           onerror="this.style.display='none'; this.parentNode.style.background='#2a2060'; this.parentNode.innerHTML='<span style=\\'font-size:16pt; line-height:22mm; text-align:center; display:block; color:#f0c53d;\\'>🐻</span>'"/>
+    </div>
+    <div class="c-mascot-label">InvestaBear — Market Guide</div>
+    <div class="c-mascot-tip">Watch the market. Manage your risk.</div>
+    <div class="c-divider"></div>
+    <div class="c-rule">Buy or sell only when the space allows it · Build the highest net worth to win</div>
+    <div class="c-est">EST. 2025</div>
+  </div>
+`;
+board.appendChild(center);
+
+// Spaces
+for (let n = 1; n <= 36; n++) {
+  const { col, row } = gridPos(n);
+  const el = document.createElement('div');
+  el.className = 'space';
+  el.style.gridColumn = col;
+  el.style.gridRow = row;
+
+  const numEl = document.createElement('div');
+  numEl.className = 'space-num';
+  numEl.textContent = n;
+  el.appendChild(numEl);
+
+  if (STOCK_BY_SPACE[n]) {
+    const { name, sector, price, code } = STOCK_BY_SPACE[n];
+    const sc = SECTORS[sector].color;
+    el.classList.add('stock');
+    el.style.setProperty('--sc', sc);
+    el.innerHTML += `
+      <div class="sector-dot"></div>
+      <div class="code">${code}</div>
+      <div class="sname">${name}</div>
+      <div class="price">${price}</div>
+    `;
+  } else if (SPECIALS[n]) {
+    const { glyph, name, color, corner } = SPECIALS[n];
+    el.classList.add('special');
+    if (corner) el.classList.add('corner');
+    el.style.setProperty('--sc', color);
+    el.innerHTML += `
+      <div class="glyph">${glyph}</div>
+      <div class="sname">${name.replace('MARKET ', 'MKT ')}</div>
+    `;
+  }
+
+  board.appendChild(el);
+}
+
+// ── Sector legend ──────────────────────────────────────────────────────────────
+const sectorsEl = document.getElementById('sectors');
+Object.entries(SECTORS).forEach(([, { name, color }]) => {
+  const el = document.createElement('div');
+  el.className = 'sect';
+  el.innerHTML = `<div class="sect-dot" style="background:${color}"></div>${name}`;
+  sectorsEl.appendChild(el);
+});
+</script>
+</body>
+</html>

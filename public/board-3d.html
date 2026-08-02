@@ -1,0 +1,2062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE EXCHANGE — 3D Board Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800;900&family=Marcellus&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #2b1e12; overflow: hidden; font-family: 'IBM Plex Mono', monospace, system-ui, sans-serif; }
+    canvas { display: block; }
+    #hud {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+      color: rgba(212,165,53,0.8); font-size: 11px; letter-spacing: 2px;
+      background: rgba(22,18,13,0.9); padding: 6px 18px; border-radius: 20px;
+      border: 1px solid rgba(212,165,53,0.22); pointer-events: none; white-space: nowrap;
+      text-transform: uppercase;
+    }
+    #back {
+      position: fixed; top: 14px; left: 14px; color: #8a7a68; font-size: 11px;
+      background: rgba(22,18,13,0.9); padding: 6px 14px; cursor: pointer;
+      border-radius: 6px; border: 1px solid rgba(74,56,32,0.6); transition: color 0.15s;
+      letter-spacing: 1px; font-family: 'IBM Plex Mono', monospace;
+    }
+    #back:hover { color: #ede8de; border-color: rgba(212,165,53,0.4); }
+    #legend {
+      position: fixed; bottom: 14px; right: 14px;
+      background: rgba(22,18,13,0.9); border: 1px solid rgba(74,56,32,0.5);
+      border-radius: 8px; padding: 10px 14px; font-size: 10px; color: #8a7a68;
+      display: flex; flex-direction: column; gap: 5px; letter-spacing: 0.5px;
+    }
+    .leg { display: flex; align-items: center; gap: 7px; }
+    .dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    #left-panel {
+      position: fixed; top: 56px; left: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+      pointer-events: none; z-index: 10;
+    }
+    #mini-lb {
+      background: rgba(18,14,10,0.93); border: 1px solid rgba(74,56,32,0.55);
+      border-radius: 9px; padding: 6px 0; min-width: 210px;
+      font-family: 'IBM Plex Mono', monospace;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    }
+    #mini-lb-title {
+      font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(212,165,53,0.55); padding: 0 12px 5px; border-bottom: 1px solid rgba(74,56,32,0.35);
+      margin-bottom: 4px;
+    }
+    .lb-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 4px 12px; font-size: 11px; letter-spacing: 0.2px;
+      transition: background 0.2s;
+    }
+    .lb-row.active {
+      background: rgba(212,165,53,0.07);
+      border-left: 2px solid rgba(212,165,53,0.55);
+      padding-left: 10px;
+    }
+    .lb-rank { color: rgba(138,122,104,0.7); width: 16px; text-align: right; font-size: 10px; flex-shrink: 0; }
+    .lb-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .lb-piece { font-size: 13px; line-height: 1; flex-shrink: 0; }
+    .lb-name { color: rgba(220,210,195,0.9); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-nw   { color: rgba(62,213,152,0.9); font-size: 10px; flex-shrink: 0; font-weight: 600; }
+
+    /* ── Redesigned card preview ── */
+    #card-preview {
+      width: 210px; font-family: 'IBM Plex Mono', monospace;
+      display: none; perspective: 600px;
+    }
+
+    /* Card back (face-down while flipping) */
+    .card3d-back {
+      background: rgba(14,11,8,0.97);
+      border-radius: 12px; border: 2px solid rgba(74,56,32,0.7);
+      overflow: hidden; box-shadow: 0 6px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,165,53,0.1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; min-height: 80px; padding: 16px 14px;
+      animation: card3dBackIn 320ms ease-out forwards;
+    }
+    .card3d-back-icon { font-size: 28px; opacity: 0.5; }
+    .card3d-back-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(212,165,53,0.6);
+    }
+
+    /* Card reveal — premium board-game layout */
+    .card3d-reveal {
+      background: rgba(12,9,6,0.97);
+      border-radius: 12px; border: 2px solid transparent;
+      overflow: hidden;
+      box-shadow: 0 8px 36px rgba(0,0,0,0.75), 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+      animation: card3dFlip 500ms cubic-bezier(0.34,1.56,0.64,1) forwards;
+    }
+
+    /* Top banner: bold colored strip with deck type */
+    .card3d-banner {
+      padding: 7px 12px 6px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card3d-deck-label {
+      font-size: 9px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
+      color: rgba(0,0,0,0.85);
+    }
+    .card3d-deck-icon { font-size: 15px; line-height: 1; }
+
+    /* Title area */
+    .card3d-title-area {
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .card3d-title {
+      font-size: 14px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+      color: rgba(240,230,210,0.97); line-height: 1.25;
+    }
+
+    /* Center icon area */
+    .card3d-icon-area {
+      padding: 10px 12px 8px;
+      display: flex; align-items: center; justify-content: center;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .card3d-symbol { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
+
+    /* Effect text box */
+    .card3d-effect-box {
+      margin: 8px 10px; padding: 8px 10px;
+      background: rgba(255,255,255,0.04); border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    .card3d-effect {
+      font-size: 11px; color: rgba(200,188,168,0.92); line-height: 1.55;
+    }
+    .card3d-strat {
+      font-size: 9px; color: rgba(100,90,78,0.8); margin-top: 4px; font-style: italic;
+    }
+
+    /* Footer label */
+    .card3d-footer {
+      padding: 5px 12px 8px;
+      font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: rgba(90,78,62,0.6); text-align: center;
+    }
+
+    @keyframes card3dBackIn {
+      from { opacity: 0; transform: scale(0.88) translateY(-8px); }
+      to   { opacity: 1; transform: scale(1)    translateY(0);     }
+    }
+    @keyframes card3dFlip {
+      0%   { opacity: 0; transform: rotateY(70deg) scale(0.92); }
+      60%  { opacity: 1; }
+      100% { opacity: 1; transform: rotateY(0deg)  scale(1);    }
+    }
+
+    #move-toast {
+      position: fixed; bottom: 14px; left: 14px;
+      background: rgba(22,18,13,0.95); border: 1px solid rgba(212,165,53,0.35);
+      border-radius: 8px; padding: 8px 14px; font-size: 12px;
+      color: rgba(212,165,53,0.95); letter-spacing: 0.5px;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    #move-toast.show { opacity: 1; }
+
+    /* Hover tooltip for board spaces */
+    #tile-tip {
+      position: fixed; pointer-events: none; z-index: 40;
+      background: rgba(14,11,8,0.96); border: 1px solid rgba(212,165,53,0.4);
+      border-radius: 8px; padding: 8px 12px; display: none;
+      font-family: 'IBM Plex Mono', monospace; box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+      max-width: 220px;
+    }
+    #tile-tip .tt-name {
+      font-size: 12px; font-weight: 700; color: rgba(240,230,210,0.95);
+      letter-spacing: 0.4px; line-height: 1.3;
+    }
+    #tile-tip .tt-sub {
+      font-size: 10px; color: rgba(138,122,104,0.9); margin-top: 2px; letter-spacing: 0.3px;
+    }
+    #tile-tip .tt-price {
+      font-size: 13px; font-weight: 800; margin-top: 4px; letter-spacing: 0.5px;
+    }
+
+    #roll-panel {
+      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+      background: rgba(22,18,13,0.95); border: 1px solid rgba(74,56,32,0.7);
+      border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    #roll-player {
+      font-size: 12px; color: rgba(212,165,53,0.85); letter-spacing: 0.5px;
+      display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    #roll-player .token-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    #dice-display {
+      display: flex; gap: 6px; align-items: center;
+    }
+    .die3d {
+      width: 32px; height: 32px; border-radius: 7px;
+      background: linear-gradient(145deg, #7072f5, #4a4dd0);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; color: #fff;
+      box-shadow: 0 2px 10px rgba(99,102,241,0.5);
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+    .die3d.empty {
+      background: linear-gradient(145deg, #1c1a2e, #111020);
+      color: #2a2840; box-shadow: none;
+    }
+    #btn-roll-3d {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 7px 18px; border-radius: 6px; cursor: pointer; border: none;
+      background: linear-gradient(135deg, #d4a535, #8a6a20);
+      color: #16120d; transition: opacity 0.2s, transform 0.1s;
+    }
+    #btn-roll-3d:hover:not(:disabled) { opacity: 0.88; transform: scale(1.03); }
+    #btn-roll-3d:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    #roll-status {
+      font-size: 10px; color: #5a4a38; letter-spacing: 0.5px; white-space: nowrap;
+    }
+    #btn-draw-3d {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 7px 18px; border-radius: 6px; cursor: pointer; border: none;
+      background: linear-gradient(135deg, #6366f1, #4749d6);
+      color: #fff; transition: opacity 0.2s, transform 0.1s;
+      display: none;
+    }
+    #btn-draw-3d:hover { opacity: 0.88; transform: scale(1.03); }
+    #btn-end-turn-3d {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 7px 18px; border-radius: 6px; cursor: pointer; border: none;
+      background: linear-gradient(135deg, #22c55e, #15803d);
+      color: #fff; transition: opacity 0.2s, transform 0.1s;
+      display: none;
+    }
+    #btn-end-turn-3d:hover:not(:disabled) { opacity: 0.88; transform: scale(1.03); }
+    #btn-end-turn-3d:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    /* ── Stock card — design-styled trade ticket (front + bear back) ── */
+    #trade-panel {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 300px; display: none; z-index: 20;
+      --sc: #3ED598;
+      border-radius: 18px; padding: 11px;
+      background: linear-gradient(160deg, #0c140f, #06100a);
+      box-shadow: 0 0 0 2px var(--sc), 0 18px 44px rgba(0,0,0,0.6);
+      font-family: 'Archivo', sans-serif;
+    }
+    #trade-glow {
+      position: absolute; inset: 0; border-radius: 18px; pointer-events: none;
+      background: radial-gradient(circle at 50% 16%, color-mix(in srgb, var(--sc) 22%, transparent), transparent 60%);
+    }
+    .tc-front { position: relative; display: flex; flex-direction: column; gap: 9px; transform-origin: 50% 0; }
+    @keyframes tcFlipIn { 0% { opacity: 0; transform: rotateY(70deg) scale(.92); } 60% { opacity: 1; } 100% { opacity: 1; transform: rotateY(0) scale(1); } }
+    .tc-front.flipping { animation: tcFlipIn 480ms cubic-bezier(0.34,1.56,0.64,1); }
+
+    /* cream info panel */
+    .tc-cream {
+      background: linear-gradient(170deg,#f3efe2,#e4ddc8);
+      border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
+      padding: 13px 13px 11px; display: flex; flex-direction: column;
+    }
+    .tc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .tc-ticker { font-family: 'Anton', sans-serif; font-size: 34px; line-height: .9; color: #15110b; letter-spacing: 1px; }
+    .tc-name { font-size: 12px; font-weight: 700; color: #3a352b; margin-top: 3px; }
+    .tc-badges { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; flex-shrink: 0; }
+    .tc-badge { color: #fff; font-size: 9px; font-weight: 800; letter-spacing: 1px; padding: 4px 8px; border-radius: 5px; white-space: nowrap; }
+    .tc-divider { height: 1px; background: rgba(0,0,0,.13); margin: 11px 0; }
+    .tc-price-row { display: flex; align-items: center; gap: 12px; }
+    .tc-glyph { width: 60px; height: 60px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 40px; color: var(--sc); filter: drop-shadow(0 3px 5px rgba(0,0,0,.25)); }
+    .tc-price-label { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: #4a4536; }
+    .tc-price-val { display: flex; align-items: center; gap: 5px; }
+    .tc-price { font-family: 'Anton', sans-serif; font-size: 32px; color: #15110b; line-height: 1; }
+    .tc-arrow { font-size: 24px; line-height: 1; }
+    .tc-step { font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+    .tc-stats { display: flex; align-items: stretch; }
+    .tc-stat { flex: 1; text-align: center; }
+    .tc-stat-label { font-size: 9px; font-weight: 800; letter-spacing: 1.2px; color: #4a4536; }
+    .tc-stat-val { font-family: 'Anton', sans-serif; font-size: 26px; color: #15110b; line-height: 1.05; }
+    .tc-stat-sep { width: 1px; background: rgba(0,0,0,.15); }
+
+    /* gold ownership banner */
+    .tc-own {
+      background: linear-gradient(90deg,#544326,#6e592e,#544326);
+      border-radius: 9px; padding: 8px; text-align: center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+      opacity: .6; transition: all .2s; line-height: 1.1;
+    }
+    .tc-own.controlling {
+      background: linear-gradient(90deg,#8a6d27,#caa14a,#8a6d27);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 0 14px rgba(202,161,74,.4);
+      opacity: 1;
+    }
+    .tc-own-title { font-weight: 900; color: #1c1407; font-size: 13px; letter-spacing: 1.5px; }
+    .tc-own-sub { font-weight: 800; color: #3a2e10; font-size: 9px; letter-spacing: 1px; }
+
+    /* controls */
+    #trade-qty-row { display: flex; align-items: center; gap: 6px; }
+    .qty-label { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: rgba(240,230,210,.6); margin-right: 2px; }
+    .qty-btn {
+      font-family: 'Archivo', sans-serif;
+      width: 34px; height: 32px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05); color: rgba(240,230,210,.85);
+      font-size: 14px; font-weight: 800; cursor: pointer; transition: all .15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qty-btn.selected { background: color-mix(in srgb, var(--sc) 24%, transparent); border-color: var(--sc); color: #fff; }
+    .qty-btn:hover:not(.selected) { border-color: color-mix(in srgb, var(--sc) 50%, transparent); }
+    #trade-meta { font-size: 9.5px; color: rgba(200,188,168,.65); letter-spacing: .3px; text-align: center; }
+    #trade-actions { display: flex; gap: 8px; }
+    .trade-act-btn {
+      font-family: 'Archivo', sans-serif;
+      flex: 1; padding: 9px 0; border-radius: 7px; border: none;
+      font-size: 13px; font-weight: 800; letter-spacing: .5px; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .trade-act-btn:hover:not(:disabled) { opacity: 0.88; transform: scale(1.02); }
+    .trade-act-btn:disabled { opacity: 0.28; cursor: not-allowed; transform: none; }
+    #btn-trade-buy  { background: linear-gradient(135deg,#22c55e,#15803d); color:#fff; }
+    #btn-trade-sell { background: linear-gradient(135deg,#ef4444,#991b1b); color:#fff; }
+
+    /* bear back (flip reveal) */
+    #trade-back {
+      position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
+      display: none; z-index: 5; box-shadow: 0 0 0 2px #caa14a;
+      background: radial-gradient(ellipse 80% 60% at 50% 38%, color-mix(in srgb, var(--sc) 55%, #06100a) 0%, #06100a 80%);
+    }
+    #trade-back .tb-frame { position: absolute; inset: 8px; border: 1px solid rgba(202,161,74,.55); border-radius: 14px; }
+    #trade-back img { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); height: 72%; object-fit: contain; filter: drop-shadow(0 12px 22px rgba(0,0,0,.5)); }
+    #trade-back .tb-word { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center;
+      background: linear-gradient(180deg, rgba(6,16,10,0), rgba(6,16,10,.85) 40%); padding-top: 26px; }
+    #trade-back .tb-the { font-family: 'Anton', sans-serif; color: #f1e8d0; font-size: 13px; letter-spacing: 6px; line-height: 1; }
+    #trade-back .tb-ex { font-family: 'Anton', sans-serif; color: #f7f0dd; font-size: 34px; letter-spacing: 3px; line-height: .95; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+    #trade-back .tb-sub { font-size: 10px; font-weight: 800; letter-spacing: 4px; margin-top: 3px; color: var(--sc); }
+
+    /* Respect reduced-motion (WCAG 2.3.3) — neutralize CSS flips/reveals.
+       (3D token hops are JS-driven and remain; gated separately if needed.) */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">THE EXCHANGE · 3D Board · Drag to rotate · Scroll to zoom · Right-drag to pan</div>
+  <button id="back">← Back to Game</button>
+  <div id="legend">
+    <div class="leg"><div class="dot" style="background:#22c55e"></div> Market Open · IPO</div>
+    <div class="leg"><div class="dot" style="background:#ff5c5c"></div> Market Event</div>
+    <div class="leg"><div class="dot" style="background:#f0b429"></div> The Fed</div>
+    <div class="leg"><div class="dot" style="background:#4da3ff"></div> ETF Funds (×4)</div>
+    <div class="leg"><div class="dot" style="background:#c4b5fd"></div> After-Hours</div>
+    <div class="leg"><div class="dot" style="background:#9aa5b1"></div> Portfolio Tax · Audit</div>
+  </div>
+  <div id="left-panel">
+    <div id="mini-lb">
+      <div id="mini-lb-title">Standings</div>
+    </div>
+    <div id="card-preview"></div>
+  </div>
+  <div id="move-toast"></div>
+  <div id="tile-tip"></div>
+  <div id="trade-panel">
+    <div id="trade-glow"></div>
+    <!-- bear back (flip reveal) -->
+    <div id="trade-back">
+      <div class="tb-frame"></div>
+      <img src="assets/investabear.png" alt="InvestaBear">
+      <div class="tb-word">
+        <div class="tb-the">THE</div>
+        <div class="tb-ex">EXCHANGE</div>
+        <div class="tb-sub">STOCK MARKET GAME</div>
+      </div>
+    </div>
+    <!-- front stock card -->
+    <div class="tc-front" id="trade-front">
+      <div class="tc-cream">
+        <div class="tc-head">
+          <div>
+            <div class="tc-ticker" id="tc-ticker">—</div>
+            <div class="tc-name" id="tc-name"></div>
+          </div>
+          <div class="tc-badges">
+            <span class="tc-badge" id="tc-sector"></span>
+            <span class="tc-badge" id="tc-risk"></span>
+          </div>
+        </div>
+        <div class="tc-divider"></div>
+        <div class="tc-price-row">
+          <div class="tc-glyph" id="tc-glyph">◆</div>
+          <div style="flex:1;">
+            <div class="tc-price-label">CURRENT PRICE</div>
+            <div class="tc-price-val">
+              <span class="tc-price" id="tc-price">$0</span>
+              <span class="tc-arrow" id="tc-arrow">—</span>
+            </div>
+            <div class="tc-step" id="tc-step">NO CHANGE</div>
+          </div>
+        </div>
+        <div class="tc-divider"></div>
+        <div class="tc-stats">
+          <div class="tc-stat">
+            <div class="tc-stat-label">SHARES AVAILABLE</div>
+            <div class="tc-stat-val" id="tc-supply">0</div>
+          </div>
+          <div class="tc-stat-sep"></div>
+          <div class="tc-stat">
+            <div class="tc-stat-label">DIVIDEND</div>
+            <div class="tc-stat-val" id="tc-div">$0</div>
+            <div class="tc-stat-label">PER SHARE</div>
+          </div>
+        </div>
+      </div>
+      <div class="tc-own" id="tc-own">
+        <div class="tc-own-title" id="tc-own-title">YOU OWN: 0</div>
+        <div class="tc-own-sub">CONTROLLING STAKE AT 6+</div>
+      </div>
+      <div id="trade-qty-row">
+        <span class="qty-label">QTY</span>
+        <button class="qty-btn selected" data-qty="1">1</button>
+        <button class="qty-btn" data-qty="2">2</button>
+      </div>
+      <div id="trade-meta"></div>
+      <div id="trade-actions">
+        <button class="trade-act-btn" id="btn-trade-buy">Buy</button>
+        <button class="trade-act-btn" id="btn-trade-sell">Sell</button>
+      </div>
+    </div>
+  </div>
+  <div id="roll-panel">
+    <div id="roll-player">
+      <div class="token-dot" id="player-dot"></div>
+      <span id="player-label">Waiting for game…</span>
+    </div>
+    <div id="dice-display">
+      <div class="die3d empty" id="die-a">·</div>
+      <div class="die3d empty" id="die-b">·</div>
+    </div>
+    <button id="btn-roll-3d" disabled>Roll Dice</button>
+    <button id="btn-draw-3d">Draw Card</button>
+    <button id="btn-end-turn-3d" disabled>Next Turn →</button>
+    <div id="roll-status"></div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.167.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ── Piece definitions (must match src/data/pieces.ts) ──────────────────────
+    const PIECE_EMOJI = { bull:'🐂', bear:'🐻', bill:'💵', laptop:'💻', calc:'🧮', vault:'🏦' };
+
+    // ── Board data (must match src/data/) ──────────────────────────────────────
+    const SECTOR_COLORS = {
+      tech:'#4DA3FF', consumer:'#F0C53D', health:'#2DD4BF',
+      energy:'#FF9442', finance:'#3ED598', realestate:'#A78BFA',
+      industrials:'#9AA5B1', comm:'#F87171',
+    };
+    const SPECIAL = {
+      1: {color:'#22c55e',label:'MKT\nOPEN',glyph:'»',corner:true},
+      4: {color:'#4da3ff',label:'GROWTH\nFUND',glyph:'◆',etf:true},
+      7: {color:'#f0b429',label:'THE\nFED',glyph:'%'},
+      10:{color:'#4ade80',label:'IPO',glyph:'↑',corner:true},
+      13:{color:'#3ed598',label:'INCOME\nFUND',glyph:'◆',etf:true},
+      16:{color:'#f0b429',label:'THE\nFED',glyph:'%'},
+      19:{color:'#FF5C5C',label:'MARKET\nEVENT',glyph:'◈',corner:true},
+      22:{color:'#a78bfa',label:'PROP\nFUND',glyph:'◆',etf:true},
+      25:{color:'#9aa5b1',label:'PORT\nTAX',glyph:'$'},
+      26:{color:'#f0b429',label:'THE\nFED',glyph:'%'},
+      28:{color:'#4ade80',label:'IPO',glyph:'↑',corner:true},
+      30:{color:'#ff9442',label:'ENERGY\nFUND',glyph:'◆',etf:true},
+      31:{color:'#c4b5fd',label:'AFTER\nHRS',glyph:'☾'},
+      34:{color:'#e8b44c',label:'AUDIT\nNOTICE',glyph:'⚑'},
+    };
+    // risk: 1=Low, 2=Med, 3=High (mirrors src/data/stocks.ts)
+    const STOCKS = {
+      2:{code:'CCAI',sector:'tech',name:'CloudCore AI',risk:3},3:{code:'SAFE',sector:'consumer',name:'SafeMart Stores',risk:1},
+      5:{code:'MEDI',sector:'health',name:'MediCore Health',risk:2},6:{code:'OILW',sector:'energy',name:'OilWorks Energy',risk:2},
+      8:{code:'FTRB',sector:'finance',name:'FirstTrust Bank',risk:1},9:{code:'MTRO',sector:'realestate',name:'MetroHomes REIT',risk:1},
+      11:{code:'IRON',sector:'industrials',name:'IronRail Logistics',risk:1},12:{code:'STRM',sector:'comm',name:'StreamWave Media',risk:3},
+      14:{code:'CYBS',sector:'tech',name:'CyberShield Systems',risk:3},15:{code:'FRSH',sector:'consumer',name:'FreshBite Foods',risk:1},
+      17:{code:'BIOQ',sector:'health',name:'BioQuest Labs',risk:3},18:{code:'SOLR',sector:'energy',name:'SolarGrid Power',risk:3},
+      20:{code:'PAYW',sector:'finance',name:'PayWave Credit',risk:2},21:{code:'TWPT',sector:'realestate',name:'TowerPoint Realty',risk:2},
+      23:{code:'BLDM',sector:'industrials',name:'BuildMax Materials',risk:2},24:{code:'VSGN',sector:'health',name:'VitalSign Devices',risk:1},
+      27:{code:'SNKR',sector:'consumer',name:'SneakerStreet',risk:2},
+      29:{code:'CARE',sector:'health',name:'CarePlus Clinics',risk:1},
+      32:{code:'APEX',sector:'finance',name:'Apex Investments',risk:3},33:{code:'RENT',sector:'realestate',name:'RentWell Properties',risk:1},
+      35:{code:'AERO',sector:'industrials',name:'AeroLift Manufacturing',risk:2},36:{code:'GMBX',sector:'comm',name:'GameBox Studios',risk:3},
+    };
+    const SECTOR_GLYPH = {
+      tech:'◆', consumer:'●', health:'✚', energy:'▲',
+      finance:'■', realestate:'⌂', industrials:'▮', comm:'▶',
+    };
+    const RISK_TXT = ['LOW','MED','HIGH'];
+    const RISK_COL = ['#5f7a52','#9c6f1f','#a83a2c'];
+
+    function gridPos(n) {
+      if (n <= 10) return { col: n, row: 1 };
+      if (n <= 18) return { col: 10, row: n - 9 };
+      if (n === 19) return { col: 10, row: 10 };
+      if (n <= 27) return { col: 10 - (n - 19), row: 10 };
+      if (n === 28) return { col: 1, row: 10 };
+      return { col: 1, row: 10 - (n - 28) };
+    }
+
+    const TILE = 1.15, GAP = 0.06, STEP = TILE + GAP;
+    const SPACE_H = 0.12;
+    const TOKEN_BASE_Y = SPACE_H + 0.04;
+
+    function spaceWorld(n) {
+      const { col, row } = gridPos(n);
+      return { x: (col - 5.5) * STEP, z: (row - 5.5) * STEP };
+    }
+
+    // ── Texture helpers ─────────────────────────────────────────────────────────
+
+    // Lacquered-walnut grain — warm striations, like the CSS repeating-gradient mock.
+    function makeWoodTexture(w=1024, h=1024) {
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      const ctx=cv.getContext('2d');
+      ctx.fillStyle=PAL.walnut; ctx.fillRect(0,0,w,h);
+      const bands=['#57391f','#4a2f18','#5c3d22','#452b15','#513218'];
+      for(let x=0;x<w;x+=6){
+        ctx.fillStyle=bands[(x/6|0)%bands.length];
+        const wob=Math.sin(x*0.012)*10;
+        ctx.fillRect(x+wob,0,6,h);
+      }
+      // soft length-wise sheen
+      const sh=ctx.createLinearGradient(0,0,w,0);
+      sh.addColorStop(0,'rgba(0,0,0,0.28)'); sh.addColorStop(0.32,'rgba(255,240,210,0.10)');
+      sh.addColorStop(0.62,'rgba(0,0,0,0.22)'); sh.addColorStop(1,'rgba(255,240,210,0.05)');
+      ctx.fillStyle=sh; ctx.fillRect(0,0,w,h);
+      const tex=new THREE.CanvasTexture(cv); tex.needsUpdate=true; return tex;
+    }
+
+    // Club-felt crosshatch — cool green weave for the center well.
+    function makeFeltTexture(w=512,h=512) {
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      const ctx=cv.getContext('2d');
+      ctx.fillStyle=PAL.felt; ctx.fillRect(0,0,w,h);
+      ctx.globalAlpha=0.05;
+      for(let i=-h;i<w;i+=4){ ctx.strokeStyle=i%8?'#3a5544':'#12201a'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+h,h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(i+h,0); ctx.lineTo(i,h); ctx.stroke(); }
+      ctx.globalAlpha=1;
+      const tex=new THREE.CanvasTexture(cv); tex.needsUpdate=true; return tex;
+    }
+
+    // Banknote guilloche rosette (r(θ)=R+a·sin(f·θ)), drawn into ctx around (cx,cy).
+    // scale maps the concept's 200-unit rosette space to the target radius.
+    function drawGuilloche(ctx, cx, cy, color, scale, alpha=1) {
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(scale,scale);
+      const wave=(f1,f2,a1,a2,base,op,lw)=>{
+        ctx.beginPath();
+        const N=540;
+        for(let i=0;i<=N;i++){ const t=i/N*Math.PI*2;
+          const r=base+a1*Math.sin(f1*t)+a2*Math.sin(f2*t+1.3);
+          const x=r*Math.cos(t), y=r*Math.sin(t);
+          i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+        ctx.closePath(); ctx.globalAlpha=op*alpha; ctx.lineWidth=lw; ctx.strokeStyle=color; ctx.stroke();
+      };
+      const ring=(r,op,lw)=>{ ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+        ctx.globalAlpha=op*alpha; ctx.lineWidth=lw; ctx.strokeStyle=color; ctx.stroke(); };
+      wave(6,11,15,3,46,.5,.7); wave(9,4,13,5,58,.55,.8);
+      wave(12,5,9,4,70,.42,.7); wave(18,7,5,2,82,.32,.6);
+      ring(26,.5,.8); ring(90,.55,1); ring(86,.28,.6);
+      ctx.globalAlpha=1; ctx.restore();
+    }
+
+    // Simple centered text label (used for space-number planes)
+    function makeLabel(text, bgHex, textHex, w=256, h=256) {
+      const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+      const ctx = cv.getContext('2d');
+      if (bgHex !== 'transparent') { ctx.fillStyle = bgHex; ctx.fillRect(0,0,w,h); }
+      ctx.fillStyle = textHex;
+      ctx.font = `bold ${w*0.17}px 'IBM Plex Mono',monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      text.split('\n').forEach((line,i,arr)=>{
+        ctx.fillText(line, w/2, h/2+(i-(arr.length-1)/2)*w*0.2);
+      });
+      const tex = new THREE.CanvasTexture(cv); tex.needsUpdate=true; return tex;
+    }
+
+    // Beveled brass sector strip + parchment paper fill shared by all ring tiles.
+    function paintTileBase(ctx, w, bg, stripColor, edge) {
+      // parchment fill with a faint fibre vignette
+      ctx.fillStyle = bg; ctx.fillRect(0,0,w,w);
+      const vg = ctx.createRadialGradient(w/2,w*0.42,w*0.1,w/2,w*0.5,w*0.72);
+      vg.addColorStop(0,'rgba(255,255,255,0.05)'); vg.addColorStop(1,'rgba(60,40,20,0.10)');
+      ctx.fillStyle=vg; ctx.fillRect(0,0,w,w);
+      // routed inner keyline
+      ctx.strokeStyle='rgba(43,32,22,0.18)'; ctx.lineWidth=Math.max(1,w*0.01);
+      ctx.strokeRect(w*0.05,w*0.05,w*0.9,w*0.9);
+      // beveled sector strip along one edge (outer edge of the tile)
+      if (stripColor) {
+        const t=w*0.085; // strip thickness
+        const rect = edge==='b' ? [0,w-t,w,t] : edge==='r' ? [w-t,0,t,w] : edge==='l' ? [0,0,t,w] : [0,0,w,t];
+        ctx.fillStyle=stripColor; ctx.fillRect(rect[0],rect[1],rect[2],rect[3]);
+        // brass bevel highlight + shade
+        ctx.fillStyle='rgba(255,244,210,0.35)';
+        if(edge==='t') ctx.fillRect(0,t-3,w,3);
+        else if(edge==='b') ctx.fillRect(0,w-t,w,3);
+        else if(edge==='l') ctx.fillRect(t-3,0,3,w);
+        else ctx.fillRect(w-t,0,3,w);
+      }
+    }
+
+    // Stock tile top face: parchment certificate — sector strip, letterpress ticker,
+    // live price, sector glyph + risk chip, sold-out claim band.
+    function makeStockLabel(code, color, price, dir, soldOut=false, claimColor=null, sector=null, risk=0, w=256) {
+      const spaceN = Object.keys(STOCKS).find(k => STOCKS[k].code===code);
+      const sec = sector || (spaceN && STOCKS[spaceN].sector);
+      const rk  = risk || (spaceN && STOCKS[spaceN].risk) || 0;
+      const edge = 't';
+      const cv = document.createElement('canvas'); cv.width=w; cv.height=w;
+      const ctx = cv.getContext('2d');
+      paintTileBase(ctx, w, PAL.parchment, null, edge);
+      const ink = PAL.ink;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      // Ticker — letterpress: light offset under an ink fill
+      ctx.font = `700 ${w*0.20}px Marcellus, 'IBM Plex Mono', serif`;
+      ctx.fillStyle='rgba(255,250,235,0.7)'; ctx.fillText(code, w/2+1.5, w*0.375+1.5);
+      ctx.fillStyle=ink; ctx.fillText(code, w/2, w*0.375);
+      // Sector glyph badge (upper-left) in sector color
+      if (sec) {
+        ctx.font=`${w*0.11}px 'IBM Plex Mono',monospace`;
+        ctx.fillStyle=color; ctx.fillText(SECTOR_GLYPH[sec]||'', w*0.16, w*0.20);
+      }
+      // Price
+      if (price != null) {
+        ctx.fillStyle=ink;
+        ctx.font=`700 ${w*0.155}px 'IBM Plex Mono',monospace`;
+        const pTxt = price >= 1000 ? `$${price/1000}k` : `$${price}`;
+        ctx.fillText(pTxt, w/2, w*0.60);
+        if (dir) {
+          ctx.fillStyle = dir>0 ? '#1e7a4a' : '#b03a2c';
+          ctx.font=`700 ${w*0.12}px 'IBM Plex Mono',monospace`;
+          ctx.fillText(dir>0?'▲':'▼', w/2 + w*0.27, w*0.60);
+        }
+      }
+      // Risk chip (lower strip) unless sold out
+      if (rk && !soldOut) {
+        const rc = RISK_COL[rk-1], rt = RISK_TXT[rk-1];
+        ctx.font=`700 ${w*0.085}px 'IBM Plex Mono',monospace`;
+        const cw = ctx.measureText(rt).width + w*0.10;
+        ctx.fillStyle=rc; roundRect(ctx, w/2-cw/2, w*0.76, cw, w*0.11, w*0.03); ctx.fill();
+        ctx.fillStyle='#f4ecd9'; ctx.fillText(rt, w/2, w*0.815);
+      }
+      if (soldOut) {
+        const band = claimColor || '#8a8a8a';
+        ctx.fillStyle = band; ctx.fillRect(0, w*0.85, w, w*0.15);
+        ctx.fillStyle = '#14100a';
+        ctx.font = `700 ${w*0.10}px 'IBM Plex Mono',monospace`;
+        ctx.fillText(claimColor ? 'SOLD OUT' : 'CONTESTED', w/2, w*0.925);
+      }
+      const tex = new THREE.CanvasTexture(cv); tex.needsUpdate=true; return tex;
+    }
+
+    // Special / ETF / corner tile top face
+    function makeSpecialLabel(label, glyph, color, isCorner, isEtf, edge, w=256) {
+      const cv = document.createElement('canvas'); cv.width=w; cv.height=w;
+      const ctx = cv.getContext('2d');
+      const bg = isCorner ? PAL.cornerBg : isEtf ? PAL.etfStock : PAL.specStock;
+      const ink = isCorner ? PAL.inkLt : PAL.ink;
+      if (isCorner) {
+        ctx.fillStyle=bg; ctx.fillRect(0,0,w,w);
+        drawGuilloche(ctx, w/2, w/2, color, w/230, 0.35);
+        ctx.strokeStyle=color+'99'; ctx.lineWidth=Math.max(1,w*0.012); ctx.strokeRect(w*0.06,w*0.06,w*0.88,w*0.88);
+      } else {
+        paintTileBase(ctx, w, bg, null, edge);
+      }
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      // Glyph medallion
+      ctx.font=`${w*(isCorner?0.30:0.24)}px 'IBM Plex Mono',monospace`;
+      ctx.fillStyle=isCorner?color:color;
+      ctx.fillText(glyph||'', w/2, w*(isCorner?0.36:0.34));
+      // Label (letterpress on light tiles)
+      ctx.font=`700 ${w*0.115}px Marcellus, 'IBM Plex Mono', serif`;
+      const lines=String(label).split('\n');
+      lines.forEach((ln,i)=>{
+        const y=w*(isCorner?0.66:0.68)+(i-(lines.length-1)/2)*w*0.14;
+        if(!isCorner){ ctx.fillStyle='rgba(255,250,235,0.6)'; ctx.fillText(ln, w/2+1, y+1); }
+        ctx.fillStyle=ink; ctx.fillText(ln, w/2, y);
+      });
+      const tex=new THREE.CanvasTexture(cv); tex.needsUpdate=true; return tex;
+    }
+
+    function roundRect(ctx,x,y,w,h,r){ ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+    function makePieceTex(emoji, color, w=128) {
+      const cv = document.createElement('canvas'); cv.width=w; cv.height=w;
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0,0,w,w);
+      // Filled circle background
+      ctx.beginPath(); ctx.arc(w/2,w/2,w/2-3,0,Math.PI*2);
+      ctx.fillStyle = color+'dd'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth=3; ctx.stroke();
+      // Emoji centered
+      ctx.font = `${Math.floor(w*0.46)}px serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(emoji, w/2, w/2+2);
+      const tex = new THREE.CanvasTexture(cv); tex.needsUpdate=true; return tex;
+    }
+
+    // Center panel: green club-felt well framed in brass on walnut, hosting the
+    // guilloche medallion, Marcellus logo lockup, four printed deck wells, and
+    // the bear mascot (loaded async → texture repaints when it arrives).
+    const _mascotImg = new Image();
+    let _mascotReady = false;
+    let _centerTex = null, _centerCanvas = null, _centerCtx = null;
+    const DECK_SLOTS = [ // world (x,z) of each deck, for printed wells beneath them
+      { x:-3.3, z:2.1, label:'MARKET EVENT', color:'#a02231' },
+      { x:-1.1, z:2.1, label:'THE FED',      color:'#c9a24f' },
+      { x: 1.1, z:2.1, label:'AFTER-HOURS',  color:'#7c6bb0' },
+      { x: 3.3, z:2.1, label:'IPO',          color:'#2f8f52' },
+    ];
+    function paintCenter() {
+      const S = 1024, ctx = _centerCtx;
+      const HALF = (STEP*8-GAP)/2; // world half-extent of the center panel
+      const toX = wx => (wx + HALF)/(HALF*2) * S;
+      const toY = wz => (wz + HALF)/(HALF*2) * S;
+      // Walnut surround
+      ctx.fillStyle=PAL.walnutDark; ctx.fillRect(0,0,S,S);
+      // Brass bezel + green felt well
+      const m = S*0.045;
+      ctx.fillStyle=PAL.brass; roundRect(ctx,m,m,S-2*m,S-2*m,S*0.03); ctx.fill();
+      const m2 = S*0.062;
+      // felt fill (crosshatch)
+      ctx.save(); roundRect(ctx,m2,m2,S-2*m2,S-2*m2,S*0.025); ctx.clip();
+      ctx.fillStyle=PAL.felt; ctx.fillRect(0,0,S,S);
+      ctx.globalAlpha=0.06;
+      for(let i=-S;i<S*2;i+=5){ ctx.strokeStyle=i%10?'#3a5544':'#12201a'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+S,S); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(i+S,0); ctx.lineTo(i,S); ctx.stroke(); }
+      ctx.globalAlpha=1;
+      // inner brass keyline
+      ctx.strokeStyle='rgba(201,162,79,0.55)'; ctx.lineWidth=S*0.006;
+      roundRect(ctx,m2+8,m2+8,S-2*m2-16,S-2*m2-16,S*0.02); ctx.stroke();
+      ctx.restore();
+
+      // Guilloche brass medallion behind the mascot
+      drawGuilloche(ctx, S*0.5, S*0.42, '#c9a24f', S*0.0019, 0.5);
+
+      // Bear mascot medallion (center)
+      const mr = S*0.15, mcx = S*0.5, mcy = S*0.42;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(mcx,mcy,mr,0,Math.PI*2); ctx.clip();
+      if (_mascotReady) {
+        // cover-fit the portrait into the circle
+        const iw=_mascotImg.width, ih=_mascotImg.height, side=Math.min(iw,ih);
+        ctx.drawImage(_mascotImg,(iw-side)/2,(ih-side)/2,side,side,mcx-mr,mcy-mr,mr*2,mr*2);
+      } else {
+        ctx.fillStyle='#2a1e12'; ctx.fillRect(mcx-mr,mcy-mr,mr*2,mr*2);
+      }
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(mcx,mcy,mr,0,Math.PI*2);
+      ctx.strokeStyle=PAL.brass; ctx.lineWidth=S*0.01; ctx.stroke();
+      ctx.strokeStyle='rgba(201,162,79,0.4)'; ctx.lineWidth=S*0.004;
+      ctx.beginPath(); ctx.arc(mcx,mcy,mr+S*0.016,0,Math.PI*2); ctx.stroke();
+
+      // Logo lockup (top)
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle='rgba(212,165,53,0.85)';
+      ctx.font=`600 ${S*0.026}px Marcellus, serif`; ctx.letterSpacing=`${S*0.02}px`;
+      ctx.fillText('THE', S*0.5, S*0.135);
+      ctx.fillStyle='#e0c184';
+      ctx.font=`${S*0.072}px Marcellus, serif`; ctx.letterSpacing=`${S*0.012}px`;
+      ctx.shadowColor='rgba(212,165,53,0.5)'; ctx.shadowBlur=S*0.02;
+      ctx.fillText('EXCHANGE', S*0.5, S*0.205); ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(224,222,205,0.62)';
+      ctx.font=`${S*0.02}px 'IBM Plex Mono', monospace`; ctx.letterSpacing=`${S*0.006}px`;
+      ctx.fillText('STOCK MARKET GAME', S*0.5, S*0.262);
+      ctx.letterSpacing='0px';
+
+      // Four printed deck wells + brass nameplates
+      const dw = 0.95/(HALF*2)*S*1.28, dh = 1.35/(HALF*2)*S*1.28;
+      DECK_SLOTS.forEach(d => {
+        const cx=toX(d.x), cy=toY(d.z);
+        ctx.fillStyle='rgba(0,0,0,0.34)';
+        roundRect(ctx, cx-dw/2, cy-dh/2, dw, dh, S*0.012); ctx.fill();
+        ctx.strokeStyle=d.color+'aa'; ctx.lineWidth=S*0.004;
+        roundRect(ctx, cx-dw/2, cy-dh/2, dw, dh, S*0.012); ctx.stroke();
+        // nameplate just above the well
+        ctx.fillStyle='rgba(201,162,79,0.9)';
+        ctx.font=`700 ${S*0.0135}px 'IBM Plex Mono', monospace`; ctx.letterSpacing=`${S*0.001}px`;
+        ctx.fillText(d.label, cx, cy - dh/2 - S*0.018);
+      });
+      ctx.letterSpacing='0px';
+
+      _centerTex.needsUpdate = true;
+    }
+    function makeCenterTexture() {
+      _centerCanvas = document.createElement('canvas'); _centerCanvas.width=1024; _centerCanvas.height=1024;
+      _centerCtx = _centerCanvas.getContext('2d');
+      _centerTex = new THREE.CanvasTexture(_centerCanvas);
+      _mascotImg.onload = () => { _mascotReady = true; paintCenter(); };
+      _mascotImg.src = './investabear.jpeg';
+      paintCenter();
+      return _centerTex;
+    }
+
+    // ── Scene ───────────────────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.02;
+    document.body.appendChild(renderer.domElement);
+
+    // ── Bull Market Club palette (1a: parchment tiles + lacquered walnut + brass) ──
+    const PAL = {
+      table:'#2b1e12', walnut:'#4b3019', walnutDark:'#3a2413', brass:'#c9a24f',
+      brassDim:'#a5813a', parchment:'#f0e7d1', etfStock:'#eddbb0', specStock:'#e9dec3',
+      ink:'#2b2016', inkLt:'#efe3c4', cornerBg:'#3a2717', gold:'#d4a535', felt:'#223026',
+    };
+
+    const scene = new THREE.Scene();
+    scene.background=new THREE.Color(PAL.table);
+    scene.fog=new THREE.Fog(PAL.table,34,66);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100);
+    camera.position.set(0,14,12); camera.lookAt(0,0,0);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping=true; controls.dampingFactor=0.07;
+    controls.minDistance=5; controls.maxDistance=35;
+    controls.maxPolarAngle=Math.PI/2.1; controls.target.set(0,0,0);
+
+    // Lighting — warm daylight-club key, dim cool fill
+    scene.add(new THREE.AmbientLight('#e8d3a0',0.62));
+    const dir = new THREE.DirectionalLight('#ffd9a0',1.25);
+    dir.position.set(8,16,8); dir.castShadow=true;
+    dir.shadow.mapSize.set(2048,2048);
+    // Explicitly set shadow camera bounds and update projection matrix
+    dir.shadow.camera.near = 0.5;
+    dir.shadow.camera.far  = 50;
+    dir.shadow.camera.left   = -18;
+    dir.shadow.camera.right  =  18;
+    dir.shadow.camera.top    =  18;
+    dir.shadow.camera.bottom = -18;
+    dir.shadow.camera.updateProjectionMatrix();
+    scene.add(dir);
+    const fill = new THREE.DirectionalLight('#6a7f8a',0.35);
+    fill.position.set(-8,6,-8); scene.add(fill);
+    const under = new THREE.PointLight('#d4a030',0.4,20);
+    under.position.set(0,-2,0); scene.add(under);
+
+    // ── Board base — lacquered walnut slab ────────────────────────────────────────
+    const baseMat=new THREE.MeshStandardMaterial({map:makeWoodTexture(),roughness:0.58,metalness:0.06});
+    const base=new THREE.Mesh(new THREE.BoxGeometry(STEP*10+0.5,0.22,STEP*10+0.5),baseMat);
+    base.position.y=-0.11; base.receiveShadow=true; scene.add(base);
+
+    // Brass border frame
+    const frameMat=new THREE.MeshStandardMaterial({color:PAL.brass,roughness:0.3,metalness:0.85,emissive:'#3a2a0a',emissiveIntensity:0.18});
+    [[STEP*10+0.5,0.06,0,-(STEP*5+0.18)],[STEP*10+0.5,0.06,0,(STEP*5+0.18)],
+     [0.06,STEP*10+0.5,-(STEP*5+0.18),0],[0.06,STEP*10+0.5,(STEP*5+0.18),0]].forEach(([fw,fd,fx,fz])=>{
+      const fr=new THREE.Mesh(new THREE.BoxGeometry(fw,0.04,fd),frameMat);
+      fr.position.set(fx,0.02,fz); scene.add(fr);
+    });
+
+    // Center panel
+    const center=new THREE.Mesh(
+      new THREE.BoxGeometry(STEP*8-GAP,0.09,STEP*8-GAP),
+      new THREE.MeshStandardMaterial({map:makeCenterTexture(),color:'#ffffff',roughness:0.9})
+    );
+    center.position.set(0,0.045,0); scene.add(center);
+
+    // ── Board spaces ────────────────────────────────────────────────────────────
+    const tileMeshes = [];          // raycast targets, userData = {n, code, name, color}
+    const stockTopMats = {};        // code -> top-face material (for live price refresh)
+    const stockTiles = {};          // code -> tile mesh (for sold-out claim rings)
+    const claimRings = {};          // code -> claim-holder ring mesh (created lazily)
+    let latestPrices = {};          // code -> {p, d, s, so, claim} from the game tab
+    for (let n=1;n<=36;n++) {
+      const {col,row}=gridPos(n);
+      const x=(col-5.5)*STEP, z=(row-5.5)*STEP;
+      let color=null, labelText='', isCorner=false, isEtf=false;
+      if (SPECIAL[n]) { color=SPECIAL[n].color; labelText=SPECIAL[n].label; isCorner=!!SPECIAL[n].corner; isEtf=!!SPECIAL[n].etf; }
+      else if (STOCKS[n]) { color=SECTOR_COLORS[STOCKS[n].sector]; labelText=STOCKS[n].code; }
+
+      const edge = row===1?'t': row===10?'b': col===10?'r':'l';
+      const stock = STOCKS[n];
+      const topMat = stock
+        ? new THREE.MeshStandardMaterial({map:makeStockLabel(stock.code,color,null,0),color:'#ffffff',roughness:0.7})
+        : new THREE.MeshStandardMaterial({map:makeSpecialLabel(labelText,SPECIAL[n]?.glyph,color||'#8a7a68',isCorner,isEtf,edge),color:'#ffffff',roughness:0.7});
+      if (stock) stockTopMats[stock.code] = topMat;
+      const tile2Code = stock?.code ?? null;
+      const sideMat = new THREE.MeshStandardMaterial({color:PAL.walnutDark,roughness:0.6,metalness:0.05});
+      const tile=new THREE.Mesh(new THREE.BoxGeometry(TILE,SPACE_H,TILE),[
+        sideMat, sideMat, topMat,
+        new THREE.MeshStandardMaterial({color:'#1a1208'}),
+        sideMat, sideMat,
+      ]);
+      tile.position.set(x,SPACE_H/2,z); tile.castShadow=true; tile.receiveShadow=true; scene.add(tile);
+      if (tile2Code) stockTiles[tile2Code] = tile;
+      tile.userData = {
+        n,
+        code: stock?.code ?? null,
+        name: stock?.name ?? (SPECIAL[n]?.label ?? '').replace(/\n/g,' '),
+        sector: stock?.sector ?? null,
+        color: color || '#8a7a68',
+        baseY: SPACE_H/2,
+      };
+      tileMeshes.push(tile);
+
+      if (color) {
+        // Sector inlay bar on the tile's outer edge — solid enamel with a brass base.
+        const strip=new THREE.Mesh(new THREE.BoxGeometry(TILE*0.92,0.05,0.075),
+          new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.28,roughness:0.4,metalness:0.2}));
+        let sx=x, sz=z;
+        if (row===1) sz=z-TILE/2+0.04;
+        if (row===10) sz=z+TILE/2-0.04;
+        if (col===10) sx=x+TILE/2-0.04;
+        if (col===1) sx=x-TILE/2+0.04;
+        strip.position.set(sx,SPACE_H+0.018,sz);
+        if (col===10||col===1) strip.rotation.y=Math.PI/2;
+        scene.add(strip);
+        if (SPECIAL[n]) { const pt=new THREE.PointLight(color,0.45,3.0); pt.position.set(x,SPACE_H+0.3,z); scene.add(pt); }
+      }
+
+      // Space number — small brass numeral in the tile corner
+      const numPlane=new THREE.Mesh(new THREE.PlaneGeometry(0.25,0.25),
+        new THREE.MeshBasicMaterial({map:makeLabel(String(n),'transparent',isCorner?'#c9a24f':'#7a5a34',64,64),transparent:true,side:THREE.DoubleSide}));
+      numPlane.rotation.x=-Math.PI/2;
+      numPlane.position.set(x-TILE*0.35,SPACE_H+0.005,z-TILE*0.35);
+      scene.add(numPlane);
+    }
+
+    // Player color for a given index (falls back to the default palette)
+    function playerColor(idx) {
+      if (idx == null || idx < 0) return null;
+      return (currentPlayers[idx] && currentPlayers[idx].color) || DEFAULT_COLORS[idx] || '#d4a535';
+    }
+
+    // Add / update / remove the claim-holder ring under a sold-out tile
+    function updateClaimRing(code, colorHex) {
+      const tile = stockTiles[code];
+      if (!tile) return;
+      if (!colorHex) {
+        if (claimRings[code]) { scene.remove(claimRings[code]); claimRings[code].geometry.dispose(); claimRings[code].material.dispose(); delete claimRings[code]; }
+        return;
+      }
+      let ring = claimRings[code];
+      if (!ring) {
+        ring = new THREE.Mesh(
+          new THREE.RingGeometry(TILE*0.42, TILE*0.52, 28),
+          new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false })
+        );
+        ring.rotation.x = -Math.PI/2;
+        ring.position.set(tile.position.x, SPACE_H + 0.012, tile.position.z);
+        scene.add(ring);
+        claimRings[code] = ring;
+      }
+      ring.material.color.set(colorHex);
+    }
+
+    // Re-draw stock tile tops when live prices change (dispose old textures)
+    let pricesKey = '';
+    function refreshStockTiles(prices) {
+      if (!prices) return;
+      const key = JSON.stringify(prices);
+      if (key === pricesKey) return;
+      pricesKey = key;
+      latestPrices = prices;
+      for (const [code, mat] of Object.entries(stockTopMats)) {
+        const info = prices[code];
+        if (!info) continue;
+        const spaceN = Object.keys(STOCKS).find(k => STOCKS[k].code === code);
+        const color = SECTOR_COLORS[STOCKS[spaceN].sector];
+        const claimColor = (info.so && info.claim != null) ? playerColor(info.claim) : null;
+        const old = mat.map;
+        mat.map = makeStockLabel(code, color, info.p, info.d, !!info.so, claimColor);
+        mat.needsUpdate = true;
+        if (old) old.dispose();
+        updateClaimRing(code, claimColor);
+      }
+    }
+
+    // ── Card decks (center of board) ────────────────────────────────────────────
+    const DECK_DEFS = {
+      ME:  { label: 'MARKET EVENT', glyph: '◈', color: '#ef4444',
+             purpose: 'Drawn when landing on the Market Event space (19)' },
+      FED: { label: 'THE FED',      glyph: '%', color: '#d4a535',
+             purpose: 'Drawn when landing on a Fed space' },
+      AH:  { label: 'AFTER-HOURS',  glyph: '☾', color: '#a78bfa',
+             purpose: 'Drawn when landing on After-Hours' },
+      IPO: { label: 'IPO',          glyph: '↑', color: '#4ade80',
+             purpose: 'New listing launches on IPO spaces' },
+    };
+    const CARD_W = 0.95, CARD_D = 1.35, CARD_LAYER_H = 0.018, DECK_MAX_LAYERS = 8;
+
+    // Card back — banknote guilloche on cream stock, gold-framed engraving per deck.
+    function createCardBackTexture(type) {
+      const def = DECK_DEFS[type];
+      const w = 256, h = 384;
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      // cream banknote stock with a faint fibre wash
+      ctx.fillStyle = PAL.parchment; ctx.fillRect(0, 0, w, h);
+      const wash = ctx.createRadialGradient(w/2, h*0.4, 30, w/2, h*0.5, h*0.62);
+      wash.addColorStop(0, 'rgba(255,255,255,0.35)'); wash.addColorStop(1, 'rgba(120,90,50,0.10)');
+      ctx.fillStyle = wash; ctx.fillRect(0, 0, w, h);
+      // engraved deck-color frame lines
+      ctx.strokeStyle = def.color; ctx.lineWidth = 5; ctx.strokeRect(9, 9, w-18, h-18);
+      ctx.strokeStyle = def.color + '77'; ctx.lineWidth = 1.5; ctx.strokeRect(18, 18, w-36, h-36);
+      // guilloche rosette in deck color
+      drawGuilloche(ctx, w/2, h*0.40, def.color, (w*0.42)/200, 0.6);
+      // emblem medallion + glyph
+      ctx.beginPath(); ctx.arc(w/2, h*0.40, 40, 0, Math.PI*2);
+      ctx.fillStyle = PAL.parchment; ctx.fill();
+      ctx.strokeStyle = def.color; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = def.color;
+      ctx.font = `48px 'IBM Plex Mono', monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(def.glyph, w/2, h*0.40 + 3);
+      // engraved branding
+      ctx.fillStyle = PAL.ink;
+      ctx.font = `600 22px Marcellus, serif`;
+      ctx.fillText('THE EXCHANGE', w/2, h*0.66);
+      ctx.fillStyle = 'rgba(43,32,22,0.6)';
+      ctx.font = `11px 'IBM Plex Mono', monospace`;
+      ctx.fillText('STOCK MARKET GAME', w/2, h*0.71);
+      // deck label band
+      ctx.fillStyle = def.color;
+      roundRect(ctx, 24, h*0.82, w-48, 38, 6); ctx.fill();
+      ctx.fillStyle = '#f4ecd9';
+      ctx.font = `700 20px 'IBM Plex Mono', monospace`;
+      ctx.fillText(def.label, w/2, h*0.82 + 20);
+      const tex = new THREE.CanvasTexture(cv); tex.needsUpdate = true; return tex;
+    }
+
+    // Card face — cream stock, deck-color header band, ink title (legible at reveal).
+    function createCardFaceTexture(type, title) {
+      const def = DECK_DEFS[type];
+      const w = 256, h = 384;
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = PAL.parchment; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = def.color; ctx.lineWidth = 4; ctx.strokeRect(6, 6, w-12, h-12);
+      // header band
+      ctx.fillStyle = def.color; ctx.fillRect(6, 6, w-12, 54);
+      ctx.fillStyle = '#f4ecd9';
+      ctx.font = `700 20px 'IBM Plex Mono', monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(def.label, w/2, 34);
+      // title — wrap to fit, engraved ink
+      ctx.fillStyle = PAL.ink;
+      ctx.font = `600 28px Marcellus, serif`;
+      const words = String(title).toUpperCase().split(' ');
+      const lines = [];
+      let line = '';
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width > w - 44 && line) { lines.push(line); line = word; }
+        else line = test;
+      }
+      if (line) lines.push(line);
+      lines.slice(0, 4).forEach((l, i) => {
+        ctx.fillText(l, w/2, h*0.44 + (i - (Math.min(lines.length,4)-1)/2) * 38);
+      });
+      // footer
+      ctx.fillStyle = 'rgba(43,32,22,0.5)';
+      ctx.font = `11px 'IBM Plex Mono', monospace`;
+      ctx.fillText('THE EXCHANGE', w/2, h - 28);
+      const tex = new THREE.CanvasTexture(cv); tex.needsUpdate = true; return tex;
+    }
+
+    // Deck stack: thin card layers + textured top card, grouped for hover lift
+    const decks = {};        // type -> { group, layers, topCard, def, baseY, count }
+    const deckMeshes = [];   // raycast targets (all layer + top meshes)
+    function createDeck(type, x, z) {
+      const def = DECK_DEFS[type];
+      const group = new THREE.Group();
+      const edgeMat = new THREE.MeshStandardMaterial({ color: '#e6d8b8', roughness: 0.85 });
+      const layers = [];
+      for (let i = 0; i < DECK_MAX_LAYERS; i++) {
+        const layer = new THREE.Mesh(new THREE.BoxGeometry(CARD_W, CARD_LAYER_H, CARD_D), edgeMat);
+        layer.position.y = CARD_LAYER_H/2 + i * CARD_LAYER_H;
+        layer.castShadow = true;
+        layer.userData.deckType = type;
+        group.add(layer); layers.push(layer); deckMeshes.push(layer);
+      }
+      // Top card back (plane laid flat on the stack)
+      const topCard = new THREE.Mesh(
+        new THREE.PlaneGeometry(CARD_W, CARD_D),
+        new THREE.MeshStandardMaterial({ map: createCardBackTexture(type), roughness: 0.65 })
+      );
+      topCard.rotation.x = -Math.PI/2;
+      topCard.position.y = DECK_MAX_LAYERS * CARD_LAYER_H + 0.002;
+      topCard.userData.deckType = type;
+      group.add(topCard); deckMeshes.push(topCard);
+      group.position.set(x, 0.09, z); // sit on the center panel (its top is at y≈0.09)
+      scene.add(group);
+      decks[type] = { group, layers, topCard, def, baseY: 0.09, count: DECK_MAX_LAYERS };
+      return group;
+    }
+    // Row across the lower half of the center panel — clear of the tiles and title
+    createDeck('ME',  -3.3, 2.1);
+    createDeck('FED', -1.1, 2.1);
+    createDeck('AH',   1.1, 2.1);
+    createDeck('IPO',  3.3, 2.1);
+
+    // Adjust visible stack height to match cards remaining
+    const DECK_TOTALS = { ME: 18, FED: 12, AH: 12, IPO: 4 };
+    let latestDeckCounts = null;
+    function updateDeckCounts(counts) {
+      if (!counts) return;
+      latestDeckCounts = counts;
+      for (const [type, deck] of Object.entries(decks)) {
+        const remaining = counts[type] ?? 0;
+        deck.count = remaining;
+        const visible = remaining <= 0 ? 1
+          : Math.max(1, Math.min(DECK_MAX_LAYERS, Math.ceil(remaining / DECK_TOTALS[type] * DECK_MAX_LAYERS)));
+        deck.layers.forEach((layer, i) => { layer.visible = i < visible; });
+        deck.topCard.position.y = visible * CARD_LAYER_H + 0.002;
+        deck.topCard.material.opacity = remaining <= 0 ? 0.35 : 1;
+        deck.topCard.material.transparent = remaining <= 0;
+      }
+    }
+
+    // ── Card draw animation ─────────────────────────────────────────────────────
+    // Phases: lift off deck → glide to center reveal → flip to face camera → hold → fade
+    const DRAW_LIFT = 0.35, DRAW_GLIDE = 0.55, DRAW_HOLD = 1.4, DRAW_FADE = 0.45;
+    const REVEAL_POS = { x: 0, y: 2.4, z: 1.2 };
+    const drawAnims = [];
+    function animateCardDraw(deckType, cardTitle) {
+      const deck = decks[deckType];
+      if (!deck) return;
+      const outer = new THREE.Group();   // billboarded toward camera during reveal
+      const inner = new THREE.Group();   // flips back→face
+      const backMat = new THREE.MeshBasicMaterial({ map: createCardBackTexture(deckType), transparent: true, side: THREE.FrontSide });
+      const faceMat = new THREE.MeshBasicMaterial({ map: createCardFaceTexture(deckType, cardTitle), transparent: true, side: THREE.FrontSide });
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W*1.35, CARD_D*1.35), backMat);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W*1.35, CARD_D*1.35), faceMat);
+      face.rotation.y = Math.PI;
+      inner.add(back); inner.add(face);
+      outer.add(inner);
+      const gp = deck.group.position;
+      const startY = gp.y + deck.topCard.position.y + 0.02;
+      outer.position.set(gp.x, startY, gp.z);
+      outer.rotation.x = -Math.PI/2;  // starts flat like the stack
+      scene.add(outer);
+      drawAnims.push({ outer, inner, backMat, faceMat, t: 0,
+        start: { x: gp.x, y: startY, z: gp.z } });
+    }
+
+    function updateDrawAnims(dt) {
+      for (let i = drawAnims.length - 1; i >= 0; i--) {
+        const a = drawAnims[i];
+        a.t += dt;
+        const total = DRAW_LIFT + DRAW_GLIDE + DRAW_HOLD + DRAW_FADE;
+        if (a.t >= total) {
+          scene.remove(a.outer);
+          a.backMat.map.dispose(); a.backMat.dispose();
+          a.faceMat.map.dispose(); a.faceMat.dispose();
+          drawAnims.splice(i, 1);
+          continue;
+        }
+        if (a.t < DRAW_LIFT) {
+          // lift straight up off the stack
+          const k = a.t / DRAW_LIFT;
+          a.outer.position.y = a.start.y + k * 0.8;
+        } else if (a.t < DRAW_LIFT + DRAW_GLIDE) {
+          // glide to the reveal point, easing upright toward the camera + flip
+          const k = (a.t - DRAW_LIFT) / DRAW_GLIDE;
+          const e = k < 0.5 ? 2*k*k : 1 - Math.pow(-2*k+2, 2)/2;
+          a.outer.position.x = a.start.x + (REVEAL_POS.x - a.start.x) * e;
+          a.outer.position.y = (a.start.y + 0.8) + (REVEAL_POS.y - a.start.y - 0.8) * e;
+          a.outer.position.z = a.start.z + (REVEAL_POS.z - a.start.z) * e;
+          // ease from flat (−π/2) to camera-facing billboard
+          const bq = new THREE.Quaternion().copy(camera.quaternion);
+          const flat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0));
+          a.outer.quaternion.slerpQuaternions(flat, bq, e);
+          a.inner.rotation.y = Math.PI * e;   // back → face
+        } else if (a.t < DRAW_LIFT + DRAW_GLIDE + DRAW_HOLD) {
+          // hold at reveal, tracking the camera
+          a.outer.quaternion.copy(camera.quaternion);
+          a.inner.rotation.y = Math.PI;
+        } else {
+          // fade out in place
+          const k = (a.t - DRAW_LIFT - DRAW_GLIDE - DRAW_HOLD) / DRAW_FADE;
+          a.outer.quaternion.copy(camera.quaternion);
+          a.outer.position.y = REVEAL_POS.y + k * 0.5;
+          a.backMat.opacity = 1 - k;
+          a.faceMat.opacity = 1 - k;
+        }
+      }
+    }
+
+    // Fire the animation exactly once per draw event (seq is unique per draw)
+    let lastDrawSeq = null;
+    let deckSyncedOnce = false;
+    function handleDrawEvent(ev) {
+      if (!ev) { if (!deckSyncedOnce) deckSyncedOnce = true; return; }
+      if (!deckSyncedOnce) {
+        // First payload after page load — baseline without animating old draws
+        lastDrawSeq = ev.seq;
+        deckSyncedOnce = true;
+        return;
+      }
+      if (lastDrawSeq !== null && ev.seq <= lastDrawSeq) return;
+      lastDrawSeq = ev.seq;
+      animateCardDraw(ev.deck, ev.title);
+    }
+
+    // ── Landing pulse rings ─────────────────────────────────────────────────────
+    const pulses = [];
+    function spawnPulse(x, z, colorHex) {
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.30, 0.44, 32),
+        new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })
+      );
+      ring.rotation.x = -Math.PI/2;
+      ring.position.set(x, SPACE_H + 0.03, z);
+      scene.add(ring);
+      pulses.push({ mesh: ring, t: 0 });
+    }
+
+    // ── Current-player spotlight ring ───────────────────────────────────────────
+    const turnRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.30, 0.022, 8, 40),
+      new THREE.MeshBasicMaterial({ color: '#d4a535', transparent: true, opacity: 0.85, depthWrite: false })
+    );
+    turnRing.rotation.x = Math.PI/2;
+    turnRing.visible = false;
+    scene.add(turnRing);
+    let turnRingTokenIdx = -1;
+
+    // ── Hover: raycast tiles, lift + tooltip ────────────────────────────────────
+    const raycaster = new THREE.Raycaster();
+    const mouseNDC = new THREE.Vector2(-10, -10);
+    const tileTip = document.getElementById('tile-tip');
+    let hoveredTile = null;
+    let mouseClientX = 0, mouseClientY = 0;
+
+    renderer.domElement.addEventListener('pointermove', (e) => {
+      mouseClientX = e.clientX; mouseClientY = e.clientY;
+      mouseNDC.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+      mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+    renderer.domElement.addEventListener('pointerleave', () => {
+      mouseNDC.set(-10, -10);
+    });
+
+    let hoveredDeck = null;
+    function updateHover() {
+      raycaster.setFromCamera(mouseNDC, camera);
+
+      // Decks first — they sit above the center panel
+      const deckHits = raycaster.intersectObjects(deckMeshes, false);
+      const deckType = deckHits.length ? deckHits[0].object.userData.deckType : null;
+      if (deckType !== hoveredDeck) {
+        if (hoveredDeck) decks[hoveredDeck].group.position.y = decks[hoveredDeck].baseY;
+        hoveredDeck = deckType;
+        if (deckType) decks[deckType].group.position.y = decks[deckType].baseY + 0.09;
+        renderer.domElement.style.cursor = deckType ? 'pointer' : '';
+      }
+      if (deckType) {
+        if (hoveredTile) { hoveredTile.position.y = hoveredTile.userData.baseY; hoveredTile = null; }
+        const deck = decks[deckType];
+        const remaining = latestDeckCounts ? (latestDeckCounts[deckType] ?? deck.count) : deck.count;
+        tileTip.innerHTML =
+          `<div class="tt-name" style="color:${deck.def.color}">${deck.def.glyph} ${deck.def.label} DECK</div>`
+          + `<div class="tt-sub">${deck.def.purpose}</div>`
+          + `<div class="tt-price" style="color:${deck.def.color}">${remaining} card${remaining === 1 ? '' : 's'} left</div>`;
+        tileTip.style.display = 'block';
+        positionTip();
+        return;
+      }
+
+      const hits = raycaster.intersectObjects(tileMeshes, false);
+      const tile = hits.length ? hits[0].object : null;
+      if (tile !== hoveredTile) {
+        if (hoveredTile) hoveredTile.position.y = hoveredTile.userData.baseY;
+        hoveredTile = tile;
+        if (tile) tile.position.y = tile.userData.baseY + 0.05;
+      }
+      if (!tile) { tileTip.style.display = 'none'; return; }
+      const ud = tile.userData;
+      let html = '';
+      if (ud.code) {
+        const info = latestPrices[ud.code];
+        const secName = { tech:'Technology', consumer:'Consumer', health:'Healthcare', energy:'Energy',
+          finance:'Finance', realestate:'Real Estate', industrials:'Industrials', comm:'Comms/Media' }[ud.sector] ?? '';
+        html = `<div class="tt-name" style="color:${ud.color}">${ud.code} · ${ud.name}</div>`
+             + `<div class="tt-sub">Space ${ud.n} · ${secName}</div>`;
+        if (info) {
+          const dirGlyph = info.d > 0 ? ' ▲' : info.d < 0 ? ' ▼' : '';
+          const dirColor = info.d > 0 ? '#22c55e' : info.d < 0 ? '#ef4444' : '#e8e0d0';
+          const remain = info.so
+            ? `<span style="color:rgba(138,122,104,0.9); font-size:10px; font-weight:400"> · SOLD OUT</span>`
+            : `<span style="color:rgba(138,122,104,0.9); font-size:10px; font-weight:400"> · ${info.s} left</span>`;
+          html += `<div class="tt-price" style="color:${dirColor}">$${info.p.toLocaleString()}${dirGlyph}${remain}</div>`;
+          if (info.so) {
+            const cc = (info.claim != null) ? playerColor(info.claim) : null;
+            const holderName = (info.claim != null && currentPlayers[info.claim]) ? currentPlayers[info.claim].name : null;
+            html += cc
+              ? `<div class="tt-sub" style="color:${cc}">◆ Payout Claim: ${holderName}</div>`
+              : `<div class="tt-sub" style="color:#8a8a8a">Payout Claim: Contested</div>`;
+          }
+        }
+      } else {
+        html = `<div class="tt-name" style="color:${ud.color}">${ud.name}</div>`
+             + `<div class="tt-sub">Space ${ud.n}</div>`;
+      }
+      tileTip.innerHTML = html;
+      tileTip.style.display = 'block';
+      positionTip();
+    }
+
+    function positionTip() {
+      const pad = 14;
+      const tipW = tileTip.offsetWidth, tipH = tileTip.offsetHeight;
+      let tx = mouseClientX + pad, ty = mouseClientY + pad;
+      if (tx + tipW > window.innerWidth - 8)  tx = mouseClientX - tipW - pad;
+      if (ty + tipH > window.innerHeight - 8) ty = mouseClientY - tipH - pad;
+      tileTip.style.left = tx + 'px';
+      tileTip.style.top  = ty + 'px';
+    }
+
+    // ── Player tokens ───────────────────────────────────────────────────────────
+    // Fixed sub-offsets per player slot so co-located tokens don't overlap
+    const TOKEN_OFFSETS = [[-0.20,-0.20],[0.20,-0.20],[-0.20,0.20],[0.20,0.20],[0,-0.28],[0,0.28]];
+
+    // Token state: { group, labelPlane, moving, animT, fromWorld, toWorld }
+    const tokens = [];
+
+    // Piece-specific 3D geometry — distinct shapes, lightweight primitives only
+    function buildPieceShape(group, piece) {
+      const place = (m, x=0, y=0, z=0, rx=0, ry=0, rz=0) => {
+        m.position.set(x, y, z);
+        if (rx || ry || rz) m.rotation.set(rx, ry, rz);
+        m.castShadow = true;
+        group.add(m);
+      };
+      const mesh = (geo, col, rough=0.7, metal=0.05, emissI=0) =>
+        new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+          color: col, roughness: rough, metalness: metal,
+          emissive: col, emissiveIntensity: emissI
+        }));
+
+      if (piece === 'bull') {
+        // Brown head with cream horns and snout
+        place(mesh(new THREE.SphereGeometry(0.10,12,10), '#7A3A18', 0.75), 0, 0.215);
+        place(mesh(new THREE.SphereGeometry(0.055,10,8), '#9A5530', 0.8), 0, 0.188, 0.080);
+        const hornMat = new THREE.MeshStandardMaterial({ color:'#EDD9A3', roughness:0.5 });
+        const mkH = () => new THREE.Mesh(new THREE.ConeGeometry(0.022,0.10,8), hornMat);
+        place(mkH(), -0.075, 0.320, -0.015, 0, 0,  0.40);
+        place(mkH(),  0.075, 0.320, -0.015, 0, 0, -0.40);
+      }
+
+      else if (piece === 'bear') {
+        const furMat = new THREE.MeshStandardMaterial({ color:'#5C3318', roughness:0.88 });
+        const mkF = (r) => new THREE.Mesh(new THREE.SphereGeometry(r,10,8), furMat);
+        place(mkF(0.10), 0, 0.215);
+        place(mkF(0.042), -0.078, 0.300);
+        place(mkF(0.042),  0.078, 0.300);
+        const innerMat = new THREE.MeshStandardMaterial({ color:'#C46A50', roughness:0.9 });
+        const mkI = () => new THREE.Mesh(new THREE.SphereGeometry(0.022,8,8), innerMat);
+        place(mkI(), -0.078, 0.300, 0.026);
+        place(mkI(),  0.078, 0.300, 0.026);
+        place(mesh(new THREE.SphereGeometry(0.050,10,8), '#8B5E3C', 0.9), 0, 0.188, 0.082);
+      }
+
+      else if (piece === 'bill') {
+        // Upright green bill — face tilted ~15° toward camera
+        const billMat = new THREE.MeshStandardMaterial({ color:'#1A6B30', roughness:0.65, metalness:0.05 });
+        const stripMat = new THREE.MeshStandardMaterial({ color:'#2A8A45', roughness:0.6 });
+        const darkMat  = new THREE.MeshStandardMaterial({ color:'#10431C' });
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.25,0.165,0.022), billMat), 0, 0.185, 0, 0.28, 0.05);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.07,0.105,0.025), stripMat), 0, 0.185, 0, 0.28, 0.05);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.058,0.138,0.024), darkMat), -0.082, 0.185, 0, 0.28, 0.05);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.058,0.138,0.024), darkMat),  0.082, 0.185, 0, 0.28, 0.05);
+      }
+
+      else if (piece === 'laptop') {
+        // Aluminium keyboard base + open screen (rx ~-0.35 = slightly past vertical)
+        const alumMat = new THREE.MeshStandardMaterial({ color:'#B8C0CC', roughness:0.25, metalness:0.80 });
+        const darkMat = new THREE.MeshStandardMaterial({ color:'#101820', roughness:0.40 });
+        // Keyboard
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.24,0.024,0.18), alumMat), 0, 0.062);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.20,0.025,0.14), darkMat), 0, 0.062);
+        // Screen (hinge at back of keyboard z=-0.09, y=0.074; screen center offset: y+0.085, z-0.031)
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.24,0.18,0.022), alumMat), 0, 0.159, -0.121, -0.35);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.20,0.14,0.025), darkMat), 0, 0.159, -0.121, -0.35);
+      }
+
+      else if (piece === 'calc') {
+        // Upright slab with display and 3×3 button grid
+        const bodyMat = new THREE.MeshStandardMaterial({ color:'#C8CCD8', roughness:0.40, metalness:0.20 });
+        const dispMat = new THREE.MeshStandardMaterial({ color:'#1A2A14', roughness:0.30,
+          emissive:'#0A1A06', emissiveIntensity:0.40 });
+        const btnMat  = new THREE.MeshStandardMaterial({ color:'#7A7A8A', roughness:0.50 });
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.17,0.27,0.055), bodyMat), 0, 0.185);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.12,0.065,0.058), dispMat), 0, 0.278);
+        for (let r=0; r<3; r++) for (let c=0; c<3; c++) {
+          place(new THREE.Mesh(new THREE.BoxGeometry(0.033,0.027,0.058), btnMat),
+            (c-1)*0.048, 0.205 - r*0.042);
+        }
+      }
+
+      else if (piece === 'vault') {
+        // Steel cube body + door panel + gold combination dial
+        const steelMat = new THREE.MeshStandardMaterial({ color:'#3A4455', roughness:0.25, metalness:0.90 });
+        const doorMat  = new THREE.MeshStandardMaterial({ color:'#4A5A70', roughness:0.20, metalness:0.88 });
+        const goldMat  = new THREE.MeshStandardMaterial({ color:'#C8A228', roughness:0.18, metalness:0.92 });
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.22,0.22,0.17), steelMat), 0, 0.170);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.17,0.17,0.020), doorMat), 0, 0.170, 0.095);
+        place(new THREE.Mesh(new THREE.TorusGeometry(0.052,0.011,8,16), goldMat), 0, 0.170, 0.107);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.008,0.062,0.014), goldMat), 0, 0.170, 0.107);
+        place(new THREE.Mesh(new THREE.BoxGeometry(0.062,0.008,0.014), goldMat), 0, 0.170, 0.107);
+        const boltGeo = new THREE.SphereGeometry(0.011,6,6);
+        [[-0.095,0.255],[-0.095,0.085],[0.095,0.255],[0.095,0.085]].forEach(([bx,by]) =>
+          place(new THREE.Mesh(boltGeo, goldMat), bx, by, 0.096));
+      }
+    }
+
+    function makeToken(color, piece) {
+      const group = new THREE.Group();
+
+      // Player-color base disc (always visible — identifies the player)
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.17,0.19,0.055,20),
+        new THREE.MeshStandardMaterial({ color, roughness:0.30, metalness:0.65,
+          emissive:color, emissiveIntensity:0.22 })
+      );
+      base.position.y = 0.0275; base.castShadow = true;
+      group.add(base);
+
+      // Glowing rim ring
+      const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.178,0.015,6,20),
+        new THREE.MeshStandardMaterial({ color, roughness:0.25, metalness:0.80,
+          emissive:color, emissiveIntensity:0.45 })
+      );
+      rim.rotation.x = Math.PI / 2; rim.position.y = 0.055;
+      group.add(rim);
+
+      // Piece-specific 3D shape
+      buildPieceShape(group, piece);
+
+      // Billboard emoji label (always faces camera, floats above piece)
+      const emoji = PIECE_EMOJI[piece] ?? '●';
+      const labelPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.26,0.26),
+        new THREE.MeshBasicMaterial({ map:makePieceTex(emoji,color,128),
+          transparent:true, side:THREE.DoubleSide, depthWrite:false })
+      );
+      labelPlane.position.y = 0.58;
+      group.add(labelPlane);
+
+      scene.add(group);
+      return { group, labelPlane, moving:false, animT:0, path:[], seg:0, color };
+    }
+
+    const DEFAULT_COLORS = ['#3ED598','#4DA3FF','#F0C53D','#FF5C5C','#A78BFA','#2DD4BF'];
+    const DEFAULT_PIECES = ['bull','bear','bill','laptop','calc','vault'];
+
+    function tokenOffset(i) {
+      return TOKEN_OFFSETS[i] ?? [0,0];
+    }
+
+    function initTokens(players) {
+      tokens.forEach(t => scene.remove(t.group));
+      tokens.length = 0;
+      players.forEach((pl, i) => {
+        const tok = makeToken(pl.color || DEFAULT_COLORS[i], pl.piece || DEFAULT_PIECES[i]);
+        const [ox,oz] = tokenOffset(i);
+        const {x,z} = spaceWorld(pl.pos || 1);
+        tok.group.position.set(x+ox, TOKEN_BASE_Y, z+oz);
+        tokens.push(tok);
+      });
+    }
+
+    // Snap a single non-moving token to its current world position
+    function snapToken(tok, i, players) {
+      if (tok.moving) return;
+      const pl = players[i];
+      if (!pl) return;
+      const [ox,oz] = tokenOffset(i);
+      const {x,z} = spaceWorld(pl.pos || 1);
+      tok.group.position.set(x+ox, TOKEN_BASE_Y, z+oz);
+    }
+
+    let currentPlayers = DEFAULT_COLORS.slice(0,4).map((c,i)=>({pos:1,piece:DEFAULT_PIECES[i],color:c,name:`P${i+1}`}));
+
+    // Clear any stale command left from a prior session so the main app's poller
+    // doesn't pick it up and fire an unexpected roll when this page reopens.
+    localStorage.removeItem('exchange_3d_cmd');
+
+    // Back button: post message to parent when embedded as iframe, close tab when standalone
+    document.getElementById('back').addEventListener('click', () => {
+      if (window.parent !== window) {
+        window.parent.postMessage({ t: 'switchTo2D' }, '*');
+      } else {
+        try { window.close(); } catch (_) {}
+        setTimeout(() => {
+          if (!window.closed) {
+            try { if (window.opener) { window.opener.focus(); window.close(); } } catch (_) {}
+          }
+        }, 80);
+      }
+    });
+
+    // ── Roll controls panel ──────────────────────────────────────────────────────
+    const COMMAND_KEY = 'exchange_3d_cmd';
+    const btnRoll = document.getElementById('btn-roll-3d');
+    const btnDraw = document.getElementById('btn-draw-3d');
+    const dieA    = document.getElementById('die-a');
+    const dieB    = document.getElementById('die-b');
+    const playerLabel = document.getElementById('player-label');
+    const playerDot   = document.getElementById('player-dot');
+    const rollStatus  = document.getElementById('roll-status');
+
+    let pendingDrawGlobal = null;
+    const btnEndTurn = document.getElementById('btn-end-turn-3d');
+
+    btnDraw.addEventListener('click', () => {
+      if (!pendingDrawGlobal) return;
+      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'draw', deck: pendingDrawGlobal, ts: Date.now() }));
+      btnDraw.disabled = true;
+      btnDraw.textContent = 'Drawing…';
+    });
+
+    btnEndTurn.addEventListener('click', () => {
+      if (btnEndTurn.disabled) return;
+      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'endTurn', ts: Date.now() }));
+      btnEndTurn.disabled = true;
+      rollStatus.textContent = 'Ending turn…';
+    });
+
+    // ── Stock card (design-styled trade ticket) ────────────────────────────────────
+    const tradePanel  = document.getElementById('trade-panel');
+    const tradeFront  = document.getElementById('trade-front');
+    const tradeBack   = document.getElementById('trade-back');
+    const tradeMeta   = document.getElementById('trade-meta');
+    const tcTicker = document.getElementById('tc-ticker');
+    const tcName   = document.getElementById('tc-name');
+    const tcSector = document.getElementById('tc-sector');
+    const tcRisk   = document.getElementById('tc-risk');
+    const tcGlyph  = document.getElementById('tc-glyph');
+    const tcPrice  = document.getElementById('tc-price');
+    const tcArrow  = document.getElementById('tc-arrow');
+    const tcStep   = document.getElementById('tc-step');
+    const tcSupply = document.getElementById('tc-supply');
+    const tcDiv    = document.getElementById('tc-div');
+    const tcOwn      = document.getElementById('tc-own');
+    const tcOwnTitle = document.getElementById('tc-own-title');
+    const btnTradeBuy  = document.getElementById('btn-trade-buy');
+    const btnTradeSell = document.getElementById('btn-trade-sell');
+    const qtyBtns = Array.from(document.querySelectorAll('.qty-btn'));
+
+    const RISK_MAP = { High: ['HIGH RISK', '#c0392b'], Med: ['MED RISK', '#b07d1a'], Low: ['LOW RISK', '#1f7a44'] };
+
+    let tradeQty = 1;
+    let tradeInfoGlobal = null;
+    let tradeFlipTimer = null;
+
+    qtyBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tradeQty = parseInt(btn.dataset.qty, 10);
+        qtyBtns.forEach(b => b.classList.toggle('selected', b === btn));
+        refreshTradeButtons();
+      });
+    });
+
+    function refreshTradeButtons() {
+      const ti = tradeInfoGlobal;
+      if (!ti) return;
+      const totalCost = ti.price * tradeQty;
+      btnTradeBuy.disabled  = isAnimating || ti.supply < tradeQty || ti.cash < totalCost;
+      btnTradeSell.disabled = isAnimating || ti.owned < tradeQty;
+      tradeMeta.textContent = `Cash $${ti.cash.toLocaleString()}  ·  ${tradeQty}× = $${totalCost.toLocaleString()}`;
+    }
+
+    let prevTradeCode = null;
+    function updateTradePanel(payload) {
+      const ti = payload?.tradeInfo ?? null;
+      tradeInfoGlobal = ti;
+      if (!ti) {
+        tradePanel.style.display = 'none';
+        prevTradeCode = null;
+        clearTimeout(tradeFlipTimer);
+        tradeBack.style.display = 'none';
+        return;
+      }
+
+      const sc = ti.sectorColor || '#3ED598';
+      tradePanel.style.setProperty('--sc', sc);
+      tradePanel.style.display = 'block';
+
+      // Header
+      tcTicker.textContent = ti.code;
+      tcName.textContent   = ti.name;
+      tcSector.textContent = String(ti.sector || '').toUpperCase();
+      tcSector.style.background = sc;
+      const [riskLabel, riskColor] = RISK_MAP[ti.risk] || ['—', '#555'];
+      tcRisk.textContent = riskLabel;
+      tcRisk.style.background = riskColor;
+
+      // Price + step direction
+      tcGlyph.textContent = ti.glyph || '◆';
+      tcPrice.textContent = `$${ti.price.toLocaleString()}`;
+      const diff = ti.stepDiff || 0;
+      const dirColor = diff > 0 ? '#1f7a44' : diff < 0 ? '#c0392b' : '#8a7a68';
+      tcArrow.textContent = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
+      tcArrow.style.color = dirColor;
+      tcStep.style.color = dirColor;
+      tcStep.textContent = diff === 0
+        ? 'NO CHANGE'
+        : `${diff > 0 ? '+' : ''}${diff} STEP${Math.abs(diff) !== 1 ? 'S' : ''}`;
+
+      // Stats
+      tcSupply.textContent = ti.supply;
+      tcDiv.textContent = `$${ti.dividend}`;
+
+      // Ownership banner (lights up at the controlling-stake threshold)
+      tcOwnTitle.textContent = `YOU OWN: ${ti.owned}`;
+      tcOwn.classList.toggle('controlling', ti.owned >= 6);
+
+      // Reset qty + play the flip reveal when a new stock appears
+      if (ti.code !== prevTradeCode) {
+        tradeQty = 1;
+        qtyBtns.forEach(b => b.classList.toggle('selected', b.dataset.qty === '1'));
+        prevTradeCode = ti.code;
+        clearTimeout(tradeFlipTimer);
+        tradeBack.style.display = 'block';
+        tradeFront.classList.remove('flipping');
+        tradeFlipTimer = setTimeout(() => {
+          tradeBack.style.display = 'none';
+          void tradeFront.offsetWidth; // restart animation
+          tradeFront.classList.add('flipping');
+        }, 340);
+      }
+
+      refreshTradeButtons();
+    }
+
+    function sendTradeCmd(t) {
+      if (!tradeInfoGlobal) return;
+      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t, code: tradeInfoGlobal.code, qty: tradeQty, ts: Date.now() }));
+      btnTradeBuy.disabled  = true;
+      btnTradeSell.disabled = true;
+    }
+
+    btnTradeBuy.addEventListener('click',  () => sendTradeCmd('buyStock'));
+    btnTradeSell.addEventListener('click', () => sendTradeCmd('sellStock'));
+
+    // ── Card preview ─────────────────────────────────────────────────────────────
+    const cardPanel   = document.getElementById('card-preview');
+    const DECK_COLORS  = { ME: '#ef4444', FED: '#d4a535', AH: '#a78bfa' };
+    const DECK_LABELS  = { ME: 'MARKET EVENT', FED: 'THE FED', AH: 'AFTER-HOURS' };
+    const DECK_ICONS   = { ME: '📈', FED: '🏛️', AH: '🌙' };
+    const DECK_SYMBOLS = { ME: '📊', FED: '🏦', AH: '🏙️' };
+
+    let prevCardKey  = null;
+    let cardFlipTimer = null;
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function deckBannerBg(col) {
+      // Darken slightly for readability of dark text on banner
+      return col;
+    }
+
+    function showCardBack(card) {
+      const col = DECK_COLORS[card.deck] ?? '#8888cc';
+      const lbl = DECK_LABELS[card.deck] ?? card.deck;
+      cardPanel.style.display = 'block';
+      cardPanel.innerHTML = `
+        <div class="card3d-back" style="border-color:${col}33">
+          <span class="card3d-back-icon">🃏</span>
+          <span class="card3d-back-label" style="color:${col}99">${escHtml(lbl)}</span>
+        </div>`;
+    }
+
+    function showCardReveal(card) {
+      const isStrat = card.strategyOnly;
+      const col     = isStrat ? '#666666' : (DECK_COLORS[card.deck] ?? '#8888cc');
+      const lbl     = isStrat ? (DECK_LABELS[card.deck] ?? card.deck) : (DECK_LABELS[card.deck] ?? card.deck);
+      const icon    = DECK_ICONS[card.deck]   ?? '🃏';
+      const symbol  = DECK_SYMBOLS[card.deck] ?? '✦';
+      cardPanel.style.display = 'block';
+      cardPanel.innerHTML = `
+        <div class="card3d-reveal" style="border-color:${col}55">
+          <div class="card3d-banner" style="background:${col}; background:linear-gradient(135deg,${col}ee,${col}bb);">
+            <span class="card3d-deck-label">${escHtml(lbl)}</span>
+            <span class="card3d-deck-icon">${icon}</span>
+          </div>
+          <div class="card3d-title-area">
+            <div class="card3d-title" style="color:rgba(240,230,210,0.97)">${escHtml(card.title)}</div>
+          </div>
+          <div class="card3d-icon-area">
+            <span class="card3d-symbol">${isStrat ? '⚙️' : symbol}</span>
+          </div>
+          <div class="card3d-effect-box" style="border-color:${col}22">
+            <div class="card3d-effect">${escHtml(card.effect)}</div>
+            ${isStrat ? '<div class="card3d-strat">Strategy Mode — no effect</div>' : ''}
+          </div>
+          <div class="card3d-footer" style="color:${col}55">Latest Drawn Card</div>
+        </div>`;
+    }
+
+    function updateCardPreview(payload) {
+      const card = payload?.card ?? null;
+      if (!card) {
+        cardPanel.style.display = 'none';
+        prevCardKey = null;
+        clearTimeout(cardFlipTimer);
+        return;
+      }
+      const key = card.deck + '-' + card.title;
+      if (key === prevCardKey) {
+        // Same card still active — ensure it's visible in reveal state without re-animating
+        if (cardPanel.style.display === 'none') showCardReveal(card);
+        return;
+      }
+      prevCardKey = key;
+      clearTimeout(cardFlipTimer);
+      showCardBack(card);
+      cardFlipTimer = setTimeout(() => showCardReveal(card), 340);
+    }
+
+    // ── Mini leaderboard ─────────────────────────────────────────────────────────
+    const miniLb = document.getElementById('mini-lb');
+    const lbTitle = document.getElementById('mini-lb-title');
+
+    function formatNW(n) {
+      if (Math.abs(n) >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+      if (Math.abs(n) >= 1000)    return '$' + (n / 1000).toFixed(1) + 'k';
+      return '$' + n;
+    }
+
+    function updateLeaderboard(payload) {
+      if (!payload?.leaderboard?.length) return;
+      const lb = payload.leaderboard;
+      const cur = payload.currentPlayerIdx ?? -1;
+
+      // Rebuild rows (keep title node, replace the rest)
+      while (miniLb.children.length > 1) miniLb.removeChild(miniLb.lastChild);
+
+      lb.forEach(entry => {
+        const row = document.createElement('div');
+        row.className = 'lb-row' + (entry.playerIdx === cur ? ' active' : '');
+
+        const rank  = document.createElement('span'); rank.className  = 'lb-rank';  rank.textContent = '#' + (entry.rank + 1);
+        const dot   = document.createElement('span'); dot.className   = 'lb-dot';   dot.style.background = entry.color;
+        const piece = document.createElement('span'); piece.className = 'lb-piece'; piece.textContent = PIECE_EMOJI[entry.piece] ?? '●';
+        const name  = document.createElement('span'); name.className  = 'lb-name';  name.textContent = entry.name;
+        const nw    = document.createElement('span'); nw.className    = 'lb-nw';    nw.textContent = formatNW(entry.nw);
+
+        row.append(rank, dot, piece, name, nw);
+        miniLb.appendChild(row);
+      });
+    }
+
+    let canRollGlobal = false;
+    let isAnimating = false;  // tracks whether any token is mid-arc
+    let rollPending = false;  // command was sent, waiting for state update
+    let rollTimeoutId = null;
+
+    function updateRollPanel(payload) {
+      if (!payload) return;
+      updateLeaderboard(payload);
+      updateCardPreview(payload);
+      updateTradePanel(payload);
+      refreshStockTiles(payload.prices);
+      updateDeckCounts(payload.deckCounts);
+      handleDrawEvent(payload.drawEvent);
+      turnRingTokenIdx = payload.currentPlayerIdx ?? -1;
+      // State arrived — clear any pending roll timeout
+      if (rollPending) {
+        rollPending = false;
+        clearTimeout(rollTimeoutId);
+        rollTimeoutId = null;
+      }
+      canRollGlobal = !!payload.canRoll;
+      pendingDrawGlobal = payload.pendingDraw ?? null;
+      const pl = payload.players?.[payload.currentPlayerIdx];
+      if (pl) {
+        playerDot.style.background = pl.color || '#d4a535';
+        const emoji = PIECE_EMOJI[pl.piece] ?? '●';
+        playerLabel.textContent = `${emoji} ${pl.name}`;
+      }
+      const [d1, d2] = payload.dice ?? [null, null];
+      if (d1 != null) {
+        dieA.textContent = d1; dieA.classList.remove('empty');
+        dieB.textContent = d2; dieB.classList.remove('empty');
+      } else {
+        dieA.textContent = '·'; dieA.classList.add('empty');
+        dieB.textContent = '·'; dieB.classList.add('empty');
+      }
+      const canEnd = !!payload.canEndTurn;
+
+      // Show only the relevant action button
+      if (pendingDrawGlobal) {
+        const label = DECK_LABELS[pendingDrawGlobal] ?? pendingDrawGlobal;
+        btnDraw.textContent = `Draw ${label} Card`;
+        btnDraw.disabled = false;
+        btnDraw.style.display = 'block';
+        btnRoll.style.display = 'none';
+        btnEndTurn.style.display = 'none';
+      } else if (canEnd) {
+        btnEndTurn.disabled = isAnimating;
+        btnEndTurn.textContent = 'Next Turn →';
+        btnEndTurn.style.display = 'block';
+        btnRoll.style.display = 'none';
+        btnDraw.style.display = 'none';
+        if (!isAnimating) rollStatus.textContent = '';
+      } else if (payload.blockedHint) {
+        // A prompt that only exists in the 2D view is holding the turn open.
+        btnDraw.style.display = 'none';
+        btnEndTurn.style.display = 'none';
+        btnRoll.style.display = 'none';
+        rollStatus.textContent = payload.blockedHint;
+      } else {
+        btnDraw.style.display = 'none';
+        btnEndTurn.style.display = 'none';
+        btnRoll.style.display = '';
+        syncRollButton();
+      }
+    }
+
+    function syncRollButton() {
+      btnRoll.disabled = rollPending || !canRollGlobal || isAnimating;
+      rollStatus.textContent = rollPending
+        ? 'Rolling…'
+        : isAnimating
+          ? 'Animating…'
+          : canRollGlobal
+            ? ''
+            : 'Not your turn';
+    }
+
+    btnRoll.addEventListener('click', () => {
+      if (!canRollGlobal || isAnimating || rollPending) return;
+      rollPending = true;
+      localStorage.setItem(COMMAND_KEY, JSON.stringify({ t: 'roll', ts: Date.now() }));
+      syncRollButton();
+      // Safety timeout — if no state arrives in 3s, unlock the button
+      clearTimeout(rollTimeoutId);
+      rollTimeoutId = setTimeout(() => {
+        rollPending = false;
+        rollStatus.textContent = 'No response — try again';
+        syncRollButton();
+      }, 3000);
+    });
+
+    // ── Load from localStorage ───────────────────────────────────────────────────
+    function loadState() {
+      try {
+        const raw = localStorage.getItem('exchange_3d_state');
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch { return null; }
+    }
+
+    const toast = document.getElementById('move-toast');
+    let toastTimer = null;
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(()=>toast.classList.remove('show'), 3000);
+    }
+
+    function applyState(payload, doAnimate) {
+      if (!payload?.players?.length) return;
+      const players = payload.players;
+
+      // Rebuild token pool if player count differs
+      if (tokens.length !== players.length) {
+        initTokens(players);
+        currentPlayers = players;
+        updateRollPanel(payload);
+        return;
+      }
+
+      currentPlayers = players;
+      updateRollPanel(payload);
+
+      // Snap all non-moving tokens to their current positions (always)
+      players.forEach((pl, i) => snapToken(tokens[i], i, players));
+
+      // If there's a move to animate, walk the token space-by-space
+      if (doAnimate && payload.move) {
+        const { from, to, playerIdx } = payload.move;
+        const tok = tokens[playerIdx];
+        if (tok && from !== to) {
+          const [ox,oz] = tokenOffset(playerIdx);
+          // Build the forward path with wrap: from → from+1 → … → to
+          const steps = ((to - from) % 36 + 36) % 36;
+          const path = [];
+          for (let k = 0; k <= steps; k++) {
+            const n = ((from - 1 + k) % 36) + 1;
+            const { x, z } = spaceWorld(n);
+            path.push({ x: x + ox, z: z + oz });
+          }
+          tok.path = path;
+          tok.seg = 0;
+          tok.animT = 0;
+          tok.moving = true;
+          tok.group.position.set(path[0].x, TOKEN_BASE_Y, path[0].z);
+          isAnimating = true;
+          syncRollButton();
+          const pName = players[playerIdx]?.name ?? `P${playerIdx+1}`;
+          const emoji = PIECE_EMOJI[players[playerIdx]?.piece] ?? '●';
+          showToast(`${emoji} ${pName}  ·  ${from} → ${to}`);
+        }
+      }
+    }
+
+    // ── Initialise from localStorage or defaults ────────────────────────────────
+    const saved = loadState();
+    if (saved?.players?.length) {
+      initTokens(saved.players);
+      applyState(saved, false);
+      updateLeaderboard(saved);
+      updateCardPreview(saved);
+    } else {
+      initTokens(currentPlayers);
+      syncRollButton();
+    }
+
+    // Live updates from game tab via cross-tab storage event
+    window.addEventListener('storage', (e) => {
+      if (e.key !== 'exchange_3d_state') return;
+      try {
+        const payload = JSON.parse(e.newValue);
+        applyState(payload, true);
+      } catch { /* malformed — ignore */ }
+    });
+
+    // ── Ambient particles ───────────────────────────────────────────────────────
+    const pGeo=new THREE.BufferGeometry();
+    const pPos=new Float32Array(240*3);
+    for (let i=0;i<240;i++) {
+      pPos[i*3]=(Math.random()-0.5)*26;
+      pPos[i*3+1]=Math.random()*8+0.5;
+      pPos[i*3+2]=(Math.random()-0.5)*26;
+    }
+    pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+    const pMat=new THREE.PointsMaterial({color:'#d4a535',size:0.04,transparent:true,opacity:0.45});
+    scene.add(new THREE.Points(pGeo,pMat));
+
+    window.addEventListener('resize',()=>{
+      camera.aspect=window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth,window.innerHeight);
+    });
+
+    // ── Animation loop ──────────────────────────────────────────────────────────
+    const HOP_DURATION = 0.24;  // seconds per single-space hop
+    const HOP_HEIGHT   = 0.42;  // world units for peak of each hop
+    const PULSE_LIFE   = 0.8;   // seconds a landing pulse lives
+    const clock = new THREE.Clock();
+    let globalT = 0;
+
+    function lerp(a,b,t)     { return a+(b-a)*t; }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      globalT += dt;
+      controls.update();
+      pMat.opacity = 0.28 + Math.sin(globalT*0.9)*0.14;
+
+      let anyMoving = false;
+      tokens.forEach(tok => {
+        // Billboard the emoji label to always face the camera
+        tok.labelPlane.quaternion.copy(camera.quaternion);
+
+        if (!tok.moving || tok.path.length < 2) return;
+        anyMoving = true;
+
+        tok.animT = Math.min(tok.animT + dt / HOP_DURATION, 1);
+        const a = tok.path[tok.seg];
+        const b = tok.path[tok.seg + 1];
+        const x = lerp(a.x, b.x, tok.animT);
+        const z = lerp(a.z, b.z, tok.animT);
+        const arc = HOP_HEIGHT * Math.sin(Math.PI * tok.animT);
+        tok.group.position.set(x, TOKEN_BASE_Y + arc, z);
+
+        if (tok.animT >= 1) {
+          tok.seg += 1;
+          tok.animT = 0;
+          if (tok.seg >= tok.path.length - 1) {
+            // Landed — snap and pulse the destination tile
+            const end = tok.path[tok.path.length - 1];
+            tok.group.position.set(end.x, TOKEN_BASE_Y, end.z);
+            tok.moving = false;
+            anyMoving = false;
+            spawnPulse(end.x, end.z, tok.color || '#d4a535');
+          }
+        }
+      });
+      if (isAnimating && !anyMoving) {
+        isAnimating = false;
+        syncRollButton();
+      }
+
+      // Landing pulses: expand + fade, then remove
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        const pu = pulses[i];
+        pu.t += dt;
+        const k = pu.t / PULSE_LIFE;
+        if (k >= 1) {
+          scene.remove(pu.mesh);
+          pu.mesh.geometry.dispose(); pu.mesh.material.dispose();
+          pulses.splice(i, 1);
+          continue;
+        }
+        const sc = 1 + k * 1.6;
+        pu.mesh.scale.set(sc, sc, 1);
+        pu.mesh.material.opacity = 0.9 * (1 - k);
+      }
+
+      // Current-player spotlight ring follows the active token
+      const curTok = tokens[turnRingTokenIdx];
+      if (curTok) {
+        turnRing.visible = true;
+        const gp = curTok.group.position;
+        turnRing.position.set(gp.x, SPACE_H + 0.045, gp.z);
+        const pulse = 1 + Math.sin(globalT * 3.2) * 0.08;
+        turnRing.scale.set(pulse, pulse, 1);
+        turnRing.material.opacity = 0.55 + Math.sin(globalT * 3.2) * 0.25;
+        turnRing.material.color.set(currentPlayers[turnRingTokenIdx]?.color || '#d4a535');
+      } else {
+        turnRing.visible = false;
+      }
+
+      updateDrawAnims(dt);
+      updateHover();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>

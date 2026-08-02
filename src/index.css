@@ -1,0 +1,312 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Bull Market Club — parchment certificate cards + brass hardware, floating on
+     a lacquered-walnut table (mirrors the 3D board: parchment tiles, walnut,
+     club-green felt). Panels are aged paper; the app background is the table. */
+  --bg: #241a10;
+  --surface: #ece0c4;          /* parchment card */
+  --surface-raised: #e2d3b1;   /* deeper parchment for raised elements/buttons */
+  --surface-deep: #f4edda;     /* lighter paper for inputs / sunken wells use --sunken */
+  --sunken: rgba(74,48,25,0.10);
+  --border: #cbb488;           /* tan */
+  --border-hi: rgba(201,162,79,0.55);
+  --text: #2b2016;             /* ink */
+  /* Warm muted kept ≥4.5:1 on parchment surfaces (WCAG 1.4.3): ≈5.6:1 on --surface. */
+  --muted: #6f5a38;
+  --green: #1e7a4a;
+  --green-dim: rgba(30,122,74,0.14);
+  --red: #b03a2c;
+  --red-dim: rgba(176,58,44,0.12);
+  --yellow: #9c6f1f;
+  --gold: #9a6f1e;
+  --blue: #2f6fb0;
+  /* Accent is brass — the 3D board has no indigo anywhere. */
+  --accent: #9a6f1e;
+  --accent-dim: rgba(154,111,30,0.14);
+  --accent-glow: rgba(201,162,79,0.4);
+  --brass: #9a6f1e;
+  --parchment: #f0e7d1;
+  --ink: #2b2016;
+  --felt: #223026;
+  --walnut: #4b3019;
+  --panel-shadow: 0 6px 22px rgba(0,0,0,0.45), 0 0 0 1px rgba(154,111,30,0.18), 0 1px 0 rgba(255,255,255,0.5) inset;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14.5px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle warm grid texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(200,155,70,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,155,70,0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+#root { position: relative; z-index: 1; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #6a4f2e; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 6px 14px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.08s;
+}
+button:hover:not(:disabled) {
+  background: #d9c79d;
+  border-color: #b2934f;
+  box-shadow: 0 0 0 1px rgba(154,111,30,0.25), 0 2px 8px rgba(0,0,0,0.2);
+}
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+button:disabled { opacity: 0.28; cursor: default; }
+
+/* Keyboard focus ring (WCAG 2.4.7) — shown for keyboard nav, suppressed on mouse.
+   Buttons previously had no focus indicator at all. */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(212,165,53,0.22);
+}
+
+button.primary {
+  background: linear-gradient(135deg, #3ed598, #2a9d68);
+  border-color: rgba(62,213,152,0.55);
+  color: #0d1f17;
+  font-weight: 700;
+  box-shadow: 0 2px 12px rgba(62,213,152,0.3), inset 0 1px 0 rgba(255,255,255,0.28);
+}
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4ce0a5, #2fae74);
+  box-shadow: 0 4px 20px rgba(62,213,152,0.45), inset 0 1px 0 rgba(255,255,255,0.32);
+}
+button.danger {
+  background: rgba(120,20,20,0.5);
+  border-color: rgba(239,68,68,0.35);
+  color: #fca5a5;
+}
+button.danger:hover:not(:disabled) {
+  background: rgba(150,25,25,0.65);
+  border-color: rgba(239,68,68,0.5);
+}
+
+input[type="text"] {
+  font-family: inherit;
+  background: var(--surface-deep);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 7px 11px;
+  font-size: 13px;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212,165,53,0.18);
+}
+input[type="text"]::placeholder { color: #5a4a38; }
+
+input[type="number"], select {
+  font-family: inherit;
+  background: var(--surface-deep);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 12px;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type="number"]:focus, select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212,165,53,0.18);
+}
+
+.mono { font-family: 'IBM Plex Mono', monospace; }
+/* Engraved display type — the Bull Market Club lockup font (matches the 3D board) */
+.display { font-family: 'Marcellus', 'Space Grotesk', serif; letter-spacing: 0.02em; }
+.green { color: var(--green); }
+.red { color: var(--red); }
+.yellow { color: var(--yellow); }
+.blue { color: var(--blue); }
+.muted { color: var(--muted); }
+
+/* Standard panel card — aged parchment with a brass keyline */
+.card-box {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.4), transparent 60%),
+    linear-gradient(180deg, #efe3c8, #e6d8ba);
+  border: 1px solid var(--border);
+  border-top: 1px solid var(--border-hi);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: var(--panel-shadow);
+}
+
+/* Section label — ALL CAPS small tracking, brass keyline */
+.slabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  color: var(--brass);
+  opacity: 0.92;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: block;
+  padding-left: 8px;
+  border-left: 2px solid var(--brass);
+}
+
+/* Kind badge pills used in Trade History */
+.kind-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  min-width: 34px;
+  flex-shrink: 0;
+}
+
+@keyframes dieShake {
+  0%   { transform: translate(-2px, -1px) rotate(-4deg); }
+  100% { transform: translate(2px,  1px) rotate( 4deg); }
+}
+
+/* Large rolling dice overlay — drops from above and bounces to rest */
+@keyframes diceDropIn {
+  0%   { transform: translateY(-55vh) rotate(0deg) scale(0.65); opacity: 0; }
+  18%  { opacity: 1; }
+  30%  { transform: translateY(8px) rotate(240deg) scale(1.12); }
+  48%  { transform: translateY(-14px) rotate(340deg) scale(1.04); }
+  63%  { transform: translateY(5px) rotate(390deg) scale(1.01); }
+  76%  { transform: translateY(-6px) rotate(418deg) scale(1.0); }
+  88%  { transform: translateY(2px) rotate(430deg) scale(1.0); }
+  100% { transform: translateY(0px) rotate(434deg) scale(1.0); opacity: 1; }
+}
+
+/* Settle bounce when real value locks in */
+@keyframes diceSettlePop {
+  0%   { transform: scale(1.0); }
+  30%  { transform: scale(1.12) rotate(2deg); }
+  60%  { transform: scale(0.93) rotate(-1deg); }
+  80%  { transform: scale(1.04); }
+  100% { transform: scale(1.0) rotate(0deg); }
+}
+
+/* Fade-out when overlay hides */
+@keyframes diceOverlayOut {
+  0%   { opacity: 1; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(0.72) translateY(28px); }
+}
+
+/* Card flip-in from side */
+@keyframes cardFlipReveal {
+  0%   { transform: perspective(700px) rotateY(90deg) scale(0.88); opacity: 0; }
+  38%  { transform: perspective(700px) rotateY(-10deg) scale(1.04); opacity: 1; }
+  66%  { transform: perspective(700px) rotateY(5deg) scale(1.01); }
+  83%  { transform: perspective(700px) rotateY(-2deg); }
+  100% { transform: perspective(700px) rotateY(0deg) scale(1.0); opacity: 1; }
+}
+
+/* Card back slides out before reveal */
+@keyframes cardBackOut {
+  0%   { transform: perspective(700px) rotateY(0deg); opacity: 1; }
+  100% { transform: perspective(700px) rotateY(-90deg); opacity: 0; }
+}
+
+/* Trade ticket flip-in — mirrors the 3D board's tcFlipIn */
+@keyframes tcFlipIn {
+  0%   { opacity: 0; transform: perspective(700px) rotateY(70deg) scale(0.92); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(700px) rotateY(0deg) scale(1); }
+}
+
+/* Pending-draw banner pulse — glow breathes in the deck color (set via --pulse) */
+@keyframes drawPulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 18px 2px var(--pulse, #c9a24f); }
+}
+
+/* Holographic foil tilt — pointer-tracked rainbow sheen over a card */
+.holo-card {
+  transform-style: preserve-3d;
+  transform: perspective(900px) rotateX(var(--holo-rx, 0deg)) rotateY(var(--holo-ry, 0deg));
+  transition: transform 110ms linear;
+}
+.holo-card__sheen {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg,
+    transparent 0%,
+    rgba(124,92,255,0) 18%,
+    rgba(34,211,238,0.45) 38%,
+    rgba(255,92,168,0.5) 50%,
+    rgba(124,92,255,0.45) 62%,
+    transparent 82%);
+  background-size: 240% 240%;
+  background-position: var(--holo-sheen, 50%) 50%;
+  mix-blend-mode: color-dodge;
+  opacity: 0.85;
+  transition: background-position 110ms linear;
+  z-index: 5;
+}
+.holo-card__grain {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 5px);
+  mix-blend-mode: overlay;
+  opacity: 0.45;
+  z-index: 6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .holo-card, .holo-card__sheen { transition-duration: 0.001ms; }
+}
+
+/* Respect reduced-motion preference (WCAG 2.3.3). Near-zero (not 0) so JS that
+   waits on animation/transition events still fires; visuals just snap instead of
+   animating — dice roll, card flip/slide, dice shake, press transforms. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

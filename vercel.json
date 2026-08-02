@@ -1,0 +1,7 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/((?!board-3d.html|board-print.html|assets/.*).*)", "destination": "/index.html" }
+  ]
+}

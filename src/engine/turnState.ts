@@ -1,0 +1,14 @@
+// Turn-flow helpers: lap tracking, state clearing (called on Immer drafts).
+
+import type { GameState } from './types';
+
+export function startLap(s: GameState): void {
+  s.lap += 1;
+  s.skips = {};
+}
+
+export function clearTurnState(s: GameState): void {
+  s.trade = null; s.card = null; s.pendingDraws = []; s.pick = null; s.shortPick = false;
+  s.ipoChoice = false; s.ipoListPick = false; s.ipoBuy = null; s.ipoReveal = null; s.etfPick = null;
+  s.marginCall = null; s.insolvency = null;
+}
