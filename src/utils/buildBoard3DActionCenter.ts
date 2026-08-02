@@ -240,6 +240,6 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     portfolio,
     tradeDesk: { players: tradePlayers, offers },
     canCallClose: gameActive && !s.closing,
-    status: !gameActive ? 'Game over' : blocked(s) ? 'Action required' : s.turnPhase === 'preRoll' ? 'Ready to roll' : s.trade ? 'Landing choice or end turn' : 'Optional actions or end turn',
+    status: !gameActive ? 'Game over' : s.turnPhase === 'preRoll' ? 'Ready to roll' : blocked(s) ? 'Action required' : s.trade ? 'Landing choice or end turn' : 'Optional actions or end turn',
   };
 }

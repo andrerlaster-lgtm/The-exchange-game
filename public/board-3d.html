@@ -184,6 +184,7 @@
 
     #roll-panel {
       position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+      z-index: 60;
       background: rgba(22,18,13,0.95); border: 1px solid rgba(74,56,32,0.7);
       border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 12px;
       font-family: 'IBM Plex Mono', monospace;
@@ -2074,6 +2075,7 @@
     }
 
     let canRollGlobal = false;
+    let canEndGlobal = false;
     let bonusRollGlobal = null;
     let isAnimating = false;  // tracks whether any token is mid-arc
     let rollPending = false;  // command was sent, waiting for state update
@@ -2112,7 +2114,7 @@
         dieA.textContent = '·'; dieA.classList.add('empty');
         dieB.textContent = '·'; dieB.classList.add('empty');
       }
-      const canEnd = !!payload.canEndTurn;
+      canEndGlobal = !!payload.canEndTurn;
 
       // Show only the relevant action button
       if (pendingDrawGlobal) {
@@ -2122,13 +2124,12 @@
         btnDraw.style.display = 'block';
         btnRoll.style.display = 'none';
         btnEndTurn.style.display = 'none';
-      } else if (canEnd) {
-        btnEndTurn.disabled = isAnimating;
+      } else if (canEndGlobal) {
         btnEndTurn.textContent = bonusRollGlobal === 'earned' ? 'Bonus Roll →' : 'Next Turn →';
         btnEndTurn.style.display = 'block';
         btnRoll.style.display = 'none';
         btnDraw.style.display = 'none';
-        if (!isAnimating) rollStatus.textContent = '';
+        syncEndTurnButton();
       } else if (payload.actionCenter?.required?.length) {
         // The complete prompt is available in the 3D Action Center.
         btnDraw.style.display = 'none';
@@ -2141,6 +2142,13 @@
         btnRoll.style.display = '';
         syncRollButton();
       }
+    }
+
+    function syncEndTurnButton() {
+      const visible = btnEndTurn.style.display === 'block';
+      if (!visible) return;
+      btnEndTurn.disabled = !canEndGlobal || isAnimating;
+      rollStatus.textContent = isAnimating ? 'Moving token…' : '';
     }
 
     function syncRollButton() {
@@ -2226,6 +2234,7 @@
           tok.group.position.set(path[0].x, TOKEN_BASE_Y, path[0].z);
           isAnimating = true;
           syncRollButton();
+          syncEndTurnButton();
           const pName = players[playerIdx]?.name ?? `P${playerIdx+1}`;
           const emoji = PIECE_EMOJI[players[playerIdx]?.piece] ?? '●';
           showToast(`${emoji} ${pName}  ·  ${from} → ${to}`);
@@ -2320,6 +2329,7 @@
       if (isAnimating && !anyMoving) {
         isAnimating = false;
         syncRollButton();
+        syncEndTurnButton();
       }
 
       // Landing pulses: expand + fade, then remove

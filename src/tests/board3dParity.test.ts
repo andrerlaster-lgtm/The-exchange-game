@@ -22,6 +22,10 @@ describe('3D command boundary', () => {
 });
 
 describe('3D Action Center parity', () => {
+  it('labels the pre-roll state as ready instead of incorrectly requiring an action', () => {
+    expect(buildActionCenter(started(2)).status).toBe('Ready to roll');
+  });
+
   it('provides portfolio, margin, bank-sale, player-trade, and close controls', () => {
     const s = patch(started(2), (draft) => {
       draft.turnPhase = 'acted';
