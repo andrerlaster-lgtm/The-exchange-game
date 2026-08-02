@@ -1,4 +1,4 @@
-import type { Risk, Sector, SectorId, Stock } from './types';
+import type { CompanyTier, Risk, Sector, SectorId, Stock } from './types';
 import { ladderStep } from './priceTrack';
 
 export const START_CASH = 30_000;
@@ -9,6 +9,25 @@ export const MARGIN_MAX = 4_000;             // max outstanding margin at any ti
 export const MARGIN_DEFAULT_PENALTY = 1_000; // flat fee when a margin call defaults (tunable)
 export const TAX_RATE = 0.10;
 export const REGULAR_SUPPLY = 11;
+// ── Fixed whole-company acquisition tiers ──────────────────────────────────
+// The acquisition price is intentionally separate from the live per-share
+// market price. Buying still grants the entire 11-share supply.
+export const COMPANY_BUYOUT_BY_TIER: Record<CompanyTier, number> = {
+  Starter: 5_000,
+  Growth: 7_500,
+  Premium: 10_000,
+};
+export const COMPANY_SHARE_PRICE_BY_TIER: Record<CompanyTier, number> = {
+  Starter: 500,
+  Growth: 750,
+  Premium: 1_000,
+};
+
+export function companyTierForBase(basePrice: number): CompanyTier {
+  if (basePrice <= 500) return 'Starter';
+  if (basePrice <= 1_000) return 'Growth';
+  return 'Premium';
+}
 export const IPO_SUPPLY = 5;
 // ── Controlling Stake ───────────────────────────────────────────────────────
 export const CONTROL_THRESHOLD_REGULAR = 6;  // shares of one regular stock for control
@@ -75,12 +94,18 @@ const RAW_STOCKS: Array<[number, string, SectorId, number, Risk, string]> = [
   [36, 'GameBox Studios',      'comm',         500, 'High', 'GMBX'],
 ];
 
-export const STOCKS: Stock[] = RAW_STOCKS.map(([space, name, sector, base, risk, code]) => ({
-  code, name, sector, base, risk, space,
-  step: ladderStep(base),
-  color: SECTORS[sector].color,
-  div: DIV_BY_RISK[risk],
-}));
+export const STOCKS: Stock[] = RAW_STOCKS.map(([space, name, sector, base, risk, code]) => {
+  const tier = companyTierForBase(base);
+  const openingPrice = COMPANY_SHARE_PRICE_BY_TIER[tier];
+  return {
+    code, name, sector, base: openingPrice, risk, space,
+    step: ladderStep(openingPrice),
+    color: SECTORS[sector].color,
+    div: DIV_BY_RISK[risk],
+    tier,
+    buyout: COMPANY_BUYOUT_BY_TIER[tier],
+  };
+});
 
 export const STOCK_BY_CODE: Record<string, Stock> = Object.fromEntries(
   STOCKS.map((s) => [s.code, s]),

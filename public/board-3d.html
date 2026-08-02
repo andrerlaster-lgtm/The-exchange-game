@@ -425,15 +425,15 @@
         <div class="tc-own-title" id="tc-own-title">YOU OWN: 0</div>
         <div class="tc-own-sub">CONTROLLING STAKE AT 6+</div>
       </div>
-      <div id="trade-qty-row">
+      <div id="trade-qty-row" style="display:none;">
         <span class="qty-label">QTY</span>
         <button class="qty-btn selected" data-qty="1">1</button>
         <button class="qty-btn" data-qty="2">2</button>
       </div>
       <div id="trade-meta"></div>
       <div id="trade-actions">
-        <button class="trade-act-btn" id="btn-trade-buy">Buy</button>
-        <button class="trade-act-btn" id="btn-trade-sell">Sell</button>
+        <button class="trade-act-btn" id="btn-trade-buy">Buy Company</button>
+        <button class="trade-act-btn" id="btn-trade-sell" style="display:none;">Sell</button>
       </div>
     </div>
   </div>
@@ -1586,10 +1586,11 @@
     function refreshTradeButtons() {
       const ti = tradeInfoGlobal;
       if (!ti) return;
-      const totalCost = ti.price * tradeQty;
-      btnTradeBuy.disabled  = isAnimating || ti.supply < tradeQty || ti.cash < totalCost;
-      btnTradeSell.disabled = isAnimating || ti.owned < tradeQty;
-      tradeMeta.textContent = `Cash $${ti.cash.toLocaleString()}  ·  ${tradeQty}× = $${totalCost.toLocaleString()}`;
+      const totalCost = ti.buyoutPrice;
+      btnTradeBuy.disabled  = isAnimating || ti.supply !== 11 || ti.cash < totalCost;
+      btnTradeBuy.textContent = `Buy Company · $${totalCost.toLocaleString()}`;
+      btnTradeSell.disabled = true;
+      tradeMeta.textContent = `Cash $${ti.cash.toLocaleString()}  ·  ${ti.tier} tier · fixed price`;
     }
 
     let prevTradeCode = null;

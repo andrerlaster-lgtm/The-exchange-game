@@ -92,6 +92,8 @@ export default function Board3DSync() {
           risk: st.risk,
           dividend: st.div,
           stepDiff: (s.prices[code] ?? st.step) - st.step,
+          tier: st.tier,
+          buyoutPrice: st.buyout,
         };
       }
     }

@@ -94,7 +94,7 @@ export default function StockTradeCard() {
             const owned = p.shares[st.code] ?? 0;
             const supply = s.supply[st.code] ?? 0;
             const untouched = supply === REGULAR_SUPPLY; // whole company still available to buy out
-            const buyoutCost = price * REGULAR_SUPPLY;
+            const buyoutCost = st.buyout;
             return (
               <div key={st.code} style={{
                 display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
@@ -109,7 +109,7 @@ export default function StockTradeCard() {
                 {untouched ? (
                   <button style={{ fontSize: 11, padding: '2px 8px' }}
                     disabled={p.cash < buyoutCost}
-                    title={`Buy the whole company · $${buyoutCost.toLocaleString()}`}
+                    title={`${st.tier} tier · buy the whole company for $${buyoutCost.toLocaleString()}`}
                     onClick={() => dispatch({ t: 'buy', code: st.code })}>Buy Co. ${buyoutCost.toLocaleString()}</button>
                 ) : (
                   <span style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', padding: '2px 4px' }}>Owned</span>

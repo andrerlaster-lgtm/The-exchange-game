@@ -46,7 +46,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
     ? 'NO CHANGE'
     : `${stepDiff > 0 ? '+' : ''}${stepDiff} STEP${Math.abs(stepDiff) !== 1 ? 'S' : ''}`;
 
-  const buyoutCost = price * REGULAR_SUPPLY;
+  const buyoutCost = stock.buyout;
   const canBuy = canAct && supply === REGULAR_SUPPLY && p.cash >= buyoutCost;
 
   return (
@@ -83,6 +83,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 }}>
             <span style={badgeStyle(sc)}>{sector.name.toUpperCase()}</span>
             <span style={badgeStyle(riskColor)}>{riskLabel}</span>
+            <span style={badgeStyle('#6b4f1f')}>{stock.tier.toUpperCase()} TIER</span>
           </div>
         </div>
 
@@ -142,7 +143,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
 
       {/* Meta line */}
       <div style={{ position: 'relative', fontSize: 9.5, color: 'rgba(200,188,168,0.65)', letterSpacing: 0.3, textAlign: 'center' }}>
-        Cash ${p.cash.toLocaleString()}  ·  {REGULAR_SUPPLY}× ${price.toLocaleString()} = ${buyoutCost.toLocaleString()}
+        Cash ${p.cash.toLocaleString()}  ·  Fixed {stock.tier} company price
       </div>
 
       {/* Buy the company */}

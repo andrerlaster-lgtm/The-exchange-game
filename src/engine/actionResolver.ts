@@ -295,9 +295,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     // ---- trading ----
     // Buying a regular stock is an all-or-nothing company buy-out: you can't
     // acquire a partial stake from the bank — only the full 11-share supply, for
-    // the current market price × REGULAR_SUPPLY. This instantly sells the stock
-    // out (claiming the Payout Claim and bumping the price one step, same as the
-    // old gradual-depletion trigger). Once owned, shares only re-enter play via
+    // the company's fixed Starter / Growth / Premium acquisition price. This
+    // instantly sells the stock out and claims the Payout Claim, but does not
+    // move its live per-share market price. Once owned, shares only re-enter via
     // the owner selling back to the bank (→ Bank Auction pool) or a P2P trade.
     case 'buy': {
       const { code } = action;
@@ -307,20 +307,19 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (t.scope === 'stock' && t.code !== code) break;
       if (s.supply[code] !== REGULAR_SUPPLY) break; // already bought out — no partial stake available
       const p = s.players[s.cur];
-      const price = priceOf(s, code);
-      const cost = price * REGULAR_SUPPLY;
+      const stock = STOCK_BY_CODE[code];
+      const cost = stock.buyout;
       if (p.cash < cost) break;
       p.cash -= cost;
       p.shares[code] = REGULAR_SUPPLY;
       s.supply[code] = 0;
       t.actionsLeft -= 1;
-      addLog(s, `${p.name} buys the ${STOCK_BY_CODE[code].name} company outright for ${money(cost)}!`, 'g');
-      addTradeLog(s, 'buy', `Bought ${code} company @ ${money(cost)}`, -cost, p.name);
+      addLog(s, `${p.name} buys the ${stock.name} company at its ${stock.tier} tier price for ${money(cost)}!`, 'g');
+      addTradeLog(s, 'buy', `Bought ${code} company (${stock.tier}) @ ${money(cost)}`, -cost, p.name);
       if (s.skips[code]) s.skips[code] = 0;
-      // The buy-out claims the stock (permanent) and bumps the price one step,
-      // same as the old sellout trigger — the buyer is trivially the sole owner.
+      // The buy-out claims the stock permanently. The buyer is trivially the
+      // sole owner, and the share-market price stays unchanged on acquisition.
       s.soldOut[code] = { code, claimHolder: topOwner(s, code) };
-      moveTradePrice(s, code, +1);
       addLog(s, `${code} is SOLD OUT — ${p.name} holds the Payout Claim.`, 'y');
       break;
     }

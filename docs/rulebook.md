@@ -167,7 +167,9 @@ Fresh shares can only be bought by landing on that stock space, winning an appro
 | Rule item | Current rule |
 |---|---|
 | Regular stock supply | 11 total market shares per regular stock |
-| Market buy rule | Buy the entire untouched company (all 11 shares) or skip |
+| Market buy rule | Buy the entire untouched company at its fixed tier price or skip |
+| Company acquisition tiers | Starter $5,000; Growth $7,500; Premium $10,000 |
+| Tier opening share prices | Starter $500; Growth $750; Premium $1,000 per share |
 | Market sell cap | Sell up to 2 shares during the seller's Trade Step |
 | Control threshold | 6+ shares = Controller |
 | Ownership tiers | 1-2 Stock Owner; 3-5 Shareholder; 6+ Controller |
@@ -177,9 +179,9 @@ Fresh shares can only be bought by landing on that stock space, winning an appro
 
 **Landing on an untouched regular company**
 - The active player may buy the entire company or skip. Partial purchases from normal market supply are not allowed.
-- A full-company purchase costs the current per-share market price multiplied by all 11 shares.
+- A full-company purchase uses the company's printed acquisition tier: Starter $5,000, Growth $7,500, or Premium $10,000. Their tier-aligned opening share prices are $500, $750, and $1,000 respectively, keeping the acquired portfolio value close to the cash paid.
 - The buyer receives all 11 shares, normal market supply becomes 0, the company becomes permanently Sold Out, and the buyer receives its Payout Claim.
-- The purchase moves the stock price up one step according to the price ladder rules, unless the stock is already at the $5,000 ceiling.
+- The purchase does not move the live per-share market price.
 - If the player skips, apply Protected Weak Demand if the stock is eligible.
 - Once another player owns the company, landing there does not open a normal buy step. Resolve the Sold-Out Payout Claim instead.
 
@@ -230,7 +232,7 @@ Sold-Out status is the mid-game claim system. It turns limited share supply into
 - Sold-back shares do not return to normal market supply.
 
 **Sellout trigger**
-- Buying an untouched company instantly makes it Sold Out and moves its market price up one step.
+- Buying an untouched company instantly makes it Sold Out without moving its market price.
 - The buyer initially holds all 11 shares and therefore receives the Payout Claim.
 
 **Payout Claim rule**
@@ -461,16 +463,16 @@ The price ladder is the source of truth for each stock's market value. Exact lad
 
 | Event | Market price effect |
 |---|---|
-| Buy an untouched company | Price moves up 1 step after the full-company purchase, unless already at the $5,000 ceiling |
+| Buy an untouched company | No market-price movement; the fixed tier price is paid instead |
 | Sell shares to bank (Trade Step only) | Seller is paid 1 step below market; price moves down 1 step after the sell action, unless already at the $100 floor |
 | Private player-to-player trade | No market price movement |
 | Auction purchase | No market price movement unless a card says otherwise |
 | Weak Demand reaches 2 markers | Price moves down 1 step and markers clear, unless already at the $100 floor |
-| Stock becomes Sold Out | This happens as part of the full-company purchase; no separate second price increase is applied |
+| Stock becomes Sold Out | This happens as part of the full-company purchase; no price increase is applied |
 | Stock reaches $5,000 ceiling | Price movement stops; triggers a global Market Event card |
 | Card effect | Follow the card text |
 
-**Per-action price movement:** A full-company purchase is one market action. A qualifying bank sell-back is also one market action regardless of the number of shares sold in that action.
+**Per-action price movement:** A full-company purchase does not move the share price. A qualifying bank sell-back is one market action regardless of the number of shares sold in that action.
 
 ## 20. Endgame and Scoring
 
@@ -514,10 +516,10 @@ Use this checklist when sending the rules to code.
 
 | Area | Implementation requirement |
 |---|---|
-| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares; regular control = 6; IPO supply = 5; IPO control = 3; market sell cap = 2; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
+| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares; fixed acquisition tiers = $5,000 / $7,500 / $10,000; regular control = 6; IPO supply = 5; IPO control = 3; market sell cap = 2; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
 | Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance |
-| Stock landing | If untouched, offer a full 11-share company buyout or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment, with no payment when the owner lands on their own company |
-| Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and apply one price step increase |
+| Stock landing | If untouched, offer a full 11-share company buyout at its fixed tier price or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment, with no payment when the owner lands on their own company |
+| Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
 | Sell-back | Trade Step action only; pay seller 1 step below market (or floor), move price down 1 step (unless at floor), put shares into Bank Auction Pool, do not reopen normal supply |
 | Auctions | Auction pool shares only, held during Market Open Trading Window; all players may bid; winner pays bank; auction purchase does not move price; Payout Claim frozen until auction closes, then recalculated once |
 | Trading | Trade Step: P2P trades and bank sell-back both allowed. Market Open Trading Window: P2P trades and auction bidding only, no bank sell-back. Offers expire on window close |

@@ -40,12 +40,12 @@ describe('Sold-Out detection & permanence', () => {
     expect(s.bankPool[CODE]).toBe(1);          // routed to the bank pool
   });
 
-  it('adds an extra +1 price step on the buy-out sellout trigger', () => {
+  it('does not move the share price on the fixed-price buyout', () => {
     let s = started(2);
     const before = s.prices[CODE];
     s = withTrade(s);
     s = dispatch(s, { t: 'buy', code: CODE }, rng());
-    expect(s.prices[CODE]).toBe(before + 1);
+    expect(s.prices[CODE]).toBe(before);
   });
 });
 

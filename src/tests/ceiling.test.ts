@@ -1,8 +1,7 @@
 // Phase 2: reaching the $5,000 price ceiling triggers a global Market Event.
 // Floor ($100) is already enforced by clampStep; this covers the ceiling trigger.
-// Under the all-or-nothing buy-out model, every successful buy immediately
-// triggers the sellout +1 step bump (no more deferred/queued rise), so a buy-out
-// from one step below the ceiling is the only way to reach it via buying.
+// Fixed-tier company buyouts do not move the live share price, so acquisition
+// must not create a ceiling event even when the stock is near the top.
 
 import { describe, expect, it } from 'vitest';
 import { LADDER } from '../data';
@@ -18,23 +17,20 @@ function withTrade(s: ReturnType<typeof started>, code = CODE) {
   });
 }
 
-describe('Price ceiling → Market Event', () => {
-  it('a buy-out from one step below the ceiling reaches it and triggers a Market Event', () => {
+describe('Price ceiling and fixed-tier buyouts', () => {
+  it('a buy-out from one step below the ceiling leaves the price unchanged and triggers no event', () => {
     let s = started(2);
-    // At step CEIL-1 ($4,000/share), buying out all 11 shares costs $44,000 —
-    // far more than starting cash, so fund the purchase explicitly.
-    s = patch(s, (d) => { d.prices[CODE] = CEIL - 1; d.players[0].cash = 100_000; });
+    s = patch(s, (d) => { d.prices[CODE] = CEIL - 1; });
     s = withTrade(s);
     s = dispatch(s, { t: 'buy', code: CODE }, rng());
-    expect(s.prices[CODE]).toBe(CEIL);
+    expect(s.prices[CODE]).toBe(CEIL - 1);
     expect(s.soldOut[CODE]).toBeDefined();
-    expect(s.pendingDraws).toContain('ME');
-    expect(s.log.some((l) => /ceiling/i.test(l.text))).toBe(true);
+    expect(s.pendingDraws).not.toContain('ME');
   });
 
   it('does not re-trigger buying out a company that starts already at the ceiling', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.prices[CODE] = CEIL; d.players[0].cash = 100_000; });
+    s = patch(s, (d) => { d.prices[CODE] = CEIL; });
     s = withTrade(s);
     s = dispatch(s, { t: 'buy', code: CODE }, rng());
     expect(s.prices[CODE]).toBe(CEIL); // clamped, no further movement

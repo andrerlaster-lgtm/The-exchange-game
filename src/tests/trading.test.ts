@@ -2,8 +2,7 @@
 // stock-space scope, and Market Event triggers.
 
 import { describe, expect, it } from 'vitest';
-import { LADDER, REGULAR_SUPPLY, START_CASH, STOCK_BY_CODE } from '../data';
-import { priceOf } from '../engine';
+import { COMPANY_BUYOUT_BY_TIER, COMPANY_SHARE_PRICE_BY_TIER, LADDER, REGULAR_SUPPLY, START_CASH, STOCK_BY_CODE } from '../data';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 describe('Rule 1 — trading timing (no trade before rolling)', () => {
@@ -21,7 +20,7 @@ describe('Rule 1 — trading timing (no trade before rolling)', () => {
     expect(s.turnPhase).toBe('acted');
     expect(s.trade).toEqual({ scope: 'stock', code: 'MEDI', actionsLeft: 1 });
     const before = s.players[0].cash;
-    const cost = priceOf(started(), 'MEDI') * REGULAR_SUPPLY;
+    const cost = STOCK_BY_CODE.MEDI.buyout;
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     expect(s.players[0].shares.MEDI).toBe(REGULAR_SUPPLY);
     expect(s.players[0].cash).toBe(before - cost);
@@ -29,22 +28,26 @@ describe('Rule 1 — trading timing (no trade before rolling)', () => {
 });
 
 describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-nothing buy-out)', () => {
-  it('buying pays price × 11, grants all 11 shares, and instantly sells the stock out', () => {
+  it('buying pays the fixed tier price, grants all 11 shares, and instantly sells the stock out', () => {
     let s = started();
     s = rollTo(s, 5); // MEDI stock space
-    const price = priceOf(s, 'MEDI');
     const cashBefore = s.players[0].cash;
     const stepBefore = s.prices.MEDI;
 
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
 
     expect(s.players[0].shares.MEDI).toBe(REGULAR_SUPPLY);
-    expect(s.players[0].cash).toBe(cashBefore - price * REGULAR_SUPPLY);
+    expect(s.players[0].cash).toBe(cashBefore - COMPANY_BUYOUT_BY_TIER.Growth);
     expect(s.supply.MEDI).toBe(0);
-    // Sellout trigger fires immediately: +1 price step, claim goes to the buyer.
-    expect(s.prices.MEDI).toBe(stepBefore + 1);
+    expect(s.prices.MEDI).toBe(stepBefore);
     expect(s.soldOut.MEDI).toBeDefined();
     expect(s.soldOut.MEDI.claimHolder).toBe(0);
+  });
+
+  it('assigns $5k / $7.5k / $10k buyouts from the company starting-price tiers', () => {
+    expect(STOCK_BY_CODE.FRSH).toMatchObject({ tier: 'Starter', buyout: 5_000, base: COMPANY_SHARE_PRICE_BY_TIER.Starter });
+    expect(STOCK_BY_CODE.MEDI).toMatchObject({ tier: 'Growth', buyout: 7_500, base: COMPANY_SHARE_PRICE_BY_TIER.Growth });
+    expect(STOCK_BY_CODE.APEX).toMatchObject({ tier: 'Premium', buyout: 10_000, base: COMPANY_SHARE_PRICE_BY_TIER.Premium });
   });
 
   it('cannot buy without enough cash for the full payout', () => {
@@ -111,7 +114,7 @@ describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-n
     expect(s.bankPool.MEDI).toBe(2);      // pooled for the next Bank Auction
   });
 
-  it('clamps at the top of the ladder on buy-out', () => {
+  it('leaves a company already at the top of the ladder unchanged on buy-out', () => {
     let s = started();
     s = patch(s, (d) => { d.prices.MEDI = LADDER.length - 1; });
     s = rollTo(s, 5);

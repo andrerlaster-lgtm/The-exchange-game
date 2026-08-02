@@ -8,7 +8,7 @@ const ROUND_OPTIONS = [5, 7, 10];
 
 const QUICK_RULES = [
   'Roll dice, move your token, and resolve the space you land on.',
-  'Land on an untouched company: buy the entire company (all 11 shares at the current price) or skip. Skipping adds a Weak Demand marker — 2 markers drop the price a step.',
+  'Land on an untouched company: buy all 11 shares at its fixed tier price — Starter $5,000, Growth $7,500, or Premium $10,000 — or skip. Tier opening share prices are $500, $750, and $1,000, and the buyout adds no price increase.',
   'A company bought in full becomes Sold Out for good, and its buyer holds the Payout Claim. Everyone else who lands there pays the claim instead of opening a normal buy step; landing on your own company costs nothing.',
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own shares across 4+ sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
   'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window where any player can propose trades or bid on pooled shares.',

@@ -3,6 +3,8 @@
 
 export type Risk = 'Low' | 'Med' | 'High';
 
+export type CompanyTier = 'Starter' | 'Growth' | 'Premium';
+
 export type SectorId =
   | 'tech' | 'consumer' | 'health' | 'energy'
   | 'finance' | 'realestate' | 'industrials' | 'comm';
@@ -27,12 +29,14 @@ export interface Stock {
   code: string;        // ticker, e.g. 'CCAI'
   name: string;
   sector: SectorId;
-  base: number;        // base price (dollars) — defines starting ladder step
+  base: number;        // tier-aligned opening share price — defines starting ladder step
   risk: Risk;
   space: number;       // board space 1..36
   step: number;        // starting ladder step index (0..11)
   color: string;       // sector color (denormalized for convenience)
   div: number;         // printed dividend per share (placeholder: derived from risk)
+  tier: CompanyTier;   // fixed acquisition-price tier while the company is untouched
+  buyout: number;      // fixed cost to acquire all 11 shares and the Payout Claim
 }
 
 export interface IpoDef {

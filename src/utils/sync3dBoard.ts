@@ -36,6 +36,8 @@ export interface TradeInfo3D {
   risk: string;          // 'Low' | 'Med' | 'High'
   dividend: number;      // printed dividend per share
   stepDiff: number;      // current step − starting step (signed)
+  tier: string;          // Starter | Growth | Premium
+  buyoutPrice: number;   // fixed whole-company acquisition price
 }
 
 /** Live per-stock price snapshot for board tiles/tooltips. */

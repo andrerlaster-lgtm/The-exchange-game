@@ -64,7 +64,7 @@ describe('Insolvency — Portfolio Tax (space 25)', () => {
     s = patch(s, (d) => {
       d.players[0].pos = 32; // → Audit Notice at space 34 (flat $500, +$250 with margin)
       d.players[0].cash = 0;
-      d.players[0].shares = { FRSH: 1 }; // one cheap $250 share, nowhere near the $750 owed
+      d.players[0].shares = { FRSH: 1 }; // one Starter-tier share, nowhere near the $750 owed
       d.players[0].margin = 2000;
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1])); // → space 34
@@ -72,8 +72,8 @@ describe('Insolvency — Portfolio Tax (space 25)', () => {
     expect(s.insolvency!.owed).toBe(750);
     s = dispatch(s, { t: 'forcedSell', code: 'FRSH' }, rng());
     expect(s.players[0].shares.FRSH ?? 0).toBe(0);
-    // Sell-back pays one step below FRSH's $250 market price → $100 floor (rulebook §11).
-    expect(s.players[0].cash).toBe(100);
+    // Starter-tier FRSH opens at $500; sell-back pays one step below → $250.
+    expect(s.players[0].cash).toBe(250);
     s = dispatch(s, { t: 'payInsolvency' }, rng());
     expect(s.insolvency).toBeNull();
     expect(s.players[0].cash).toBe(0);
