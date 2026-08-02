@@ -9,8 +9,8 @@ import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
 /** Roll the current player onto Market Open (space 1). */
 function passMarketOpen(s: ReturnType<typeof started>) {
-  const placed = patch(s, (d) => { d.players[d.cur].pos = 35; d.turnPhase = 'preRoll'; });
-  return dispatch(placed, { t: 'roll' }, scriptedRng([1, 1])); // 35 + 2 -> space 1
+  const placed = patch(s, (d) => { d.players[d.cur].pos = 34; d.turnPhase = 'preRoll'; });
+  return dispatch(placed, { t: 'roll' }, scriptedRng([1, 2])); // 34 + 3 -> space 1
 }
 
 describe('Market Open Trading Window — opening', () => {
@@ -23,7 +23,7 @@ describe('Market Open Trading Window — opening', () => {
   it('does not open on a normal landing elsewhere on the board', () => {
     let s = started(2);
     s = patch(s, (d) => { d.players[0].pos = 3; d.turnPhase = 'preRoll'; });
-    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1])); // 3 + 2 -> space 5, no MO pass
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 2])); // 3 + 3 -> space 6, no MO pass
     expect(s.marketOpenWindow).toBe(false);
   });
 

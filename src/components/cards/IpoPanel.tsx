@@ -32,25 +32,23 @@ export default function IpoPanel() {
 
       {s.ipoBuy && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {s.ipoReveal && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '4px 8px', borderRadius: 6,
-              background: `${s.players[s.ipoBuy.actor].color}18`,
-              border: `1px solid ${s.players[s.ipoBuy.actor].color}55`,
-            }}>
-              <span style={{
-                width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
-                background: s.players[s.ipoBuy.actor].color,
-              }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: s.players[s.ipoBuy.actor].color }}>
-                {s.players[s.ipoBuy.actor].name}
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {s.ipoBuy.actor === s.cur ? '— first option' : "'s turn to buy in"}
-              </span>
-            </div>
-          )}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '4px 8px', borderRadius: 6,
+            background: `${s.players[s.ipoBuy.actor].color}18`,
+            border: `1px solid ${s.players[s.ipoBuy.actor].color}55`,
+          }}>
+            <span style={{
+              width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+              background: s.players[s.ipoBuy.actor].color,
+            }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: s.players[s.ipoBuy.actor].color }}>
+              {s.players[s.ipoBuy.actor].name}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+              — only buyer on this landing
+            </span>
+          </div>
           <div style={{ fontSize: 12 }}>
             Buying <strong>{s.ipoBuy.code}</strong> @ ${s.ipoBuy.price.toLocaleString()} · {s.ipoBuy.bought}/{s.ipoBuy.max} purchased
           </div>

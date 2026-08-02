@@ -55,15 +55,7 @@ export interface IpoBuyContext {
   max: number;
   bought: number;
   price: number;
-  actor: number;   // player index currently deciding — may differ from s.cur during a reveal group-buy
-}
-
-/** On a new IPO reveal, the revealer buys first (via IpoBuyContext); this
-    tracks the other players still owed their one-time buy turn, in clockwise
-    order, before the reveal sequence closes (rulebook §16). */
-export interface IpoRevealQueue {
-  code: string;
-  queue: number[]; // remaining player indices, in clockwise order
+  actor: number;   // player who landed on the IPO space; always the current player
 }
 
 export interface PickContext {
@@ -184,6 +176,8 @@ export interface GameState {
   turnPhase: TurnPhase;
   dice: [number | null, number | null];
   rolling: boolean;
+  bonusRollPending: boolean;           // current landing came from doubles and earns one more roll
+  bonusRollUsed: boolean;              // current player already used the turn's one allowed bonus roll
   prices: Record<string, number>;      // regular stock code -> ladder step
   supply: Record<string, number>;      // regular stock code -> shares remaining
   skips: Record<string, number>;       // code -> weak-demand marker count (0-3)
@@ -204,7 +198,6 @@ export interface GameState {
   ipoChoice: boolean;
   ipoListPick: boolean;
   ipoBuy: IpoBuyContext | null;
-  ipoReveal: IpoRevealQueue | null;
   decks: Record<DeckId, number[]>;     // shuffled index queues
   discard: Record<DeckId, number[]>;
   shorts: Short[];

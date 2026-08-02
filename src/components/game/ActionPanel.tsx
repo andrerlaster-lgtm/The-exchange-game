@@ -121,6 +121,14 @@ export default function ActionPanel() {
             border: '1px solid rgba(61,213,152,0.3)',
           }}>⏱ EXTENDED HOURS</span>
         )}
+        {s.bonusRollPending && (
+          <span title="Resolve this landing, then roll once more" style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+            padding: '3px 8px', borderRadius: 4,
+            background: 'rgba(212,165,53,0.14)', color: 'var(--gold)',
+            border: '1px solid rgba(212,165,53,0.3)',
+          }}>🎲 DOUBLES · BONUS ROLL</span>
+        )}
         <button
           className="danger"
           style={{ fontSize: 11, padding: '4px 10px', flexShrink: 0 }}
@@ -139,14 +147,14 @@ export default function ActionPanel() {
           <button className="primary" style={{ padding: '8px 22px', fontSize: 13 }}
             disabled={rolling}
             onClick={handleRoll}>
-            {rolling ? 'Rolling…' : 'Roll Dice'}
+            {rolling ? 'Rolling…' : s.bonusRollUsed ? 'Roll Bonus Dice' : 'Roll Dice'}
           </button>
         )}
         {s.turnPhase === 'acted' && (
           <button className="primary" style={{ padding: '8px 22px', fontSize: 13 }}
             disabled={isBlocked}
             onClick={() => dispatch({ t: 'endTurn' })}>
-            {isBlocked ? 'Resolve action…' : 'End Turn →'}
+            {isBlocked ? 'Resolve action…' : s.bonusRollPending ? 'Bonus Roll →' : 'End Turn →'}
           </button>
         )}
       </div>

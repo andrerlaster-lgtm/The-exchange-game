@@ -7,12 +7,12 @@ const CASH_OPTIONS = [30_000, 40_000, 50_000];
 const ROUND_OPTIONS = [5, 7, 10];
 
 const QUICK_RULES = [
-  'Roll dice, move your token, and resolve the space you land on.',
+  'Roll dice, move your token, and resolve the space you land on. Doubles earn exactly 1 bonus roll after the landing is fully resolved; doubles on the bonus roll do not chain.',
   'Land on an untouched company: buy all 11 shares at its fixed tier price — Starter $5,000, Growth $7,500, or Premium $10,000 — or skip. Tier opening share prices are $500, $750, and $1,000, and the buyout adds no price increase.',
   'A company bought in full becomes Sold Out for good, and its buyer holds the Payout Claim. Everyone else who lands there pays the claim instead of opening a normal buy step; landing on your own company costs nothing.',
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own regular companies across 3+ different sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
   'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window where any player can propose trades or bid on pooled shares.',
-  'IPOs: 4 companies total, revealed one at a time at a fixed $3,000/share. Whoever triggers the reveal buys first, then everyone else gets one turn to buy in.',
+  'IPOs: 4 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',
   'Can’t cover Portfolio Tax, an Audit Notice, or Payout Claim rent in cash? Sell your regular stock to raise the rest — anything still short is waived.',
   'Margin trading and Short Selling are advanced options, off by default.',
   'An Extended Hours card, if drawn before Market Close is triggered, delays the game end by exactly one more round.',

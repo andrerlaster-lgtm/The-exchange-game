@@ -1,7 +1,6 @@
-// Phase 7: IPO model overhaul — a single shared reveal queue of 4 IPOs, all at
-// a fixed $3,000, no price movement from buying/selling, and a group-buy
-// sequence on reveal: the revealer buys first, then every other player gets
-// one turn (clockwise order) before the landing resolves.
+// IPO model — a single shared reveal queue of 4 IPOs, all at a fixed $3,000,
+// no price movement from buying/selling, and only the player who lands on an
+// IPO space may buy during that landing.
 
 import { describe, expect, it } from 'vitest';
 import { IPO_FIXED_PRICE, LADDER } from '../data';
@@ -18,16 +17,13 @@ describe('IPO reveal — shared queue, fixed price', () => {
     expect(LADDER[revealed[0].step]).toBe(IPO_FIXED_PRICE);
   });
 
-  it('opens a group-buy: the revealer gets first option', () => {
+  it('offers the revealed IPO only to the player who landed on the space', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);
     expect(s.ipoBuy).not.toBeNull();
     expect(s.ipoBuy!.actor).toBe(s.cur);
     expect(s.ipoBuy!.price).toBe(IPO_FIXED_PRICE);
     expect(s.ipoListPick).toBe(false);
-    // The other 2 players are queued for their turn after the revealer.
-    expect(s.ipoReveal).not.toBeNull();
-    expect(s.ipoReveal!.queue).toEqual([1, 2]);
   });
 
   it('the revealer can buy up to 2 shares and price never moves', () => {
@@ -47,41 +43,29 @@ describe('IPO reveal — shared queue, fixed price', () => {
     expect(s.ipos.find((ip) => ip.code === code)!.step).toBe(stepBefore);
   });
 
-  it('after the revealer finishes, each other player gets one turn in clockwise order', () => {
+  it('closes the purchase after the landing player finishes', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);
     const code = s.ipoBuy!.code;
 
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng()); // player 0 (revealer) done
-    expect(s.ipoBuy).not.toBeNull();
-    expect(s.ipoBuy!.actor).toBe(1);
-    expect(s.ipoReveal!.queue).toEqual([2]);
-
-    s = dispatch(s, { t: 'ipoBuyShare' }, rng()); // player 1 buys 1
-    expect(s.players[1].shares[code]).toBe(1);
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng()); // player 1 done
-    expect(s.ipoBuy).not.toBeNull();
-    expect(s.ipoBuy!.actor).toBe(2);
-    expect(s.ipoReveal!.queue).toEqual([]);
-
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng()); // player 2 (last) done — sequence closes
+    s = dispatch(s, { t: 'ipoBuyShare' }, rng());
+    s = dispatch(s, { t: 'ipoBuyDone' }, rng());
     expect(s.ipoBuy).toBeNull();
-    expect(s.ipoReveal).toBeNull();
+    expect(s.players[0].shares[code]).toBe(1);
+    expect(s.players[1].shares[code] ?? 0).toBe(0);
+    expect(s.players[2].shares[code] ?? 0).toBe(0);
   });
 
-  it('a queued player may skip without buying and the sequence still advances', () => {
+  it('lets the landing player skip without offering the IPO to anyone else', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng()); // player 0 done, no purchase
-    expect(s.ipoBuy!.actor).toBe(1);
-    s = dispatch(s, { t: 'skipIpo' }, rng()); // player 1 skips outright
-    expect(s.ipoBuy!.actor).toBe(2);
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng()); // player 2 done — sequence closes
+    const code = s.ipoBuy!.code;
+    s = dispatch(s, { t: 'skipIpo' }, rng());
     expect(s.ipoBuy).toBeNull();
-    expect(s.ipoReveal).toBeNull();
+    expect(s.players.every((p) => (p.shares[code] ?? 0) === 0)).toBe(true);
   });
 
-  it('End Turn is blocked until the whole reveal group-buy sequence resolves', () => {
+  it('End Turn is blocked only until the landing player resolves the IPO choice', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);
     s = patch(s, (d) => { d.turnPhase = 'acted'; });
@@ -89,8 +73,6 @@ describe('IPO reveal — shared queue, fixed price', () => {
     expect(s.cur).toBe(0); // still player 0's turn — blocked
 
     s = dispatch(s, { t: 'ipoBuyDone' }, rng());
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng());
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng()); // sequence now closed
     s = dispatch(s, { t: 'endTurn' }, rng());
     expect(s.cur).toBe(1);
   });
@@ -102,8 +84,7 @@ describe('IPO — after reveal, normal buy-list flow resumes', () => {
     s = rollTo(s, IPO_SPACE); // space 10 reveals IPO #1
     const firstCode = s.ipos.find((ip) => ip.revealed)!.code;
     s = dispatch(s, { t: 'ipoBuyDone' }, rng());
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng());
-    expect(s.ipoReveal).toBeNull();
+    expect(s.ipoBuy).toBeNull();
 
     // Landing on the OTHER IPO space reveals the next queue entry, not the
     // same one again — proving it's one shared queue, not per-space decks.
@@ -111,14 +92,13 @@ describe('IPO — after reveal, normal buy-list flow resumes', () => {
     s = rollTo(s, 28);
     const revealedNow = s.ipos.filter((ip) => ip.revealed);
     expect(revealedNow).toHaveLength(2);
-    expect(s.ipoReveal!.code).not.toBe(firstCode);
+    expect(s.ipoBuy!.code).not.toBe(firstCode);
   });
 
-  it('once all 4 IPOs are revealed, landing opens the general buy list with no group-buy', () => {
+  it('once all 4 IPOs are revealed, landing opens the general buy list for the landing player', () => {
     let s = started(2);
     s = patch(s, (d) => { d.ipos.forEach((ip) => { ip.revealed = true; }); });
     s = rollTo(s, IPO_SPACE);
-    expect(s.ipoReveal).toBeNull();
     expect(s.ipoListPick).toBe(true);
     expect(s.ipoBuy).toBeNull();
   });
@@ -129,7 +109,6 @@ describe('IPO — supply, control, and market isolation', () => {
     let s = started(2);
     s = rollTo(s, IPO_SPACE);
     const code = s.ipoBuy!.code;
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng());
     s = dispatch(s, { t: 'ipoBuyDone' }, rng());
     s = patch(s, (d) => { d.trade = { scope: 'free', actionsLeft: 1 }; });
     const cash = s.players[0].cash;

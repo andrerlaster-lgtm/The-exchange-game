@@ -9,6 +9,6 @@ export function startLap(s: GameState): void {
 
 export function clearTurnState(s: GameState): void {
   s.trade = null; s.card = null; s.pendingDraws = []; s.pick = null; s.shortPick = false;
-  s.ipoChoice = false; s.ipoListPick = false; s.ipoBuy = null; s.ipoReveal = null; s.etfPick = null;
+  s.ipoChoice = false; s.ipoListPick = false; s.ipoBuy = null; s.etfPick = null;
   s.marginCall = null; s.insolvency = null;
 }

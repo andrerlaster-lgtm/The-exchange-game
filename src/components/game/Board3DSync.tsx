@@ -128,6 +128,7 @@ export default function Board3DSync() {
       ts: Date.now(),
       canRoll: s.turnPhase === 'preRoll',
       dice: s.dice as [number | null, number | null],
+      bonusRoll: s.bonusRollPending ? 'earned' : (s.turnPhase === 'preRoll' && s.bonusRollUsed ? 'active' : null),
       currentPlayerIdx: s.cur,
       leaderboard,
       card,

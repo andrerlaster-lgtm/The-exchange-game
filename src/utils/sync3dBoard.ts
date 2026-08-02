@@ -55,6 +55,7 @@ export interface Board3DPayload {
   ts: number;
   canRoll: boolean;
   dice: [number | null, number | null];
+  bonusRoll: 'earned' | 'active' | null;
   currentPlayerIdx: number;
   leaderboard: LBEntry[];
   card: CardPreview | null;

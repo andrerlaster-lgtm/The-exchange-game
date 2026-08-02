@@ -1777,6 +1777,7 @@
     }
 
     let canRollGlobal = false;
+    let bonusRollGlobal = null;
     let isAnimating = false;  // tracks whether any token is mid-arc
     let rollPending = false;  // command was sent, waiting for state update
     let rollTimeoutId = null;
@@ -1797,6 +1798,7 @@
         rollTimeoutId = null;
       }
       canRollGlobal = !!payload.canRoll;
+      bonusRollGlobal = payload.bonusRoll ?? null;
       pendingDrawGlobal = payload.pendingDraw ?? null;
       const pl = payload.players?.[payload.currentPlayerIdx];
       if (pl) {
@@ -1824,7 +1826,7 @@
         btnEndTurn.style.display = 'none';
       } else if (canEnd) {
         btnEndTurn.disabled = isAnimating;
-        btnEndTurn.textContent = 'Next Turn →';
+        btnEndTurn.textContent = bonusRollGlobal === 'earned' ? 'Bonus Roll →' : 'Next Turn →';
         btnEndTurn.style.display = 'block';
         btnRoll.style.display = 'none';
         btnDraw.style.display = 'none';
@@ -1845,6 +1847,7 @@
 
     function syncRollButton() {
       btnRoll.disabled = rollPending || !canRollGlobal || isAnimating;
+      btnRoll.textContent = bonusRollGlobal === 'active' ? 'Roll Bonus Dice' : 'Roll Dice';
       rollStatus.textContent = rollPending
         ? 'Rolling…'
         : isAnimating

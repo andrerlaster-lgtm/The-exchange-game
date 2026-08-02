@@ -38,7 +38,7 @@ export function patch(s: GameState, fn: (d: GameState) => void): GameState {
 export function rollTo(s: GameState, targetSpace: number): GameState {
   if (targetSpace < 4) throw new Error('use targetSpace >= 4 to avoid Market Open pass');
   const a = 1;
-  const b = targetSpace - (targetSpace - 2) - 1;
+  const b = 2; // deliberately non-doubles so general landing tests do not earn a bonus roll
   const fromPos = targetSpace - (a + b);
   const r = scriptedRng([a, b]);
   const placed = patch(s, (d) => { d.players[d.cur].pos = fromPos; });

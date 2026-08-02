@@ -71,19 +71,6 @@ function logClaimHandover(s: GameState, code: string): void {
     : `${code} Payout Claim passes to ${s.players[holder].name}.`, 'y');
 }
 
-/** Advance an active IPO reveal group-buy to the next player in clockwise
-    order, or close the sequence once everyone has had their turn. No-op
-    outside a reveal sequence (the general ipoListPick flow never sets this). */
-function advanceIpoReveal(s: GameState): void {
-  const rv = s.ipoReveal;
-  if (!rv) return;
-  if (rv.queue.length === 0) { s.ipoReveal = null; return; }
-  const next = rv.queue.shift()!;
-  const ip = s.ipos[IPO_INDEX[rv.code]];
-  s.ipoBuy = { code: rv.code, max: 2, bought: 0, price: LADDER[ip.step], actor: next };
-  addLog(s, `${s.players[next].name} may buy ${rv.code} (up to 2 shares).`, 'b');
-}
-
 /** Open a forced-sale Insolvency for a payment shortfall (Portfolio Tax,
     Audit Notice, or a Payout Claim landing payment) — or, if the player has
     no regular stock left to sell, waive it immediately (rulebook §17). */
@@ -149,19 +136,15 @@ function resolveLanding(s: GameState, pi: number): void {
       if (!s.opts.ipos) { addLog(s, 'IPO space — IPOs disabled in this game.'); break; }
       const hiddenIdx = s.ipos.map((_, i) => i).filter((i) => !s.ipos[i].revealed);
       if (hiddenIdx.length > 0) {
-        // A fresh reveal: the revealer gets first buy option, then every other
-        // player gets one turn to buy (clockwise order) before this landing
-        // resolves — a shared group-buy sequence, not the general IPO list.
+        // A fresh reveal belongs only to the player who landed here. Other
+        // players must land on an IPO space on a later turn to buy IPO shares.
         const i = hiddenIdx[0];
         const ip = s.ipos[i];
         ip.revealed = true; ip.step = ip.startStep;
         s.lastDraw = { deck: 'IPO', title: IPO_DEFS[i].name, seq: (s.lastDraw?.seq ?? 0) + 1 };
         addLog(s, `Launched IPO: ${IPO_DEFS[i].name} @ ${money(LADDER[ip.startStep])}`, 'g');
-        const n = s.players.length;
-        const rest = Array.from({ length: n - 1 }, (_, k) => (pi + 1 + k) % n);
-        s.ipoReveal = { code: ip.code, queue: rest };
         s.ipoBuy = { code: ip.code, max: 2, bought: 0, price: LADDER[ip.step], actor: pi };
-        addLog(s, `${p.name} has first option to buy ${ip.code} (up to 2 shares).`, 'g');
+        addLog(s, `${p.name} may buy ${ip.code} (up to 2 shares).`, 'g');
         break;
       }
       const anyRevealed = s.ipos.some((ip) => ip.revealed && ip.supply > 0);
@@ -271,6 +254,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.auction = null; s.auctionQueue = []; s.marketOpenWindow = false;
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
+      s.bonusRollPending = false; s.bonusRollUsed = false;
       s.phase = 'play'; s.cur = 0; s.turnPhase = 'preRoll';
       addLog(s, `Market open. ${s.players[0].name} starts.`, 'g');
       break;
@@ -288,6 +272,11 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const a = rng.int(1, 6);
       const b = rng.int(1, 6);
       s.dice = [a, b];
+      s.bonusRollPending = a === b && !s.bonusRollUsed;
+      if (s.bonusRollPending) {
+        s.bonusRollUsed = true;
+        addLog(s, `${s.players[s.cur].name} rolled doubles (${a}/${b}) — one bonus roll earned.`, 'y');
+      }
       applyMove(s, a + b);
       break;
     }
@@ -529,6 +518,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'ipoBuyShare': {
       const b = s.ipoBuy;
       if (!b) break;
+      if (b.actor !== s.cur) break; // only the player on the IPO space may buy
       const ip = ipoOf(s, b.code);
       const p = s.players[b.actor];
       if (b.bought >= b.max || ip.supply <= 0 || p.cash < b.price) break;
@@ -543,11 +533,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     }
     case 'ipoBuyDone':
       s.ipoBuy = null; s.ipoChoice = false; s.ipoListPick = false;
-      advanceIpoReveal(s);
       break;
     case 'skipIpo':
       s.ipoBuy = null; s.ipoChoice = false; s.ipoListPick = false;
-      advanceIpoReveal(s);
       break;
 
     // ---- card draw & effect ----
@@ -664,6 +652,14 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     case 'endTurn': {
       if (blocked(s)) break;
+      if (s.bonusRollPending) {
+        s.bonusRollPending = false;
+        s.turnPhase = 'preRoll';
+        s.dice = [null, null];
+        clearTurnState(s);
+        addLog(s, `Doubles bonus — ${s.players[s.cur].name} rolls again.`, 'y');
+        break;
+      }
       const n = s.players.length;
       if (s.closing) {
         const next = (s.cur + 1) % n;
@@ -688,6 +684,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       }
       s.turnPhase = 'preRoll';
       s.dice = [null, null];
+      s.bonusRollPending = false;
+      s.bonusRollUsed = false;
       clearTurnState(s);
       settleShorts(s);
       addLog(s, `— ${s.players[s.cur].name}'s turn —`);

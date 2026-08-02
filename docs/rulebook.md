@@ -127,12 +127,14 @@ Each turn follows the same order unless a card or special rule changes it.
 3. If the player passes or lands on Market Open, resolve Market Open before continuing the landing result as applicable.
 4. Resolve the landed space completely.
 5. Resolve any required payment, buy/skip choice, Weak Demand effect, auction, card, or special-space effect.
-   - 5a. If the landed space is an IPO space and this landing triggers a new IPO reveal, resolve the IPO group-buy sequence per Section 16 — the revealer gets first buy option, then all other players may buy in clockwise order — before opening the Trade Step. If the IPO space landing does not trigger a reveal (all 4 IPOs already revealed), resolve it as a normal single-player buy/skip under step 5.
+   - 5a. If the landed space is an IPO space, only the player who landed there may buy IPO shares. A new reveal offers that IPO to the landing player; after all 4 IPOs are revealed, the landing player may choose any revealed IPO with available shares.
 6. Open the active player's Trade Step.
 7. During the Trade Step, the active player (and any other player) may propose P2P trades, and any player may sell up to 2 shares back to the bank (see Section 11).
 8. Resolve accepted trades and bank sales immediately.
 9. End the Trade Step. All unresolved offers expire.
-10. Pass play to the next player.
+10. If the player's first roll was doubles, that player takes exactly 1 bonus roll after the landing and all required actions are fully resolved.
+    - Doubles rolled on the bonus roll do not earn another roll.
+11. Pass play to the next player.
 
 ## 6. Market Open
 
@@ -399,9 +401,8 @@ IPOs are limited new-stock opportunities. They are more volatile and have smalle
 - All 4 IPOs start face down in a single shared queue at setup — not tied to either specific board space.
 - When a player lands on either IPO space, the next unrevealed IPO in the queue flips face up and becomes active.
 - Once revealed, that IPO stays available for purchase at both IPO spaces for the rest of the game.
-- The player who triggers the reveal gets first option to buy from that IPO.
-- After the revealer decides, other players may buy in clockwise order before the next turn begins.
-- Each player may buy a maximum of 2 shares per IPO per turn it is revealed.
+- Only the player who landed on the IPO space may buy during that landing. No other player receives a buy-in turn.
+- The landing player may buy a maximum of 2 IPO shares during that landing.
 - After the reveal turn, any player landing on either IPO space may buy available shares of any already-revealed IPO normally.
 - Once all 4 IPOs are revealed, landing on either IPO space simply allows buying from whichever IPOs are already out — no further reveals occur.
 
@@ -418,8 +419,6 @@ All 4 IPOs start at a fixed price of $3,000 per share. There is no tiered starti
 **Confirmed**
 - IPO shares count toward final portfolio value.
 - IPO shares do not count toward Diversified Portfolio bonus.
-
-*(Note: this is a significant change from the current app, which has 8 IPOs with tiered starting prices and price movement on every buy — see status note above.)*
 
 ## 17. Margin System
 
@@ -525,7 +524,7 @@ Use this checklist when sending the rules to code.
 | Auctions | Auction pool shares only, held during Market Open Trading Window; all players may bid; winner pays bank; auction purchase does not move price; Payout Claim frozen until auction closes, then recalculated once |
 | Trading | Trade Step: P2P trades and bank sell-back both allowed. Market Open Trading Window: P2P trades and auction bidding only, no bank sell-back. Offers expire on window close |
 | Dividends | Pay flat per-share dividend on every regular stock and revealed IPO at every Market Open; apply 2x multiplier for Controllers; Always On, independent of Sold-Out status |
-| IPO reveal | Single shared 4-IPO queue; landing on either of the 2 IPO spaces reveals the next unrevealed IPO; revealer gets first buy option, then clockwise order |
+| IPO reveal | Single shared 4-IPO queue; landing on either IPO space reveals the next unrevealed IPO; only the landing player may buy, up to 2 shares |
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default |
 | Insolvency | Standard mode: if a player can't cover a required payment, force-sell regular stock only (not IPO/ETF) at sell-back price until covered or shares exhausted; unpaid shortfall after that is waived, cash floors at $0, no elimination |
 | Market Open | Pay salary, dividends, ETF payouts, diversification bonuses, resolve Margin repayment, then open Market Open Trading Window |
