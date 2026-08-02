@@ -139,6 +139,7 @@ export interface Board3DPayload {
   dice: [number | null, number | null];
   bonusRoll: 'earned' | 'active' | null;
   currentPlayerIdx: number;
+  progress: string;
   leaderboard: LBEntry[];
   card: CardPreview | null;
   pendingDraw: string | null;

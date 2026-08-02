@@ -281,6 +281,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.bonusRollPending = false; s.bonusRollUsed = false;
       s.phase = 'play'; s.cur = 0; s.turnPhase = 'preRoll';
       addLog(s, `Market open. ${s.players[0].name} starts.`, 'g');
+      if (s.opts.closeMode === 'rounds' && s.opts.closeRounds <= 1) triggerClose(s);
       break;
     }
     case 'newGame':
@@ -726,7 +727,11 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       ranked.forEach((entry, rank) => { s.players[entry.i].prevRank = rank; });
       s.cur = (s.cur + 1) % n;
       if (s.cur === 0) startLap(s);
-      if (s.opts.closeMode === 'rounds' && s.lap > s.opts.closeRounds && !s.closing) {
+      // Arm Market Close when the configured final round begins. The closing
+      // flow then lets every player finish that round and ends before another
+      // lap starts. Waiting until lap > closeRounds added an unintended full
+      // extra round to every fixed-length game.
+      if (s.opts.closeMode === 'rounds' && s.lap >= s.opts.closeRounds && !s.closing) {
         triggerClose(s);
       }
       s.turnPhase = 'preRoll';

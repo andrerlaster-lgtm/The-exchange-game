@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, isIpoCode } from '../../data';
-import { blocked, priceOf, sellBackPrice } from '../../engine';
+import { blocked, gameProgressLabel, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -95,6 +95,9 @@ export default function ActionPanel() {
             {p.margin > 0 && (
               <span className="mono" style={{ color: 'var(--red)', marginLeft: 6 }}>−${p.margin.toLocaleString()} margin</span>
             )}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.3, marginTop: 2 }}>
+            {gameProgressLabel(s)}
           </div>
         </div>
         {s.closing && s.extendedRoundsLeft > 0 && (

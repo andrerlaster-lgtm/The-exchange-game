@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { TurnPhase } from '../../engine';
-import { blocked, canTradeNow, fedSignalForStock, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
+import { blocked, canTradeNow, fedSignalForStock, gameProgressLabel, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
 import { SECTORS, STOCK_BY_CODE, STOCKS } from '../../data';
 import { useGameState, useDispatch } from '../../store';
 import { buildActionCenter } from '../../utils/buildBoard3DActionCenter';
@@ -114,6 +114,7 @@ export default function Board3DSync() {
       dice: s.dice as [number | null, number | null],
       bonusRoll: s.bonusRollPending ? 'earned' : (s.turnPhase === 'preRoll' && s.bonusRollUsed ? 'active' : null),
       currentPlayerIdx: s.cur,
+      progress: gameProgressLabel(s),
       leaderboard,
       card,
       pendingDraw: nextDraw,

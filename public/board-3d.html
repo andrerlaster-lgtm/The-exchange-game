@@ -193,6 +193,10 @@
       font-size: 12px; color: rgba(212,165,53,0.85); letter-spacing: 0.5px;
       display: flex; align-items: center; gap: 6px; white-space: nowrap;
     }
+    #roll-context { display: flex; flex-direction: column; gap: 2px; }
+    #round-progress {
+      font-size: 9px; color: rgba(184,164,137,0.72); letter-spacing: 0.35px; white-space: nowrap;
+    }
     #roll-player .token-dot {
       width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
     }
@@ -515,9 +519,12 @@
     </div>
   </div>
   <div id="roll-panel">
-    <div id="roll-player">
-      <div class="token-dot" id="player-dot"></div>
-      <span id="player-label">Waiting for game…</span>
+    <div id="roll-context">
+      <div id="roll-player">
+        <div class="token-dot" id="player-dot"></div>
+        <span id="player-label">Waiting for game…</span>
+      </div>
+      <div id="round-progress">Waiting for round…</div>
     </div>
     <div id="dice-display">
       <div class="die3d empty" id="die-a">·</div>
@@ -1616,6 +1623,7 @@
     const dieB    = document.getElementById('die-b');
     const playerLabel = document.getElementById('player-label');
     const playerDot   = document.getElementById('player-dot');
+    const roundProgress = document.getElementById('round-progress');
     const rollStatus  = document.getElementById('roll-status');
 
     let pendingDrawGlobal = null;
@@ -2115,6 +2123,7 @@
     let canRollGlobal = false;
     let canEndGlobal = false;
     let bonusRollGlobal = null;
+    let hasRequiredActionGlobal = false;
     let isAnimating = false;  // tracks whether any token is mid-arc
     let rollPending = false;  // command was sent, waiting for state update
     let rollTimeoutId = null;
@@ -2138,6 +2147,8 @@
       canRollGlobal = !!payload.canRoll;
       bonusRollGlobal = payload.bonusRoll ?? null;
       pendingDrawGlobal = payload.pendingDraw ?? null;
+      hasRequiredActionGlobal = !!payload.actionCenter?.required?.length && !pendingDrawGlobal;
+      roundProgress.textContent = payload.progress ?? '';
       const pl = payload.players?.[payload.currentPlayerIdx];
       if (pl) {
         playerDot.style.background = pl.color || '#d4a535';
@@ -2168,7 +2179,7 @@
         btnRoll.style.display = 'none';
         btnDraw.style.display = 'none';
         syncEndTurnButton();
-      } else if (payload.actionCenter?.required?.length) {
+      } else if (hasRequiredActionGlobal) {
         // The complete prompt is available in the 3D Action Center.
         btnDraw.style.display = 'none';
         btnEndTurn.style.display = 'none';
@@ -2196,9 +2207,11 @@
         ? 'Rolling…'
         : isAnimating
           ? 'Animating…'
-          : canRollGlobal
-            ? ''
-            : 'Not your turn';
+          : hasRequiredActionGlobal
+            ? 'Use Action Center →'
+            : canRollGlobal
+              ? ''
+              : 'Not your turn';
     }
 
     btnRoll.addEventListener('click', () => {
