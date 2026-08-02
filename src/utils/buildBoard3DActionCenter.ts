@@ -5,7 +5,7 @@ import {
 import type { GameState } from '../engine';
 import {
   blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
-  priceOf, sellBackPrice,
+  fedSignalForStock, playerSignalExposure, priceOf, sellBackPrice,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction } from './sync3dBoard';
 
@@ -26,6 +26,29 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   const current = s.players[s.cur];
   const required: ActionPanel3D[] = [];
   const gameActive = s.phase === 'play';
+  const latestFed = s.marketSignals.find((signal) => signal.kind === 'fed');
+  const stanceColor = latestFed?.stance === 'hawkish'
+    ? '#ef4444'
+    : latestFed?.stance === 'dovish'
+      ? '#3ed598'
+      : latestFed?.stance === 'mixed'
+        ? '#f0b429'
+        : '#9aa5b1';
+  const marketIntel: ActionPanel3D = {
+    id: 'market-intelligence',
+    title: latestFed ? `Fed Watch · ${latestFed.title}` : 'Market Intelligence · Waiting on Fed',
+    accent: stanceColor,
+    description: latestFed
+      ? `${(latestFed.stance ?? 'neutral').toUpperCase()} · ${latestFed.summary}${latestFed.insight ? ` What it means: ${latestFed.insight}` : ''} Your exposure: ${playerSignalExposure(s, latestFed)}`
+      : 'Fed decisions and the major events worth acting on will stay here. Routine turns remain in Details.',
+    rows: s.marketSignals.slice(0, 5).map((signal) => ({
+      key: `signal-${signal.id}`,
+      title: signal.title,
+      detail: signal.summary,
+      value: `Lap ${signal.lap}`,
+      color: signal.kind === 'fed' ? stanceColor : undefined,
+    })),
+  };
 
   if (!gameActive) {
     required.push({
@@ -187,7 +210,8 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
               button(`Buy · ${money(stock.buyout)}`, { t: 'buy', code: stock.code }, 'primary', !untouched || current.cash < stock.buyout),
               button(`Sell 1 · ${money(sellBackPrice(s, stock.code))}`, { t: 'sell', code: stock.code }, 'danger', owned <= 0),
             ];
-        return { key: stock.code, title: `${stock.code} · ${stock.name}`, detail: `Own ${owned} · ${s.supply[stock.code] ?? 0} available`, value: money(priceOf(s, stock.code)), buttons: actions };
+        const fed = fedSignalForStock(s, stock.code);
+        return { key: stock.code, title: `${stock.code} · ${stock.name}`, detail: `Own ${owned} · ${s.supply[stock.code] ?? 0} available · ${fed.label}`, value: money(priceOf(s, stock.code)), buttons: actions };
       }),
       buttons: s.trade.scope === 'stock' && s.trade.code ? [button('Skip Company', { t: 'skipStock', code: s.trade.code })] : undefined,
     });
@@ -197,7 +221,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   const holdings = Object.entries(current.shares)
     .filter(([code, qty]) => !isIpoCode(code) && qty > 0)
     .map(([code, qty]) => ({
-      key: code, title: `${code} · ${codeName(code)}`, detail: `Own ${qty}`, value: `Sell at ${money(sellBackPrice(s, code))}`,
+      key: code, title: `${code} · ${codeName(code)}`, detail: `Own ${qty} · ${fedSignalForStock(s, code).label}`, value: `Sell at ${money(sellBackPrice(s, code))}`,
       buttons: [
         button('Sell 1', { t: 'sell', code, qty: 1 }, 'danger', !sellable),
         button('Sell 2', { t: 'sell', code, qty: 2 }, 'danger', !sellable || qty < 2),
@@ -237,6 +261,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
 
   return {
     required,
+    marketIntel,
     portfolio,
     tradeDesk: { players: tradePlayers, offers },
     canCallClose: gameActive && !s.closing,

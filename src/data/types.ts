@@ -73,6 +73,10 @@ export interface Card {
   effect: string;       // human-readable effect text
   eff: Effect;          // machine-readable effect
   strategyOnly?: true;  // card is inactive in Fast Prototype Mode
+  signal?: {
+    stance: 'hawkish' | 'dovish' | 'neutral' | 'mixed';
+    insight: string;
+  };
 }
 
 export interface BoardSpace {

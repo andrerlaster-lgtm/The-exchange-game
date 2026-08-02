@@ -7,6 +7,7 @@ import type { GameState, LogKind } from './types';
 import { eventPool, stepOf } from './rules';
 import { moveEventPrice } from './stockState';
 import { pushFeeEvent } from './feeLog';
+import { recordMarketSignal } from './marketSignals';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -99,8 +100,24 @@ export function triggerClose(s: GameState): void {
     s.extendedHoursAvailable = false;
     s.extendedRoundsLeft = 1;
     addLog(s, `MARKET CLOSE — Extended Hours played! One additional round before final scoring.`, 'y');
+    recordMarketSignal(s, {
+      kind: 'close',
+      title: 'Market Close Delayed',
+      summary: 'Extended Hours added one final round before scoring.',
+      impacts: [],
+    });
   } else {
     addLog(s, `MARKET CLOSE — finish this round, then final scoring.`, 'r');
+    // The Market Close card was already recorded as the latest important event.
+    // A manually called close still needs its own signal.
+    if (!(s.marketSignals[0]?.kind === 'market' && s.marketSignals[0]?.title === 'Market Close')) {
+      recordMarketSignal(s, {
+        kind: 'close',
+        title: 'Market Close Called',
+        summary: 'Finish the current round, then move to final scoring.',
+        impacts: [],
+      });
+    }
   }
 }
 

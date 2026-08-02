@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { TurnPhase } from '../../engine';
-import { blocked, canTradeNow, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
+import { blocked, canTradeNow, fedSignalForStock, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
 import { SECTORS, STOCK_BY_CODE, STOCKS } from '../../data';
 import { useGameState, useDispatch } from '../../store';
 import { buildActionCenter } from '../../utils/buildBoard3DActionCenter';
@@ -92,6 +92,7 @@ export default function Board3DSync() {
           stepDiff: (s.prices[code] ?? st.step) - st.step,
           tier: st.tier,
           buyoutPrice: st.buyout,
+          fedSignal: fedSignalForStock(s, code),
         };
       }
     }

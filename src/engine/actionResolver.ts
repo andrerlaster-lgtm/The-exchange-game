@@ -20,6 +20,7 @@ import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayout } from './soldOut';
 import { handleBid, handlePass } from './auction';
 import { hasSectorPortfolio } from './sector';
+import { recordCardSignal, recordMarketSignal } from './marketSignals';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -62,6 +63,14 @@ function logClaimHandover(s: GameState, code: string): void {
   addLog(s, holder == null
     ? `${code} Payout Claim is now Contested.`
     : `${code} Payout Claim passes to ${s.players[holder].name}.`, 'y');
+  recordMarketSignal(s, {
+    kind: 'claim',
+    title: `${code} Claim ${holder == null ? 'Contested' : 'Transferred'}`,
+    summary: holder == null
+      ? `${code}'s Payout Claim no longer has a sole top owner.`
+      : `${s.players[holder].name} now controls ${code}'s Payout Claim.`,
+    impacts: [],
+  });
 }
 
 /** Open a forced-sale Insolvency for a payment shortfall (Portfolio Tax,
@@ -150,6 +159,12 @@ function resolveLanding(s: GameState, pi: number): void {
         ip.revealed = true; ip.step = ip.startStep;
         s.lastDraw = { deck: 'IPO', title: IPO_DEFS[i].name, seq: (s.lastDraw?.seq ?? 0) + 1 };
         addLog(s, `Launched IPO: ${IPO_DEFS[i].name} @ ${money(LADDER[ip.startStep])}`, 'g');
+        recordMarketSignal(s, {
+          kind: 'ipo',
+          title: `IPO Launch · ${ip.code}`,
+          summary: `${IPO_DEFS[i].name} entered the market at ${money(LADDER[ip.startStep])} per share.`,
+          impacts: [],
+        });
         s.ipoBuy = { code: ip.code, max: 2, bought: 0, price: LADDER[ip.step], actor: pi };
         addLog(s, `${p.name} may buy ${ip.code} (up to 2 shares).`, 'g');
         break;
@@ -252,6 +267,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         s.supply[st.code] = REGULAR_SUPPLY;
       }
       s.skips = {}; s.soldOut = {}; s.bankPool = {}; s.lap = 1; s.log = []; s.tradeLog = []; s.feeLog = [];
+      s.marketSignals = []; s.marketSignalSeq = 0;
       s.decks = freshDecks(rng); s.discard = { ME: [], FED: [] };
       s.ipos = freshIpos();
       s.shorts = []; s.closing = false; s.closeDrawer = null; s.etfPick = null;
@@ -318,6 +334,12 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // sole owner, and the share-market price stays unchanged on acquisition.
       s.soldOut[code] = { code, claimHolder: topOwner(s, code) };
       addLog(s, `${code} is SOLD OUT — ${p.name} holds the Payout Claim.`, 'y');
+      recordMarketSignal(s, {
+        kind: 'soldout',
+        title: `${code} Sold Out`,
+        summary: `${p.name} acquired ${stock.name} and now holds its Payout Claim.`,
+        impacts: [],
+      });
       break;
     }
     case 'sell': {
@@ -366,6 +388,12 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
           moveTradePrice(s, code, -1);
           s.skips[code] = 0;
           addLog(s, `Weak demand: ${code} drops 1 step (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
+          recordMarketSignal(s, {
+            kind: 'weakDemand',
+            title: `Weak Demand · ${code}`,
+            summary: `${code} fell one price step after ${WEAK_DEMAND_THRESHOLD} consecutive skips.`,
+            impacts: [{ code, d: -1 }],
+          });
         }
       } else {
         addLog(s, `${code} is sold out — no marker added.`);
@@ -561,6 +589,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // landing on The Fed / Market Event) while also holding a trade
       // interaction; clearing trade would silently strip their landing trade.
       addLog(s, `Drew ${DECK_META[deck].label}: ${c.title}`, deck === 'ME' ? 'r' : deck === 'FED' ? 'y' : 'b');
+      recordCardSignal(s, c);
       if (deck === 'ME') beginMarketEventEffect(s, c.eff);
       else applyEffect(s, c.eff);
       break;

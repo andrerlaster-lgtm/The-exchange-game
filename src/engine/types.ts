@@ -79,6 +79,25 @@ export interface LogEntry {
   t: number;          // lap number
 }
 
+export type MarketSignalKind = 'fed' | 'market' | 'soldout' | 'claim' | 'weakDemand' | 'ipo' | 'close';
+
+export interface MarketSignalImpact {
+  code: string;
+  d: number;
+}
+
+/** Curated, persistent market-moving information. Routine turns and trades stay in Log. */
+export interface MarketSignal {
+  id: number;
+  kind: MarketSignalKind;
+  title: string;
+  summary: string;
+  lap: number;
+  stance?: 'hawkish' | 'dovish' | 'neutral' | 'mixed';
+  insight?: string;
+  impacts: MarketSignalImpact[];
+}
+
 /** Taxes & Fees panel entry kinds. */
 export type FeeEventKind = 'marginCall' | 'income' | 'audit' | 'tax' | 'payout';
 
@@ -197,6 +216,8 @@ export interface GameState {
   marketOpenWindow: boolean;           // Market Open Trading Window open (blocks End Turn until closed)
   lap: number;
   log: LogEntry[];
+  marketSignals: MarketSignal[];
+  marketSignalSeq: number;
   tradeLog: TradeEntry[];
   trade: TradeContext | null;
   pendingDraws: DeckId[];              // ordered queue of forced draws, resolved one at a time

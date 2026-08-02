@@ -50,6 +50,8 @@ export function initialState(rng: Rng): GameState {
     prices, supply,
     skips: {}, soldOut: {}, bankPool: {}, auction: null, auctionQueue: [], marketOpenWindow: false, lap: 1,
     log: [],
+    marketSignals: [],
+    marketSignalSeq: 0,
     tradeLog: [],
     trade: null, pendingDraws: [], card: null, pick: null, shortPick: false,
     ipos: freshIpos(),

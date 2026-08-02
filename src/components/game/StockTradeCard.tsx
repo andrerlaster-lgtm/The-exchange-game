@@ -8,6 +8,7 @@ import type { Stock } from '../../data/types';
 import { canTradeNow, priceOf, sellBackPrice } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 import TradeTicket from './TradeTicket';
+import FedSignalBadge from './FedSignalBadge';
 
 export default function StockTradeCard() {
   const s = useGameState();
@@ -95,7 +96,10 @@ export default function StockTradeCard() {
                 border: '1px solid rgba(74,48,25,0.06)',
               }}>
                 <span className="mono" style={{ color: 'var(--accent)', width: 44, fontSize: 11 }}>{st.code}</span>
-                <span style={{ color: 'var(--muted)', flex: 1, fontSize: 11 }}>{st.name}</span>
+                <span style={{ color: 'var(--muted)', flex: 1, fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.name}</span>
+                  <FedSignalBadge s={s} code={st.code} compact />
+                </span>
                 <span className="mono" style={{ fontSize: 11 }}>${price.toLocaleString()}</span>
                 <span style={{ color: 'var(--muted)', width: 22, fontSize: 11 }}>×{owned}</span>
                 {untouched ? (

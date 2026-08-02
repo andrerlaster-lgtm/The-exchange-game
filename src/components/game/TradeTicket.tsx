@@ -8,6 +8,7 @@
 import { REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
+import FedSignalBadge from './FedSignalBadge';
 
 interface Props {
   code: string;
@@ -84,6 +85,10 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
             <span style={badgeStyle(riskColor)}>{riskLabel}</span>
             <span style={badgeStyle('#6b4f1f')}>{stock.tier.toUpperCase()} TIER</span>
           </div>
+        </div>
+
+        <div style={{ marginTop: 9 }}>
+          <FedSignalBadge s={s} code={code} />
         </div>
 
         <Divider />

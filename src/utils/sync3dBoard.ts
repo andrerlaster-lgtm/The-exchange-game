@@ -42,6 +42,12 @@ export interface TradeInfo3D {
   stepDiff: number;      // current step − starting step (signed)
   tier: string;          // Starter | Growth | Premium
   buyoutPrice: number;   // fixed whole-company acquisition price
+  fedSignal: {
+    label: string;
+    tone: 'tailwind' | 'headwind' | 'mixed' | 'neutral';
+    net: number;
+    lastTitle: string | null;
+  };
 }
 
 export type Board3DAction = Exclude<Action,
@@ -106,6 +112,7 @@ export interface P2POffer3D {
 
 export interface ActionCenter3D {
   required: ActionPanel3D[];
+  marketIntel: ActionPanel3D;
   portfolio: ActionPanel3D;
   tradeDesk: {
     players: P2PPlayer3D[];

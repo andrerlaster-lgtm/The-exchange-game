@@ -12,6 +12,7 @@ import P2PTradeDesk from './P2PTradeDesk';
 import CardDisplay from '../cards/CardDisplay';
 import IpoPanel from '../cards/IpoPanel';
 import ShortPanel from '../cards/ShortPanel';
+import MarketIntelligence from './MarketIntelligence';
 
 export default function GameScreen() {
   return (
@@ -40,6 +41,7 @@ export default function GameScreen() {
       {/* Center column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0 }}>
         <ActionPanel />
+        <MarketIntelligence />
         <TradingMarket />
         <BoardTrack />
         <TradeHistory />
