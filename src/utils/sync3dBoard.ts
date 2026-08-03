@@ -41,6 +41,7 @@ export interface TradeInfo3D {
   glyph: string;         // sector glyph char
   risk: string;          // 'Low' | 'Med' | 'High'
   dividend: number;      // printed dividend per share
+  dividendPerLap: number; // full-company payout at each Market Open, including control bonus
   stepDiff: number;      // current step − starting step (signed)
   tier: string;          // Starter | Growth | Premium
   buyoutPrice: number;   // fixed whole-company acquisition price

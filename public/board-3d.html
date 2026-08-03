@@ -291,20 +291,15 @@
     .tc-stat-val { font-family: 'Anton', sans-serif; font-size: 26px; color: #15110b; line-height: 1.05; }
     .tc-stat-sep { width: 1px; background: rgba(0,0,0,.15); }
 
-    /* gold ownership banner */
-    .tc-own {
-      background: linear-gradient(90deg,#544326,#6e592e,#544326);
+    /* recurring-income banner */
+    .tc-income {
+      background: linear-gradient(90deg,#0f5132,#22a861,#0f5132);
       border-radius: 9px; padding: 8px; text-align: center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
-      opacity: .6; transition: all .2s; line-height: 1.1;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 0 14px rgba(34,197,94,.28);
+      line-height: 1.1;
     }
-    .tc-own.controlling {
-      background: linear-gradient(90deg,#8a6d27,#caa14a,#8a6d27);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 0 14px rgba(202,161,74,.4);
-      opacity: 1;
-    }
-    .tc-own-title { font-weight: 900; color: #1c1407; font-size: 13px; letter-spacing: 1.5px; }
-    .tc-own-sub { font-weight: 800; color: #3a2e10; font-size: 9px; letter-spacing: 1px; }
+    .tc-income-title { font-weight: 900; color: #f0fff5; font-size: 13px; letter-spacing: 1.1px; }
+    .tc-income-sub { font-weight: 800; color: rgba(240,255,245,.78); font-size: 9px; letter-spacing: .8px; }
     .tc-fed-signal {
       align-self: center; border-radius: 999px; padding: 4px 9px;
       font-size: 9px; font-weight: 900; letter-spacing: .65px; text-transform: uppercase;
@@ -501,9 +496,9 @@
           </div>
         </div>
       </div>
-      <div class="tc-own" id="tc-own">
-        <div class="tc-own-title" id="tc-own-title">YOU OWN: 0</div>
-        <div class="tc-own-sub">CONTROLLING STAKE AT 6+</div>
+      <div class="tc-income">
+        <div class="tc-income-title" id="tc-income-title">$0 DIVIDEND EACH LAP</div>
+        <div class="tc-income-sub">PAID AT MARKET OPEN · INCLUDES CONTROLLER BONUS</div>
       </div>
       <div class="tc-fed-signal" id="tc-fed-signal">NO RECENT FED EFFECT</div>
       <div id="trade-qty-row" style="display:none;">
@@ -1658,8 +1653,7 @@
     const tcStep   = document.getElementById('tc-step');
     const tcSupply = document.getElementById('tc-supply');
     const tcDiv    = document.getElementById('tc-div');
-    const tcOwn      = document.getElementById('tc-own');
-    const tcOwnTitle = document.getElementById('tc-own-title');
+    const tcIncomeTitle = document.getElementById('tc-income-title');
     const tcFedSignal = document.getElementById('tc-fed-signal');
     const btnTradeBuy  = document.getElementById('btn-trade-buy');
     const btnTradeSell = document.getElementById('btn-trade-sell');
@@ -1730,9 +1724,8 @@
       tcSupply.textContent = ti.supply;
       tcDiv.textContent = `$${ti.dividend}`;
 
-      // Ownership banner (lights up at the controlling-stake threshold)
-      tcOwnTitle.textContent = `YOU OWN: ${ti.owned}`;
-      tcOwn.classList.toggle('controlling', ti.owned >= 6);
+      // Show the recurring full-company payout at a glance.
+      tcIncomeTitle.textContent = `${ti.dividendPerLap > 0 ? '+' : ''}$${ti.dividendPerLap.toLocaleString()} DIVIDEND EACH LAP`;
       const fed = ti.fedSignal || { label: 'No recent Fed effect', tone: 'neutral', lastTitle: null };
       tcFedSignal.textContent = `${fed.tone === 'tailwind' ? '▲ ' : fed.tone === 'headwind' ? '▼ ' : fed.tone === 'mixed' ? '↕ ' : '— '}${fed.label}`;
       tcFedSignal.className = `tc-fed-signal ${fed.tone || 'neutral'}`;

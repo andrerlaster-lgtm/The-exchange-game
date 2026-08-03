@@ -33,6 +33,11 @@ export const IPO_SUPPLY = 5;
 export const CONTROL_THRESHOLD_REGULAR = 6;  // shares of one regular stock for control
 export const CONTROL_THRESHOLD_IPO = 3;      // shares of one IPO for control
 export const CONTROL_DIVIDEND_MULTIPLIER = 2; // dividend multiplier while controlling
+
+/** Dividend paid each Market Open immediately after acquiring a full company. */
+export function fullCompanyDividendPerMarketOpen(stock: Pick<Stock, 'div'>): number {
+  return stock.div * REGULAR_SUPPLY * CONTROL_DIVIDEND_MULTIPLIER;
+}
 // ── Sold-Out Payout Claim (rent paid to the claim holder by tier) ────────────
 export const PAYOUT_TIER_LOW = 500;       // holder owns 1-2 shares
 export const PAYOUT_TIER_MID = 1_000;     // holder owns 3-5 shares

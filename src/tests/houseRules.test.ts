@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR,
-  MAX_TRADE_QTY, REGULAR_SUPPLY, STOCK_BY_CODE,
+  fullCompanyDividendPerMarketOpen, MAX_TRADE_QTY, REGULAR_SUPPLY, STOCK_BY_CODE,
 } from '../data';
 import { priceOf } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
@@ -38,6 +38,12 @@ describe('Max bank-sale quantity (half the 11-share company)', () => {
 });
 
 describe('Controlling Stake dividend boost', () => {
+  it('shows the full-company dividend paid each lap', () => {
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.FTRB)).toBe(2_200);
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.MEDI)).toBe(1_100);
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.CCAI)).toBe(0);
+  });
+
   // Place player 0 at space 34 and roll [2,2] (sum 4) to wrap past Market
   // Open onto space 2 — same pattern used by scoring.test.ts's Rule 8 suite.
   it('doubles dividend for a regular stock at 6+ shares', () => {

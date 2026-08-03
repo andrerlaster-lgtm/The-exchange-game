@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { TurnPhase } from '../../engine';
 import { blocked, canTradeNow, fedSignalForStock, gameProgressLabel, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
-import { SECTORS, STOCK_BY_CODE, STOCKS } from '../../data';
+import { fullCompanyDividendPerMarketOpen, SECTORS, STOCK_BY_CODE, STOCKS } from '../../data';
 import { useGameState, useDispatch } from '../../store';
 import { buildActionCenter } from '../../utils/buildBoard3DActionCenter';
 import { sync3dBoard, isBoard3DCommand, takeNextBoard3DCommand } from '../../utils/sync3dBoard';
@@ -86,6 +86,7 @@ export default function Board3DSync() {
           glyph: SECTORS[st.sector].glyph,
           risk: st.risk,
           dividend: st.div,
+          dividendPerLap: fullCompanyDividendPerMarketOpen(st),
           stepDiff: (s.prices[code] ?? st.step) - st.step,
           tier: st.tier,
           buyoutPrice: st.buyout,

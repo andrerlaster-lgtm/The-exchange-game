@@ -1,6 +1,6 @@
 import {
   ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, LADDER, MARGIN_DEFAULT_PENALTY,
-  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, isIpoCode,
+  fullCompanyDividendPerMarketOpen, MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, isIpoCode,
 } from '../data';
 import type { GameState } from '../engine';
 import {
@@ -201,7 +201,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     required.push({
       id: 'trade-step', title: s.trade.scope === 'stock' ? 'Stock Space' : `Free Trading Day · ${s.trade.actionsLeft} Actions Left`,
       accent: s.trade.scope === 'stock' ? '#d4a535' : '#3ed598',
-      description: s.trade.scope === 'stock' ? 'Buy the full company or skip.' : 'Buy an untouched company or sell owned shares within the half-holding limit per action.',
+      description: s.trade.scope === 'stock' ? 'Review the price, dividend, and Fed signal before you decide.' : 'Buy an untouched company or sell owned shares within the half-holding limit per action.',
       rows: stocks.filter(Boolean).map((stock) => {
         const owned = current.shares[stock.code] ?? 0;
         const untouched = (s.supply[stock.code] ?? 0) === REGULAR_SUPPLY;
@@ -212,7 +212,13 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
               button(`Sell 1 · ${money(sellBackPrice(s, stock.code))}`, { t: 'sell', code: stock.code }, 'danger', bankSellRemaining(s, stock.code) <= 0),
             ];
         const fed = fedSignalForStock(s, stock.code);
-        return { key: stock.code, title: `${stock.code} · ${stock.name}`, detail: `Own ${owned} · ${s.supply[stock.code] ?? 0} available · ${fed.label}`, value: money(priceOf(s, stock.code)), buttons: actions };
+        return {
+          key: stock.code,
+          title: `${stock.code} · ${stock.name}`,
+          detail: `Own ${owned} · ${s.supply[stock.code] ?? 0} available · Dividend ${money(fullCompanyDividendPerMarketOpen(stock))} each lap · ${fed.label}`,
+          value: money(priceOf(s, stock.code)),
+          buttons: actions,
+        };
       }),
       buttons: s.trade.scope === 'stock' && s.trade.code ? [button('Skip Company', { t: 'skipStock', code: s.trade.code })] : undefined,
     });

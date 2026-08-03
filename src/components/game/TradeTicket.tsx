@@ -5,7 +5,7 @@
 // bank), so there is nothing to "own" or sell yet — landing here is strictly a
 // buy-the-whole-company-or-skip decision.
 
-import { REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { fullCompanyDividendPerMarketOpen, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import FedSignalBadge from './FedSignalBadge';
@@ -47,6 +47,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
     : `${stepDiff > 0 ? '+' : ''}${stepDiff} STEP${Math.abs(stepDiff) !== 1 ? 'S' : ''}`;
 
   const buyoutCost = stock.buyout;
+  const dividendPerLap = fullCompanyDividendPerMarketOpen(stock);
   const canBuy = canAct && supply === REGULAR_SUPPLY && p.cash >= buyoutCost;
 
   return (
@@ -129,19 +130,19 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
         </div>
       </div>
 
-      {/* Buy-out banner — landing on an untouched company means all-or-nothing */}
+      {/* Lead with the recurring income instead of repeating the full-supply purchase rule. */}
       <div style={{
         position: 'relative',
-        background: 'linear-gradient(90deg, #8a6d27, #caa14a, #8a6d27)',
+        background: 'linear-gradient(90deg, #0f5132, #22a861, #0f5132)',
         borderRadius: 9, padding: 8, textAlign: 'center',
-        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.28), 0 0 14px rgba(202,161,74,0.4)',
+        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25), 0 0 14px rgba(34,197,94,0.28)',
         lineHeight: 1.1,
       }}>
-        <div style={{ fontWeight: 900, color: '#1c1407', fontSize: 13, letterSpacing: 1.5 }}>
-          BUY OUT ALL {REGULAR_SUPPLY} SHARES
+        <div style={{ fontWeight: 900, color: '#f0fff5', fontSize: 13, letterSpacing: 1.1 }}>
+          {dividendPerLap > 0 ? '+' : ''}${dividendPerLap.toLocaleString()} DIVIDEND EACH LAP
         </div>
-        <div style={{ fontWeight: 800, color: '#3a2e10', fontSize: 9, letterSpacing: 1 }}>
-          OWN THE COMPANY · CLAIM THE PAYOUT
+        <div style={{ fontWeight: 800, color: 'rgba(240,255,245,0.78)', fontSize: 9, letterSpacing: 0.8 }}>
+          PAID AT MARKET OPEN · INCLUDES CONTROLLER BONUS
         </div>
       </div>
 
