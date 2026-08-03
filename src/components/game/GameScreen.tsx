@@ -3,7 +3,6 @@ import BoardTrack from './BoardTrack';
 import TradeHistory from './TradeHistory';
 import TradingMarket from './TradingMarket';
 import StockTradeCard from './StockTradeCard';
-import Log from './Log';
 import PlayerCards from './PlayerCards';
 import DeckStatus from './DeckStatus';
 import Portfolio from './Portfolio';
@@ -35,7 +34,6 @@ export default function GameScreen() {
           <IpoPanel />
           <ShortPanel />
         </div>
-        <Log />
       </div>
 
       {/* Center column */}

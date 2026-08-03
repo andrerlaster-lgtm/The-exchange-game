@@ -111,7 +111,7 @@ export default function MarketIntelligence() {
           IMPORTANT EVENTS
         </div>
         {important.length === 0 ? (
-          <div style={{ color: 'var(--muted)', fontSize: 10.5 }}>Major market events will appear here. Routine turns stay in Details.</div>
+          <div style={{ color: 'var(--muted)', fontSize: 10.5 }}>Major market events will appear here. Routine turns stay out of this feed.</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5 }}>
             {important.map((signal) => (

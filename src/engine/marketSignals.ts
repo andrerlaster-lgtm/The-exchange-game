@@ -20,7 +20,7 @@ export function recordMarketSignal(s: GameState, input: SignalInput): void {
 
 /** Events important enough for the compact 2D/3D highlights feed.
     Fed decisions have their own persistent Fed Watch panel; routine IPO
-    reveals, purchases, and weak-demand markers remain in Details. */
+    reveals, purchases, and weak-demand markers stay out of this feed. */
 export function importantMarketSignals(s: GameState): MarketSignal[] {
   return s.marketSignals.filter((signal) =>
     (signal.kind === 'market' && signal.impacts.length > 0)

@@ -41,7 +41,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     accent: stanceColor,
     description: latestFed
       ? `${(latestFed.stance ?? 'neutral').toUpperCase()} · ${latestFed.summary}${latestFed.insight ? ` What it means: ${latestFed.insight}` : ''} Your exposure: ${playerSignalExposure(s, latestFed)}`
-      : 'Fed decisions and the major events worth acting on will stay here. Routine turns remain in Details.',
+      : 'Fed decisions and the major events worth acting on will stay here. Routine turns stay out of this feed.',
     rows: importantMarketSignals(s).slice(0, 5).map((signal) => ({
       key: `signal-${signal.id}`,
       title: signal.title,
