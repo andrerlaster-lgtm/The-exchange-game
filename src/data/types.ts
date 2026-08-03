@@ -61,6 +61,7 @@ export type Effect =
   | { k: 'pick'; d: number; label: string }
   | { k: 'cash'; amt: number }
   | { k: 'margin'; amt: number }
+  | { k: 'regime'; regime: 'bull' | 'bear' }
   | { k: 'circuitBreaker' }
   | { k: 'extend' }
   | { k: 'close' }

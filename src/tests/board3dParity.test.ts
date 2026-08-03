@@ -49,11 +49,13 @@ describe('3D Action Center parity', () => {
       draft.players[0].shares.MEDI = 2;
       draft.players[0].margin = 2_000;
       draft.players[0].cash = 10_000;
+      draft.players[0].marketStance = 'bullish';
     });
     const center = buildActionCenter(s);
 
     expect(center.portfolio.rows?.[0].buttons?.map((entry) => entry.action.t)).toEqual(['sell']);
     expect(center.portfolio.buttons?.map((entry) => entry.action.t)).toEqual(['takeMargin', 'repayMargin']);
+    expect(center.portfolio.title).toContain('Bullish Portfolio');
     expect(center.tradeDesk.players).toHaveLength(2);
     expect(center.canCallClose).toBe(true);
   });

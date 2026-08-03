@@ -8,6 +8,7 @@ import { eventPool, stepOf } from './rules';
 import { moveEventPrice } from './stockState';
 import { pushFeeEvent } from './feeLog';
 import { recordMarketSignal } from './marketSignals';
+import { marketStanceMeta, regimeCashDelta } from './marketRegime';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -35,6 +36,14 @@ function negativeEffectCodes(s: GameState, e: Effect): string[] {
         if (mv.d >= 0) continue;
         if (mv.sec) codes.push(...pool.filter((x) => x.sec === mv.sec).map((x) => x.code));
         else codes.push(...Object.values(STOCK_BY_CODE).filter((x) => x.risk === mv.risk).map((x) => x.code));
+      }
+      break;
+    case 'regime':
+      if (e.regime === 'bear') {
+        codes = [
+          ...Object.values(STOCK_BY_CODE).filter((stock) => stock.risk !== 'Low').map((stock) => stock.code),
+          ...s.ipos.filter((ipo) => ipo.revealed).map((ipo) => ipo.code),
+        ];
       }
       break;
     case 'lowest':
@@ -176,6 +185,29 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
         }
       });
       break;
+    case 'regime': {
+      const regularMove = e.regime === 'bull'
+        ? { Low: 0, Med: 1, High: 2 }
+        : { Low: 1, Med: -1, High: -2 };
+      Object.values(STOCK_BY_CODE).forEach((stock) => {
+        const d = regularMove[stock.risk];
+        if (d !== 0) move(stock.code, d);
+      });
+      s.ipos.filter((ipo) => ipo.revealed).forEach((ipo) => move(ipo.code, e.regime === 'bull' ? 1 : -1));
+
+      const runLabel = e.regime === 'bull' ? 'Bull Run' : 'Bear Run';
+      s.players.forEach((player) => {
+        const stance = player.marketStance;
+        const requested = regimeCashDelta(stance, e.regime);
+        const before = player.cash;
+        player.cash = Math.max(0, player.cash + requested);
+        const actual = player.cash - before;
+        const meta = marketStanceMeta(stance);
+        addLog(s, `${meta.glyph} ${player.name} was ${meta.label} for the ${runLabel}: ${actual > 0 ? '+' : ''}${money(actual)}.`, requested >= 0 ? 'g' : 'r');
+        player.marketStance = 'balanced';
+      });
+      break;
+    }
     case 'circuitBreaker':
       s.circuitBreakerHolder = s.cur;
       addLog(s, `${s.players[s.cur].name} keeps Circuit Breaker for a future negative Market Event.`, 'g');

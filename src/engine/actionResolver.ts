@@ -21,6 +21,7 @@ import { topOwner, recomputeClaim, claimPayout } from './soldOut';
 import { handleBid, handlePass } from './auction';
 import { hasSectorPortfolio } from './sector';
 import { recordCardSignal, recordMarketSignal } from './marketSignals';
+import { setMarketStance } from './marketRegime';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -50,6 +51,7 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   buyer.shares[offer.code] = (buyer.shares[offer.code] || 0) + offer.qty;
   buyer.cash -= offer.price;
   seller.cash += offer.price;
+  if (offer.qty >= 3) setMarketStance(seller, 'bearish');
 
   addLog(s, `${seller.name} sells ${offer.qty}× ${offer.code} to ${buyer.name} for ${money(offer.price)} (private trade)`, 'b');
   addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name}`, offer.price, seller.name);
@@ -326,6 +328,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (p.cash < cost) break;
       p.cash -= cost;
       p.shares[code] = REGULAR_SUPPLY;
+      setMarketStance(p, 'bullish');
       s.supply[code] = 0;
       t.actionsLeft -= 1;
       addLog(s, `${p.name} buys the ${stock.name} company at its ${stock.tier} tier price for ${money(cost)}!`, 'g');
@@ -371,6 +374,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (s.soldOut[code]) s.bankPool[code] = (s.bankPool[code] || 0) + qty;
       else s.supply[code] = (s.supply[code] || 0) + qty;
       s.bankSoldThisTurn[code] = (s.bankSoldThisTurn[code] || 0) + qty;
+      if (qty >= 3) setMarketStance(p, 'bearish');
       if (qty >= 3) moveTradePrice(s, code, -1);
       if (tradeStepSell) t!.actionsLeft -= 1;
       const moved = qty >= 3 ? ' (▼1 step)' : '';
@@ -418,6 +422,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // breach the cap (e.g. $2,300 -> $4,300).
       if (p.margin + MARGIN_INCREMENT > MARGIN_MAX) break;
       p.cash += MARGIN_INCREMENT; p.margin += MARGIN_INCREMENT;
+      setMarketStance(p, 'bullish');
       addLog(s, `${p.name} takes margin +${money(MARGIN_INCREMENT)} (balance ${money(p.margin)})`, 'y');
       addTradeLog(s, 'margin', `Margin +${money(MARGIN_INCREMENT)}`, MARGIN_INCREMENT, p.name);
       break;
@@ -530,6 +535,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (s.shorts.some((sh) => sh.owner === s.cur)) break;
       const p = s.players[s.cur];
       s.shorts.push({ owner: s.cur, ownerName: p.name, pcolor: p.color, code, entryStep: s.prices[code] });
+      setMarketStance(p, 'bearish');
       addLog(s, `${p.name} shorts ${code} @ ${money(priceOf(s, code))}`, 'r');
       addTradeLog(s, 'short', `Short ${code} @ ${money(priceOf(s, code))}`, 0, p.name);
       s.shortPick = false;

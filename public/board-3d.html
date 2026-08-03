@@ -2112,7 +2112,8 @@
         const rank  = document.createElement('span'); rank.className  = 'lb-rank';  rank.textContent = '#' + (entry.rank + 1);
         const dot   = document.createElement('span'); dot.className   = 'lb-dot';   dot.style.background = entry.color;
         const piece = document.createElement('span'); piece.className = 'lb-piece'; piece.textContent = PIECE_EMOJI[entry.piece] ?? '●';
-        const name  = document.createElement('span'); name.className  = 'lb-name';  name.textContent = entry.name;
+        const stanceGlyph = entry.marketStance === 'bullish' ? '🐂' : entry.marketStance === 'bearish' ? '🐻' : '⚖';
+        const name  = document.createElement('span'); name.className  = 'lb-name';  name.textContent = `${entry.name} ${stanceGlyph}`;
         const nw    = document.createElement('span'); nw.className    = 'lb-nw';    nw.textContent = formatNW(entry.nw);
 
         row.append(rank, dot, piece, name, nw);
@@ -2153,7 +2154,8 @@
       if (pl) {
         playerDot.style.background = pl.color || '#d4a535';
         const emoji = PIECE_EMOJI[pl.piece] ?? '●';
-        playerLabel.textContent = `${emoji} ${pl.name}`;
+        const stanceGlyph = pl.marketStance === 'bullish' ? '🐂' : pl.marketStance === 'bearish' ? '🐻' : '⚖';
+        playerLabel.textContent = `${emoji} ${pl.name} ${stanceGlyph}`;
       }
       const [d1, d2] = payload.dice ?? [null, null];
       if (d1 != null) {

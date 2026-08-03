@@ -44,6 +44,15 @@ export function effectImpacts(s: GameState, effect: Effect): MarketSignalImpact[
         else if (move.risk) risk(move.risk, move.d);
       });
       break;
+    case 'regime':
+      Object.values(STOCK_BY_CODE).forEach((stock) => {
+        const d = effect.regime === 'bull'
+          ? (stock.risk === 'High' ? 2 : stock.risk === 'Med' ? 1 : 0)
+          : (stock.risk === 'High' ? -2 : stock.risk === 'Med' ? -1 : 1);
+        if (d !== 0) add(stock.code, d);
+      });
+      s.ipos.filter((ipo) => ipo.revealed).forEach((ipo) => add(ipo.code, effect.regime === 'bull' ? 1 : -1));
+      break;
     case 'lowest': {
       const target = pool.slice().sort((a, b) => stepOf(s, a.code) - stepOf(s, b.code))[0];
       if (target) add(target.code, effect.d);

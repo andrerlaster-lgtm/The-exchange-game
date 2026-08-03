@@ -7,6 +7,7 @@ export type Phase = 'setup' | 'play' | 'over';
 export type TurnPhase = 'preRoll' | 'acted';
 export type LogKind = 'g' | 'r' | 'y' | 'b' | 'n';
 export type TradeKind = 'buy' | 'sell' | 'ipo' | 'short' | 'settle' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
+export type MarketStance = 'bullish' | 'balanced' | 'bearish';
 
 export interface TradeEntry {
   kind: TradeKind;
@@ -25,6 +26,7 @@ export interface Player {
   shares: Record<string, number>;    // code -> qty (regular + IPO)
   etfShares: Record<string, number>; // ETF code -> qty held
   margin: number;                    // total outstanding margin dollars
+  marketStance: MarketStance;        // latest qualifying market position, resolved by Bull/Bear Run
   prevRank: number | null;           // rank at end of previous turn (null = first turn)
 }
 

@@ -78,7 +78,7 @@ export function resetPlayers(s: GameState): void {
     const name = (s.names[i] || `Player ${i + 1}`).trim() || `Player ${i + 1}`;
     s.players.push({
       name, color: PLAYER_COLORS[i], piece: s.pieces[i] ?? DEFAULT_PIECES[i],
-      cash: s.opts.startCash, pos: 1, shares: {}, etfShares: {}, margin: 0, prevRank: null,
+      cash: s.opts.startCash, pos: 1, shares: {}, etfShares: {}, margin: 0, marketStance: 'balanced', prevRank: null,
     });
   }
 }

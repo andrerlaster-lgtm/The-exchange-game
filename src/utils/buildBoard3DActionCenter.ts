@@ -5,7 +5,7 @@ import {
 import type { GameState } from '../engine';
 import {
   bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
-  fedSignalForStock, playerSignalExposure, priceOf, sellBackPrice,
+  fedSignalForStock, marketStanceMeta, playerSignalExposure, priceOf, sellBackPrice,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction } from './sync3dBoard';
 
@@ -24,6 +24,7 @@ function button(label: string, action: Board3DAction, tone: 'primary' | 'danger'
 /** Build a presentation-only action model so the 3D page never reimplements game rules. */
 export function buildActionCenter(s: GameState): ActionCenter3D {
   const current = s.players[s.cur];
+  const currentStance = marketStanceMeta(current.marketStance);
   const required: ActionPanel3D[] = [];
   const gameActive = s.phase === 'play';
   const latestFed = s.marketSignals.find((signal) => signal.kind === 'fed');
@@ -238,8 +239,8 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   const marginLocked = !!(s.marginCall?.player === s.cur || s.insolvency?.player === s.cur);
   const purchaseOpen = gameActive && (!!s.trade || s.ipoListPick || !!s.ipoBuy);
   const portfolio: ActionPanel3D = {
-    id: 'portfolio', title: `${current.name} · Portfolio`, accent: current.color,
-    description: `Cash ${money(current.cash)} · Margin ${money(current.margin)} · Bank sales: up to half each holding; 3+ at once lowers price`,
+    id: 'portfolio', title: `${currentStance.glyph} ${current.name} · ${currentStance.label} Portfolio`, accent: currentStance.color,
+    description: `Cash ${money(current.cash)} · Margin ${money(current.margin)} · Latest qualifying action sets Bull/Bear stance · Bank sales: up to half each holding; 3+ at once lowers price`,
     rows: holdings,
     buttons: [
       button(`Take Margin +${money(MARGIN_INCREMENT)}`, { t: 'takeMargin' }, 'gold', !s.opts.margin || !purchaseOpen || current.margin + MARGIN_INCREMENT > MARGIN_MAX || !!s.auction),

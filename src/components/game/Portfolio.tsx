@@ -3,7 +3,7 @@ import { ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, PIECE_BY_KEY, SECTORS
 import {
   completedSectors, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
-  netWorth, priceOf, projectedDividend,
+  marketStanceMeta, netWorth, priceOf, projectedDividend,
 } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -22,6 +22,7 @@ export default function Portfolio() {
   const nw = netWorth(s, p);
   const bp = getBuyingPower(viewIdx, s);
   const risk = getPortfolioRisk(viewIdx, s);
+  const stance = marketStanceMeta(p.marketStance);
   const nwMv = getPlayerNetWorthMovement(viewIdx, s);
   const nwColor = nwMv.direction === 'up' ? 'var(--green)' : nwMv.direction === 'down' ? 'var(--red)' : 'var(--muted)';
   const nwGlyph = nwMv.direction === 'up' ? '▲' : nwMv.direction === 'down' ? '▼' : '—';
@@ -84,14 +85,22 @@ export default function Portfolio() {
             textShadow: '0 1px 0 rgba(43,32,22,0.55), 0 0 1px rgba(43,32,22,0.7)',
           }}>{p.name}</div>
         </div>
-        <span style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
-          color: risk.color,
-          border: `1px solid ${risk.color}45`,
-          background: `${risk.color}0f`,
-          borderRadius: 4, padding: '3px 8px',
-          marginTop: 2,
-        }}>{risk.badge}</span>
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginTop: 2 }}>
+          <span title="Latest qualifying action sets the position for the next Bull or Bear Run" style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+            color: stance.color,
+            border: `1px solid ${stance.color}55`,
+            background: `${stance.color}14`,
+            borderRadius: 4, padding: '3px 8px',
+          }}>{stance.glyph} {stance.label}</span>
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+            color: risk.color,
+            border: `1px solid ${risk.color}45`,
+            background: `${risk.color}0f`,
+            borderRadius: 4, padding: '3px 8px',
+          }}>{risk.badge}</span>
+        </div>
       </div>
 
       {/* Financials block — Cash, Margin Balance, Buying Power = Net Worth */}

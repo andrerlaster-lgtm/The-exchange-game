@@ -41,6 +41,7 @@ export default function Board3DSync() {
       name: p.name,
       cash: p.cash,
       margin: p.margin,
+      marketStance: p.marketStance,
     }));
 
     let move: { from: number; to: number; playerIdx: number } | undefined;
@@ -57,6 +58,7 @@ export default function Board3DSync() {
       color: r.color,
       piece: s.players[r.playerIdx].piece,
       nw: r.nw,
+      marketStance: s.players[r.playerIdx].marketStance,
     }));
 
     const card = s.card

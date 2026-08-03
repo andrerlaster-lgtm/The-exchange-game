@@ -1,4 +1,4 @@
-import { isDiversified, netWorth } from '../../engine';
+import { isDiversified, marketStanceMeta, netWorth } from '../../engine';
 import { PIECE_BY_KEY } from '../../data';
 import { useGameState } from '../../store';
 
@@ -11,6 +11,7 @@ export default function PlayerCards() {
         const active = i === s.cur;
         const nw = netWorth(s, p);
         const div = isDiversified(s, p);
+        const stance = marketStanceMeta(p.marketStance);
         const emoji = PIECE_BY_KEY[p.piece]?.emoji ?? '●';
         return (
           <div key={i} style={{
@@ -57,6 +58,11 @@ export default function PlayerCards() {
               background: 'rgba(34,197,94,0.12)', padding: '1px 5px',
               borderRadius: 3, border: '1px solid rgba(34,197,94,0.25)',
             }}>DIV</span>}
+            <span title={`${stance.label} position for the next Bull or Bear Run`} style={{
+              fontSize: 9, color: stance.color, fontWeight: 800,
+              background: `${stance.color}12`, padding: '1px 5px',
+              borderRadius: 3, border: `1px solid ${stance.color}38`,
+            }}>{stance.glyph}</span>
             {s.circuitBreakerHolder === i && <span title="Circuit Breaker — may protect one owned company from a negative Market Event" style={{
               fontSize: 9, color: 'var(--gold)', fontWeight: 800,
               background: 'rgba(212,165,53,0.12)', padding: '1px 5px',

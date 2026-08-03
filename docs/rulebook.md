@@ -129,7 +129,7 @@ Each turn follows the same order unless a card or special rule changes it.
 5. Resolve any required payment, buy/skip choice, Weak Demand effect, auction, card, or special-space effect.
    - 5a. If the landed space is an IPO space, only the player who landed there may buy IPO shares. A new reveal offers that IPO to the landing player; after all 4 IPOs are revealed, the landing player may choose any revealed IPO with available shares.
 6. Open the active player's Trade Step.
-7. During the Trade Step, the active player (and any other player) may propose P2P trades, and any player may sell up to 2 shares back to the bank (see Section 11).
+7. During the Trade Step, the active player (and any other player) may propose P2P trades, and the active player may sell up to half of each regular-stock holding back to the bank, rounded down (see Section 11).
 8. Resolve accepted trades and bank sales immediately.
 9. End the Trade Step. All unresolved offers expire.
 10. If the player's first roll was doubles, that player takes exactly 1 bonus roll after the landing and all required actions are fully resolved.
@@ -172,7 +172,7 @@ Fresh shares can only be bought by landing on that stock space, winning an appro
 | Market buy rule | Buy the entire untouched company at its fixed tier price or skip |
 | Company acquisition tiers | Starter $5,000; Growth $7,500; Premium $10,000 |
 | Tier opening share prices | Starter $500; Growth $750; Premium $1,000 per share |
-| Market sell cap | Sell up to 2 shares during the seller's Trade Step |
+| Market sell cap | Sell up to half of each regular-stock holding per turn, rounded down |
 | Control threshold | 6+ shares = Controller |
 | Ownership tiers | 1-2 Stock Owner; 3-5 Shareholder; 6+ Controller |
 | P2P pricing | Any agreed price; private trades do not move market price |
@@ -262,11 +262,11 @@ Sold-Out status is the mid-game claim system. It turns limited share supply into
 Selling back to the bank is allowed, but it must not reopen Sold-Out stocks or let one player quietly buy sold-back shares before everyone else has a chance.
 
 **Sell Back to Bank**
-- Selling to the bank is a Trade Step-only action, available to any player during their own turn's Trade Step. It is not available during the Market Open Trading Window.
-- A player may sell up to 2 shares back to the bank per Trade Step.
+- Selling to the bank is available to the active player after rolling and resolving required actions. It is not available during the Market Open Trading Window.
+- During one turn, a player may sell up to half of each regular-stock holding back to the bank, rounded down. Multiple sales of the same company share that cumulative limit.
 - The seller receives one price step below the current market price for each share sold.
 - If the stock is already at the lowest price step ($100 floor), use the floor price.
-- Selling back to the bank moves the stock price down one step according to the price ladder rules, unless a card says otherwise, and unless the stock is already at the $100 floor.
+- Selling 3 or more shares in one bank-sale action moves that stock down one price step, unless it is already at the $100 floor. Selling 1 or 2 shares does not move its price.
 - Sold-back shares go to the Bank Auction Pool for that company.
 - Sold-back shares do not return to normal market supply and cannot be bought directly from the board.
 
@@ -286,7 +286,7 @@ Trading is powerful, but it must happen in clean windows so the app can enforce 
 **Binding Trade Window**
 - Players may trade only during the active player's Trade Step, unless Market Open creates a Market Open Trading Window.
 - The Trade Step begins only after the active player fully resolves the landing space and all related effects.
-- During the Trade Step, any player may propose P2P trades involving cash and owned shares, and any player may sell up to 2 shares back to the bank.
+- During the Trade Step, any player may propose P2P trades involving cash and owned shares. Only the active player may sell shares to the bank, within the per-company half-holding limit.
 - Trades can be for any agreed price: above market, below market, equal to market, or another accepted cash amount.
 - All transfers must happen immediately when accepted.
 - Private trades do not move market price.
@@ -456,6 +456,32 @@ The Exchange is a net-worth race, not a bankruptcy-elimination game (see Section
 | Investor Day — space 31 | Choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step. Reaching $5,000 triggers a Market Event. If you own no eligible company, collect $500 instead. |
 | Portfolio Tax | Player pays 10% of current net worth. Net worth uses the same formula as Final Portfolio Value (see Section 1): cash + current value of regular stock shares + IPO holdings + ETF holdings - outstanding Margin balance. ETF holdings are valued at their fixed purchase/card price (see Section 15). |
 | Audit Notice | Player pays $500. If they have any outstanding Margin balance, pay an extra $250. In standard mode, with Margin off by default, this extra fee is normally dormant. |
+
+**Bull Run, Bear Run, and Market Stance**
+
+Each player holds one visible Market Stance. The latest qualifying action replaces the previous stance:
+
+- Buying a regular company or taking Margin sets **Bullish**.
+- Selling 3 or more shares in one bank sale or private trade, or opening a Short, sets **Bearish**.
+- Players begin **Balanced**. After either Run resolves, every player resets to Balanced.
+
+| Player stance | Bull Run cash | Bear Run cash |
+|---|---:|---:|
+| Bullish | +$1,500 | −$1,500 |
+| Balanced | +$500 | −$500 |
+| Bearish | −$750 | +$1,500 |
+
+Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve stock and cash effects when the card is drawn:
+
+| Investment | Bull Run | Bear Run |
+|---|---:|---:|
+| High-Risk regular stock | +2 price steps | −2 price steps |
+| Medium-Risk regular stock | +1 price step | −1 price step |
+| Low-Risk regular stock | No change | +1 price step |
+| Revealed IPO | +1 price step | −1 price step |
+| ETF | No change | No change |
+
+Dividends, share counts, and Payout Claim tiers do not change directly. Circuit Breaker may protect one owned company from a Bear Run drop. Event-driven moves stop at the price-track floor or ceiling and do not trigger another Market Event.
 
 **Circuit Breaker — Market Event hold card**
 - The former After-Hours cards are part of the combined Market Event deck; there is no separate After-Hours deck or board space.

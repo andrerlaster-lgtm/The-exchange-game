@@ -7,6 +7,7 @@ export interface Player3DState {
   name: string;
   cash: number;
   margin: number;
+  marketStance: 'bullish' | 'balanced' | 'bearish';
 }
 
 export interface CardPreview {
@@ -23,6 +24,7 @@ export interface LBEntry {
   color: string;
   piece: string;
   nw: number;
+  marketStance: 'bullish' | 'balanced' | 'bearish';
 }
 
 export interface TradeInfo3D {
