@@ -4,7 +4,7 @@ import {
 } from '../data';
 import type { GameState } from '../engine';
 import {
-  blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
+  bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
   fedSignalForStock, playerSignalExposure, priceOf, sellBackPrice,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction } from './sync3dBoard';
@@ -200,7 +200,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     required.push({
       id: 'trade-step', title: s.trade.scope === 'stock' ? 'Stock Space' : `Free Trading Day · ${s.trade.actionsLeft} Actions Left`,
       accent: s.trade.scope === 'stock' ? '#d4a535' : '#3ed598',
-      description: s.trade.scope === 'stock' ? 'Buy the full company or skip.' : 'Buy an untouched company or sell one owned share per action.',
+      description: s.trade.scope === 'stock' ? 'Buy the full company or skip.' : 'Buy an untouched company or sell owned shares within the half-holding limit per action.',
       rows: stocks.filter(Boolean).map((stock) => {
         const owned = current.shares[stock.code] ?? 0;
         const untouched = (s.supply[stock.code] ?? 0) === REGULAR_SUPPLY;
@@ -208,7 +208,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
           ? [button(`Buy Company · ${money(stock.buyout)}`, { t: 'buy', code: stock.code }, 'primary', !untouched || current.cash < stock.buyout)]
           : [
               button(`Buy · ${money(stock.buyout)}`, { t: 'buy', code: stock.code }, 'primary', !untouched || current.cash < stock.buyout),
-              button(`Sell 1 · ${money(sellBackPrice(s, stock.code))}`, { t: 'sell', code: stock.code }, 'danger', owned <= 0),
+              button(`Sell 1 · ${money(sellBackPrice(s, stock.code))}`, { t: 'sell', code: stock.code }, 'danger', bankSellRemaining(s, stock.code) <= 0),
             ];
         const fed = fedSignalForStock(s, stock.code);
         return { key: stock.code, title: `${stock.code} · ${stock.name}`, detail: `Own ${owned} · ${s.supply[stock.code] ?? 0} available · ${fed.label}`, value: money(priceOf(s, stock.code)), buttons: actions };
@@ -220,19 +220,26 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   const sellable = gameActive && canMarketSell(s);
   const holdings = Object.entries(current.shares)
     .filter(([code, qty]) => !isIpoCode(code) && qty > 0)
-    .map(([code, qty]) => ({
-      key: code, title: `${code} · ${codeName(code)}`, detail: `Own ${qty} · ${fedSignalForStock(s, code).label}`, value: `Sell at ${money(sellBackPrice(s, code))}`,
-      buttons: [
-        button('Sell 1', { t: 'sell', code, qty: 1 }, 'danger', !sellable),
-        button('Sell 2', { t: 'sell', code, qty: 2 }, 'danger', !sellable || qty < 2),
-      ],
-    }));
+    .map(([code, qty]) => {
+      const limit = bankSellLimit(s, code);
+      const remaining = bankSellRemaining(s, code);
+      return {
+        key: code,
+        title: `${code} · ${codeName(code)}`,
+        detail: `Own ${qty} · ${remaining} of ${limit} bank-sale shares left · ${fedSignalForStock(s, code).label}`,
+        value: `Sell at ${money(sellBackPrice(s, code))}`,
+        buttons: Array.from({ length: limit }, (_, index) => {
+          const amount = index + 1;
+          return button(`Sell ${amount}`, { t: 'sell', code, qty: amount }, 'danger', !sellable || amount > remaining);
+        }),
+      };
+    });
   const repayAmount = Math.min(MARGIN_INCREMENT, current.margin);
   const marginLocked = !!(s.marginCall?.player === s.cur || s.insolvency?.player === s.cur);
   const purchaseOpen = gameActive && (!!s.trade || s.ipoListPick || !!s.ipoBuy);
   const portfolio: ActionPanel3D = {
     id: 'portfolio', title: `${current.name} · Portfolio`, accent: current.color,
-    description: `Cash ${money(current.cash)} · Margin ${money(current.margin)}`,
+    description: `Cash ${money(current.cash)} · Margin ${money(current.margin)} · Bank sales: up to half each holding; 3+ at once lowers price`,
     rows: holdings,
     buttons: [
       button(`Take Margin +${money(MARGIN_INCREMENT)}`, { t: 'takeMargin' }, 'gold', !s.opts.margin || !purchaseOpen || current.margin + MARGIN_INCREMENT > MARGIN_MAX || !!s.auction),

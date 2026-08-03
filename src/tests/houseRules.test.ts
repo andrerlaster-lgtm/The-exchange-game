@@ -17,7 +17,7 @@ describe('Regular stock supply is 11', () => {
   });
 });
 
-describe('Max trade qty (2 shares per SELL action — buying is all-or-nothing)', () => {
+describe('Max bank-sale quantity (half the 11-share company)', () => {
   it('buying out a company is unaffected by MAX_TRADE_QTY — always the full 11-share supply', () => {
     let s = started();
     s = rollTo(s, 5); // MEDI stock space
@@ -26,14 +26,14 @@ describe('Max trade qty (2 shares per SELL action — buying is all-or-nothing)'
     expect(REGULAR_SUPPLY).toBeGreaterThan(MAX_TRADE_QTY);
   });
 
-  it('rejects a sell of more than MAX_TRADE_QTY shares', () => {
+  it('rejects a sell of more than half the holding', () => {
     let s = started();
-    s = patch(s, (d) => { d.players[0].shares.MEDI = 5; });
+    s = patch(s, (d) => { d.players[0].shares.MEDI = REGULAR_SUPPLY; });
     s = rollTo(s, 5);
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: MAX_TRADE_QTY + 1 }, rng());
     expect(s.players[0].cash).toBe(before);
-    expect(s.players[0].shares.MEDI).toBe(5);
+    expect(s.players[0].shares.MEDI).toBe(REGULAR_SUPPLY);
   });
 });
 

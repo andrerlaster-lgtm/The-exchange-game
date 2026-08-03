@@ -1,8 +1,8 @@
 // Trading Market — the current player can sell owned stock on their turn without
-// having to land on that stock's space (still moves price on 2+ share sales).
+// having to land on that stock's space (moves price on block sales of 3+).
 
 import { describe, expect, it } from 'vitest';
-import { canMarketSell, priceOf, sellBackPrice } from '../engine';
+import { bankSellLimit, bankSellRemaining, canMarketSell, priceOf, sellBackPrice } from '../engine';
 
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
@@ -35,36 +35,62 @@ describe('Trading Market — sell without landing', () => {
     expect(s.players[0].cash).toBe(cash + proceeds);
   });
 
-  it('selling 2+ from the market still drops the price one step', () => {
+  it('selling 2 does not move the price, while selling 3 at once drops it one step', () => {
     let s = started();
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     s = patch(s, (d) => { d.trade = null; d.turnPhase = 'acted'; });
     const base = s.prices.MEDI;
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 2 }, rng());
-    expect(s.prices.MEDI).toBe(base - 1);
+    expect(s.prices.MEDI).toBe(base);
     expect(s.players[0].shares.MEDI).toBe(9);
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
+    expect(s.prices.MEDI).toBe(base - 1);
+    expect(s.players[0].shares.MEDI).toBe(6);
   });
 
-  it('allows unlimited market sells in one turn (no per-turn cap)', () => {
+  it('limits cumulative bank sales to half the starting holding, rounded down', () => {
     let s = started();
-    s = rollTo(s, 5);
-    // Acquire several distinct holdings, then move off the Trade Step.
     s = patch(s, (d) => {
-      d.players[0].shares = { MEDI: 2, SAFE: 1, OILW: 1 };
+      d.players[0].shares = { MEDI: 11 };
       d.trade = null; d.turnPhase = 'acted'; d.pendingDraws = [];
     });
 
-    // Sell holding after holding — the market stays open the whole turn.
-    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 1 }, rng());
-    expect(canMarketSell(s)).toBe(true);
-    s = dispatch(s, { t: 'sell', code: 'SAFE', qty: 1 }, rng());
-    expect(canMarketSell(s)).toBe(true);
-    s = dispatch(s, { t: 'sell', code: 'OILW', qty: 1 }, rng());
+    expect(bankSellLimit(s, 'MEDI')).toBe(5);
+    expect(bankSellRemaining(s, 'MEDI')).toBe(5);
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 2 }, rng());
+    expect(bankSellRemaining(s, 'MEDI')).toBe(3);
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
+    expect(bankSellRemaining(s, 'MEDI')).toBe(0);
 
-    expect(s.players[0].shares.MEDI).toBe(1);
-    expect(s.players[0].shares.SAFE ?? 0).toBe(0);
-    expect(s.players[0].shares.OILW ?? 0).toBe(0);
+    const cashAtLimit = s.players[0].cash;
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 1 }, rng());
+    expect(s.players[0].shares.MEDI).toBe(6);
+    expect(s.players[0].cash).toBe(cashAtLimit);
+  });
+
+  it('tracks the half-holding allowance separately for each company', () => {
+    let s = patch(started(), (d) => {
+      d.players[0].shares = { MEDI: 2, SAFE: 2, OILW: 2 };
+      d.turnPhase = 'acted';
+    });
+
+    for (const code of ['MEDI', 'SAFE', 'OILW']) {
+      s = dispatch(s, { t: 'sell', code, qty: 1 }, rng());
+      expect(s.players[0].shares[code]).toBe(1);
+      expect(bankSellRemaining(s, code)).toBe(0);
+    }
+  });
+
+  it('clears the sale tracker when the turn ends', () => {
+    let s = patch(started(2), (d) => {
+      d.players[0].shares.MEDI = 4;
+      d.turnPhase = 'acted';
+    });
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 2 }, rng());
+    expect(s.bankSoldThisTurn.MEDI).toBe(2);
+    s = dispatch(s, { t: 'endTurn' }, rng());
+    expect(s.bankSoldThisTurn).toEqual({});
   });
 
   it('market sell is blocked during the Market Open window', () => {

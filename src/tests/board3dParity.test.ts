@@ -52,10 +52,24 @@ describe('3D Action Center parity', () => {
     });
     const center = buildActionCenter(s);
 
-    expect(center.portfolio.rows?.[0].buttons?.map((entry) => entry.action.t)).toEqual(['sell', 'sell']);
+    expect(center.portfolio.rows?.[0].buttons?.map((entry) => entry.action.t)).toEqual(['sell']);
     expect(center.portfolio.buttons?.map((entry) => entry.action.t)).toEqual(['takeMargin', 'repayMargin']);
     expect(center.tradeDesk.players).toHaveLength(2);
     expect(center.canCallClose).toBe(true);
+  });
+
+  it('offers up to half a holding in 3D and disables quantities above the remaining allowance', () => {
+    let s = patch(started(2), (draft) => {
+      draft.turnPhase = 'acted';
+      draft.players[0].shares.MEDI = 11;
+    });
+    let row = buildActionCenter(s).portfolio.rows?.[0];
+    expect(row?.buttons?.map((entry) => entry.label)).toEqual(['Sell 1', 'Sell 2', 'Sell 3', 'Sell 4', 'Sell 5']);
+
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
+    row = buildActionCenter(s).portfolio.rows?.[0];
+    expect(row?.detail).toContain('2 of 5 bank-sale shares left');
+    expect(row?.buttons?.map((entry) => entry.disabled)).toEqual([false, false, true, true, true]);
   });
 
   it('turns Investor Day into a selectable 3D action instead of a 2D-only hint', () => {

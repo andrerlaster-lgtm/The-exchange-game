@@ -52,12 +52,27 @@ export function canTradeNow(s: GameState): boolean {
  * Whether the current player may sell owned stock back to the bank from the
  * Trading Market right now — i.e. it's their turn, they've rolled, and nothing
  * else demands attention. Unlike {@link canTradeNow} this does NOT require having
- * landed on a stock space, and there is no per-turn limit: a player may liquidate
- * as many holdings as they like on their own turn. Bank sell-back is still closed
- * during the Market Open window (that reopens on the Trade Step).
+ * landed on a stock space. The per-company half-holding allowance is enforced by
+ * the sell action. Bank sell-back is still closed during the Market Open window
+ * (that reopens on the Trade Step).
  */
 export function canMarketSell(s: GameState): boolean {
   return s.turnPhase === 'acted' && !blocked(s);
+}
+
+/** Maximum shares of one company the current player may sell to the bank this
+    turn. The allowance is half the holding at the start of the sale cycle,
+    rounded down. Adding shares later can increase that allowance. */
+export function bankSellLimit(s: GameState, code: string): number {
+  const owned = s.players[s.cur]?.shares[code] ?? 0;
+  const alreadySold = s.bankSoldThisTurn[code] ?? 0;
+  return Math.floor((owned + alreadySold) / 2);
+}
+
+/** Remaining bank-sale allowance for one company during the current turn. */
+export function bankSellRemaining(s: GameState, code: string): number {
+  const alreadySold = s.bankSoldThisTurn[code] ?? 0;
+  return Math.max(0, bankSellLimit(s, code) - alreadySold);
 }
 
 /** Whether End Turn is blocked by an unresolved required action. */

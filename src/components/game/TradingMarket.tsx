@@ -1,12 +1,13 @@
 // Trading Market — sits at the top of the board. Lets the current player sell any
 // stock they own on their own turn, without having to land on that stock's space.
 // Sell-back economy (rulebook §11): the seller receives one price step below the
-// current market price; selling 2+ shares additionally drops the stock's price one
-// step (mirrors the 2+ buy rule). IPO shares are sold player-to-player, not here.
+// current market price. A player may sell up to half of each holding per turn,
+// rounded down; selling 3+ shares at once drops the price one step. IPO shares are
+// sold player-to-player, not here.
 
 import { useState } from 'react';
-import { MAX_TRADE_QTY, STOCK_BY_CODE, isIpoCode } from '../../data';
-import { canMarketSell, getStockMovementStatus, priceOf, sellBackPrice, stepOf } from '../../engine';
+import { STOCK_BY_CODE, isIpoCode } from '../../data';
+import { bankSellLimit, bankSellRemaining, canMarketSell, getStockMovementStatus, priceOf, sellBackPrice, stepOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -50,7 +51,7 @@ export default function TradingMarket() {
       )}
 
       <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.7, lineHeight: 1.4 }}>
-        Sell-back pays one price step below market · selling 2+ shares drops the price one step.
+        Sell up to half of each holding per turn (rounded down) · 3+ shares at once drops the price one step.
       </div>
     </div>
   );
@@ -59,9 +60,11 @@ export default function TradingMarket() {
 function MarketRow({ code, owned, s, dispatch, sellable }: {
   code: string; owned: number; s: GameState; dispatch: (a: Action) => void; sellable: boolean;
 }) {
-  const maxQty = Math.min(owned, MAX_TRADE_QTY);
+  const limit = bankSellLimit(s, code);
+  const maxQty = bankSellRemaining(s, code);
+  const sold = s.bankSoldThisTurn[code] ?? 0;
   const [qty, setQty] = useState(1);
-  const q = Math.min(qty, maxQty);
+  const q = Math.min(qty, Math.max(1, maxQty));
   const price = priceOf(s, code);
   const sellPrice = sellBackPrice(s, code);
   const atFloor = stepOf(s, code) === 0;
@@ -89,13 +92,13 @@ function MarketRow({ code, owned, s, dispatch, sellable }: {
           <span className="mono">${price.toLocaleString()}</span>
           {' · sells at '}
           <span className="mono" style={{ color: 'var(--red)' }}>${sellPrice.toLocaleString()}</span>
-          {atFloor ? ' (floor)' : ''} · own {owned}
+          {atFloor ? ' (floor)' : ''} · own {owned} · {maxQty} of {limit} left{sold > 0 ? ` (${sold} sold)` : ''}
         </div>
       </div>
 
       {/* Quantity selector */}
       <div style={{ display: 'flex', gap: 3 }}>
-        {Array.from({ length: MAX_TRADE_QTY }, (_, i) => i + 1).map((n) => (
+        {Array.from({ length: limit }, (_, i) => i + 1).map((n) => (
           <button
             key={n}
             onClick={() => setQty(n)}
@@ -114,7 +117,7 @@ function MarketRow({ code, owned, s, dispatch, sellable }: {
 
       <button
         style={{ fontSize: 11, padding: '4px 12px', background: sellable ? 'var(--red)' : undefined, color: sellable ? '#fff' : undefined, border: sellable ? 'none' : undefined, fontWeight: 700 }}
-        disabled={!sellable}
+        disabled={!sellable || maxQty < 1}
         onClick={() => dispatch({ t: 'sell', code, qty: q })}>
         Sell{q > 1 ? ` ${q}` : ''} · ${(sellPrice * q).toLocaleString()}
       </button>
@@ -124,7 +127,7 @@ function MarketRow({ code, owned, s, dispatch, sellable }: {
 
 /** Why the market is temporarily unavailable, for a small inline hint. */
 function sellHint(s: GameState): string {
-  if (s.turnPhase === 'preRoll') return 'Roll to start your turn, then sell as much as you like here.';
+  if (s.turnPhase === 'preRoll') return 'Roll to start your turn, then sell up to half of each holding.';
   if (s.marketOpenWindow) return 'Bank sell-back reopens after the Market Open window closes.';
   if (s.auction) return 'Resolve the live auction first.';
   if (s.marginCall || s.insolvency) return 'Settle the forced sale first.';

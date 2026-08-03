@@ -1,7 +1,7 @@
 // Low-level read-only selectors. Re-export rules and scoring for a unified public surface.
 // Import from this file (or engine/index.ts) rather than from rules/scoringEngine directly.
 
-export { clampStep, ipoOf, stepOf, priceOf, sellBackPrice, eventPool, canTradeNow, canMarketSell, blocked, shortPayout } from './rules';
+export { clampStep, ipoOf, stepOf, priceOf, sellBackPrice, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked, shortPayout } from './rules';
 export { sharesValue, netWorth, isDiversified } from './scoringEngine';
 export { topOwner, recomputeClaim, claimPayout } from './soldOut';
 export { completedSectors, hasSectorPortfolio, distinctSectors, diversificationTier, diversificationBonus } from './sector';

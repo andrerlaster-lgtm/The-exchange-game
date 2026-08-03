@@ -47,7 +47,7 @@ export const BROAD_MARKET_SECTORS = 6;   // distinct sectors for the Broad Marke
 export const DIVERSIFIED_BONUS = 300;    // paid at Market Open for 3-5 sectors
 export const BROAD_MARKET_BONUS = 600;   // paid instead for 6+ sectors
 // ── Market trade limits ─────────────────────────────────────────────────────
-export const MAX_TRADE_QTY = 2; // max shares per single SELL action against the bank (buying is all-or-nothing — see REGULAR_SUPPLY)
+export const MAX_TRADE_QTY = Math.floor(REGULAR_SUPPLY / 2); // largest possible half-holding bank sale from the 11-share supply
 // ── Weak Demand ──────────────────────────────────────────────────────────────
 export const WEAK_DEMAND_THRESHOLD = 2; // markers before the price drops 1 step
 

@@ -5,7 +5,7 @@
 
 import { MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { Stock } from '../../data/types';
-import { canTradeNow, priceOf, sellBackPrice } from '../../engine';
+import { bankSellRemaining, canTradeNow, priceOf, sellBackPrice } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 import TradeTicket from './TradeTicket';
 import FedSignalBadge from './FedSignalBadge';
@@ -85,6 +85,7 @@ export default function StockTradeCard() {
             const price = priceOf(s, st.code);
             const sellPrice = sellBackPrice(s, st.code);
             const owned = p.shares[st.code] ?? 0;
+            const sellRemaining = bankSellRemaining(s, st.code);
             const supply = s.supply[st.code] ?? 0;
             const untouched = supply === REGULAR_SUPPLY; // whole company still available to buy out
             const buyoutCost = st.buyout;
@@ -111,8 +112,8 @@ export default function StockTradeCard() {
                   <span style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', padding: '2px 4px' }}>Owned</span>
                 )}
                 <button style={{ fontSize: 11, padding: '2px 8px' }}
-                  disabled={owned <= 0}
-                  title={`Sell one step below market · $${sellPrice.toLocaleString()}`}
+                  disabled={sellRemaining <= 0}
+                  title={sellRemaining > 0 ? `Sell one step below market · $${sellPrice.toLocaleString()} · ${sellRemaining} left this turn` : 'Half-holding bank-sale limit reached'}
                   onClick={() => dispatch({ t: 'sell', code: st.code })}>Sell&nbsp;${sellPrice.toLocaleString()}</button>
               </div>
             );

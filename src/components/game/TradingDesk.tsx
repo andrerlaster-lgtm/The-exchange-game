@@ -2,7 +2,7 @@
 
 import { STOCKS } from '../../data';
 import type { Stock } from '../../data/types';
-import { priceOf } from '../../engine';
+import { bankSellRemaining, priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 import { canTradeNow } from '../../engine';
@@ -41,7 +41,7 @@ export function Desk({ tradeable, s, dispatch, isStock }: {
               disabled={supply <= 0 || p.cash < price}
               onClick={() => dispatch({ t: 'buy', code: st.code })}>Buy</button>
             <button style={{ fontSize: 11, padding: '3px 8px' }}
-              disabled={owned <= 0}
+              disabled={bankSellRemaining(s, st.code) <= 0}
               onClick={() => dispatch({ t: 'sell', code: st.code })}>Sell</button>
             {isStock && (
               <button style={{ fontSize: 11, padding: '3px 8px' }}

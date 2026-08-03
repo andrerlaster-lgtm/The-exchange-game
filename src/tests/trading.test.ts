@@ -94,13 +94,13 @@ describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-n
     expect(s.players[0].cash).toBe(cash + LADDER[0]);
   });
 
-  it('selling 2+ shares back still moves the price down one step', () => {
+  it('selling 3+ shares back moves the price down one step', () => {
     let s = started();
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     const base = s.prices.MEDI;
     s = patch(s, (d) => { d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
-    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 2 }, rng());
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
     expect(s.prices.MEDI).toBe(base - 1);
   });
 
@@ -109,9 +109,9 @@ describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-n
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     s = patch(s, (d) => { d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
-    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 2 }, rng());
+    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
     expect(s.supply.MEDI).toBe(0);        // still nothing for sale directly
-    expect(s.bankPool.MEDI).toBe(2);      // pooled for the next Bank Auction
+    expect(s.bankPool.MEDI).toBe(3);      // pooled for the next Bank Auction
   });
 
   it('leaves a company already at the top of the ladder unchanged on buy-out', () => {

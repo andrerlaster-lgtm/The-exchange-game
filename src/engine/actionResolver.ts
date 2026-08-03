@@ -9,7 +9,7 @@ import {
 import { money } from '../utils/formatMoney';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
-import { canTradeNow, canMarketSell, blocked, ipoOf, priceOf, sellBackPrice } from './rules';
+import { bankSellRemaining, canTradeNow, canMarketSell, blocked, ipoOf, priceOf, sellBackPrice } from './rules';
 import { freshDecks, freshIpos, resetPlayers } from './gameState';
 import { payMarketOpen } from './playerState';
 import { moveTradePrice, moveEventPrice, settleShorts } from './stockState';
@@ -347,20 +347,21 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const { code } = action;
       const qty = action.qty ?? 1;
       if (isIpoCode(code)) break;
-      if (qty < 1 || qty > MAX_TRADE_QTY) break; // max shares sold per action
+      if (!Number.isInteger(qty) || qty < 1 || qty > MAX_TRADE_QTY) break;
       const p = s.players[s.cur];
       const owned = p.shares[code] || 0;
       if (owned < qty) break;
       // Two ways to sell: an active Trade Step (landed on a stock / Free Trading Day),
       // which consumes a trade action — or the Trading Market, available on any of
-      // your own turns without landing and with no per-turn limit. Either way you
-      // can sell ANY owned regular stock back to the bank.
+      // your own turns without landing. Both routes share the same per-company,
+      // per-turn allowance: half the holding, rounded down.
       const t = s.trade;
       const tradeStepSell = !!t && canTradeNow(s);
       if (!tradeStepSell && !canMarketSell(s)) break;
+      if (qty > bankSellRemaining(s, code)) break;
       // Rulebook §11: the seller receives one price step BELOW current market
-      // (or the $100 floor). Selling 2+ shares additionally moves the price down
-      // one step (mirrors the 2+ buy rule).
+      // (or the $100 floor). A block sale of 3+ shares additionally moves the
+      // market price down one step.
       const price = sellBackPrice(s, code);
       p.cash += price * qty;
       p.shares[code] = owned - qty;
@@ -369,9 +370,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // (held aside for future auctions), NOT back into normal supply.
       if (s.soldOut[code]) s.bankPool[code] = (s.bankPool[code] || 0) + qty;
       else s.supply[code] = (s.supply[code] || 0) + qty;
-      if (qty >= 2) moveTradePrice(s, code, -1);
+      s.bankSoldThisTurn[code] = (s.bankSoldThisTurn[code] || 0) + qty;
+      if (qty >= 3) moveTradePrice(s, code, -1);
       if (tradeStepSell) t!.actionsLeft -= 1;
-      const moved = qty >= 2 ? ' (▼1 step)' : '';
+      const moved = qty >= 3 ? ' (▼1 step)' : '';
       addLog(s, `${p.name} sells ${qty} ${code} @ ${money(price)}${moved}`, 'r');
       addTradeLog(s, 'sell', `${qty}× ${code} @ ${money(price)}`, price * qty, p.name);
       if (recomputeClaim(s, code)) logClaimHandover(s, code);

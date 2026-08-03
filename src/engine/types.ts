@@ -211,6 +211,7 @@ export interface GameState {
   skips: Record<string, number>;       // code -> weak-demand marker count (0-3)
   soldOut: Record<string, SoldOutInfo>; // presence of key ⇔ stock is permanently sold out
   bankPool: Record<string, number>;    // shares sold back into a sold-out stock, awaiting auction
+  bankSoldThisTurn: Record<string, number>; // regular shares sold to the bank by the current player this turn
   auction: Auction | null;             // active Bank Auction (blocks End Turn until resolved)
   auctionQueue: string[];              // codes with pooled shares awaiting their Market Open auction
   marketOpenWindow: boolean;           // Market Open Trading Window open (blocks End Turn until closed)
