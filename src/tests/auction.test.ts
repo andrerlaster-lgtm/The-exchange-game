@@ -63,6 +63,25 @@ describe('Bank Auction — bidding', () => {
     expect(s.bankPool[CODE]).toBe(0);
   });
 
+  it('promotes an auction takeover when control passes to another player', () => {
+    let s = withPool(started(2), 1, 0);
+    s = patch(s, (d) => {
+      d.players[0].shares[CODE] = 4;
+      d.players[1].shares[CODE] = 4;
+    });
+    s = passMarketOpen(s);
+    const start = s.auction!.startPrice;
+    s = dispatch(s, { t: 'auctionPass' }, rng());
+    s = dispatch(s, { t: 'auctionBid', amount: start }, rng());
+
+    expect(s.soldOut[CODE].claimHolder).toBe(1);
+    expect(s.marketSignals[0]).toMatchObject({
+      kind: 'claim',
+      title: `${CODE} Taken Over`,
+    });
+    expect(s.marketSignals[0].summary).toContain('Riley took control');
+  });
+
   it('lets a single remaining bidder win uncontested after others pass', () => {
     let s = started(2);
     s = withPool(s, 1);

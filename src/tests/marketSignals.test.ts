@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fedSignalForStock, recordMarketSignal } from '../engine';
+import { fedSignalForStock, importantMarketSignals, recordMarketSignal } from '../engine';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -43,7 +43,7 @@ describe('Market Intelligence signals', () => {
     expect(signal.lastTitle).toBe('Warning');
   });
 
-  it('keeps routine rolls out of the feed but records sold-out and weak-demand events', () => {
+  it('keeps routine rolls, purchases, and weak-demand markers out of Important Events', () => {
     let s = dispatch(started(2), { t: 'roll' }, scriptedRng([1, 2]));
     expect(s.marketSignals).toEqual([]);
 
@@ -52,7 +52,8 @@ describe('Market Intelligence signals', () => {
       draft.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 };
     });
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
-    expect(s.marketSignals[0]).toMatchObject({ kind: 'soldout', title: 'MEDI Sold Out' });
+    expect(s.marketSignals.some((signal) => signal.kind === 'soldout')).toBe(false);
+    expect(importantMarketSignals(s)).toEqual([]);
 
     for (let i = 0; i < 2; i++) {
       s = patch(s, (draft) => {
@@ -64,6 +65,27 @@ describe('Market Intelligence signals', () => {
     expect(s.marketSignals[0]).toMatchObject({
       kind: 'weakDemand', title: 'Weak Demand · SAFE', impacts: [{ code: 'SAFE', d: -1 }],
     });
+    expect(importantMarketSignals(s)).toEqual([]);
+  });
+
+  it('shows market-wide Runs and real player-to-player takeovers as important', () => {
+    let s = patch(started(2), (draft) => {
+      recordMarketSignal(draft, {
+        kind: 'market', title: 'Bull Run', summary: 'The entire market moved.', impacts: [],
+      });
+      draft.supply.MEDI = 0;
+      draft.soldOut.MEDI = { code: 'MEDI', claimHolder: 0 };
+      draft.players[0].shares.MEDI = 5;
+      draft.players[1].shares.MEDI = 2;
+    });
+
+    s = dispatch(s, { t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 4, direction: 'sell', price: 100 }, rng());
+    s = dispatch(s, { t: 'acceptP2POffer', id: s.p2pOffers[0].id }, rng());
+
+    expect(importantMarketSignals(s).map((signal) => signal.title)).toEqual([
+      'MEDI Taken Over', 'Bull Run',
+    ]);
+    expect(importantMarketSignals(s)[0].summary).toContain('Riley took control of MEDI from Morgan');
   });
 
   it('exposes the same Fed Watch in the 3D Action Center', () => {
@@ -74,12 +96,15 @@ describe('Market Intelligence signals', () => {
         stance: 'hawkish', insight: 'Banks gain a lending tailwind.',
         impacts: [{ code: 'FTRB', d: 1 }, { code: 'MTRO', d: -1 }],
       });
+      recordMarketSignal(draft, {
+        kind: 'market', title: 'Bear Run', summary: 'The broad market fell.', impacts: [],
+      });
     });
     const center = buildActionCenter(s);
 
     expect(center.marketIntel.title).toBe('Fed Watch · Rate Hike');
     expect(center.marketIntel.description).toContain('Tailwind: FTRB');
-    expect(center.marketIntel.rows?.[0]).toMatchObject({ title: 'Rate Hike', value: 'Lap 1' });
+    expect(center.marketIntel.rows?.[0]).toMatchObject({ title: 'Bear Run', value: 'Lap 1' });
   });
 
   it('clears old intelligence when a new game starts', () => {

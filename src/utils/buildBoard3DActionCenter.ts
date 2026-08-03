@@ -5,7 +5,7 @@ import {
 import type { GameState } from '../engine';
 import {
   bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
-  fedSignalForStock, marketStanceMeta, playerSignalExposure, priceOf, sellBackPrice,
+  fedSignalForStock, importantMarketSignals, marketStanceMeta, playerSignalExposure, priceOf, sellBackPrice,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction } from './sync3dBoard';
 
@@ -42,7 +42,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     description: latestFed
       ? `${(latestFed.stance ?? 'neutral').toUpperCase()} · ${latestFed.summary}${latestFed.insight ? ` What it means: ${latestFed.insight}` : ''} Your exposure: ${playerSignalExposure(s, latestFed)}`
       : 'Fed decisions and the major events worth acting on will stay here. Routine turns remain in Details.',
-    rows: s.marketSignals.slice(0, 5).map((signal) => ({
+    rows: importantMarketSignals(s).slice(0, 5).map((signal) => ({
       key: `signal-${signal.id}`,
       title: signal.title,
       detail: signal.summary,

@@ -1,4 +1,4 @@
-import { playerSignalExposure } from '../../engine';
+import { importantMarketSignals, playerSignalExposure } from '../../engine';
 import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 
@@ -42,7 +42,7 @@ export default function MarketIntelligence() {
   const s = useGameState();
   const latestFed = s.marketSignals.find((signal) => signal.kind === 'fed');
   const fedHistory = s.marketSignals.filter((signal) => signal.kind === 'fed').slice(0, 3);
-  const important = s.marketSignals.slice(0, 6);
+  const important = importantMarketSignals(s).slice(0, 6);
   const stance = latestFed?.stance ? STANCE[latestFed.stance] : STANCE.neutral;
 
   return (

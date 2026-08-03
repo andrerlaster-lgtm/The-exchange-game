@@ -21,7 +21,7 @@ import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayout } from './soldOut';
 import { handleBid, handlePass } from './auction';
 import { hasSectorPortfolio } from './sector';
-import { effectImpacts, recordCardSignal, recordMarketSignal } from './marketSignals';
+import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
@@ -56,24 +56,19 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
 
   addLog(s, `${seller.name} sells ${offer.qty}× ${offer.code} to ${buyer.name} for ${money(offer.price)} (private trade)`, 'b');
   addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name}`, offer.price, seller.name);
-  if (recomputeClaim(s, offer.code)) logClaimHandover(s, offer.code);
+  recomputeAndLogClaim(s, offer.code);
   return true;
 }
 
 /** Log a Payout Claim handover after ownership shifts (fires only on real changes). */
-function logClaimHandover(s: GameState, code: string): void {
+function recomputeAndLogClaim(s: GameState, code: string): void {
+  const previousHolder = s.soldOut[code]?.claimHolder ?? null;
+  if (!recomputeClaim(s, code)) return;
   const holder = s.soldOut[code]?.claimHolder;
   addLog(s, holder == null
     ? `${code} Payout Claim is now Contested.`
     : `${code} Payout Claim passes to ${s.players[holder].name}.`, 'y');
-  recordMarketSignal(s, {
-    kind: 'claim',
-    title: `${code} Claim ${holder == null ? 'Contested' : 'Transferred'}`,
-    summary: holder == null
-      ? `${code}'s Payout Claim no longer has a sole top owner.`
-      : `${s.players[holder].name} now controls ${code}'s Payout Claim.`,
-    impacts: [],
-  });
+  recordClaimTakeover(s, code, previousHolder);
 }
 
 /** Open a forced-sale Insolvency for a payment shortfall (Portfolio Tax,
@@ -352,12 +347,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // sole owner, and the share-market price stays unchanged on acquisition.
       s.soldOut[code] = { code, claimHolder: topOwner(s, code) };
       addLog(s, `${code} is SOLD OUT — ${p.name} holds the Payout Claim.`, 'y');
-      recordMarketSignal(s, {
-        kind: 'soldout',
-        title: `${code} Sold Out`,
-        summary: `${p.name} acquired ${stock.name} and now holds its Payout Claim.`,
-        impacts: [],
-      });
       break;
     }
     case 'sell': {
@@ -394,7 +383,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const moved = qty >= 3 ? ' (▼1 step)' : '';
       addLog(s, `${p.name} sells ${qty} ${code} @ ${money(price)}${moved}`, 'r');
       addTradeLog(s, 'sell', `${qty}× ${code} @ ${money(price)}`, price * qty, p.name);
-      if (recomputeClaim(s, code)) logClaimHandover(s, code);
+      recomputeAndLogClaim(s, code);
       break;
     }
     case 'skipStock': {
@@ -478,7 +467,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       else s.supply[code] = (s.supply[code] || 0) + 1;
       addLog(s, `${p.name} sells 1 ${code} @ ${money(price)} to cover margin`, 'r');
       addTradeLog(s, 'sell', `1× ${code} @ ${money(price)} (margin)`, price, p.name);
-      if (recomputeClaim(s, code)) logClaimHandover(s, code);
+      recomputeAndLogClaim(s, code);
       break;
     }
     case 'payMarginCall': {
@@ -516,7 +505,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       else s.supply[code] = (s.supply[code] || 0) + 1;
       addLog(s, `${p.name} force-sells 1 ${code} @ ${money(price)} to cover ${iv.label}`, 'r');
       addTradeLog(s, 'sell', `1× ${code} @ ${money(price)} (forced)`, price, p.name);
-      if (recomputeClaim(s, code)) logClaimHandover(s, code);
+      recomputeAndLogClaim(s, code);
       break;
     }
     case 'payInsolvency': {

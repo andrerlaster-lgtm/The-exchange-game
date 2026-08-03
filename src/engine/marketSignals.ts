@@ -18,6 +18,32 @@ export function recordMarketSignal(s: GameState, input: SignalInput): void {
   if (s.marketSignals.length > MAX_SIGNALS) s.marketSignals.length = MAX_SIGNALS;
 }
 
+/** Events important enough for the compact 2D/3D highlights feed.
+    Fed decisions have their own persistent Fed Watch panel; routine IPO
+    reveals, purchases, and weak-demand markers remain in Details. */
+export function importantMarketSignals(s: GameState): MarketSignal[] {
+  return s.marketSignals.filter((signal) =>
+    signal.kind === 'market' || signal.kind === 'claim' || signal.kind === 'close');
+}
+
+/** Promote a real ownership takeover, but not an initial purchase or a move
+    into/out of Contested status. */
+export function recordClaimTakeover(
+  s: GameState,
+  code: string,
+  previousHolder: number | null,
+): boolean {
+  const nextHolder = s.soldOut[code]?.claimHolder ?? null;
+  if (previousHolder == null || nextHolder == null || previousHolder === nextHolder) return false;
+  recordMarketSignal(s, {
+    kind: 'claim',
+    title: `${code} Taken Over`,
+    summary: `${s.players[nextHolder].name} took control of ${code} from ${s.players[previousHolder].name} and now holds its Payout Claim.`,
+    impacts: [],
+  });
+  return true;
+}
+
 /** Resolve a card effect into the companies it is expected to move. */
 export function effectImpacts(s: GameState, effect: Effect): MarketSignalImpact[] {
   const pool = eventPool(s);

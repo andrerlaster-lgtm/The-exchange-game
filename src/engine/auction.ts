@@ -9,6 +9,7 @@ import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
 import { clampStep } from './rules';
 import { recomputeClaim } from './soldOut';
+import { recordClaimTakeover } from './marketSignals';
 
 function addLog(s: GameState, text: string, kind: 'g' | 'r' | 'y' | 'b' | 'n' = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -125,7 +126,13 @@ function closeLot(s: GameState, winner: number): void {
 function finishStock(s: GameState, sold: boolean): void {
   const a = s.auction!;
   if (!sold) addLog(s, `Bank Auction — ${a.code}: no bids, ${a.poolLeft} share(s) stay in the pool.`);
-  recomputeClaim(s, a.code);
+  const previousHolder = s.soldOut[a.code]?.claimHolder ?? null;
+  if (recomputeClaim(s, a.code)) {
+    const nextHolder = s.soldOut[a.code]?.claimHolder ?? null;
+    if (nextHolder == null) addLog(s, `${a.code} Payout Claim is now Contested.`, 'y');
+    else addLog(s, `${a.code} Payout Claim passes to ${s.players[nextHolder].name}.`, 'y');
+    recordClaimTakeover(s, a.code, previousHolder);
+  }
   s.auction = null;
   openNextAuction(s);
 }
