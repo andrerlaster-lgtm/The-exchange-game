@@ -5,7 +5,8 @@
 // bank), so there is nothing to "own" or sell yet — landing here is strictly a
 // buy-the-whole-company-or-skip decision.
 
-import { fullCompanyDividendPerMarketOpen, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, stockOpportunityFor, WEAK_DEMAND_THRESHOLD } from '../../data';
+import type { StockOpportunity } from '../../data';
 import { priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import FedSignalBadge from './FedSignalBadge';
@@ -47,7 +48,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
     : `${stepDiff > 0 ? '+' : ''}${stepDiff} STEP${Math.abs(stepDiff) !== 1 ? 'S' : ''}`;
 
   const buyoutCost = stock.buyout;
-  const dividendPerLap = fullCompanyDividendPerMarketOpen(stock);
+  const opportunity = stockOpportunityFor(stock);
   const canBuy = canAct && supply === REGULAR_SUPPLY && p.cash >= buyoutCost;
 
   return (
@@ -130,21 +131,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
         </div>
       </div>
 
-      {/* Lead with the recurring income instead of repeating the full-supply purchase rule. */}
-      <div style={{
-        position: 'relative',
-        background: 'linear-gradient(90deg, #0f5132, #22a861, #0f5132)',
-        borderRadius: 9, padding: 8, textAlign: 'center',
-        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25), 0 0 14px rgba(34,197,94,0.28)',
-        lineHeight: 1.1,
-      }}>
-        <div style={{ fontWeight: 900, color: '#f0fff5', fontSize: 13, letterSpacing: 1.1 }}>
-          {dividendPerLap > 0 ? '+' : ''}${dividendPerLap.toLocaleString()} DIVIDEND EACH LAP
-        </div>
-        <div style={{ fontWeight: 800, color: 'rgba(240,255,245,0.78)', fontSize: 9, letterSpacing: 0.8 }}>
-          PAID AT MARKET OPEN · INCLUDES CONTROLLER BONUS
-        </div>
-      </div>
+      <OpportunityPanel opportunity={opportunity} />
 
       {/* Meta line */}
       <div style={{ position: 'relative', fontSize: 9.5, color: 'rgba(200,188,168,0.65)', letterSpacing: 0.3, textAlign: 'center' }}>
@@ -172,6 +159,73 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
         Skip {weakCount > 0 ? `(${weakCount + 1}/${WEAK_DEMAND_THRESHOLD} — price drops next skip)` : ''}
       </button>
     </div>
+  );
+}
+
+const OPPORTUNITY_THEME: Record<StockOpportunity['tone'], { bg: string; border: string; glow: string; value: string }> = {
+  growth: {
+    bg: 'linear-gradient(145deg, #062b55, #074d8f)', border: '#38bdf8',
+    glow: 'rgba(14,165,233,0.3)', value: '#7dd3fc',
+  },
+  balanced: {
+    bg: 'linear-gradient(145deg, #4a2e08, #8a5a10)', border: '#f0b429',
+    glow: 'rgba(240,180,41,0.28)', value: '#fde68a',
+  },
+  income: {
+    bg: 'linear-gradient(145deg, #073d22, #0f6a38)', border: '#4ade80',
+    glow: 'rgba(34,197,94,0.28)', value: '#86efac',
+  },
+};
+
+function signedStep(value: number): string {
+  return `${value > 0 ? '+' : ''}${value}`;
+}
+
+function OpportunityPanel({ opportunity }: { opportunity: StockOpportunity }) {
+  const theme = OPPORTUNITY_THEME[opportunity.tone];
+  const runRow = opportunity.tone === 'income'
+    ? { label: 'BEAR RUN', value: `${signedStep(opportunity.bearMove)} PRICE STEP` }
+    : { label: 'BULL / BEAR RUN', value: `${signedStep(opportunity.bullMove)} / ${signedStep(opportunity.bearMove)} STEPS` };
+  const firstRow = opportunity.tone === 'growth'
+    ? runRow
+    : { label: 'DIVIDEND EACH LAP', value: `+$${opportunity.dividendPerLap.toLocaleString()}` };
+  const rows = opportunity.tone === 'growth'
+    ? [
+        firstRow,
+        { label: 'LANDING PAYOUT', value: `$${opportunity.landingPayout.toLocaleString()}` },
+        { label: 'SECTOR PAYOUT', value: `UP TO $${opportunity.sectorPayout.toLocaleString()}` },
+        { label: 'DIVIDEND', value: 'NONE' },
+      ]
+    : [
+        firstRow,
+        runRow,
+        { label: 'LANDING PAYOUT', value: `$${opportunity.landingPayout.toLocaleString()}` },
+        { label: 'SECTOR PAYOUT', value: `UP TO $${opportunity.sectorPayout.toLocaleString()}` },
+      ];
+
+  return (
+    <section aria-label={`${opportunity.title} benefits`} style={{
+      position: 'relative', borderRadius: 10, padding: '9px 11px 7px',
+      background: theme.bg, border: `1px solid ${theme.border}`,
+      boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.1), 0 0 16px ${theme.glow}`,
+    }}>
+      <div style={{
+        color: '#fff', fontSize: 14, fontWeight: 900, letterSpacing: 1.2,
+        textAlign: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.2)',
+      }}>
+        {opportunity.title}
+      </div>
+      {rows.map((row) => (
+        <div key={row.label} style={{
+          display: 'flex', justifyContent: 'space-between', gap: 8,
+          padding: '5px 1px', borderBottom: '1px solid rgba(255,255,255,0.12)',
+          fontSize: 9.5, fontWeight: 800, letterSpacing: 0.55,
+        }}>
+          <span style={{ color: 'rgba(255,255,255,0.75)' }}>{row.label}</span>
+          <span style={{ color: theme.value, textAlign: 'right' }}>{row.value}</span>
+        </div>
+      ))}
+    </section>
   );
 }
 

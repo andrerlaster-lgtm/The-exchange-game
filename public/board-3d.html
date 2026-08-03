@@ -11,13 +11,30 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #2b1e12; overflow: hidden; font-family: 'IBM Plex Mono', monospace, system-ui, sans-serif; }
     canvas { display: block; }
-    #hud {
-      position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-      color: rgba(212,165,53,0.8); font-size: 11px; letter-spacing: 2px;
-      background: rgba(22,18,13,0.9); padding: 6px 18px; border-radius: 20px;
-      border: 1px solid rgba(212,165,53,0.22); pointer-events: none; white-space: nowrap;
-      text-transform: uppercase;
+    #market-ticker {
+      position:fixed; top:10px; left:150px; right:145px; height:34px; z-index:15;
+      display:flex; align-items:stretch; overflow:hidden;
+      border:1px solid rgba(212,165,53,.42); border-radius:8px;
+      background:rgba(12,10,8,.94); box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.04);
+      color:rgba(235,226,210,.92); font-family:'IBM Plex Mono',monospace;
     }
+    #market-ticker-title {
+      z-index:1; display:flex; align-items:center; flex-shrink:0; padding:0 13px;
+      border-right:1px solid rgba(212,165,53,.34);
+      background:linear-gradient(90deg,rgba(138,106,32,.38),rgba(55,41,18,.5));
+      color:#d4a535; font-size:9px; font-weight:900; letter-spacing:1.5px; white-space:nowrap;
+    }
+    #market-ticker-viewport { min-width:0; flex:1; overflow:hidden; }
+    #market-ticker-track { display:flex; width:max-content; height:100%; animation:marketTicker3D 72s linear infinite; will-change:transform; }
+    #market-ticker:hover #market-ticker-track,#market-ticker:focus-within #market-ticker-track { animation-play-state:paused; }
+    .ticker3d-group { display:flex; align-items:center; padding-right:24px; }
+    .ticker3d-entry { display:inline-flex; align-items:center; gap:7px; min-width:max-content; padding:0 13px; border-right:1px solid rgba(138,122,104,.24); font-size:10px; line-height:1; }
+    .ticker3d-entry strong { color:#e8d8b8; letter-spacing:.5px; }
+    .ticker3d-move { font-weight:900; }
+    .ticker3d-entry.up .ticker3d-move { color:#4ade80; }
+    .ticker3d-entry.down .ticker3d-move { color:#f87171; }
+    .ticker3d-entry.flat .ticker3d-move { color:#9a8f7c; }
+    @keyframes marketTicker3D { from { transform:translateX(0); } to { transform:translateX(-50%); } }
     #back {
       position: fixed; top: 14px; left: 14px; color: #8a7a68; font-size: 11px;
       background: rgba(22,18,13,0.9); padding: 6px 14px; cursor: pointer;
@@ -291,15 +308,20 @@
     .tc-stat-val { font-family: 'Anton', sans-serif; font-size: 26px; color: #15110b; line-height: 1.05; }
     .tc-stat-sep { width: 1px; background: rgba(0,0,0,.15); }
 
-    /* recurring-income banner */
-    .tc-income {
-      background: linear-gradient(90deg,#0f5132,#22a861,#0f5132);
-      border-radius: 9px; padding: 8px; text-align: center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 0 14px rgba(34,197,94,.28);
-      line-height: 1.1;
+    /* risk-specific reason-to-buy panel */
+    .tc-opportunity {
+      --opp-border:#4ade80; --opp-value:#86efac; --opp-glow:rgba(34,197,94,.28);
+      border-radius:10px; padding:9px 11px 7px;
+      border:1px solid var(--opp-border);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 0 16px var(--opp-glow);
+      background:linear-gradient(145deg,#073d22,#0f6a38);
     }
-    .tc-income-title { font-weight: 900; color: #f0fff5; font-size: 13px; letter-spacing: 1.1px; }
-    .tc-income-sub { font-weight: 800; color: rgba(240,255,245,.78); font-size: 9px; letter-spacing: .8px; }
+    .tc-opportunity.growth { --opp-border:#38bdf8; --opp-value:#7dd3fc; --opp-glow:rgba(14,165,233,.3); background:linear-gradient(145deg,#062b55,#074d8f); }
+    .tc-opportunity.balanced { --opp-border:#f0b429; --opp-value:#fde68a; --opp-glow:rgba(240,180,41,.28); background:linear-gradient(145deg,#4a2e08,#8a5a10); }
+    .tc-opportunity-title { color:#fff; font-size:14px; font-weight:900; letter-spacing:1.2px; text-align:center; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,.2); }
+    .tc-benefit-row { display:flex; justify-content:space-between; gap:8px; padding:5px 1px; border-bottom:1px solid rgba(255,255,255,.12); font-size:9.5px; font-weight:800; letter-spacing:.55px; }
+    .tc-benefit-label { color:rgba(255,255,255,.75); }
+    .tc-benefit-value { color:var(--opp-value); text-align:right; }
     .tc-fed-signal {
       align-self: center; border-radius: 999px; padding: 4px 9px;
       font-size: 9px; font-weight: 900; letter-spacing: .65px; text-transform: uppercase;
@@ -413,11 +435,15 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.001ms !important;
       }
+      #market-ticker-track { animation:none !important; transform:none !important; }
     }
   </style>
 </head>
 <body>
-  <div id="hud">THE EXCHANGE · 3D Board · Drag to rotate · Scroll to zoom · Right-drag to pan</div>
+  <section id="market-ticker" aria-label="Live stock price tracker" tabindex="0">
+    <div id="market-ticker-title">MARKET TICKER</div>
+    <div id="market-ticker-viewport"><div id="market-ticker-track"></div></div>
+  </section>
   <button id="back">← Back to Game</button>
   <div id="legend">
     <div class="leg"><div class="dot" style="background:#22c55e"></div> Market Open · IPO · Bull Run</div>
@@ -468,6 +494,7 @@
           <div class="tc-badges">
             <span class="tc-badge" id="tc-sector"></span>
             <span class="tc-badge" id="tc-risk"></span>
+            <span class="tc-badge" id="tc-tier"></span>
           </div>
         </div>
         <div class="tc-divider"></div>
@@ -496,9 +523,12 @@
           </div>
         </div>
       </div>
-      <div class="tc-income">
-        <div class="tc-income-title" id="tc-income-title">$0 DIVIDEND EACH LAP</div>
-        <div class="tc-income-sub">PAID AT MARKET OPEN · INCLUDES CONTROLLER BONUS</div>
+      <div class="tc-opportunity" id="tc-opportunity">
+        <div class="tc-opportunity-title" id="tc-opportunity-title">INCOME &amp; STABILITY</div>
+        <div class="tc-benefit-row"><span class="tc-benefit-label" id="tc-benefit-label-0"></span><span class="tc-benefit-value" id="tc-benefit-value-0"></span></div>
+        <div class="tc-benefit-row"><span class="tc-benefit-label" id="tc-benefit-label-1"></span><span class="tc-benefit-value" id="tc-benefit-value-1"></span></div>
+        <div class="tc-benefit-row"><span class="tc-benefit-label" id="tc-benefit-label-2"></span><span class="tc-benefit-value" id="tc-benefit-value-2"></span></div>
+        <div class="tc-benefit-row"><span class="tc-benefit-label" id="tc-benefit-label-3"></span><span class="tc-benefit-value" id="tc-benefit-value-3"></span></div>
       </div>
       <div class="tc-fed-signal" id="tc-fed-signal">NO RECENT FED EFFECT</div>
       <div id="trade-qty-row" style="display:none;">
@@ -589,6 +619,44 @@
     };
     const RISK_TXT = ['LOW','MED','HIGH'];
     const RISK_COL = ['#5f7a52','#9c6f1f','#a83a2c'];
+
+    const marketTickerTrack = document.getElementById('market-ticker-track');
+    let marketTickerKey = '';
+
+    function makeTickerGroup(prices, hidden) {
+      const group = document.createElement('div');
+      group.className = 'ticker3d-group';
+      if (hidden) group.setAttribute('aria-hidden', 'true');
+      Object.values(STOCKS).forEach((stock) => {
+        const info = prices?.[stock.code];
+        if (!info) return;
+        const delta = Number.isFinite(info.delta) ? info.delta : info.d;
+        const direction = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+        const glyph = direction === 'up' ? '▲' : direction === 'down' ? '▼' : '—';
+        const entry = document.createElement('span');
+        entry.className = `ticker3d-entry ${direction}`;
+        entry.title = `${stock.code} is ${Math.abs(delta)} step${Math.abs(delta) === 1 ? '' : 's'} ${direction} from its opening price`;
+
+        const code = document.createElement('strong');
+        code.textContent = stock.code;
+        const price = document.createElement('span');
+        price.textContent = `$${info.p.toLocaleString()}`;
+        const move = document.createElement('span');
+        move.className = 'ticker3d-move';
+        move.textContent = `${glyph} ${delta > 0 ? '+' : ''}${delta}`;
+        entry.append(code, price, move);
+        group.appendChild(entry);
+      });
+      return group;
+    }
+
+    function updateMarketTicker(prices) {
+      if (!prices) return;
+      const key = JSON.stringify(prices);
+      if (key === marketTickerKey) return;
+      marketTickerKey = key;
+      marketTickerTrack.replaceChildren(makeTickerGroup(prices, false), makeTickerGroup(prices, true));
+    }
 
     function gridPos(n) {
       if (n <= 10) return { col: n, row: 1 };
@@ -1647,19 +1715,42 @@
     const tcName   = document.getElementById('tc-name');
     const tcSector = document.getElementById('tc-sector');
     const tcRisk   = document.getElementById('tc-risk');
+    const tcTier   = document.getElementById('tc-tier');
     const tcGlyph  = document.getElementById('tc-glyph');
     const tcPrice  = document.getElementById('tc-price');
     const tcArrow  = document.getElementById('tc-arrow');
     const tcStep   = document.getElementById('tc-step');
     const tcSupply = document.getElementById('tc-supply');
     const tcDiv    = document.getElementById('tc-div');
-    const tcIncomeTitle = document.getElementById('tc-income-title');
+    const tcOpportunity = document.getElementById('tc-opportunity');
+    const tcOpportunityTitle = document.getElementById('tc-opportunity-title');
+    const tcBenefitLabels = Array.from({ length: 4 }, (_, i) => document.getElementById(`tc-benefit-label-${i}`));
+    const tcBenefitValues = Array.from({ length: 4 }, (_, i) => document.getElementById(`tc-benefit-value-${i}`));
     const tcFedSignal = document.getElementById('tc-fed-signal');
     const btnTradeBuy  = document.getElementById('btn-trade-buy');
     const btnTradeSell = document.getElementById('btn-trade-sell');
     const qtyBtns = Array.from(document.querySelectorAll('.qty-btn'));
 
     const RISK_MAP = { High: ['HIGH RISK', '#c0392b'], Med: ['MED RISK', '#b07d1a'], Low: ['LOW RISK', '#1f7a44'] };
+
+    function signedStep(value) { return `${value > 0 ? '+' : ''}${value}`; }
+    function opportunityRows(opportunity) {
+      const runRow = opportunity.tone === 'income'
+        ? ['BEAR RUN', `${signedStep(opportunity.bearMove)} PRICE STEP`]
+        : ['BULL / BEAR RUN', `${signedStep(opportunity.bullMove)} / ${signedStep(opportunity.bearMove)} STEPS`];
+      if (opportunity.tone === 'growth') return [
+        runRow,
+        ['LANDING PAYOUT', `$${opportunity.landingPayout.toLocaleString()}`],
+        ['SECTOR PAYOUT', `UP TO $${opportunity.sectorPayout.toLocaleString()}`],
+        ['DIVIDEND', 'NONE'],
+      ];
+      return [
+        ['DIVIDEND EACH LAP', `+$${opportunity.dividendPerLap.toLocaleString()}`],
+        runRow,
+        ['LANDING PAYOUT', `$${opportunity.landingPayout.toLocaleString()}`],
+        ['SECTOR PAYOUT', `UP TO $${opportunity.sectorPayout.toLocaleString()}`],
+      ];
+    }
 
     let tradeQty = 1;
     let tradeInfoGlobal = null;
@@ -1707,6 +1798,8 @@
       const [riskLabel, riskColor] = RISK_MAP[ti.risk] || ['—', '#555'];
       tcRisk.textContent = riskLabel;
       tcRisk.style.background = riskColor;
+      tcTier.textContent = `${String(ti.tier || '').toUpperCase()} TIER`;
+      tcTier.style.background = '#6b4f1f';
 
       // Price + step direction
       tcGlyph.textContent = ti.glyph || '◆';
@@ -1724,8 +1817,14 @@
       tcSupply.textContent = ti.supply;
       tcDiv.textContent = `$${ti.dividend}`;
 
-      // Show the recurring full-company payout at a glance.
-      tcIncomeTitle.textContent = `${ti.dividendPerLap > 0 ? '+' : ''}$${ti.dividendPerLap.toLocaleString()} DIVIDEND EACH LAP`;
+      // Show the reason to buy this risk profile at a glance.
+      const opportunity = ti.opportunity;
+      tcOpportunity.className = `tc-opportunity ${opportunity.tone}`;
+      tcOpportunityTitle.textContent = opportunity.title;
+      opportunityRows(opportunity).forEach(([label, value], index) => {
+        tcBenefitLabels[index].textContent = label;
+        tcBenefitValues[index].textContent = value;
+      });
       const fed = ti.fedSignal || { label: 'No recent Fed effect', tone: 'neutral', lastTitle: null };
       tcFedSignal.textContent = `${fed.tone === 'tailwind' ? '▲ ' : fed.tone === 'headwind' ? '▼ ' : fed.tone === 'mixed' ? '↕ ' : '— '}${fed.label}`;
       tcFedSignal.className = `tc-fed-signal ${fed.tone || 'neutral'}`;
@@ -2129,6 +2228,7 @@
       updateActionCenter(payload);
       updateTradePanel(payload);
       refreshStockTiles(payload.prices);
+      updateMarketTicker(payload.prices);
       updateDeckCounts(payload.deckCounts);
       handleDrawEvent(payload.drawEvent);
       turnRingTokenIdx = payload.currentPlayerIdx ?? -1;

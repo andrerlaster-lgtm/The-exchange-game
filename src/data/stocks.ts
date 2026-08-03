@@ -46,6 +46,40 @@ export const PAYOUT_TIER_CONTROL = 2_000; // holder owns 6+ shares (Controller)
 export const PAYOUT_TIER_LOW_SECTOR = 750;
 export const PAYOUT_TIER_MID_SECTOR = 1_500;
 export const PAYOUT_TIER_CONTROL_SECTOR = 3_000;
+
+export const MARKET_RUN_MOVE_BY_RISK = {
+  bull: { Low: 0, Med: 1, High: 2 },
+  bear: { Low: 1, Med: -1, High: -2 },
+} satisfies Record<'bull' | 'bear', Record<Risk, number>>;
+
+export interface StockOpportunity {
+  title: 'GROWTH POTENTIAL' | 'BALANCED OPPORTUNITY' | 'INCOME & STABILITY';
+  tone: 'growth' | 'balanced' | 'income';
+  dividendPerLap: number;
+  bullMove: number;
+  bearMove: number;
+  landingPayout: number;
+  sectorPayout: number;
+}
+
+/** Player-facing reason to buy a company, derived from the same values used by the engine. */
+export function stockOpportunityFor(stock: Pick<Stock, 'div' | 'risk'>): StockOpportunity {
+  const title = stock.risk === 'High'
+    ? 'GROWTH POTENTIAL'
+    : stock.risk === 'Low'
+      ? 'INCOME & STABILITY'
+      : 'BALANCED OPPORTUNITY';
+  const tone = stock.risk === 'High' ? 'growth' : stock.risk === 'Low' ? 'income' : 'balanced';
+  return {
+    title,
+    tone,
+    dividendPerLap: fullCompanyDividendPerMarketOpen(stock),
+    bullMove: MARKET_RUN_MOVE_BY_RISK.bull[stock.risk],
+    bearMove: MARKET_RUN_MOVE_BY_RISK.bear[stock.risk],
+    landingPayout: PAYOUT_TIER_CONTROL,
+    sectorPayout: PAYOUT_TIER_CONTROL_SECTOR,
+  };
+}
 // ── Diversification (Market Open income bonus) ───────────────────────────────
 export const DIVERSIFIED_SECTORS = 3;    // distinct regular-stock sectors for Diversified status + bonus
 export const BROAD_MARKET_SECTORS = 6;   // distinct sectors for the Broad Market bonus

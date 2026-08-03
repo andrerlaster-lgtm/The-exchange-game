@@ -1,4 +1,5 @@
 import type { Action } from '../engine';
+import type { StockOpportunity } from '../data';
 
 export interface Player3DState {
   pos: number;
@@ -41,7 +42,7 @@ export interface TradeInfo3D {
   glyph: string;         // sector glyph char
   risk: string;          // 'Low' | 'Med' | 'High'
   dividend: number;      // printed dividend per share
-  dividendPerLap: number; // full-company payout at each Market Open, including control bonus
+  opportunity: StockOpportunity;
   stepDiff: number;      // current step − starting step (signed)
   tier: string;          // Starter | Growth | Premium
   buyoutPrice: number;   // fixed whole-company acquisition price
@@ -129,6 +130,7 @@ export interface ActionCenter3D {
 export interface PriceInfo3D {
   p: number;        // current dollar price
   d: -1 | 0 | 1;    // direction vs printed starting step
+  delta: number;    // signed ladder-step difference from opening
   s: number;        // shares remaining in supply
   so?: boolean;     // sold out (permanent)
   claim?: number | null; // Payout Claim holder player index; null = Contested

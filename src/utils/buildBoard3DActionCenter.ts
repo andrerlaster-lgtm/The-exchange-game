@@ -1,6 +1,6 @@
 import {
   ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, LADDER, MARGIN_DEFAULT_PENALTY,
-  fullCompanyDividendPerMarketOpen, MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, isIpoCode,
+  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, isIpoCode, stockOpportunityFor,
 } from '../data';
 import type { GameState } from '../engine';
 import {
@@ -212,10 +212,14 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
               button(`Sell 1 · ${money(sellBackPrice(s, stock.code))}`, { t: 'sell', code: stock.code }, 'danger', bankSellRemaining(s, stock.code) <= 0),
             ];
         const fed = fedSignalForStock(s, stock.code);
+        const opportunity = stockOpportunityFor(stock);
+        const leadBenefit = opportunity.dividendPerLap > 0
+          ? `Dividend ${money(opportunity.dividendPerLap)}/lap`
+          : `Bull Run +${opportunity.bullMove} steps`;
         return {
           key: stock.code,
           title: `${stock.code} · ${stock.name}`,
-          detail: `Own ${owned} · ${s.supply[stock.code] ?? 0} available · Dividend ${money(fullCompanyDividendPerMarketOpen(stock))} each lap · ${fed.label}`,
+          detail: `Own ${owned} · ${opportunity.title} · ${leadBenefit} · Landing ${money(opportunity.landingPayout)} · ${fed.label}`,
           value: money(priceOf(s, stock.code)),
           buttons: actions,
         };

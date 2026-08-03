@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { TurnPhase } from '../../engine';
 import { blocked, canTradeNow, fedSignalForStock, gameProgressLabel, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
-import { fullCompanyDividendPerMarketOpen, SECTORS, STOCK_BY_CODE, STOCKS } from '../../data';
+import { SECTORS, STOCK_BY_CODE, STOCKS, stockOpportunityFor } from '../../data';
 import { useGameState, useDispatch } from '../../store';
 import { buildActionCenter } from '../../utils/buildBoard3DActionCenter';
 import { sync3dBoard, isBoard3DCommand, takeNextBoard3DCommand } from '../../utils/sync3dBoard';
@@ -86,7 +86,7 @@ export default function Board3DSync() {
           glyph: SECTORS[st.sector].glyph,
           risk: st.risk,
           dividend: st.div,
-          dividendPerLap: fullCompanyDividendPerMarketOpen(st),
+          opportunity: stockOpportunityFor(st),
           stepDiff: (s.prices[code] ?? st.step) - st.step,
           tier: st.tier,
           buyoutPrice: st.buyout,
@@ -96,13 +96,14 @@ export default function Board3DSync() {
     }
 
     // Live price snapshot for every regular stock (tiles + hover tooltips)
-    const prices: Record<string, { p: number; d: -1 | 0 | 1; s: number; so?: boolean; claim?: number | null }> = {};
+    const prices: Record<string, { p: number; d: -1 | 0 | 1; delta: number; s: number; so?: boolean; claim?: number | null }> = {};
     for (const st of STOCKS) {
       const mv = getStockMovementStatus(st.code, s);
       const rec = s.soldOut[st.code];
       prices[st.code] = {
         p: priceOf(s, st.code),
         d: mv.direction === 'up' ? 1 : mv.direction === 'down' ? -1 : 0,
+        delta: mv.stepDifference,
         s: s.supply[st.code] ?? 0,
         so: !!rec,
         claim: rec ? rec.claimHolder : undefined,

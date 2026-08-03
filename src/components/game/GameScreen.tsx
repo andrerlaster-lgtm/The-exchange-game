@@ -12,18 +12,24 @@ import CardDisplay from '../cards/CardDisplay';
 import IpoPanel from '../cards/IpoPanel';
 import ShortPanel from '../cards/ShortPanel';
 import MarketIntelligence from './MarketIntelligence';
+import MarketTicker from './MarketTicker';
 
 export default function GameScreen() {
   return (
     <div style={{
       display: 'grid',
       gridTemplateColumns: '252px 1fr 282px',
+      gridTemplateRows: '34px minmax(0, 1fr)',
       height: '100vh',
       gap: 10,
       padding: 10,
       overflow: 'hidden',
       background: 'radial-gradient(ellipse 130% 90% at 50% -5%, #2e2010 0%, #1e1608 45%, var(--bg) 70%)',
     }}>
+      <div style={{ gridColumn: '1 / -1', minWidth: 0, marginRight: 128 }}>
+        <MarketTicker />
+      </div>
+
       {/* Left column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, overflowY: 'auto' }}>

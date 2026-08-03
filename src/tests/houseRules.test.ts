@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR,
-  fullCompanyDividendPerMarketOpen, MAX_TRADE_QTY, REGULAR_SUPPLY, STOCK_BY_CODE,
+  fullCompanyDividendPerMarketOpen, MAX_TRADE_QTY, REGULAR_SUPPLY, STOCK_BY_CODE, stockOpportunityFor,
 } from '../data';
 import { priceOf } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
@@ -74,6 +74,29 @@ describe('Controlling Stake dividend boost', () => {
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
     expect(gained).toBe(500 + 50 * CONTROL_THRESHOLD_IPO * CONTROL_DIVIDEND_MULTIPLIER);
+  });
+});
+
+describe('Risk-specific stock card benefits', () => {
+  it('explains high-risk growth upside and no dividend', () => {
+    expect(stockOpportunityFor(STOCK_BY_CODE.CCAI)).toMatchObject({
+      title: 'GROWTH POTENTIAL', tone: 'growth', dividendPerLap: 0,
+      bullMove: 2, bearMove: -2, landingPayout: 2_000, sectorPayout: 3_000,
+    });
+  });
+
+  it('explains medium-risk income and balanced movement', () => {
+    expect(stockOpportunityFor(STOCK_BY_CODE.MEDI)).toMatchObject({
+      title: 'BALANCED OPPORTUNITY', tone: 'balanced', dividendPerLap: 1_100,
+      bullMove: 1, bearMove: -1,
+    });
+  });
+
+  it('explains low-risk income and Bear Run strength', () => {
+    expect(stockOpportunityFor(STOCK_BY_CODE.SAFE)).toMatchObject({
+      title: 'INCOME & STABILITY', tone: 'income', dividendPerLap: 2_200,
+      bullMove: 0, bearMove: 1,
+    });
   });
 });
 

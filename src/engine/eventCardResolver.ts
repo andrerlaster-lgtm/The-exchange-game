@@ -1,6 +1,6 @@
 // Card effect application and market-close trigger (called on Immer drafts).
 
-import { CIRCUIT_BREAKER_INDEX, STOCK_BY_CODE } from '../data';
+import { CIRCUIT_BREAKER_INDEX, MARKET_RUN_MOVE_BY_RISK, STOCK_BY_CODE } from '../data';
 import { money } from '../utils/formatMoney';
 import type { Effect } from '../data/types';
 import type { GameState, LogKind } from './types';
@@ -186,9 +186,7 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
       });
       break;
     case 'regime': {
-      const regularMove = e.regime === 'bull'
-        ? { Low: 0, Med: 1, High: 2 }
-        : { Low: 1, Med: -1, High: -2 };
+      const regularMove = MARKET_RUN_MOVE_BY_RISK[e.regime];
       Object.values(STOCK_BY_CODE).forEach((stock) => {
         const d = regularMove[stock.risk];
         if (d !== 0) move(stock.code, d);
