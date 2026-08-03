@@ -4,6 +4,7 @@
 // or they run out, at which point any remainder is waived (rulebook §17).
 
 import { describe, expect, it } from 'vitest';
+import { PAYOUT_TIER_CONTROL } from '../data';
 import { blocked } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -124,7 +125,7 @@ describe('Insolvency — Payout Claim landing payment', () => {
     s = patch(s, (d) => {
       d.supply[CODE] = 0;
       d.soldOut[CODE] = { code: CODE, claimHolder: 1 };
-      d.players[1].shares[CODE] = 6; // Controller tier → owes $800
+      d.players[1].shares[CODE] = 6; // Controller tier
       d.players[0].cash = 100;
       d.players[0].shares = { MEDI: 5 }; // sellable regular stock
       d.players[0].pos = 6;
@@ -138,7 +139,7 @@ describe('Insolvency — Payout Claim landing payment', () => {
     expect(s.insolvency).not.toBeNull();
     expect(s.insolvency!.reason).toBe('payout');
     expect(s.insolvency!.payTo).toBe(1);
-    expect(s.insolvency!.owed).toBe(700);
+    expect(s.insolvency!.owed).toBe(PAYOUT_TIER_CONTROL - 100);
   });
 
   it('paying down insolvency routes cash to the Payout Claim holder, not the bank', () => {

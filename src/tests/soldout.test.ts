@@ -3,7 +3,10 @@
 // tier, insolvency floor, and claim transfers on later ownership changes.
 
 import { describe, expect, it } from 'vitest';
-import { PAYOUT_TIER_LOW, PAYOUT_TIER_MID, PAYOUT_TIER_CONTROL, REGULAR_SUPPLY } from '../data';
+import {
+  PAYOUT_TIER_CONTROL, PAYOUT_TIER_CONTROL_SECTOR, PAYOUT_TIER_LOW,
+  PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID, PAYOUT_TIER_MID_SECTOR, REGULAR_SUPPLY,
+} from '../data';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
 // MEDI is a regular stock at board space 5 (safe for rollTo, which needs space >= 4).
@@ -82,6 +85,11 @@ describe('Payout Claim assignment', () => {
 });
 
 describe('Landing rent on a sold-out stock', () => {
+  it('uses the approved higher-cash payout ladders', () => {
+    expect([PAYOUT_TIER_LOW, PAYOUT_TIER_MID, PAYOUT_TIER_CONTROL]).toEqual([500, 1_000, 2_000]);
+    expect([PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID_SECTOR, PAYOUT_TIER_CONTROL_SECTOR]).toEqual([750, 1_500, 3_000]);
+  });
+
   function landOn(holderShares: number) {
     let s = started(2);
     // Preset: MEDI sold out (via an earlier buy-out), player 1 holds the claim
@@ -95,7 +103,7 @@ describe('Landing rent on a sold-out stock', () => {
     return rollTo(s, SPACE); // player 0 lands on MEDI
   }
 
-  it('charges $100 when the holder owns 1-2 shares', () => {
+  it('charges $500 when the holder owns 1-2 shares', () => {
     const s0 = started(2);
     const payerCash = s0.players[0].cash;
     const holderCash = s0.players[1].cash;
@@ -106,14 +114,14 @@ describe('Landing rent on a sold-out stock', () => {
     expect(outs.length).toBe(2);
   });
 
-  it('charges $300 when the holder owns 3-5 shares', () => {
+  it('charges $1,000 when the holder owns 3-5 shares', () => {
     const s0 = started(2);
     const s = landOn(4);
     expect(s.players[0].cash).toBe(s0.players[0].cash - PAYOUT_TIER_MID);
     expect(s.players[1].cash).toBe(s0.players[1].cash + PAYOUT_TIER_MID);
   });
 
-  it('charges $800 when the holder owns 6+ shares (Controller)', () => {
+  it('charges $2,000 when the holder owns 6+ shares (Controller)', () => {
     const s0 = started(2);
     const s = landOn(6);
     expect(s.players[0].cash).toBe(s0.players[0].cash - PAYOUT_TIER_CONTROL);

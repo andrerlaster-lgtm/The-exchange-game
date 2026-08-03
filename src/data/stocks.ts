@@ -34,13 +34,13 @@ export const CONTROL_THRESHOLD_REGULAR = 6;  // shares of one regular stock for 
 export const CONTROL_THRESHOLD_IPO = 3;      // shares of one IPO for control
 export const CONTROL_DIVIDEND_MULTIPLIER = 2; // dividend multiplier while controlling
 // ── Sold-Out Payout Claim (rent paid to the claim holder by tier) ────────────
-export const PAYOUT_TIER_LOW = 100;     // holder owns 1-2 shares
-export const PAYOUT_TIER_MID = 300;     // holder owns 3-5 shares
-export const PAYOUT_TIER_CONTROL = 800; // holder owns 6+ shares (Controller)
+export const PAYOUT_TIER_LOW = 500;       // holder owns 1-2 shares
+export const PAYOUT_TIER_MID = 1_000;     // holder owns 3-5 shares
+export const PAYOUT_TIER_CONTROL = 2_000; // holder owns 6+ shares (Controller)
 // Boosted payouts when the holder also owns the completed Sector Portfolio.
-export const PAYOUT_TIER_LOW_SECTOR = 300;
-export const PAYOUT_TIER_MID_SECTOR = 500;
-export const PAYOUT_TIER_CONTROL_SECTOR = 1_200;
+export const PAYOUT_TIER_LOW_SECTOR = 750;
+export const PAYOUT_TIER_MID_SECTOR = 1_500;
+export const PAYOUT_TIER_CONTROL_SECTOR = 3_000;
 // ── Diversification (Market Open income bonus) ───────────────────────────────
 export const DIVERSIFIED_SECTORS = 3;    // distinct regular-stock sectors for Diversified status + bonus
 export const BROAD_MARKET_SECTORS = 6;   // distinct sectors for the Broad Market bonus

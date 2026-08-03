@@ -191,9 +191,9 @@ Fresh shares can only be bought by landing on that stock space, winning an appro
 
 | Ownership status | Shares owned | Base Sold-Out landing payout |
 |---|---|---|
-| Stock Owner | 1-2 | $100 |
-| Shareholder | 3-5 | $300 |
-| Controller | 6+ | $800 |
+| Stock Owner | 1-2 | $500 |
+| Shareholder | 3-5 | $1,000 |
+| Controller | 6+ | $2,000 |
 
 ## 8. Dividends
 
@@ -344,9 +344,9 @@ The 22 regular stocks are divided into 6 sectors across 3 value tiers. Low-Value
 
 | Ownership tier | Normal payout | Payout with Sector Portfolio |
 |---|---|---|
-| Stock Owner | $100 | $300 |
-| Shareholder | $300 | $500 |
-| Controller | $800 | $1,200 |
+| Stock Owner | $500 | $750 |
+| Shareholder | $1,000 | $1,500 |
+| Controller | $2,000 | $3,000 |
 
 The Sector Portfolio bonus only affects Sold-Out Payout Claim earnings in that sector. It does not change share count, control threshold, market price, or dividend multiplier unless a card specifically says so.
 

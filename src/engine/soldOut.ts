@@ -47,11 +47,11 @@ export function recomputeClaim(s: GameState, code: string): boolean {
  */
 export function claimPayout(holderShares: number, sectorComplete = false): number {
   if (sectorComplete) {
-    if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_TIER_CONTROL_SECTOR; // 6+  → 1200
-    if (holderShares >= 3) return PAYOUT_TIER_MID_SECTOR;                             // 3-5 → 500
-    return PAYOUT_TIER_LOW_SECTOR;                                                    // 1-2 → 300
+    if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_TIER_CONTROL_SECTOR; // 6+  → 3000
+    if (holderShares >= 3) return PAYOUT_TIER_MID_SECTOR;                             // 3-5 → 1500
+    return PAYOUT_TIER_LOW_SECTOR;                                                    // 1-2 → 750
   }
-  if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_TIER_CONTROL; // 6+  → 800
-  if (holderShares >= 3) return PAYOUT_TIER_MID;                             // 3-5 → 300
-  return PAYOUT_TIER_LOW;                                                    // 1-2 → 100
+  if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_TIER_CONTROL; // 6+  → 2000
+  if (holderShares >= 3) return PAYOUT_TIER_MID;                             // 3-5 → 1000
+  return PAYOUT_TIER_LOW;                                                    // 1-2 → 500
 }
