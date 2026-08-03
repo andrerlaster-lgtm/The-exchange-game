@@ -15,6 +15,7 @@ export type Volatility = 'mod' | 'high' | 'spec';
 
 export type SpaceType =
   | 'open' | 'stock' | 'event' | 'fed' | 'ipo'
+  | 'bull' | 'bear'
   | 'tax' | 'free' | 'short' | 'investor' | 'placeholder'
   | 'etf' | 'audit';
 

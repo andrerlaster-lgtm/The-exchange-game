@@ -60,7 +60,7 @@ function negativeEffectCodes(s: GameState, e: Effect): string[] {
 }
 
 /** Owned companies the Circuit Breaker holder can actually shield from the
-    currently pending negative Market Event. */
+    currently pending negative market effect. */
 export function circuitBreakerOptions(s: GameState): string[] {
   const prompt = s.circuitBreakerPrompt;
   if (!prompt) return [];
@@ -68,8 +68,8 @@ export function circuitBreakerOptions(s: GameState): string[] {
   return negativeEffectCodes(s, prompt.effect).filter((code) => (p.shares[code] ?? 0) > 0);
 }
 
-/** Pause a negative Market Event only when the holder has an affected company.
-    Otherwise the card resolves immediately and the held card stays available. */
+/** Pause a negative market effect only when the holder has an affected company.
+    Otherwise the effect resolves immediately and the held card stays available. */
 export function beginMarketEventEffect(s: GameState, e: Effect): void {
   const holder = s.circuitBreakerHolder;
   if (holder == null) { applyEffect(s, e); return; }
@@ -210,7 +210,7 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
     }
     case 'circuitBreaker':
       s.circuitBreakerHolder = s.cur;
-      addLog(s, `${s.players[s.cur].name} keeps Circuit Breaker for a future negative Market Event.`, 'g');
+      addLog(s, `${s.players[s.cur].name} keeps Circuit Breaker for a future negative Market Event or Bear Run.`, 'g');
       break;
     case 'extend':
       // Banks a 1-round Market Close extension, consumed by triggerClose once

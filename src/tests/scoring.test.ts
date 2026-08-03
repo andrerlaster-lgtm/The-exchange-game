@@ -1,7 +1,7 @@
 // Rules 8, 9, 11 — Market Open income, Diversified Portfolio, net worth.
 
 import { describe, expect, it } from 'vitest';
-import { SALARY, STOCK_BY_CODE } from '../data';
+import { CARDS, SALARY, STOCK_BY_CODE } from '../data';
 import { isDiversified, netWorth, priceOf, sharesValue } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -57,7 +57,7 @@ describe('Rule 9 — Diversified Portfolio status', () => {
       d.turnPhase = 'acted';
       d.pendingDraws = ['ME'];
       // Rig the ME deck so the Flash Crash card is first
-      const crashIdx = 15; // Flash Crash is index 15 in ME_CARDS
+      const crashIdx = CARDS.ME.findIndex((card) => card.title === 'Flash Crash');
       d.decks.ME = [crashIdx, ...d.decks.ME.filter((i) => i !== crashIdx)];
     });
     s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());

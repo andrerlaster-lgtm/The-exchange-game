@@ -17,7 +17,7 @@ const QUICK_RULES = [
   'Can’t cover Portfolio Tax, an Audit Notice, or Payout Claim rent in cash? Sell your regular stock to raise the rest — anything still short is waived.',
   'Margin trading and Short Selling are advanced options, off by default.',
   'An Extended Hours card, if drawn before Market Close is triggered, delays the game end by exactly one more round.',
-  'Circuit Breaker is a single held Market Event card. Play it during a later negative Market Event to protect 1 affected company you own from that card’s entire price drop, or keep it for later.',
+  'Circuit Breaker is a single held Market Event card. Play it during a later negative Market Event or Bear Run to protect 1 affected company you own from that effect’s entire price drop, or keep it for later.',
   'Market Stance: buying a company or using Margin makes you Bullish; selling 3+ shares or opening a Short makes you Bearish. The latest qualifying action sets your position for the next Bull or Bear Run, then everyone resets to Balanced.',
   'Investor Day: move 1 regular company you own up 1 price step. If you own no eligible company, collect $500 instead.',
   'Build the highest net worth to win: Cash + Stock/IPO Value + ETF Value − Margin.',

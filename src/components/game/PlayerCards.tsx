@@ -63,7 +63,7 @@ export default function PlayerCards() {
               background: `${stance.color}12`, padding: '1px 5px',
               borderRadius: 3, border: `1px solid ${stance.color}38`,
             }}>{stance.glyph}</span>
-            {s.circuitBreakerHolder === i && <span title="Circuit Breaker — may protect one owned company from a negative Market Event" style={{
+            {s.circuitBreakerHolder === i && <span title="Circuit Breaker — may protect one owned company from a negative Market Event or Bear Run" style={{
               fontSize: 9, color: 'var(--gold)', fontWeight: 800,
               background: 'rgba(212,165,53,0.12)', padding: '1px 5px',
               borderRadius: 3, border: '1px solid rgba(212,165,53,0.28)',

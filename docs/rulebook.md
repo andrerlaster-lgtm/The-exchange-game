@@ -65,7 +65,8 @@ The winner is the player with the highest Final Portfolio Value when the game en
 - 22 regular stock spaces/cards, organized into 6 sectors (see Section 13)
 - 4 ETF spaces/cards
 - 2 IPO spaces and 4 IPO cards (shared reveal queue — see Section 16)
-- 3 The Fed spaces and Fed cards
+- 1 The Fed space and Fed cards
+- 1 Bull Run space and 1 Bear Run space
 - 1 Market Event space and the combined Market Event deck
 - 1 Investor Day space
 - 1 Portfolio Tax space
@@ -104,7 +105,9 @@ The board has 36 spaces. The current rule direction preserves the board count an
 |---|---|---|
 | Regular stock | 22 | Buy shares, build ownership, sell out companies, create Payout Claims, earn dividends |
 | ETF | 4 | Diversification-style investment route that pays at Market Open |
-| The Fed | 3 | Draw and resolve a Fed card |
+| The Fed | 1 | Draw and resolve a Fed card; space 7 |
+| Bull Run | 1 | Resolve the global Bull Run and every player's locked stance; space 16 |
+| Bear Run | 1 | Resolve the global Bear Run and every player's locked stance; space 26 |
 | IPO | 2 | Reveal and access IPO opportunities (shared queue of 4) |
 | Market Event | 1 | Dedicated Market Event space; space 19 |
 | Market Open | 1 | Payday only, then Market Open Trading Window |
@@ -452,6 +455,8 @@ The Exchange is a net-worth race, not a bankruptcy-elimination game (see Section
 | Market Open | Payday only, then Market Open Trading Window. Does not draw Market Event. |
 | Market Event — space 19 | Draw and resolve 1 Market Event card. Also triggered automatically if any stock reaches the $5,000 price ceiling. |
 | The Fed | Draw and resolve 1 Fed card. |
+| Bull Run — space 16 | Resolve the Bull Run stock movements and every player's current stance, then reset all players to Balanced. |
+| Bear Run — space 26 | Resolve the Bear Run stock movements and every player's current stance, then reset all players to Balanced. Circuit Breaker may protect one affected owned company. |
 | IPO | Resolve IPO reveal/purchase per Section 16. |
 | Investor Day — space 31 | Choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step. Reaching $5,000 triggers a Market Event. If you own no eligible company, collect $500 instead. |
 | Portfolio Tax | Player pays 10% of current net worth. Net worth uses the same formula as Final Portfolio Value (see Section 1): cash + current value of regular stock shares + IPO holdings + ETF holdings - outstanding Margin balance. ETF holdings are valued at their fixed purchase/card price (see Section 15). |
@@ -471,7 +476,7 @@ Each player holds one visible Market Stance. The latest qualifying action replac
 | Balanced | +$500 | −$500 |
 | Bearish | −$750 | +$1,500 |
 
-Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve stock and cash effects when the card is drawn:
+Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve stock and cash effects when a player lands on the corresponding Run space:
 
 | Investment | Bull Run | Bear Run |
 |---|---:|---:|
@@ -481,14 +486,14 @@ Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve st
 | Revealed IPO | +1 price step | −1 price step |
 | ETF | No change | No change |
 
-Dividends, share counts, and Payout Claim tiers do not change directly. Circuit Breaker may protect one owned company from a Bear Run drop. Event-driven moves stop at the price-track floor or ceiling and do not trigger another Market Event.
+Bull Run and Bear Run are dedicated board spaces, not cards in the Market Event deck. Dividends, share counts, and Payout Claim tiers do not change directly. Circuit Breaker may protect one owned company from a Bear Run drop. Run-driven moves stop at the price-track floor or ceiling and do not trigger another Market Event.
 
 **Circuit Breaker — Market Event hold card**
 - The former After-Hours cards are part of the combined Market Event deck; there is no separate After-Hours deck or board space.
 - There is 1 Circuit Breaker card in the Market Event deck.
 - When drawn, the player keeps it; it remains out of the deck until played.
-- When any negative Market Event would lower the price of a company that player owns, pause before applying the card's price effect.
-- The holder may play Circuit Breaker to protect 1 affected company they own from that Market Event's entire downward move, or pass and keep it for later.
+- When any negative Market Event or Bear Run would lower the price of a company that player owns, pause before applying its price effect.
+- The holder may play Circuit Breaker to protect 1 affected company they own from that effect's entire downward move, or pass and keep it for later.
 - Playing it is optional and single-use. After play, discard it into the Market Event discard pile.
 - It does not stop Weak Demand, bank-sale price movement, or Fed cards.
 
@@ -552,7 +557,7 @@ Use this checklist when sending the rules to code.
 
 | Area | Implementation requirement |
 |---|---|
-| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares; fixed acquisition tiers = $5,000 / $7,500 / $10,000; regular control = 6; IPO supply = 5; IPO control = 3; market sell cap = 2; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
+| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares; fixed acquisition tiers = $5,000 / $7,500 / $10,000; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
 | Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance, Circuit Breaker holder |
 | Stock landing | If untouched, offer a full 11-share company buyout at its fixed tier price or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment, with no payment when the owner lands on their own company |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
@@ -564,7 +569,7 @@ Use this checklist when sending the rules to code.
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default |
 | Insolvency | Standard mode: if a player can't cover a required payment, force-sell regular stock only (not IPO/ETF) at sell-back price until covered or shares exhausted; unpaid shortfall after that is waived, cash floors at $0, no elimination |
 | Market Open | Pay salary, dividends, ETF payouts, diversification bonuses, resolve Margin repayment, then open Market Open Trading Window |
-| Circuit Breaker | One held Market Event card; on a later negative Market Event, holder may protect 1 affected owned company from that card's entire downward move, then discard it |
+| Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |
 | Investor Day | Space 31; choose 1 owned regular company below the ceiling to move up 1 step, otherwise collect $500 |
 | UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance |
 | Logs | Separate bank payout, player-paid payout, private trade, full-company buy, bank sell-back, Weak Demand, auction sale, Payout Claim transfer, dividend payout, Margin draw/repay |

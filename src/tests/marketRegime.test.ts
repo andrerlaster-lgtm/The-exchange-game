@@ -1,18 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CARDS, LADDER } from '../data';
+import { CARDS, LADDER, SPACES } from '../data';
+import type { Effect } from '../data/types';
 import { circuitBreakerOptions, effectImpacts } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
-function drawRegime(state: ReturnType<typeof started>, title: 'Bull Run' | 'Bear Run') {
-  const index = CARDS.ME.findIndex((card) => card.title === title);
-  expect(index).toBeGreaterThanOrEqual(0);
-  const ready = patch(state, (draft) => {
-    draft.turnPhase = 'acted';
-    draft.pendingDraws = ['ME'];
-    draft.decks.ME = [index];
-    draft.discard.ME = [];
-  });
-  return dispatch(ready, { t: 'draw', deck: 'ME' }, rng());
+function landOnRegime(state: ReturnType<typeof started>, regime: 'bull' | 'bear') {
+  return rollTo(state, regime === 'bull' ? 16 : 26);
 }
 
 describe('Bull and Bear Run market regimes', () => {
@@ -29,7 +22,7 @@ describe('Bull and Bear Run market regimes', () => {
     const ipo = s.ipos[0].step;
     const cash = s.players.map((player) => player.cash);
 
-    s = drawRegime(s, 'Bull Run');
+    s = landOnRegime(s, 'bull');
 
     expect(s.prices.CCAI).toBe(high + 2);
     expect(s.prices.MEDI).toBe(medium + 1);
@@ -52,7 +45,7 @@ describe('Bull and Bear Run market regimes', () => {
     const ipo = s.ipos[0].step;
     const cash = s.players.map((player) => player.cash);
 
-    s = drawRegime(s, 'Bear Run');
+    s = landOnRegime(s, 'bear');
 
     expect(s.prices.CCAI).toBe(high - 2);
     expect(s.prices.MEDI).toBe(medium - 1);
@@ -71,7 +64,7 @@ describe('Bull and Bear Run market regimes', () => {
     const medium = s.prices.MEDI;
     const cash = s.players[0].cash;
 
-    s = drawRegime(s, 'Bear Run');
+    s = landOnRegime(s, 'bear');
     expect(s.circuitBreakerPrompt).not.toBeNull();
     expect(circuitBreakerOptions(s)).toContain('CCAI');
     expect(s.prices.CCAI).toBe(high);
@@ -88,21 +81,27 @@ describe('Bull and Bear Run market regimes', () => {
     let s = patch(started(2), (draft) => {
       draft.prices.CCAI = LADDER.length - 2;
     });
-    s = drawRegime(s, 'Bull Run');
+    s = landOnRegime(s, 'bull');
     expect(s.prices.CCAI).toBe(LADDER.length - 1);
     expect(s.pendingDraws).toEqual([]);
   });
 
   it('reports the same risk-based movements to Market Intelligence', () => {
     const s = patch(started(2), (draft) => { draft.ipos[0].revealed = true; });
-    const bull = CARDS.ME.find((card) => card.title === 'Bull Run')!;
-    const bear = CARDS.ME.find((card) => card.title === 'Bear Run')!;
-    expect(effectImpacts(s, bull.eff)).toEqual(expect.arrayContaining([
+    const bull: Effect = { k: 'regime', regime: 'bull' };
+    const bear: Effect = { k: 'regime', regime: 'bear' };
+    expect(effectImpacts(s, bull)).toEqual(expect.arrayContaining([
       { code: 'CCAI', d: 2 }, { code: 'MEDI', d: 1 }, { code: s.ipos[0].code, d: 1 },
     ]));
-    expect(effectImpacts(s, bear.eff)).toEqual(expect.arrayContaining([
+    expect(effectImpacts(s, bear)).toEqual(expect.arrayContaining([
       { code: 'CCAI', d: -2 }, { code: 'MEDI', d: -1 }, { code: 'SAFE', d: 1 }, { code: s.ipos[0].code, d: -1 },
     ]));
+  });
+
+  it('uses dedicated spaces 16 and 26 and removes both Runs from the Market Event deck', () => {
+    expect(SPACES[15]).toMatchObject({ n: 16, type: 'bull', name: 'BULL RUN' });
+    expect(SPACES[25]).toMatchObject({ n: 26, type: 'bear', name: 'BEAR RUN' });
+    expect(CARDS.ME.some((card) => card.title === 'Bull Run' || card.title === 'Bear Run')).toBe(false);
   });
 });
 
@@ -125,8 +124,12 @@ describe('Player market stance', () => {
     });
     s = dispatch(s, { t: 'takeMargin' }, rng());
     expect(s.players[0].marketStance).toBe('bullish');
-    s = patch(s, (draft) => { draft.players[0].cash = 500; });
-    s = drawRegime(s, 'Bear Run');
+    s = patch(s, (draft) => {
+      draft.players[0].cash = 500;
+      draft.turnPhase = 'preRoll';
+      draft.trade = null;
+    });
+    s = landOnRegime(s, 'bear');
     expect(s.players[0].cash).toBe(0);
   });
 

@@ -68,7 +68,7 @@ export interface PickContext {
   source?: 'card' | 'investor';
 }
 
-/** A negative Market Event paused before its price effect so the holder can
+/** A negative market effect paused before its price movement so the holder can
     play or retain the single Circuit Breaker card. */
 export interface CircuitBreakerPrompt {
   player: number;
@@ -239,7 +239,7 @@ export interface GameState {
   extendedHoursAvailable: boolean; // an Extended Hours card was drawn and hasn't been consumed yet
   extendedRoundsLeft: number;      // rounds still owed before Market Close actually ends the game
   circuitBreakerHolder: number | null; // player holding the single Circuit Breaker card outside its deck
-  circuitBreakerPrompt: CircuitBreakerPrompt | null; // pending play/pass response to a negative Market Event
+  circuitBreakerPrompt: CircuitBreakerPrompt | null; // pending play/pass response to a negative market effect
   testMode: boolean;
   opts: GameOptions;
   etfPick: string | null;   // ETF code player landed on, awaiting buy/skip

@@ -67,7 +67,7 @@ const DIV_BY_RISK: Record<Risk, number> = { Low: 100, Med: 50, High: 0 };
 // [space, name, sector, basePrice, risk, code]
 // 22 regular stocks — uneven sector distribution:
 //   tech 2 · comm 2 · energy 2 · consumer 3 · finance 3 · industrials 3 · realestate 3 · health 4
-// Spaces 26 and 30 are freed (placeholder special spaces) by this reduction.
+// Spaces 26 and 30 remain assigned to special spaces rather than regular stocks.
 const RAW_STOCKS: Array<[number, string, SectorId, number, Risk, string]> = [
   [2,  'CloudCore AI',         'tech',        1000, 'High', 'CCAI'],
   [3,  'SafeMart Stores',      'consumer',     500, 'Low',  'SAFE'],

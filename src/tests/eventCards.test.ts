@@ -1,6 +1,7 @@
 // Event card draw and effect.
 
 import { describe, expect, it } from 'vitest';
+import { CARDS } from '../data';
 import { dispatch, rng, rollTo, scriptedRng, started } from './helpers';
 
 describe('Event card draw', () => {
@@ -53,8 +54,8 @@ describe('Event card draw', () => {
   it('Market Close card triggers full-round close', () => {
     let s = started(2);
     s = rollTo(s, 19); // space 19 = Market Event
-    // Rig the ME deck so Market Close (index 17) fires first.
-    s = { ...s, decks: { ...s.decks, ME: [17, ...s.decks.ME.filter((i) => i !== 17)] } };
+    const closeIdx = CARDS.ME.findIndex((card) => card.eff.k === 'close');
+    s = { ...s, decks: { ...s.decks, ME: [closeIdx, ...s.decks.ME.filter((i) => i !== closeIdx)] } };
     s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());
     expect(s.closing).toBe(true);
     expect(s.phase).toBe('play'); // not over yet

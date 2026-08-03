@@ -6,6 +6,7 @@ import {
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
 } from '../data';
+import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
@@ -20,7 +21,7 @@ import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayout } from './soldOut';
 import { handleBid, handlePass } from './auction';
 import { hasSectorPortfolio } from './sector';
-import { recordCardSignal, recordMarketSignal } from './marketSignals';
+import { effectImpacts, recordCardSignal, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
@@ -224,6 +225,19 @@ function resolveLanding(s: GameState, pi: number): void {
       s.pendingDraws.push('ME');
       addLog(s, `${p.name} landed on Market Event — draw a card.`, 'r');
       break;
+    case 'bull':
+    case 'bear': {
+      const regime = sp.type;
+      const effect: Effect = { k: 'regime', regime };
+      const title = regime === 'bull' ? 'Bull Run' : 'Bear Run';
+      const summary = regime === 'bull'
+        ? 'High Risk +2, Medium Risk +1, Low Risk unchanged, and revealed IPOs +1. Stance cash resolves for every player.'
+        : 'High Risk −2, Medium Risk −1, Low Risk +1, and revealed IPOs −1. Stance cash resolves for every player.';
+      addLog(s, `${p.name} lands on ${title} — the entire market reacts.`, regime === 'bull' ? 'g' : 'r');
+      recordMarketSignal(s, { kind: 'market', title, summary, impacts: effectImpacts(s, effect) });
+      beginMarketEventEffect(s, effect);
+      break;
+    }
     case 'placeholder':
     case 'short':
       break;

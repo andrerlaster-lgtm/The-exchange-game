@@ -12,6 +12,8 @@ describe('merged Market Event deck', () => {
     const drawnTitles = decks.ME.map((idx) => CARDS.ME[idx].title);
     expect(drawnTitles).toContain('Extended Hours');
     expect(drawnTitles).toContain('Circuit Breaker');
+    expect(drawnTitles).not.toContain('Bull Run');
+    expect(drawnTitles).not.toContain('Bear Run');
   });
 
   it('Extended Hours is no longer flagged strategyOnly', () => {
