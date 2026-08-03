@@ -138,6 +138,18 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
+  if (s.investorDay) {
+    const eligible = s.investorDay.eligibleCodes.length;
+    required.push({
+      id: 'investor-day', title: 'Investor Day · Choose One', accent: '#c4b5fd', urgent: true,
+      description: 'Grow an owned company, or preview the next Market Event without drawing or resolving it.',
+      buttons: [
+        button(eligible > 0 ? `Company Growth · ${eligible} Eligible` : 'Company Growth · Collect $500', { t: 'chooseInvestorGrowth' }, 'primary'),
+        button('Insider Information · Preview Next Event', { t: 'chooseInvestorTip' }, 'gold'),
+      ],
+    });
+  }
+
   if (s.pick) {
     const codes = s.pick.codes ?? STOCKS.map((stock) => stock.code);
     required.push({

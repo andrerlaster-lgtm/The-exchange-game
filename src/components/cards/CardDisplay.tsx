@@ -55,7 +55,7 @@ export default function CardDisplay() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const holoRef = useHoloTilt<HTMLDivElement>();
 
-  const cardKey = s.card ? `${s.card.deck}-${s.card.title}` : null;
+  const cardKey = s.card ? `${s.cardPreviewMode ?? 'draw'}-${s.card.deck}-${s.card.title}` : null;
 
   useEffect(() => {
     if (cardKey && cardKey !== prevKey.current) {
@@ -73,12 +73,13 @@ export default function CardDisplay() {
   if (!s.card) return null;
 
   const deckId = s.card.deck;
+  const isInsiderPreview = s.cardPreviewMode === 'insider';
   const isStrategyOnly = s.card.strategyOnly === true;
   // Deck colors mirror the 3D board's DECK_COLORS (strategy cards go grey there too)
   const baseColor = deckId === 'ME' ? '#ef4444' : '#d4a535';
   const deckColorHex = isStrategyOnly ? '#666666' : baseColor;
-  const deckLabel  = deckId === 'ME' ? 'MARKET EVENT' : 'THE FED';
-  const deckIcon   = deckId === 'ME' ? '📈' : '🏛️';
+  const deckLabel  = isInsiderPreview ? 'INSIDER TIP · NEXT EVENT' : deckId === 'ME' ? 'MARKET EVENT' : 'THE FED';
+  const deckIcon   = isInsiderPreview ? '👁️' : deckId === 'ME' ? '📈' : '🏛️';
   const deckSymbol = deckId === 'ME' ? '📊' : '🏦';
 
   if (phase === 'back') {
@@ -191,7 +192,7 @@ export default function CardDisplay() {
         padding: '5px 12px 8px', textAlign: 'center',
         fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase',
         color: `${deckColorHex}55`,
-      }}>Latest Drawn Card</div>
+      }}>{isInsiderPreview ? 'Preview only · Card remains on top of the deck' : 'Latest Drawn Card'}</div>
     </div>
   );
 }

@@ -85,6 +85,7 @@ export function blocked(s: GameState): boolean {
   if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
   if (s.pendingDraws.length > 0) return true;
   if (s.circuitBreakerPrompt) return true;
+  if (s.investorDay) return true;
   if (s.pick) return true;
   if (s.ipoChoice || s.ipoListPick || s.ipoBuy) return true;
   if (s.etfPick) return true;  // ETF buy/skip prompt must be answered explicitly

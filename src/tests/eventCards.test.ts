@@ -29,6 +29,8 @@ describe('Event card draw', () => {
     const cash = s.players[0].cash;
     s = rollTo(s, 31);
     expect(s.pendingDraws).toHaveLength(0);
+    expect(s.investorDay).not.toBeNull();
+    s = dispatch(s, { t: 'chooseInvestorGrowth' }, rng());
     expect(s.players[0].cash).toBe(cash + 500);
   });
 

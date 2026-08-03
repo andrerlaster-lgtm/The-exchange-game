@@ -2123,7 +2123,7 @@
 
     function showCardBack(card) {
       const col = DECK_COLORS[card.deck] ?? '#8888cc';
-      const lbl = DECK_LABELS[card.deck] ?? card.deck;
+      const lbl = card.preview === 'insider' ? 'INSIDER TIP · NEXT EVENT' : (DECK_LABELS[card.deck] ?? card.deck);
       cardPanel.style.display = 'block';
       cardPanel.innerHTML = `
         <div class="card3d-back" style="border-color:${col}33">
@@ -2135,8 +2135,9 @@
     function showCardReveal(card) {
       const isStrat = card.strategyOnly;
       const col     = isStrat ? '#666666' : (DECK_COLORS[card.deck] ?? '#8888cc');
-      const lbl     = isStrat ? (DECK_LABELS[card.deck] ?? card.deck) : (DECK_LABELS[card.deck] ?? card.deck);
-      const icon    = DECK_ICONS[card.deck]   ?? '🃏';
+      const isInsider = card.preview === 'insider';
+      const lbl     = isInsider ? 'INSIDER TIP · NEXT EVENT' : (DECK_LABELS[card.deck] ?? card.deck);
+      const icon    = isInsider ? '👁️' : (DECK_ICONS[card.deck] ?? '🃏');
       const symbol  = DECK_SYMBOLS[card.deck] ?? '✦';
       cardPanel.style.display = 'block';
       cardPanel.innerHTML = `
@@ -2155,7 +2156,7 @@
             <div class="card3d-effect">${escHtml(card.effect)}</div>
             ${isStrat ? '<div class="card3d-strat">Strategy Mode — no effect</div>' : ''}
           </div>
-          <div class="card3d-footer" style="color:${col}55">Latest Drawn Card</div>
+          <div class="card3d-footer" style="color:${col}55">${isInsider ? 'Preview only · Card remains on top of the deck' : 'Latest Drawn Card'}</div>
         </div>`;
     }
 
@@ -2167,7 +2168,7 @@
         clearTimeout(cardFlipTimer);
         return;
       }
-      const key = card.deck + '-' + card.title;
+      const key = (card.preview || 'draw') + '-' + card.deck + '-' + card.title;
       if (key === prevCardKey) {
         // Same card still active — ensure it's visible in reveal state without re-animating
         if (cardPanel.style.display === 'none') showCardReveal(card);

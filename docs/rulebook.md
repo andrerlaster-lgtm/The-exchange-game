@@ -112,7 +112,7 @@ The board has 36 spaces. The current rule direction preserves the board count an
 | Market Event | 1 | Dedicated Market Event space; space 19 |
 | Market Open | 1 | Payday only, then Market Open Trading Window |
 | Portfolio Tax | 1 | Penalty space based on net worth |
-| Investor Day | 1 | Move 1 owned regular company up 1 price step; if no owned company can rise, collect $500 |
+| Investor Day | 1 | Choose Company Growth (+1 step to an eligible owned company, or $500 if none) or Insider Information (preview the next Market Event without drawing it) |
 | Audit Notice | 1 | Penalty space with extra cost if Margin balance is outstanding |
 
 **Board rule locks**
@@ -458,9 +458,11 @@ The Exchange is a net-worth race, not a bankruptcy-elimination game (see Section
 | Bull Run — space 16 | Resolve the Bull Run stock movements and every player's current stance, then reset all players to Balanced. |
 | Bear Run — space 26 | Resolve the Bear Run stock movements and every player's current stance, then reset all players to Balanced. Circuit Breaker may protect one affected owned company. |
 | IPO | Resolve IPO reveal/purchase per Section 16. |
-| Investor Day — space 31 | Choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step. Reaching $5,000 triggers a Market Event. If you own no eligible company, collect $500 instead. |
+| Investor Day — space 31 | Choose Company Growth or Insider Information. Company Growth moves 1 owned regular company below the $5,000 ceiling up 1 price step; reaching $5,000 triggers a Market Event. If none qualifies, collect $500. Insider Information reveals the title and effect of the next Market Event without drawing, resolving, or removing that card from the top of the deck. |
 | Portfolio Tax | Player pays 10% of current net worth. Net worth uses the same formula as Final Portfolio Value (see Section 1): cash + current value of regular stock shares + IPO holdings + ETF holdings - outstanding Margin balance. ETF holdings are valued at their fixed purchase/card price (see Section 15). |
 | Audit Notice | Player pays $500. If they have any outstanding Margin balance, pay an extra $250. In standard mode, with Margin off by default, this extra fee is normally dormant. |
+
+**Investor Day rollback note:** The previous rule is retained here in case playtesting favors it: choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step; if no owned company can rise, automatically collect $500. This version had no Insider Information choice.
 
 **Bull Run, Bear Run, and Market Stance**
 
@@ -547,7 +549,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 | Sell-to-bank window | Trade Step only (not Market Open) |
 | Price floor / ceiling | On — $100 floor / $5,000 ceiling |
 | Extended Hours | On — confirmed active |
-| Investor Day | Space 31; owned regular company +1 step, or $500 when none can rise |
+| Investor Day | Space 31; choose Company Growth (+1 eligible owned company, or $500 if none) or Insider Information (preview next Market Event) |
 | Market Close mode | App toggle: Card mode or Rounds mode, chosen pre-game |
 | Last Trader Standing / bankruptcy elimination | Optional variant only, not default |
 
@@ -570,7 +572,7 @@ Use this checklist when sending the rules to code.
 | Insolvency | Standard mode: if a player can't cover a required payment, force-sell regular stock only (not IPO/ETF) at sell-back price until covered or shares exhausted; unpaid shortfall after that is waived, cash floors at $0, no elimination |
 | Market Open | Pay salary, dividends, ETF payouts, diversification bonuses, resolve Margin repayment, then open Market Open Trading Window |
 | Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |
-| Investor Day | Space 31; choose 1 owned regular company below the ceiling to move up 1 step, otherwise collect $500 |
+| Investor Day | Space 31; choose Company Growth (+1 eligible owned regular company, or $500 if none) or Insider Information (preview the next Market Event; card stays on top) |
 | UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance |
 | Logs | Separate bank payout, player-paid payout, private trade, full-company buy, bank sell-back, Weak Demand, auction sale, Payout Claim transfer, dividend payout, Margin draw/repay |
 

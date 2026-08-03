@@ -180,6 +180,8 @@ export default function ActionPanel() {
           continue until this button is pressed, so make it impossible to miss. */}
       {nextDraw && <PendingDrawBanner deck={nextDraw} count={s.pendingDraws.length} dispatch={dispatch} />}
 
+      {s.investorDay && <InvestorDayChoicePanel s={s} dispatch={dispatch} />}
+
       {s.pick?.source === 'investor' && <InvestorDayPanel s={s} dispatch={dispatch} />}
 
       {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
@@ -227,6 +229,36 @@ function PendingDrawBanner({ deck, count, dispatch }: {
         onClick={() => dispatch({ t: 'draw', deck: deck as 'ME' | 'FED' })}>
         Draw Card
       </button>
+    </div>
+  );
+}
+
+function InvestorDayChoicePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const eligible = s.investorDay?.eligibleCodes.length ?? 0;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '11px 13px', borderRadius: 8,
+      background: 'rgba(167,139,250,0.10)',
+      border: '1px solid rgba(167,139,250,0.38)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#c4b5fd', letterSpacing: 0.5 }}>
+        ★ INVESTOR DAY · CHOOSE ONE
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
+        Grow an owned company, or use Insider Information to preview the next Market Event without drawing it.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+        <button className="primary" style={{ fontSize: 11, padding: '7px 11px' }}
+          onClick={() => dispatch({ t: 'chooseInvestorGrowth' })}>
+          {eligible > 0 ? `Company Growth · ${eligible} eligible` : 'Company Growth · Collect $500'}
+        </button>
+        <button style={{ fontSize: 11, padding: '7px 11px' }}
+          title="See the next Market Event; the card stays on top of the deck"
+          onClick={() => dispatch({ t: 'chooseInvestorTip' })}>
+          👁 Insider Information
+        </button>
+      </div>
     </div>
   );
 }

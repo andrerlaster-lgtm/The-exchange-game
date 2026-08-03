@@ -132,18 +132,8 @@ function resolveLanding(s: GameState, pi: number): void {
       const eligible = Object.keys(p.shares).filter((code) =>
         !isIpoCode(code) && (p.shares[code] ?? 0) > 0 && s.prices[code] < LADDER.length - 1,
       );
-      if (eligible.length === 0) {
-        p.cash += 500;
-        addLog(s, `${p.name} lands on Investor Day with no company able to rise — collects ${money(500)}.`, 'g');
-      } else {
-        s.pick = {
-          d: 1,
-          label: 'Investor Day — choose one company you own to move UP 1 step',
-          codes: eligible,
-          source: 'investor',
-        };
-        addLog(s, `${p.name} lands on Investor Day — choose one owned company to move up 1 step.`, 'g');
-      }
+      s.investorDay = { eligibleCodes: eligible };
+      addLog(s, `${p.name} lands on Investor Day — choose Company Growth or Insider Information.`, 'g');
       break;
     }
     case 'ipo': {
@@ -284,7 +274,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.shorts = []; s.closing = false; s.closeDrawer = null; s.etfPick = null;
       s.extendedHoursAvailable = false; s.extendedRoundsLeft = 0;
       s.circuitBreakerHolder = null; s.circuitBreakerPrompt = null;
-      s.lastDraw = null;
+      s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
       s.p2pOffers = []; s.p2pSeq = 0;
       s.auction = null; s.auctionQueue = []; s.marketOpenWindow = false;
       clearTurnState(s);
@@ -581,6 +571,49 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.ipoBuy = null; s.ipoChoice = false; s.ipoListPick = false;
       break;
 
+    // ---- Investor Day ----
+    case 'chooseInvestorGrowth': {
+      const prompt = s.investorDay;
+      if (!prompt) break;
+      const p = s.players[s.cur];
+      s.investorDay = null;
+      if (prompt.eligibleCodes.length === 0) {
+        p.cash += 500;
+        addLog(s, `${p.name} chooses Company Growth with no company able to rise — collects ${money(500)}.`, 'g');
+      } else {
+        s.pick = {
+          d: 1,
+          label: 'Company Growth — choose one company you own to move UP 1 step',
+          codes: prompt.eligibleCodes,
+          source: 'investor',
+        };
+        addLog(s, `${p.name} chooses Company Growth — select one owned company to move up 1 step.`, 'g');
+      }
+      break;
+    }
+    case 'chooseInvestorTip': {
+      if (!s.investorDay) break;
+      const p = s.players[s.cur];
+      s.investorDay = null;
+      // A peek never removes the card. If the live pile is exhausted, prepare
+      // its normal reshuffle now so this is the same card the next draw reveals.
+      if (s.decks.ME.length === 0 && s.discard.ME.length > 0) {
+        s.decks.ME = rng.shuffle(s.discard.ME);
+        s.discard.ME = [];
+      }
+      const idx = s.decks.ME[0];
+      const next = idx == null ? null : CARDS.ME[idx];
+      if (!next) {
+        p.cash += 500;
+        addLog(s, `${p.name} finds no Market Event to preview — collects ${money(500)} instead.`, 'y');
+        break;
+      }
+      s.card = next;
+      s.cardPreviewMode = 'insider';
+      addLog(s, `${p.name} uses Insider Information — next Market Event: ${next.title}. The card stays on top of the deck.`, 'y');
+      break;
+    }
+
     // ---- card draw & effect ----
     case 'draw': {
       const { deck } = action;
@@ -595,6 +628,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // returns to that discard pile only after the holder plays it.
       if (c.eff.k !== 'circuitBreaker') s.discard[deck].push(idx);
       s.card = c;
+      s.cardPreviewMode = null;
       s.pendingDraws.shift();
       s.lastDraw = { deck, title: c.title, seq: (s.lastDraw?.seq ?? 0) + 1 };
       // NOTE: do NOT clear s.trade here. A player can owe a forced draw (e.g. from

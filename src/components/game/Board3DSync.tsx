@@ -62,7 +62,10 @@ export default function Board3DSync() {
     }));
 
     const card = s.card
-      ? { deck: s.card.deck, title: s.card.title, effect: s.card.effect, strategyOnly: !!s.card.strategyOnly }
+      ? {
+          deck: s.card.deck, title: s.card.title, effect: s.card.effect,
+          strategyOnly: !!s.card.strategyOnly, preview: s.cardPreviewMode,
+        }
       : null;
 
     const p = s.players[s.cur];

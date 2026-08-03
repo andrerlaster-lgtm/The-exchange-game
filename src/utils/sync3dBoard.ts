@@ -16,6 +16,7 @@ export interface CardPreview {
   title: string;
   effect: string;
   strategyOnly: boolean;
+  preview: 'insider' | null;
 }
 
 export interface LBEntry {
@@ -186,6 +187,7 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
     case 'payInsolvency': case 'skipShort': case 'ipoBuyShare': case 'ipoBuyDone':
     case 'skipIpo': case 'skipPick': case 'passCircuitBreaker': case 'callClose':
     case 'skipEtf': case 'auctionPass': case 'closeMarketOpenWindow': case 'endTurn':
+    case 'chooseInvestorGrowth': case 'chooseInvestorTip':
       return true;
     case 'buy': case 'skipStock': case 'marginSell': case 'forcedSell':
     case 'doShort': case 'pickKnownIpo': case 'pickTarget': case 'playCircuitBreaker':

@@ -8,6 +8,7 @@ describe('3D command boundary', () => {
     const now = Date.now();
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'roll' } })).toBe(true);
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'sell', code: 'MEDI', qty: 2 } })).toBe(true);
+    expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'chooseInvestorTip' } })).toBe(true);
     expect(isBoard3DCommand({
       t: 'dispatch', ts: now,
       action: { t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 500 },
@@ -74,11 +75,16 @@ describe('3D Action Center parity', () => {
     expect(row?.buttons?.map((entry) => entry.disabled)).toEqual([false, false, true, true, true]);
   });
 
-  it('turns Investor Day into a selectable 3D action instead of a 2D-only hint', () => {
+  it('offers both Investor Day paths and the follow-up company choice in 3D', () => {
     let s = patch(started(2), (draft) => { draft.players[0].shares.MEDI = 11; });
     s = rollTo(s, 31);
-    const panel = buildActionCenter(s).required.find((entry) => entry.id === 'pick-target');
+    const decision = buildActionCenter(s).required.find((entry) => entry.id === 'investor-day');
 
+    expect(decision?.title).toBe('Investor Day · Choose One');
+    expect(decision?.buttons?.map((entry) => entry.action.t)).toEqual(['chooseInvestorGrowth', 'chooseInvestorTip']);
+
+    s = dispatch(s, { t: 'chooseInvestorGrowth' }, rng());
+    const panel = buildActionCenter(s).required.find((entry) => entry.id === 'pick-target');
     expect(panel?.title).toBe('Investor Day');
     expect(panel?.rows?.[0].buttons?.[0].action).toEqual({ t: 'pickTarget', code: 'MEDI' });
   });

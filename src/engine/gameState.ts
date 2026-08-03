@@ -53,7 +53,7 @@ export function initialState(rng: Rng): GameState {
     marketSignals: [],
     marketSignalSeq: 0,
     tradeLog: [],
-    trade: null, pendingDraws: [], card: null, pick: null, shortPick: false,
+    trade: null, pendingDraws: [], card: null, cardPreviewMode: null, pick: null, investorDay: null, shortPick: false,
     ipos: freshIpos(),
     ipoChoice: false, ipoListPick: false, ipoBuy: null,
     decks: freshDecks(rng), discard: { ME: [], FED: [] },

@@ -68,6 +68,12 @@ export interface PickContext {
   source?: 'card' | 'investor';
 }
 
+/** Investor Day decision before the player chooses the price boost/cash option
+    or previews the next Market Event through Insider Information. */
+export interface InvestorDayPrompt {
+  eligibleCodes: string[];
+}
+
 /** A negative market effect paused before its price movement so the holder can
     play or retain the single Circuit Breaker card. */
 export interface CircuitBreakerPrompt {
@@ -225,7 +231,9 @@ export interface GameState {
   trade: TradeContext | null;
   pendingDraws: DeckId[];              // ordered queue of forced draws, resolved one at a time
   card: Card | null;                   // most recently drawn card (display)
+  cardPreviewMode: 'insider' | null;   // card is only a peek; it remains on top of the ME deck
   pick: PickContext | null;
+  investorDay: InvestorDayPrompt | null;
   shortPick: boolean;
   ipos: IpoState[];
   ipoChoice: boolean;
@@ -277,6 +285,8 @@ export type Action =
   | { t: 'ipoBuyDone' }
   | { t: 'skipIpo' }
   | { t: 'draw'; deck: DeckId }
+  | { t: 'chooseInvestorGrowth' }
+  | { t: 'chooseInvestorTip' }
   | { t: 'pickTarget'; code: string }
   | { t: 'skipPick' }
   | { t: 'playCircuitBreaker'; code: string }
