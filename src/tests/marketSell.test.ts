@@ -2,9 +2,10 @@
 // having to land on that stock's space (moves price on block sales of 3+).
 
 import { describe, expect, it } from 'vitest';
-import { bankSellLimit, bankSellRemaining, canMarketSell, priceOf, sellBackPrice } from '../engine';
+import { SALARY, STOCK_BY_CODE } from '../data';
+import { bankSellLimit, bankSellRemaining, canMarketSell, priceOf, projectedDividend, sellBackPrice } from '../engine';
 
-import { dispatch, patch, rng, rollTo, started } from './helpers';
+import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 describe('Trading Market — sell without landing', () => {
   it('canMarketSell is false before rolling, true once acted with nothing pending', () => {
@@ -91,6 +92,27 @@ describe('Trading Market — sell without landing', () => {
     expect(s.bankSoldThisTurn.MEDI).toBe(2);
     s = dispatch(s, { t: 'endTurn' }, rng());
     expect(s.bankSoldThisTurn).toEqual({});
+  });
+
+  it('reduces projected and paid dividends when shares are sold', () => {
+    let s = patch(started(2), (d) => {
+      d.players[0].shares.SAFE = 5;
+      d.turnPhase = 'acted';
+    });
+    expect(projectedDividend(s, s.players[0])).toBe(STOCK_BY_CODE.SAFE.div * 5);
+
+    s = dispatch(s, { t: 'sell', code: 'SAFE', qty: 2 }, rng());
+    expect(s.players[0].shares.SAFE).toBe(3);
+    expect(projectedDividend(s, s.players[0])).toBe(STOCK_BY_CODE.SAFE.div * 3);
+
+    s = patch(s, (d) => {
+      d.players[0].pos = 34;
+      d.turnPhase = 'preRoll';
+      d.trade = null;
+    });
+    const beforeMarketOpen = s.players[0].cash;
+    s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
+    expect(s.players[0].cash).toBe(beforeMarketOpen + SALARY + STOCK_BY_CODE.SAFE.div * 3);
   });
 
   it('market sell is blocked during the Market Open window', () => {
