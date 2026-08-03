@@ -71,7 +71,10 @@ describe('Market Intelligence signals', () => {
   it('shows market-wide Runs and real player-to-player takeovers as important', () => {
     let s = patch(started(2), (draft) => {
       recordMarketSignal(draft, {
-        kind: 'market', title: 'Bull Run', summary: 'The entire market moved.', impacts: [],
+        kind: 'market', title: 'Bull Run', summary: 'The entire market moved.', impacts: [{ code: 'CCAI', d: 2 }],
+      });
+      recordMarketSignal(draft, {
+        kind: 'market', title: 'No Fill', summary: 'Nothing happens.', impacts: [],
       });
       draft.supply.MEDI = 0;
       draft.soldOut.MEDI = { code: 'MEDI', claimHolder: 0 };
@@ -97,7 +100,7 @@ describe('Market Intelligence signals', () => {
         impacts: [{ code: 'FTRB', d: 1 }, { code: 'MTRO', d: -1 }],
       });
       recordMarketSignal(draft, {
-        kind: 'market', title: 'Bear Run', summary: 'The broad market fell.', impacts: [],
+        kind: 'market', title: 'Bear Run', summary: 'The broad market fell.', impacts: [{ code: 'CCAI', d: -2 }],
       });
     });
     const center = buildActionCenter(s);

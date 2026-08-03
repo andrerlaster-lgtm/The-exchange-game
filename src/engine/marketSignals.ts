@@ -23,7 +23,9 @@ export function recordMarketSignal(s: GameState, input: SignalInput): void {
     reveals, purchases, and weak-demand markers remain in Details. */
 export function importantMarketSignals(s: GameState): MarketSignal[] {
   return s.marketSignals.filter((signal) =>
-    signal.kind === 'market' || signal.kind === 'claim' || signal.kind === 'close');
+    (signal.kind === 'market' && signal.impacts.length > 0)
+    || signal.kind === 'claim'
+    || signal.kind === 'close');
 }
 
 /** Promote a real ownership takeover, but not an initial purchase or a move
