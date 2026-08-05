@@ -59,6 +59,8 @@ export default function Board3DSync() {
       piece: s.players[r.playerIdx].piece,
       nw: r.nw,
       marketStance: s.players[r.playerIdx].marketStance,
+      score: r.score,
+      marketGain: r.marketGain,
     }));
 
     const card = s.card
@@ -135,6 +137,7 @@ export default function Board3DSync() {
         FED: s.decks.FED.length,
         IPO: s.ipos.filter((ip) => !ip.revealed).length,
       },
+      scoringMode: s.opts.scoringMode,
     });
   });
 

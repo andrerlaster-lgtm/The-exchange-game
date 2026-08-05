@@ -50,7 +50,10 @@ The game should feel like a board-game version of investing: players are trying 
 
 **Winning**
 
-The winner is the player with the highest Final Portfolio Value when the game ends.
+The setup screen offers two winning-score modes:
+
+- **Standard / Net Worth Mode:** the player with the highest Final Portfolio Value wins.
+- **Gain/Loss Mode:** the player with the highest Market Gain wins. Market Gain = Final Portfolio Value − Starting Cash − base Salary Collected. Removing salary keeps automatic lap income from inflating investment performance.
 
 **Final Portfolio Value**
 - Cash on hand
@@ -270,6 +273,10 @@ Selling back to the bank is allowed, but it must not reopen Sold-Out stocks or l
 - The seller receives one price step below the current market price for each share sold.
 - If the stock is already at the lowest price step ($100 floor), use the floor price.
 - Selling 3 or more shares in one bank-sale action moves that stock down one price step, unless it is already at the $100 floor. Selling 1 or 2 shares does not move its price.
+- Every regular stock and IPO purchase records actual cost basis. A full-company purchase uses its fixed $5,000 / $7,500 / $10,000 buyout price as the total basis for all 11 shares. IPOs, auctions, and private trades use the actual amount paid.
+- **Unrealized stock gain/loss** = current market value of shares still held − their remaining cost basis.
+- When shares are sold, their proportional average basis is removed from the holding. **Realized gain/loss** = sale proceeds − removed basis.
+- Total Stock G/L = Realized Stock G/L + Unrealized Stock G/L. Dividends, Payout Claims, salary, taxes, and bonuses are not included in Stock G/L; they remain visible through Market Gain and the cash logs.
 - Sold-back shares go to the Bank Auction Pool for that company.
 - Sold-back shares do not return to normal market supply and cannot be bought directly from the board.
 
@@ -530,13 +537,16 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 - Add the current market value of all owned regular stocks and IPOs, plus owned ETF holdings valued at their fixed purchase/card price (ETFs have no price ladder — see Section 15).
 - Subtract outstanding Margin balance, if the advanced Margin mode is on.
 - Do not add separate value for Payout Claims, Sector Portfolio badges, or Controller badges unless a specific card/rule grants an endgame bonus.
-- The highest Final Portfolio Value wins.
+- In Net Worth Mode, the highest Final Portfolio Value wins.
+- In Gain/Loss Mode, subtract Starting Cash and base Salary Collected from Final Portfolio Value. The highest resulting Market Gain wins. Other earned income and penalties remain in the result because they reflect game decisions and consequences.
+- Each final result also displays realized, unrealized, and total Stock G/L from the cost-basis ledger.
 
 ## 21. Standard Mode Settings
 
 | Setting | Standard mode |
 |---|---|
 | Starting cash | $30,000 default; setup choices are $30,000, $40,000, or $50,000 |
+| Winning score | Net Worth by default; optional Gain/Loss Mode ranks salary-adjusted Market Gain |
 | Margin trading | Off by default |
 | Weak Demand | On; 2 explicit skips drop an untouched company's price 1 step; no ownership protection |
 | Short Sell | Off / removed from standard game flow |
@@ -560,12 +570,13 @@ Use this checklist when sending the rules to code.
 | Area | Implementation requirement |
 |---|---|
 | Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares; fixed acquisition tiers = $5,000 / $7,500 / $10,000; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
-| Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance, Circuit Breaker holder |
+| Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance, Circuit Breaker holder, remaining stock cost basis, realized/unrealized Stock G/L, salary-adjusted Market Gain |
 | Stock landing | If untouched, offer a full 11-share company buyout at its fixed tier price or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment, with no payment when the owner lands on their own company |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
 | Sell-back | Trade Step action only; pay seller 1 step below market (or floor), move price down 1 step (unless at floor), put shares into Bank Auction Pool, do not reopen normal supply |
 | Auctions | Auction pool shares only, held during Market Open Trading Window; all players may bid; winner pays bank; auction purchase does not move price; Payout Claim frozen until auction closes, then recalculated once |
 | Trading | Trade Step: P2P trades and bank sell-back both allowed. Market Open Trading Window: P2P trades and auction bidding only, no bank sell-back. Offers expire on window close |
+| Gain/Loss accounting | Purchases add actual cost basis; sales remove proportional average basis and record proceeds minus basis as realized G/L; current value minus remaining basis is unrealized G/L |
 | Dividends | Pay flat per-share dividend on every regular stock and revealed IPO at every Market Open; apply 2x multiplier for Controllers; Always On, independent of Sold-Out status |
 | IPO reveal | Single shared 4-IPO queue; landing on either IPO space reveals the next unrevealed IPO; only the landing player may buy, up to 2 shares |
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default |
@@ -573,7 +584,7 @@ Use this checklist when sending the rules to code.
 | Market Open | Pay salary, dividends, ETF payouts, diversification bonuses, resolve Margin repayment, then open Market Open Trading Window |
 | Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |
 | Investor Day | Space 31; choose Company Growth (+1 eligible owned regular company, or $500 if none) or Insider Information (preview the next Market Event; card stays on top) |
-| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance |
+| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance, per-holding basis and unrealized G/L, total realized/unrealized Stock G/L, Market Gain and salary excluded |
 | Logs | Separate bank payout, player-paid payout, private trade, full-company buy, bank sell-back, Weak Demand, auction sale, Payout Claim transfer, dividend payout, Margin draw/repay |
 
 ## 23. Open Balance Items

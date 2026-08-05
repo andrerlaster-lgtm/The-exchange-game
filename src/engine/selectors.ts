@@ -3,6 +3,7 @@
 
 export { clampStep, ipoOf, stepOf, priceOf, sellBackPrice, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked, shortPayout } from './rules';
 export { sharesValue, netWorth, isDiversified } from './scoringEngine';
+export { holdingGainLoss, stockGainLoss, marketGain, marketReturnPct, rankingScore } from './gainLoss';
 export { topOwner, recomputeClaim, claimPayout } from './soldOut';
 export { completedSectors, hasSectorPortfolio, distinctSectors, diversificationTier, diversificationBonus } from './sector';
 export type { DiversificationTier } from './sector';
@@ -48,6 +49,7 @@ export function getStockMovementStatus(code: string, s: GameState): StockMovemen
 import { MARGIN_INCREMENT, MARGIN_MAX } from '../data';
 import { netWorth, sharesValue } from './scoringEngine';
 import { priceOf } from './rules';
+import { marketGain, marketReturnPct, rankingScore, stockGainLoss } from './gainLoss';
 
 export interface BuyingPower {
   cash: number;
@@ -114,6 +116,13 @@ export interface RankedPlayer {
   stocksValue: number;
   etfsValue: number;
   margin: number;
+  salaryCollected: number;
+  marketGain: number;
+  marketReturnPct: number;
+  realizedStockGain: number;
+  unrealizedStockGain: number;
+  totalStockGain: number;
+  score: number;
   rank: number;           // 0-based current rank
   prevRank: number | null;
   rankDelta: number | null; // positive = moved up, negative = moved down
@@ -123,6 +132,7 @@ export function getRankedPlayers(s: GameState): RankedPlayer[] {
   return s.players
     .map((p, i) => {
       const sv = sharesValue(s, p);
+      const stockGl = stockGainLoss(s, p);
       return {
         playerIdx: i,
         name: p.name,
@@ -132,13 +142,21 @@ export function getRankedPlayers(s: GameState): RankedPlayer[] {
         stocksValue: sv,
         etfsValue: etfValue(p.etfShares),
         margin: p.margin,
+        salaryCollected: p.salaryCollected,
+        marketGain: marketGain(s, p),
+        marketReturnPct: marketReturnPct(s, p),
+        realizedStockGain: stockGl.realized,
+        unrealizedStockGain: stockGl.unrealized,
+        totalStockGain: stockGl.total,
+        score: rankingScore(s, p),
         prevRank: p.prevRank,
         rank: 0,
         rankDelta: null,
       };
     })
-    // Rank by net worth; break ties by cash on hand, then by lower margin debt.
-    .sort((a, b) => b.nw - a.nw || b.cash - a.cash || a.margin - b.margin)
+    // Standard Mode ranks net worth. Gain/Loss Mode ranks salary-adjusted
+    // Market Gain. Net worth, cash, then lower margin break ties.
+    .sort((a, b) => b.score - a.score || b.nw - a.nw || b.cash - a.cash || a.margin - b.margin)
     .map((entry, rank) => ({
       ...entry,
       rank,

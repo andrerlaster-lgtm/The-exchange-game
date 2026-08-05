@@ -5,7 +5,8 @@ import {
 import type { GameState } from '../engine';
 import {
   bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
-  fedSignalForStock, importantMarketSignals, marketStanceMeta, playerSignalExposure, priceOf, sellBackPrice,
+  fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
+  playerSignalExposure, priceOf, sellBackPrice, stockGainLoss,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction } from './sync3dBoard';
 
@@ -52,9 +53,10 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   };
 
   if (!gameActive) {
+    const scoreLabel = s.opts.scoringMode === 'gainLoss' ? 'Market Gain' : 'Net Worth';
     required.push({
       id: 'game-over', title: 'Market Closed · Final Standings', accent: '#d4a535', urgent: true,
-      description: getRankedPlayers(s).map((entry) => `#${entry.rank + 1} ${entry.name} — ${money(entry.nw)}`).join(' · '),
+      description: getRankedPlayers(s).map((entry) => `#${entry.rank + 1} ${entry.name} — ${scoreLabel} ${money(entry.score)}`).join(' · '),
       buttons: [button('Set Up a New Game', { t: 'newGame' }, 'gold')],
     });
   }
@@ -242,16 +244,20 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
 
   const sellable = gameActive && canMarketSell(s);
   const holdings = Object.entries(current.shares)
-    .filter(([code, qty]) => !isIpoCode(code) && qty > 0)
+    .filter(([, qty]) => qty > 0)
     .map(([code, qty]) => {
+      const ipo = isIpoCode(code);
       const limit = bankSellLimit(s, code);
       const remaining = bankSellRemaining(s, code);
+      const gl = holdingGainLoss(s, current, code);
       return {
         key: code,
         title: `${code} · ${codeName(code)}`,
-        detail: `Own ${qty} · ${remaining} of ${limit} bank-sale shares left · ${fedSignalForStock(s, code).label}`,
-        value: `Sell at ${money(sellBackPrice(s, code))}`,
-        buttons: Array.from({ length: limit }, (_, index) => {
+        detail: ipo
+          ? `IPO · Own ${qty} · Basis ${money(gl.costBasis)} · Unrealized G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%)`
+          : `Own ${qty} · Basis ${money(gl.costBasis)} · G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%) · ${remaining} of ${limit} bank-sale shares left · ${fedSignalForStock(s, code).label}`,
+        value: ipo ? `Market ${money(priceOf(s, code))}` : `Sell at ${money(sellBackPrice(s, code))}`,
+        buttons: ipo ? undefined : Array.from({ length: limit }, (_, index) => {
           const amount = index + 1;
           return button(`Sell ${amount}`, { t: 'sell', code, qty: amount }, 'danger', !sellable || amount > remaining);
         }),
@@ -260,9 +266,11 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   const repayAmount = Math.min(MARGIN_INCREMENT, current.margin);
   const marginLocked = !!(s.marginCall?.player === s.cur || s.insolvency?.player === s.cur);
   const purchaseOpen = gameActive && (!!s.trade || s.ipoListPick || !!s.ipoBuy);
+  const stockGl = stockGainLoss(s, current);
+  const gameGain = marketGain(s, current);
   const portfolio: ActionPanel3D = {
     id: 'portfolio', title: `${currentStance.glyph} ${current.name} · ${currentStance.label} Portfolio`, accent: currentStance.color,
-    description: `Cash ${money(current.cash)} · Margin ${money(current.margin)} · Latest qualifying action sets Bull/Bear stance · Bank sales: up to half each holding; 3+ at once lowers price`,
+    description: `Cash ${money(current.cash)} · Market Gain ${money(gameGain)} · Stock G/L ${money(stockGl.total)} (unrealized ${money(stockGl.unrealized)}, realized ${money(stockGl.realized)}) · Salary excluded ${money(current.salaryCollected)} · Margin ${money(current.margin)}`,
     rows: holdings,
     buttons: [
       button(`Take Margin +${money(MARGIN_INCREMENT)}`, { t: 'takeMargin' }, 'gold', !s.opts.margin || !purchaseOpen || current.margin + MARGIN_INCREMENT > MARGIN_MAX || !!s.auction),

@@ -23,6 +23,7 @@ import { handleBid, handlePass } from './auction';
 import { hasSectorPortfolio } from './sector';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
+import { addStockCostBasis, rankingScore, recordStockSale } from './gainLoss';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -47,15 +48,18 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   const owned = seller.shares[offer.code] || 0;
   if (owned < offer.qty || buyer.cash < offer.price) return false;
 
+  const realized = recordStockSale(seller, offer.code, offer.qty, offer.price, owned);
   seller.shares[offer.code] = owned - offer.qty;
   if (seller.shares[offer.code] === 0) delete seller.shares[offer.code];
   buyer.shares[offer.code] = (buyer.shares[offer.code] || 0) + offer.qty;
+  addStockCostBasis(buyer, offer.code, offer.price);
   buyer.cash -= offer.price;
   seller.cash += offer.price;
   if (offer.qty >= 3) setMarketStance(seller, 'bearish');
 
-  addLog(s, `${seller.name} sells ${offer.qty}× ${offer.code} to ${buyer.name} for ${money(offer.price)} (private trade)`, 'b');
-  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name}`, offer.price, seller.name);
+  addLog(s, `${seller.name} sells ${offer.qty}× ${offer.code} to ${buyer.name} for ${money(offer.price)} (private trade · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)})`, 'b');
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, offer.price, seller.name);
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} from ${seller.name} · basis ${money(offer.price)}`, -offer.price, buyer.name);
   recomputeAndLogClaim(s, offer.code);
   return true;
 }
@@ -327,6 +331,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (p.cash < cost) break;
       p.cash -= cost;
       p.shares[code] = REGULAR_SUPPLY;
+      addStockCostBasis(p, code, cost);
       setMarketStance(p, 'bullish');
       s.supply[code] = 0;
       t.actionsLeft -= 1;
@@ -359,7 +364,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // (or the $100 floor). A block sale of 3+ shares additionally moves the
       // market price down one step.
       const price = sellBackPrice(s, code);
-      p.cash += price * qty;
+      const proceeds = price * qty;
+      const realized = recordStockSale(p, code, qty, proceeds, owned);
+      p.cash += proceeds;
       p.shares[code] = owned - qty;
       if (p.shares[code] === 0) delete p.shares[code];
       // Sold-out stocks are permanent: sold-back shares go to the bank pool
@@ -371,8 +378,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (qty >= 3) moveTradePrice(s, code, -1);
       if (tradeStepSell) t!.actionsLeft -= 1;
       const moved = qty >= 3 ? ' (▼1 step)' : '';
-      addLog(s, `${p.name} sells ${qty} ${code} @ ${money(price)}${moved}`, 'r');
-      addTradeLog(s, 'sell', `${qty}× ${code} @ ${money(price)}`, price * qty, p.name);
+      addLog(s, `${p.name} sells ${qty} ${code} @ ${money(price)}${moved} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, 'r');
+      addTradeLog(s, 'sell', `${qty}× ${code} @ ${money(price)} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, proceeds, p.name);
       recomputeAndLogClaim(s, code);
       break;
     }
@@ -449,14 +456,15 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (owned <= 0) break;
       const ipo = isIpoCode(code);
       const price = ipo ? priceOf(s, code) : sellBackPrice(s, code);
+      const realized = recordStockSale(p, code, 1, price, owned);
       p.cash += price;
       p.shares[code] = owned - 1;
       if (p.shares[code] === 0) delete p.shares[code];
       if (ipo) s.ipos[IPO_INDEX[code]].supply += 1;
       else if (s.soldOut[code]) s.bankPool[code] = (s.bankPool[code] || 0) + 1;
       else s.supply[code] = (s.supply[code] || 0) + 1;
-      addLog(s, `${p.name} sells 1 ${code} @ ${money(price)} to cover margin`, 'r');
-      addTradeLog(s, 'sell', `1× ${code} @ ${money(price)} (margin)`, price, p.name);
+      addLog(s, `${p.name} sells 1 ${code} @ ${money(price)} to cover margin · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, 'r');
+      addTradeLog(s, 'sell', `1× ${code} @ ${money(price)} (margin) · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, price, p.name);
       recomputeAndLogClaim(s, code);
       break;
     }
@@ -488,13 +496,14 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // Forced sales pay the normal sell-back price (rulebook §11/§17): one step
       // below market. Single-share sales don't move the price (as elsewhere).
       const price = sellBackPrice(s, code);
+      const realized = recordStockSale(p, code, 1, price, owned);
       p.cash += price;
       p.shares[code] = owned - 1;
       if (p.shares[code] === 0) delete p.shares[code];
       if (s.soldOut[code]) s.bankPool[code] = (s.bankPool[code] || 0) + 1;
       else s.supply[code] = (s.supply[code] || 0) + 1;
-      addLog(s, `${p.name} force-sells 1 ${code} @ ${money(price)} to cover ${iv.label}`, 'r');
-      addTradeLog(s, 'sell', `1× ${code} @ ${money(price)} (forced)`, price, p.name);
+      addLog(s, `${p.name} force-sells 1 ${code} @ ${money(price)} to cover ${iv.label} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, 'r');
+      addTradeLog(s, 'sell', `1× ${code} @ ${money(price)} (forced) · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, price, p.name);
       recomputeAndLogClaim(s, code);
       break;
     }
@@ -557,6 +566,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (b.bought >= b.max || ip.supply <= 0 || p.cash < b.price) break;
       p.cash -= b.price;
       p.shares[b.code] = (p.shares[b.code] || 0) + 1;
+      addStockCostBasis(p, b.code, b.price);
       ip.supply -= 1; b.bought += 1;
       // IPO prices never move from buying/selling (rulebook §16) — only card
       // effects move them, via moveEventPrice.
@@ -767,8 +777,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       }
       // Snapshot current ranks (includes ETF value) before advancing turn
       const ranked = [...s.players]
-        .map((p, i) => ({ i, nw: netWorth(s, p) }))
-        .sort((a, b) => b.nw - a.nw);
+        .map((p, i) => ({ i, score: rankingScore(s, p), nw: netWorth(s, p) }))
+        .sort((a, b) => b.score - a.score || b.nw - a.nw);
       ranked.forEach((entry, rank) => { s.players[entry.i].prevRank = rank; });
       s.cur = (s.cur + 1) % n;
       if (s.cur === 0) startLap(s);

@@ -3,7 +3,8 @@ import { ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, PIECE_BY_KEY, SECTORS
 import {
   completedSectors, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
-  marketStanceMeta, netWorth, priceOf, projectedDividend,
+  holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
+  projectedDividend, stockGainLoss,
 } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -20,6 +21,9 @@ export default function Portfolio() {
   const entries = Object.entries(p.shares).filter(([, n]) => n > 0);
   const etfEntries = Object.entries(p.etfShares).filter(([, n]) => n > 0);
   const nw = netWorth(s, p);
+  const gameGain = marketGain(s, p);
+  const gameReturn = marketReturnPct(s, p);
+  const stockGl = stockGainLoss(s, p);
   const bp = getBuyingPower(viewIdx, s);
   const risk = getPortfolioRisk(viewIdx, s);
   const stance = marketStanceMeta(p.marketStance);
@@ -121,6 +125,19 @@ export default function Portfolio() {
             <span style={{ fontSize: 10, color: nwColor }}>{nwGlyph}</span>
           </span>
         </div>
+        <div style={{ height: 1, background: 'rgba(212,165,53,0.12)', margin: '2px 0' }} />
+        <FinRow
+          label={s.opts.scoringMode === 'gainLoss' ? 'Market Gain · Winning Score' : 'Market Gain'}
+          value={`${signedMoney(gameGain)} (${signedPercent(gameReturn)})`}
+          color={gainColor(gameGain)}
+          bold={s.opts.scoringMode === 'gainLoss'}
+        />
+        <FinRow label="Salary Collected · excluded" value={`+$${p.salaryCollected.toLocaleString()}`} color="var(--muted)" />
+        <FinRow label="Stock G/L · total" value={signedMoney(stockGl.total)} color={gainColor(stockGl.total)} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, fontSize: 9, color: 'var(--muted)' }}>
+          <span>Unrealized {signedMoney(stockGl.unrealized)}</span>
+          <span>Realized {signedMoney(stockGl.realized)}</span>
+        </div>
       </div>
 
       {/* Projected dividend on next Market Open pass (from current holdings) */}
@@ -200,6 +217,7 @@ export default function Portfolio() {
           {entries.map(([code, qty]) => {
             const price = priceOf(s, code);
             const total = qty * price;
+            const gl = holdingGainLoss(s, p, code);
             const mv = isIpoCode(code) ? null : getStockMovementStatus(code, s);
             const mvColor = mv?.direction === 'up' ? 'var(--green)' : mv?.direction === 'down' ? 'var(--red)' : 'var(--muted)';
             const mvGlyph = mv?.direction === 'up' ? '▲' : mv?.direction === 'down' ? '▼' : '—';
@@ -218,6 +236,12 @@ export default function Portfolio() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                   <span style={{ color: 'var(--muted)' }}>{qty}× ${price >= 1000 ? `${price / 1000}k` : price}</span>
                   <span className="mono" style={{ color: 'var(--text)' }}>${total.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 3 }}>
+                  <span style={{ color: 'var(--muted)' }}>Basis ${Math.round(gl.costBasis).toLocaleString()}</span>
+                  <span className="mono" style={{ color: gainColor(gl.unrealized), fontWeight: 700 }}>
+                    G/L {signedMoney(gl.unrealized)} · {signedPercent(gl.returnPct)}
+                  </span>
                 </div>
               </div>
             );
@@ -333,6 +357,21 @@ export default function Portfolio() {
       </div>
     </div>
   );
+}
+
+function signedMoney(value: number): string {
+  const rounded = Math.round(value);
+  if (rounded === 0) return '$0';
+  return `${rounded > 0 ? '+' : '−'}$${Math.abs(rounded).toLocaleString()}`;
+}
+
+function signedPercent(value: number): string {
+  const rounded = Math.abs(value) < 0.05 ? 0 : value;
+  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}%`;
+}
+
+function gainColor(value: number): string {
+  return value > 0 ? 'var(--green)' : value < 0 ? 'var(--red)' : 'var(--muted)';
 }
 
 function FinRow({ label, value, color, bold }: { label: string; value: string; color: string; bold?: boolean }) {

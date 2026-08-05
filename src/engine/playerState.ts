@@ -57,6 +57,7 @@ export function payMarketOpen(s: GameState, pi: number): void {
 
   const total = SALARY + div + etfPay + etfDiverBonus + diverBonus;
   p.cash += total;
+  p.salaryCollected += SALARY;
 
   const parts: string[] = [`+${money(SALARY)} income`];
   if (div) parts.push(`+${money(div)} dividends`);

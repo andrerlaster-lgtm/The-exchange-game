@@ -2190,6 +2190,11 @@
       return '$' + n;
     }
 
+    function formatSigned(n) {
+      if (n === 0) return '$0';
+      return (n > 0 ? '+' : '−') + formatNW(Math.abs(n));
+    }
+
     function updateLeaderboard(payload) {
       if (!payload?.leaderboard?.length) return;
       const lb = payload.leaderboard;
@@ -2207,11 +2212,13 @@
         const piece = document.createElement('span'); piece.className = 'lb-piece'; piece.textContent = PIECE_EMOJI[entry.piece] ?? '●';
         const stanceGlyph = entry.marketStance === 'bullish' ? '🐂' : entry.marketStance === 'bearish' ? '🐻' : '⚖';
         const name  = document.createElement('span'); name.className  = 'lb-name';  name.textContent = `${entry.name} ${stanceGlyph}`;
-        const nw    = document.createElement('span'); nw.className    = 'lb-nw';    nw.textContent = formatNW(entry.nw);
+        const nw    = document.createElement('span'); nw.className    = 'lb-nw';
+        nw.textContent = payload.scoringMode === 'gainLoss' ? formatSigned(entry.marketGain) : formatNW(entry.nw);
 
         row.append(rank, dot, piece, name, nw);
         miniLb.appendChild(row);
       });
+      lbTitle.textContent = payload.scoringMode === 'gainLoss' ? 'GAIN / LOSS' : 'LEADERBOARD';
     }
 
     let canRollGlobal = false;

@@ -139,6 +139,10 @@ describe('3D Action Center parity', () => {
     s = dispatch(s, buy!.buttons![0].action, rng());
     expect(s.players[s.cur].shares[code]).toBe(1);
     expect(buildActionCenter(s).required.find((entry) => entry.id === 'ipo-buy')?.description).toContain('1/2 bought');
+    const ipoHolding = buildActionCenter(s).portfolio.rows?.find((entry) => entry.key === code);
+    expect(ipoHolding?.detail).toContain('Basis $3,000');
+    expect(ipoHolding?.detail).toContain('Unrealized G/L $0');
+    expect(ipoHolding?.buttons).toBeUndefined();
   });
 
   it('keeps final standings and new-game setup reachable from 3D after Market Close', () => {

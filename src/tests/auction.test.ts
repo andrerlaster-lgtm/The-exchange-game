@@ -60,6 +60,7 @@ describe('Bank Auction — bidding', () => {
     expect(s.auction).toBeNull();
     expect(s.players[1].shares[CODE]).toBe(1);
     expect(s.players[1].cash).toBe(p1CashBefore - (start + 100));
+    expect(s.players[1].stockCostBasis[CODE]).toBe(start + 100);
     expect(s.bankPool[CODE]).toBe(0);
   });
 

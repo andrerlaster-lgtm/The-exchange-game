@@ -24,7 +24,10 @@ export interface Player {
   cash: number;
   pos: number;                       // board space 1..36
   shares: Record<string, number>;    // code -> qty (regular + IPO)
+  stockCostBasis: Record<string, number>; // code -> total cost basis of shares still held
+  realizedStockGain: number;         // cumulative realized gain/loss from sold shares and settled shorts
   etfShares: Record<string, number>; // ETF code -> qty held
+  salaryCollected: number;           // base Market Open salary only; excluded from Gain/Loss Mode
   margin: number;                    // total outstanding margin dollars
   marketStance: MarketStance;        // latest qualifying market position, resolved by Bull/Bear Run
   prevRank: number | null;           // rank at end of previous turn (null = first turn)
@@ -186,6 +189,7 @@ export interface P2POffer {
 
 export interface GameOptions {
   startCash: number;          // starting cash per player
+  scoringMode: 'netWorth' | 'gainLoss';
   margin: boolean;            // margin trading allowed
   shorts: boolean;            // short selling allowed
   ipos: boolean;              // IPO spaces active
@@ -195,6 +199,7 @@ export interface GameOptions {
 
 export const DEFAULT_OPTIONS: GameOptions = {
   startCash: 30_000,
+  scoringMode: 'netWorth',
   margin: false, // advanced-mode toggle — off by default in standard mode (rulebook §21)
   shorts: false, // Short Sell is off / removed from standard game flow (rulebook §21)
   ipos: true,

@@ -27,6 +27,8 @@ export interface LBEntry {
   piece: string;
   nw: number;
   marketStance: 'bullish' | 'balanced' | 'bearish';
+  score: number;
+  marketGain: number;
 }
 
 export interface TradeInfo3D {
@@ -157,6 +159,7 @@ export interface Board3DPayload {
   drawEvent: { deck: string; title: string; seq: number } | null;
   /** Cards remaining per deck (IPO = unrevealed listings). */
   deckCounts: { ME: number; FED: number; IPO: number };
+  scoringMode: 'netWorth' | 'gainLoss';
 }
 
 export interface Board3DCommand {

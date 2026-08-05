@@ -20,7 +20,8 @@ const QUICK_RULES = [
   'Circuit Breaker is a single held Market Event card. Play it during a later negative Market Event or Bear Run to protect 1 affected company you own from that effect’s entire price drop, or keep it for later.',
   'Market Stance: buying a company or using Margin makes you Bullish; selling 3+ shares or opening a Short makes you Bearish. The latest qualifying action sets your position for the next Bull or Bear Run, then everyone resets to Balanced.',
   'Investor Day: choose Company Growth (move 1 eligible owned company up 1 step, or collect $500 if none qualifies) or Insider Information (preview the next Market Event without drawing it).',
-  'Build the highest net worth to win: Cash + Stock/IPO Value + ETF Value − Margin.',
+  'Standard Mode: build the highest net worth. Gain/Loss Mode: win with the highest Market Gain (Net Worth − Starting Cash − Salary Collected).',
+  'Every stock and IPO holding tracks cost basis, unrealized gain/loss while held, and realized gain/loss when shares are sold.',
   'The game ends at Market Close — either the Market Close card is drawn or a fixed round count is reached, whichever you chose at setup.',
 ];
 
@@ -164,6 +165,23 @@ export default function SetupScreen() {
               </TBtn>
             ))}
           </OptRow>
+
+          <div style={{ height: 1, background: 'rgba(212,165,53,0.1)' }} />
+
+          <OptRow label="Winning Score">
+            <TBtn active={opts.scoringMode === 'netWorth'} onClick={() => setOpt('scoringMode', 'netWorth')}>
+              Net Worth
+            </TBtn>
+            <TBtn active={opts.scoringMode === 'gainLoss'} onClick={() => setOpt('scoringMode', 'gainLoss')}>
+              Gain / Loss
+            </TBtn>
+          </OptRow>
+
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45, padding: '0 2px' }}>
+            {opts.scoringMode === 'gainLoss'
+              ? 'Winner: highest Market Gain. Salary is shown but removed from the score.'
+              : 'Winner: highest final net worth.'}
+          </div>
 
           <div style={{ height: 1, background: 'rgba(212,165,53,0.1)' }} />
 

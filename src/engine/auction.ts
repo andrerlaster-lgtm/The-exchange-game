@@ -10,6 +10,7 @@ import type { GameState } from './types';
 import { clampStep } from './rules';
 import { recomputeClaim } from './soldOut';
 import { recordClaimTakeover } from './marketSignals';
+import { addStockCostBasis } from './gainLoss';
 
 function addLog(s: GameState, text: string, kind: 'g' | 'r' | 'y' | 'b' | 'n' = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -103,6 +104,7 @@ function closeLot(s: GameState, winner: number): void {
   const p = s.players[winner];
   p.cash -= price;
   p.shares[a.code] = (p.shares[a.code] || 0) + 1;
+  addStockCostBasis(p, a.code, price);
   a.poolLeft -= 1;
   s.bankPool[a.code] = Math.max(0, (s.bankPool[a.code] || 0) - 1);
   addLog(s, `${p.name} wins 1 ${a.code} at auction for ${money(price)}.`, 'g');

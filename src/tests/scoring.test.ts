@@ -13,6 +13,7 @@ describe('Rule 8 — Market Open base income + dividends', () => {
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     expect(s.players[0].pos).toBe(2);
     expect(s.players[0].cash).toBe(cash + SALARY);
+    expect(s.players[0].salaryCollected).toBe(SALARY);
   });
 
   it('pays printed dividends per share', () => {

@@ -6,6 +6,8 @@ export default function GameOver() {
   const dispatch = useDispatch();
   const ranked = getRankedPlayers(s);
   const winner = ranked[0];
+  const gainLossMode = s.opts.scoringMode === 'gainLoss';
+  const winnerScoreColor = gainLossMode ? gainColor(winner.marketGain) : '#22c55e';
 
   return (
     <div style={{
@@ -53,38 +55,51 @@ export default function GameOver() {
             marginBottom: 6,
           }}>{winner.name}</div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-            Final Net Worth
+            {gainLossMode ? 'Winning Market Gain' : 'Final Net Worth'}
           </div>
           <div className="mono" style={{
-            fontSize: 36, fontWeight: 800, color: '#22c55e',
-            textShadow: '0 0 20px rgba(34,197,94,0.4)',
+            fontSize: 36, fontWeight: 800, color: winnerScoreColor,
+            textShadow: `0 0 20px ${winner.marketGain < 0 && gainLossMode ? 'rgba(239,68,68,0.35)' : 'rgba(34,197,94,0.4)'}`,
             letterSpacing: -1,
           }}>
-            ${winner.nw.toLocaleString()}
+            {gainLossMode ? signedMoney(winner.marketGain) : `$${winner.nw.toLocaleString()}`}
           </div>
 
           {/* Winner breakdown */}
           <div style={{
-            display: 'grid', gridTemplateColumns: winner.etfsValue > 0 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr',
+            display: 'grid', gridTemplateColumns: gainLossMode ? '1fr 1fr 1fr 1fr' : winner.etfsValue > 0 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr',
             gap: 10, marginTop: 18,
             padding: '14px 0 2px',
             borderTop: '1px solid rgba(212,165,53,0.12)',
           }}>
-            <BreakdownCell label="Cash" value={`$${winner.cash.toLocaleString()}`} color="var(--green)" />
-            <BreakdownCell label="Stocks" value={`$${winner.stocksValue.toLocaleString()}`} color="var(--blue)" />
-            {winner.etfsValue > 0 && (
-              <BreakdownCell label="ETFs" value={`$${winner.etfsValue.toLocaleString()}`} color="var(--accent)" />
+            {gainLossMode ? (
+              <>
+                <BreakdownCell label="Net Worth" value={`$${winner.nw.toLocaleString()}`} color="var(--green)" />
+                <BreakdownCell label="Start" value={`$${s.opts.startCash.toLocaleString()}`} color="var(--muted)" />
+                <BreakdownCell label="Salary Removed" value={`−$${winner.salaryCollected.toLocaleString()}`} color="var(--muted)" />
+                <BreakdownCell label="Stock G/L" value={signedMoney(winner.totalStockGain)} color={gainColor(winner.totalStockGain)} />
+              </>
+            ) : (
+              <>
+                <BreakdownCell label="Cash" value={`$${winner.cash.toLocaleString()}`} color="var(--green)" />
+                <BreakdownCell label="Stocks" value={`$${winner.stocksValue.toLocaleString()}`} color="var(--blue)" />
+                {winner.etfsValue > 0 && (
+                  <BreakdownCell label="ETFs" value={`$${winner.etfsValue.toLocaleString()}`} color="var(--accent)" />
+                )}
+                <BreakdownCell label="Margin" value={winner.margin > 0 ? `−$${winner.margin.toLocaleString()}` : '—'} color={winner.margin > 0 ? 'var(--red)' : 'var(--muted)'} />
+              </>
             )}
-            <BreakdownCell label="Margin" value={winner.margin > 0 ? `−$${winner.margin.toLocaleString()}` : '—'} color={winner.margin > 0 ? 'var(--red)' : 'var(--muted)'} />
           </div>
           <div style={{ fontSize: 10, color: 'rgba(212,165,53,0.45)', marginTop: 10, letterSpacing: 0.5 }}>
-            Cash + Stocks{winner.etfsValue > 0 ? ' + ETFs' : ''} − Margin = ${winner.nw.toLocaleString()}
+            {gainLossMode
+              ? `Net Worth − Starting Cash − Salary = ${signedMoney(winner.marketGain)} · Return ${signedPercent(winner.marketReturnPct)}`
+              : `Cash + Stocks${winner.etfsValue > 0 ? ' + ETFs' : ''} − Margin = $${winner.nw.toLocaleString()}`}
           </div>
         </div>
 
         {/* Final leaderboard */}
         <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          <span className="slabel">Final Standings</span>
+          <span className="slabel">Final {gainLossMode ? 'Gain / Loss' : 'Net Worth'} Standings</span>
           {ranked.map((p, idx) => (
             <div key={p.playerIdx} style={{
               display: 'flex', alignItems: 'center', gap: 10,
@@ -120,12 +135,16 @@ export default function GameOver() {
               {/* Breakdown */}
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>CASH</div>
-                  <div className="mono" style={{ fontSize: 11, color: 'var(--green)' }}>${p.cash.toLocaleString()}</div>
+                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>{gainLossMode ? 'STOCK G/L' : 'CASH'}</div>
+                  <div className="mono" style={{ fontSize: 11, color: gainLossMode ? gainColor(p.totalStockGain) : 'var(--green)' }}>
+                    {gainLossMode ? signedMoney(p.totalStockGain) : `$${p.cash.toLocaleString()}`}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>STOCKS</div>
-                  <div className="mono" style={{ fontSize: 11, color: 'var(--blue)' }}>${p.stocksValue.toLocaleString()}</div>
+                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>{gainLossMode ? 'SALARY' : 'STOCKS'}</div>
+                  <div className="mono" style={{ fontSize: 11, color: gainLossMode ? 'var(--muted)' : 'var(--blue)' }}>
+                    ${gainLossMode ? p.salaryCollected.toLocaleString() : p.stocksValue.toLocaleString()}
+                  </div>
                 </div>
                 {p.etfsValue > 0 && (
                   <div style={{ textAlign: 'right' }}>
@@ -140,9 +159,9 @@ export default function GameOver() {
                   </div>
                 )}
                 <div style={{ textAlign: 'right', minWidth: 72 }}>
-                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>NET WORTH</div>
-                  <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: idx === 0 ? '#22c55e' : 'var(--text)' }}>
-                    ${p.nw.toLocaleString()}
+                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>{gainLossMode ? 'MARKET GAIN' : 'NET WORTH'}</div>
+                  <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: gainLossMode ? gainColor(p.marketGain) : idx === 0 ? '#22c55e' : 'var(--text)' }}>
+                    {gainLossMode ? signedMoney(p.marketGain) : `$${p.nw.toLocaleString()}`}
                   </div>
                 </div>
               </div>
@@ -155,7 +174,9 @@ export default function GameOver() {
           textAlign: 'center', fontSize: 11, color: 'var(--muted)',
           padding: '6px 0', letterSpacing: 0.5,
         }}>
-          Net Worth = Cash + Stock Value + ETF Value − Outstanding Margin
+          {gainLossMode
+            ? 'Market Gain = Net Worth − Starting Cash − Salary Collected'
+            : 'Net Worth = Cash + Stock Value + ETF Value − Outstanding Margin'}
         </div>
 
         {/* Actions */}
@@ -176,6 +197,20 @@ export default function GameOver() {
       </div>
     </div>
   );
+}
+
+function signedMoney(value: number): string {
+  const rounded = Math.round(value);
+  if (rounded === 0) return '$0';
+  return `${rounded > 0 ? '+' : '−'}$${Math.abs(rounded).toLocaleString()}`;
+}
+
+function signedPercent(value: number): string {
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+}
+
+function gainColor(value: number): string {
+  return value > 0 ? 'var(--green)' : value < 0 ? 'var(--red)' : 'var(--muted)';
 }
 
 function BreakdownCell({ label, value, color }: { label: string; value: string; color: string }) {

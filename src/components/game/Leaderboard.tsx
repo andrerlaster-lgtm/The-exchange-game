@@ -6,10 +6,11 @@ export default function Leaderboard() {
   const s = useGameState();
   const ranked = getRankedPlayers(s);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const gainLossMode = s.opts.scoringMode === 'gainLoss';
 
   return (
     <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span className="slabel">Standings</span>
+      <span className="slabel">{gainLossMode ? 'Gain / Loss Standings' : 'Net Worth Standings'}</span>
       {ranked.map((p) => {
         const isActive = p.playerIdx === s.cur;
         const isLeader = p.rank === 0;
@@ -69,9 +70,9 @@ export default function Leaderboard() {
               {isLeader && <span style={{ fontSize: 11, color: 'var(--gold)', filter: 'drop-shadow(0 0 4px rgba(240,197,61,0.6))', flexShrink: 0 }}>★</span>}
               {isActive && !isLeader && <span style={{ fontSize: 8, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>YOU</span>}
 
-              {/* Net worth */}
-              <span className="mono" style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600, flexShrink: 0 }}>
-                ${p.nw.toLocaleString()}
+              {/* Active winning score */}
+              <span className="mono" style={{ fontSize: 11, color: gainLossMode ? scoreColor(p.marketGain) : 'var(--green)', fontWeight: 600, flexShrink: 0 }}>
+                {gainLossMode ? signedMoney(p.marketGain) : `$${p.nw.toLocaleString()}`}
               </span>
             </div>
 
@@ -85,6 +86,9 @@ export default function Leaderboard() {
               }}>
                 <BRow label="Cash" value={p.cash} color="var(--green)" />
                 <BRow label="Stocks" value={p.stocksValue} color="var(--accent)" />
+                <BRow label="Market Gain" value={p.marketGain} color={scoreColor(p.marketGain)} signed />
+                <BRow label="Stock G/L" value={p.totalStockGain} color={scoreColor(p.totalStockGain)} signed />
+                <BRow label="Salary excluded" value={p.salaryCollected} color="var(--muted)" signed />
                 {p.margin > 0 && <BRow label="Margin" value={-p.margin} color="var(--red)" />}
               </div>
             )}
@@ -95,13 +99,23 @@ export default function Leaderboard() {
   );
 }
 
-function BRow({ label, value, color }: { label: string; value: number; color: string }) {
+function BRow({ label, value, color, signed = false }: { label: string; value: number; color: string; signed?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
       <span style={{ color: 'var(--muted)' }}>{label}</span>
       <span className="mono" style={{ color }}>
-        {value >= 0 ? '$' : '−$'}{Math.abs(value).toLocaleString()}
+        {signed ? signedMoney(value) : `${value >= 0 ? '$' : '−$'}${Math.abs(Math.round(value)).toLocaleString()}`}
       </span>
     </div>
   );
+}
+
+function signedMoney(value: number): string {
+  const rounded = Math.round(value);
+  if (rounded === 0) return '$0';
+  return `${rounded > 0 ? '+' : '−'}$${Math.abs(rounded).toLocaleString()}`;
+}
+
+function scoreColor(value: number): string {
+  return value > 0 ? 'var(--green)' : value < 0 ? 'var(--red)' : 'var(--muted)';
 }

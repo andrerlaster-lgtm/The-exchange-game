@@ -47,6 +47,7 @@ export function settleShorts(s: GameState): void {
       const delta = s.prices[sh.code] - sh.entryStep;
       const pl = shortPayout(delta);
       s.players[s.cur].cash += pl;
+      s.players[s.cur].realizedStockGain += pl;
       s.log.unshift({
         text: `${sh.ownerName} settles short ${sh.code}: ${pl >= 0 ? '+' : ''}${money(pl)}`,
         kind: pl >= 0 ? 'g' : 'r', t: s.lap,
