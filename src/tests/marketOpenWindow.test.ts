@@ -1,7 +1,5 @@
-// Phase 5: Market Open Trading Window. After Market Open payouts (and any
-// pooled-share Bank Auctions) resolve, an explicit trading window opens for
-// all players before the turn can continue. It must be closed by the active
-// player; a live auction must finish first.
+// Phase 5: Market Open Trading Window. After Market Open payouts, an explicit
+// private-trading window opens for all players before the turn can continue.
 
 import { describe, expect, it } from 'vitest';
 import { blocked } from '../engine';
@@ -47,7 +45,7 @@ describe('Market Open Trading Window — closing', () => {
     expect(s.cur).toBe(1);
   });
 
-  it('refuses to close while a pooled-share auction is still live', () => {
+  it('does not auction outstanding shares or prevent the window from closing', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.supply.MEDI = 0;
@@ -55,13 +53,8 @@ describe('Market Open Trading Window — closing', () => {
       d.bankPool.MEDI = 1;
     });
     s = passMarketOpen(s);
-    expect(s.auction).not.toBeNull();
-    s = dispatch(s, { t: 'closeMarketOpenWindow' }, rng());
-    expect(s.marketOpenWindow).toBe(true); // rejected — auction still open
-    // Resolve the auction, then the window can close.
-    s = dispatch(s, { t: 'auctionPass' }, rng());
-    s = dispatch(s, { t: 'auctionPass' }, rng());
     expect(s.auction).toBeNull();
+    expect(s.bankPool.MEDI).toBe(1);
     s = dispatch(s, { t: 'closeMarketOpenWindow' }, rng());
     expect(s.marketOpenWindow).toBe(false);
   });

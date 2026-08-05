@@ -32,7 +32,7 @@ describe('Sold-Out detection & permanence', () => {
     expect(s.players[0].shares[CODE]).toBe(REGULAR_SUPPLY);
   });
 
-  it('stays sold out after a sell; sold-back shares go to the bank pool, not supply', () => {
+  it('stays sold out after a sell; sold-back shares become outstanding, not supply', () => {
     let s = started(2);
     s = withTrade(s);
     s = dispatch(s, { t: 'buy', code: CODE }, rng()); // sells out, p0 owns all 11
@@ -40,7 +40,7 @@ describe('Sold-Out detection & permanence', () => {
     s = dispatch(s, { t: 'sell', code: CODE, qty: 1 }, rng());
     expect(s.soldOut[CODE]).toBeDefined();     // permanent
     expect(s.supply[CODE]).toBe(0);            // did not reopen normal supply
-    expect(s.bankPool[CODE]).toBe(1);          // routed to the bank pool
+    expect(s.bankPool[CODE]).toBe(1);          // outstanding on the company space
   });
 
   it('does not move the share price on the fixed-price buyout', () => {
@@ -67,7 +67,7 @@ describe('Payout Claim assignment', () => {
   it('becomes Contested (null) when a later ownership change ties the top owners', () => {
     // A tie can no longer arise from the buy itself (it always produces a sole
     // owner) — only from what happens afterward: the owner sells enough back
-    // that a rival who bought in via auction/P2P now ties them.
+    // that a rival who bought in via an outstanding-share purchase/P2P now ties them.
     let s = started(2);
     s = patch(s, (d) => {
       d.supply[CODE] = 0;

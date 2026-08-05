@@ -101,7 +101,7 @@ export default function Board3DSync() {
     }
 
     // Live price snapshot for every regular stock (tiles + hover tooltips)
-    const prices: Record<string, { p: number; d: -1 | 0 | 1; delta: number; s: number; so?: boolean; claim?: number | null }> = {};
+    const prices: Record<string, { p: number; d: -1 | 0 | 1; delta: number; s: number; o?: number; so?: boolean; claim?: number | null }> = {};
     for (const st of STOCKS) {
       const mv = getStockMovementStatus(st.code, s);
       const rec = s.soldOut[st.code];
@@ -110,6 +110,7 @@ export default function Board3DSync() {
         d: mv.direction === 'up' ? 1 : mv.direction === 'down' ? -1 : 0,
         delta: mv.stepDifference,
         s: s.supply[st.code] ?? 0,
+        o: s.bankPool[st.code] ?? 0,
         so: !!rec,
         claim: rec ? rec.claimHolder : undefined,
       };

@@ -165,11 +165,13 @@ export default function ActionPanel() {
       {/* Cardless financial spaces still need a loud, explicit result. */}
       {s.landingNotice && <LandingResultBanner s={s} dispatch={dispatch} />}
 
-      {/* Market Open Trading Window — P2P trades + auction bidding only, no bank sell-back */}
-      {s.marketOpenWindow && <MarketOpenWindowPanel s={s} dispatch={dispatch} />}
+      {/* Market Open Trading Window — private trades only, no bank sell-back */}
+      {s.marketOpenWindow && <MarketOpenWindowPanel dispatch={dispatch} />}
 
-      {/* Bank Auction — ascending, turn-order bidding; blocks the turn */}
-      {s.auction && <AuctionPanel s={s} dispatch={dispatch} />}
+      {/* Sold-back shares can only be bought by landing on that company. */}
+      {s.outstandingBuy && !s.landingNotice && !s.insolvency && (
+        <OutstandingSharesPanel s={s} dispatch={dispatch} />
+      )}
 
       {/* Margin call — forced sell-to-cover, blocks the turn until resolved */}
       {s.marginCall && s.marginCall.player === s.cur && (
@@ -482,8 +484,7 @@ function InsolvencyPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
   );
 }
 
-function MarketOpenWindowPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
-  const auctionLive = !!s.auction;
+function MarketOpenWindowPanel({ dispatch }: { dispatch: (a: Action) => void }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 8,
@@ -495,51 +496,45 @@ function MarketOpenWindowPanel({ s, dispatch }: { s: GameState; dispatch: (a: Ac
         <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--green)' }}>MARKET OPEN — TRADING WINDOW</span>
       </div>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
-        Any player may propose a private trade or bid on a pooled-share auction below.
-        Selling back to the bank reopens on the seller's own Trade Step.
+        Any player may propose a private trade. Outstanding bank shares stay with
+        their company and can only be bought by landing on that stock space.
       </div>
       <button
         className="primary"
         style={{ fontSize: 12, padding: '7px 0', fontWeight: 700 }}
-        disabled={auctionLive}
         onClick={() => dispatch({ t: 'closeMarketOpenWindow' })}>
-        {auctionLive ? 'Resolve the auction first…' : 'Close Trading Window →'}
+        Close Trading Window →
       </button>
     </div>
   );
 }
 
-function AuctionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
-  const a = s.auction!;
-  const stock = STOCK_BY_CODE[a.code];
-  const actor = s.players[a.actor];
-  const minBid = a.highBidder === null ? a.startPrice : a.highBid + 1;
-  const [bid, setBid] = useState(minBid);
-  // Keep the input's floor synced as the auction advances.
-  if (bid < minBid) setBid(minBid);
-  const canAfford = actor.cash >= bid;
-  const highName = a.highBidder !== null ? s.players[a.highBidder].name : null;
+function OutstandingSharesPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const offer = s.outstandingBuy!;
+  const stock = STOCK_BY_CODE[offer.code];
+  const actor = s.players[offer.actor];
+  const available = s.bankPool[offer.code] || 0;
+  const affordable = Math.min(available, Math.floor(actor.cash / offer.price));
 
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 8,
       padding: '10px 12px', borderRadius: 8,
-      background: 'rgba(240,180,41,0.10)',
-      border: '1px solid rgba(240,180,41,0.5)',
+      background: 'rgba(74,163,255,0.10)',
+      border: '1px solid rgba(74,163,255,0.5)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--yellow)' }}>⚖ BANK AUCTION</span>
-        <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: stock?.color ?? 'var(--text)', marginLeft: 2 }}>{a.code}</span>
-        <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>{a.poolLeft} share{a.poolLeft !== 1 ? 's' : ''} left</span>
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--blue)' }}>◆ OUTSTANDING SHARES</span>
+        <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: stock?.color ?? 'var(--text)', marginLeft: 2 }}>{offer.code}</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>{available} available</span>
       </div>
 
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
-        {highName
-          ? <>High bid <span className="mono" style={{ color: 'var(--yellow)', fontWeight: 700 }}>${a.highBid.toLocaleString()}</span> by <span style={{ color: s.players[a.highBidder!].color, fontWeight: 700 }}>{highName}</span>.</>
-          : <>Opening at <span className="mono" style={{ color: 'var(--yellow)' }}>${a.startPrice.toLocaleString()}</span> (one step below market).</>}
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
+        <strong style={{ color: actor.color }}>{actor.name}</strong> landed on {stock?.name ?? offer.code} and is the only buyer.
+        Buy up to {available} at the current price of <span className="mono" style={{ color: 'var(--blue)', fontWeight: 800 }}>${offer.price.toLocaleString()}</span> each.
+        The purchase does not move the market price.
       </div>
 
-      {/* Whose turn it is */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '5px 8px', borderRadius: 6,
@@ -550,26 +545,29 @@ function AuctionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => 
           background: `radial-gradient(circle at 35% 35%, ${actor.color}, ${actor.color}88)`,
         }} />
         <span style={{ fontSize: 12, fontWeight: 700, color: actor.color }}>{actor.name}</span>
-        <span style={{ fontSize: 11, color: 'var(--muted)' }}>to bid or pass</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>bought {offer.bought} this landing</span>
         <span className="mono" style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>${actor.cash.toLocaleString()}</span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <input type="number" min={minBid} step={100} value={bid}
-          onChange={(e) => setBid(Math.max(minBid, parseInt(e.target.value, 10) || minBid))}
-          style={{ flex: 1 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <button className="primary" style={{ fontSize: 12, padding: '6px 14px' }}
-          disabled={!canAfford || bid < minBid}
-          onClick={() => dispatch({ t: 'auctionBid', amount: bid })}>
-          Bid
+          disabled={affordable < 1}
+          onClick={() => dispatch({ t: 'buyOutstandingShares', qty: 1 })}>
+          Buy 1 · ${offer.price.toLocaleString()}
         </button>
+        {affordable > 1 && (
+          <button className="primary" style={{ fontSize: 12, padding: '6px 14px' }}
+            onClick={() => dispatch({ t: 'buyOutstandingShares', qty: affordable })}>
+            Buy Max ({affordable}) · ${(affordable * offer.price).toLocaleString()}
+          </button>
+        )}
         <button style={{ fontSize: 12, padding: '6px 14px' }}
-          onClick={() => dispatch({ t: 'auctionPass' })}>
-          Pass
+          onClick={() => dispatch({ t: 'outstandingBuyDone' })}>
+          {offer.bought > 0 ? 'Done' : 'Skip Shares'}
         </button>
       </div>
-      {!canAfford && (
-        <div style={{ fontSize: 10, color: 'var(--red)' }}>{actor.name} can't afford ${bid.toLocaleString()} — lower the bid or pass.</div>
+      {affordable < 1 && (
+        <div style={{ fontSize: 10, color: 'var(--red)' }}>{actor.name} cannot afford one share. Skip to continue.</div>
       )}
     </div>
   );

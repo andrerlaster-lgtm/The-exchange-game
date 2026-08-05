@@ -41,7 +41,6 @@ export function eventPool(s: GameState): Array<{ code: string; sec: string }> {
 
 /** Whether the current player can trade right now. */
 export function canTradeNow(s: GameState): boolean {
-  if (s.auction) return false; // trading is frozen while a Bank Auction is live
   const t = s.trade;
   if (!t) return false;
   if (t.actionsLeft <= 0) return false;
@@ -82,13 +81,12 @@ export function blocked(s: GameState): boolean {
   if (s.marginCall) return true;
   if (s.insolvency) return true; // forced-sale payment shortfall must be resolved first
   if (s.landingNotice) return true; // cardless financial result must be acknowledged
-  if (s.auction) return true;  // a live Bank Auction must be resolved first
   if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
   if (s.pendingDraws.length > 0) return true;
   if (s.circuitBreakerPrompt) return true;
   if (s.investorDay) return true;
   if (s.pick) return true;
-  if (s.ipoChoice || s.ipoListPick || s.ipoBuy) return true;
+  if (s.ipoChoice || s.ipoListPick || s.ipoBuy || s.outstandingBuy) return true;
   if (s.etfPick) return true;  // ETF buy/skip prompt must be answered explicitly
   return false;
 }

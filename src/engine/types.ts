@@ -65,6 +65,15 @@ export interface IpoBuyContext {
   actor: number;   // player who landed on the IPO space; always the current player
 }
 
+/** Sold-back shares offered only to the player who landed on that company. */
+export interface OutstandingBuyContext {
+  code: string;
+  actor: number;
+  price: number;      // current per-share market price, locked for this landing
+  available: number;  // shares available when the landing offer opened
+  bought: number;
+}
+
 export interface PickContext {
   d: number;
   label: string;
@@ -236,10 +245,10 @@ export interface GameState {
   supply: Record<string, number>;      // regular stock code -> shares remaining
   skips: Record<string, number>;       // code -> weak-demand marker count (0-3)
   soldOut: Record<string, SoldOutInfo>; // presence of key ⇔ stock is permanently sold out
-  bankPool: Record<string, number>;    // shares sold back into a sold-out stock, awaiting auction
+  bankPool: Record<string, number>;    // outstanding sold-back shares, purchasable only by landing on that stock
   bankSoldThisTurn: Record<string, number>; // regular shares sold to the bank by the current player this turn
-  auction: Auction | null;             // active Bank Auction (blocks End Turn until resolved)
-  auctionQueue: string[];              // codes with pooled shares awaiting their Market Open auction
+  auction: Auction | null;             // legacy inactive auction state retained for old-session compatibility
+  auctionQueue: string[];              // legacy inactive queue retained for old-session compatibility
   marketOpenWindow: boolean;           // Market Open Trading Window open (blocks End Turn until closed)
   lap: number;
   log: LogEntry[];
@@ -257,6 +266,7 @@ export interface GameState {
   ipoChoice: boolean;
   ipoListPick: boolean;
   ipoBuy: IpoBuyContext | null;
+  outstandingBuy: OutstandingBuyContext | null;
   decks: Record<DeckId, number[]>;     // shuffled index queues
   discard: Record<DeckId, number[]>;
   shorts: Short[];
@@ -306,6 +316,8 @@ export type Action =
   | { t: 'pickKnownIpo'; code: string }
   | { t: 'ipoBuyShare' }
   | { t: 'ipoBuyDone' }
+  | { t: 'buyOutstandingShares'; qty: number }
+  | { t: 'outstandingBuyDone' }
   | { t: 'skipIpo' }
   | { t: 'draw'; deck: DeckId }
   | { t: 'chooseInvestorGrowth' }

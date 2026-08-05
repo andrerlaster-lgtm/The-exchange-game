@@ -7,7 +7,6 @@ import {
 import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
 import { pushFeeEvent } from './feeLog';
-import { queueMarketOpenAuctions } from './auction';
 import { diversificationBonus, diversificationTier } from './sector';
 
 function addLog(s: GameState, text: string, kind: 'g' | 'r' | 'y' | 'b' | 'n'): void {
@@ -102,6 +101,4 @@ export function payMarketOpen(s: GameState, pi: number): void {
   // call. It does NOT force a Market Event draw — those are triggered solely by
   // landing on space 19 (the Market Event space).
 
-  // Bank Auctions: after payday, auction any pooled shares of sold-out stocks.
-  queueMarketOpenAuctions(s);
 }

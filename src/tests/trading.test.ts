@@ -104,14 +104,14 @@ describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-n
     expect(s.prices.MEDI).toBe(base - 1);
   });
 
-  it('sold-back shares go to the bank auction pool, not back on the open market', () => {
+  it('sold-back shares become outstanding on the company, not normal supply', () => {
     let s = started();
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     s = patch(s, (d) => { d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
     expect(s.supply.MEDI).toBe(0);        // still nothing for sale directly
-    expect(s.bankPool.MEDI).toBe(3);      // pooled for the next Bank Auction
+    expect(s.bankPool.MEDI).toBe(3);      // available only on a later MEDI landing
   });
 
   it('leaves a company already at the top of the ladder unchanged on buy-out', () => {

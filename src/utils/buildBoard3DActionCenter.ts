@@ -84,20 +84,26 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   if (s.marketOpenWindow) {
     required.push({
       id: 'market-open', title: 'Market Open — Trading Window', accent: '#3ed598', urgent: true,
-      description: 'Private trades and the pooled-share auction are open. Close the window when everyone is finished.',
-      buttons: [button(s.auction ? 'Resolve Auction First' : 'Close Trading Window →', { t: 'closeMarketOpenWindow' }, 'primary', !!s.auction)],
+      description: 'Private trades are open. Outstanding bank shares can only be bought by landing on their company space.',
+      buttons: [button('Close Trading Window →', { t: 'closeMarketOpenWindow' }, 'primary')],
     });
   }
 
-  if (s.auction) {
-    const a = s.auction;
-    const actor = s.players[a.actor];
-    const minBid = a.highBidder === null ? a.startPrice : a.highBid + 1;
+  if (s.outstandingBuy && !s.landingNotice && !s.insolvency) {
+    const offer = s.outstandingBuy;
+    const actor = s.players[offer.actor];
+    const available = s.bankPool[offer.code] || 0;
+    const affordable = Math.min(available, Math.floor(actor.cash / offer.price));
     required.push({
-      id: 'auction', title: `Bank Auction · ${a.code}`, accent: '#f0b429', urgent: true,
-      description: `${actor.name} must bid or pass. ${a.poolLeft} share${a.poolLeft === 1 ? '' : 's'} remain${a.highBidder === null ? `; opening bid ${money(a.startPrice)}` : `; high bid ${money(a.highBid)} by ${s.players[a.highBidder].name}`}.`,
-      numberAction: { label: `Bid · ${actor.name} has ${money(actor.cash)}`, min: minBid, max: actor.cash, step: 100, value: minBid, action: 'auctionBid' },
-      buttons: [button('Pass', { t: 'auctionPass' })],
+      id: 'outstanding-shares', title: `Outstanding Shares · ${offer.code}`, accent: '#4da3ff', urgent: true,
+      description: `${actor.name} landed here and is the only buyer. ${available} share${available === 1 ? '' : 's'} available at ${money(offer.price)} each; ${offer.bought} bought this landing. Purchases do not move the price.`,
+      buttons: [
+        button(`Buy 1 · ${money(offer.price)}`, { t: 'buyOutstandingShares', qty: 1 }, 'primary', affordable < 1),
+        ...(affordable > 1
+          ? [button(`Buy Max (${affordable}) · ${money(affordable * offer.price)}`, { t: 'buyOutstandingShares', qty: affordable }, 'primary')]
+          : []),
+        button(offer.bought > 0 ? 'Done' : 'Skip Shares', { t: 'outstandingBuyDone' }),
+      ],
     });
   }
 
@@ -230,7 +236,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
-  if (s.trade && s.trade.actionsLeft > 0 && !s.auction && s.pendingDraws.length === 0) {
+  if (s.trade && s.trade.actionsLeft > 0 && s.pendingDraws.length === 0) {
     const stocks = s.trade.scope === 'stock' && s.trade.code ? [STOCK_BY_CODE[s.trade.code]] : STOCKS;
     required.push({
       id: 'trade-step', title: s.trade.scope === 'stock' ? 'Stock Space' : `Free Trading Day · ${s.trade.actionsLeft} Actions Left`,
@@ -285,7 +291,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   const repayAmount = Math.min(MARGIN_INCREMENT, current.margin);
   const marginLocked = !!(s.marginCall?.player === s.cur || s.insolvency?.player === s.cur);
-  const purchaseOpen = gameActive && (!!s.trade || s.ipoListPick || !!s.ipoBuy);
+  const purchaseOpen = gameActive && (!!s.trade || s.ipoListPick || !!s.ipoBuy || !!s.outstandingBuy);
   const stockGl = stockGainLoss(s, current);
   const gameGain = marketGain(s, current);
   const feeDebt = feeDebtBalance(current);
@@ -295,7 +301,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     description: `Cash ${money(current.cash)} · Market Gain ${money(gameGain)} · Stock G/L ${money(stockGl.total)} (unrealized ${money(stockGl.unrealized)}, realized ${money(stockGl.realized)}) · Salary excluded ${money(current.salaryCollected)} · Margin ${money(current.margin)} · Outstanding Fees ${money(feeDebt)} (principal ${money(current.feeDebtPrincipal)}, interest ${money(current.feeDebtInterest)})`,
     rows: holdings,
     buttons: [
-      button(`Take Margin +${money(MARGIN_INCREMENT)}`, { t: 'takeMargin' }, 'gold', !s.opts.margin || !purchaseOpen || current.margin + MARGIN_INCREMENT > MARGIN_MAX || !!s.auction),
+      button(`Take Margin +${money(MARGIN_INCREMENT)}`, { t: 'takeMargin' }, 'gold', !s.opts.margin || !purchaseOpen || current.margin + MARGIN_INCREMENT > MARGIN_MAX),
       button(`Repay Margin ${money(repayAmount || MARGIN_INCREMENT)}`, { t: 'repayMargin' }, 'neutral', !gameActive || current.margin <= 0 || current.cash < repayAmount || marginLocked),
       button(`Pay Fees ${money(feeInstallment || FEE_DEBT_INSTALLMENT)}`, { t: 'payFeeDebt', mode: 'installment' }, 'danger', !gameActive || feeDebt <= 0 || current.cash < feeInstallment || !!s.landingNotice),
       button('Pay Fees in Full', { t: 'payFeeDebt', mode: 'full' }, 'danger', !gameActive || feeDebt <= 0 || current.cash < feeDebt || !!s.landingNotice),

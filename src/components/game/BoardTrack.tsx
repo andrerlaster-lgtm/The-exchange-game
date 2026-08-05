@@ -171,6 +171,7 @@ export default function BoardTrack() {
             const price = LADDER[s.prices[sp.code!]];
             const weakCount = s.skips[sp.code!] ?? 0;
             const soldOut = s.soldOut[sp.code!];
+            const outstanding = s.bankPool[sp.code!] ?? 0;
             const claimIdx = soldOut?.claimHolder ?? null;
             const claimColor = claimIdx !== null ? PLAYER_COLORS[claimIdx] : null;
             const mv = getStockMovementStatus(sp.code!, s);
@@ -202,6 +203,16 @@ export default function BoardTrack() {
                   position: 'absolute', left: '10%', top: '13%',
                   fontSize: 8, color: sc, lineHeight: 1, fontFamily: 'IBM Plex Mono, monospace',
                 }}>{secGlyph}</span>
+
+                {outstanding > 0 && (
+                  <span title={`${outstanding} outstanding share${outstanding === 1 ? '' : 's'} · land here to buy`} style={{
+                    position: 'absolute', right: '5%', top: '9%', zIndex: 2,
+                    fontSize: 5.5, fontWeight: 900, lineHeight: 1,
+                    color: '#f4ecd9', background: '#2f6fb0',
+                    borderRadius: 3, padding: '2px 3px',
+                    fontFamily: 'IBM Plex Mono, monospace',
+                  }}>{outstanding} OUT</span>
+                )}
 
                 {/* Ticker — letterpress Marcellus, centered */}
                 <div className="display" style={{

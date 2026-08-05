@@ -19,7 +19,7 @@ Consolidated Rules — July 2, 2026
 8. Dividends
 9. Weak Demand
 10. Sold-Out and Payout Claim
-11. Selling Shares and Bank Auctions
+11. Selling Shares and Outstanding Shares
 12. Trading
 13. Sector Portfolio
 14. Diversified Portfolio
@@ -84,7 +84,7 @@ The setup screen offers two winning-score modes:
 - Payout Claim cards or markers
 - Sector Portfolio badges (6 sectors)
 - Diversified Portfolio and Broad Market Portfolio badges
-- Bank Auction Pool tracker for sold-back shares
+- Outstanding Shares tracker for sold-back shares
 - Margin tracker (outstanding balance per player, $4,000 cap)
 
 ## 3. Setup
@@ -133,7 +133,7 @@ Each turn follows the same order unless a card or special rule changes it.
 2. Move the active player token.
 3. If the player passes or lands on Market Open, resolve Market Open before continuing the landing result as applicable.
 4. Resolve the landed space completely.
-5. Resolve any required payment, buy/skip choice, Weak Demand effect, auction, card, or special-space effect.
+5. Resolve any required payment, buy/skip choice, Weak Demand effect, outstanding-share offer, card, or special-space effect.
    - 5a. If the landed space is an IPO space, only the player who landed there may buy IPO shares. A new reveal offers that IPO to the landing player; after all 4 IPOs are revealed, the landing player may choose any revealed IPO with available shares.
 6. Open the active player's Trade Step.
 7. During the Trade Step, the active player (and any other player) may propose P2P trades, and the active player may sell up to half of each regular-stock holding back to the bank, rounded down (see Section 11).
@@ -161,7 +161,7 @@ After all Market Open payouts are complete, open a Market Open Trading Window fo
 
 During the Market Open Trading Window, all players may:
 - Make player-to-player trades involving cash and owned shares.
-- Bid on any bank-held shares that are available for auction.
+- Buy outstanding bank-held shares only when you land on that company.
 
 During the Market Open Trading Window, players may not:
 - Directly buy fresh shares from normal market supply.
@@ -169,7 +169,7 @@ During the Market Open Trading Window, players may not:
 - Make future promises, loans, or conditional deals.
 - Leave unresolved offers open after the active player closes the window.
 
-Fresh shares can only be bought by landing on that stock space, winning an approved auction, or resolving a card/effect that specifically allows it.
+Fresh shares can only be bought by landing on that stock space or resolving a card/effect that specifically allows it.
 
 ## 7. Regular Stocks
 
@@ -251,9 +251,7 @@ Sold-Out status is the mid-game claim system. It turns limited share supply into
 - If there is a tie for most shares, the stock is Contested and no landing payment is made until one player becomes the clear top owner.
 
 **Payout Claim transfer timing**
-- Outside of an active auction, the Payout Claim transfers immediately whenever an ownership change (bank sell-back or P2P trade) makes a different player the top owner.
-- During an active Bank Auction Pool auction for that stock, the Payout Claim holder is frozen — it does not change bid-by-bid.
-- Once the auction closes, ownership is recalculated once and the Payout Claim transfers if the winning bidder is now the top owner.
+- The Payout Claim transfers immediately whenever an ownership change — bank sell-back, outstanding-share purchase, or P2P trade — makes a different player the clear top owner.
 
 **Board/card display**
 
@@ -264,9 +262,9 @@ Sold-Out status is the mid-game claim system. It turns limited share supply into
 | Contested | Tied top ownership; no landing payment until resolved |
 | Player-color ring/token | Visual marker showing who currently holds the Payout Claim |
 
-## 11. Selling Shares and Bank Auctions
+## 11. Selling Shares and Outstanding Shares
 
-Selling back to the bank is allowed, but it must not reopen Sold-Out stocks or let one player quietly buy sold-back shares before everyone else has a chance.
+Selling back to the bank is allowed, but it does not reopen a Sold-Out company. Sold-back shares remain attached to that company as Outstanding Shares.
 
 **Sell Back to Bank**
 - Selling to the bank is available to the active player after rolling and resolving required actions. It is not available during the Market Open Trading Window.
@@ -274,21 +272,20 @@ Selling back to the bank is allowed, but it must not reopen Sold-Out stocks or l
 - The seller receives one price step below the current market price for each share sold.
 - If the stock is already at the lowest price step ($100 floor), use the floor price.
 - Selling 3 or more shares in one bank-sale action moves that stock down one price step, unless it is already at the $100 floor. Selling 1 or 2 shares does not move its price.
-- Every regular stock and IPO purchase records actual cost basis. A full-company purchase uses its fixed $5,000 / $7,500 / $10,000 buyout price as the total basis for all 11 shares. IPOs, auctions, and private trades use the actual amount paid.
+- Every regular stock and IPO purchase records actual cost basis. A full-company purchase uses its fixed $5,000 / $7,500 / $10,000 buyout price as the total basis for all 11 shares. IPOs, outstanding-share purchases, and private trades use the actual amount paid.
 - **Unrealized stock gain/loss** = current market value of shares still held − their remaining cost basis.
 - When shares are sold, their proportional average basis is removed from the holding. **Realized gain/loss** = sale proceeds − removed basis.
 - Total Stock G/L = Realized Stock G/L + Unrealized Stock G/L. Dividends, Payout Claims, salary, taxes, and bonuses are not included in Stock G/L; they remain visible through Market Gain and the cash logs.
-- Sold-back shares go to the Bank Auction Pool for that company.
-- Sold-back shares do not return to normal market supply and cannot be bought directly from the board.
+- Sold-back shares become Outstanding Shares for that company.
+- Sold-back shares do not return to normal market supply.
 
-**Bank Auction Pool**
-- Shares sold back to the bank are tracked in that company's Bank Auction Pool.
-- A bank-held share may only re-enter the game through an auction open to all players, held during the Market Open Trading Window.
-- Bidding starts at one price step below the current market price unless a card/effect says otherwise.
-- Any player may bid, including the player who sold the share.
-- The winning bidder pays the bank and receives the share.
-- Auction purchases do not move the market price.
-- The stock's Sold-Out status remains active. Payout Claim only changes if the auction changes who owns the most shares (see Section 10).
+**Outstanding Shares**
+- Shares sold back to the bank are tracked on that company's board space.
+- Only a player who lands on that company may buy its Outstanding Shares.
+- The landing player may buy any number available and affordable, or skip them.
+- Each share costs the current per-share market price shown on the board when the offer opens.
+- Outstanding-share purchases do not move the market price.
+- The stock's Sold-Out status remains active. Recalculate the Payout Claim immediately if the purchase changes who owns the most shares (see Section 10).
 
 ## 12. Trading
 
@@ -311,7 +308,7 @@ Trading is powerful, but it must happen in clean windows so the app can enforce 
 |---|---|
 | Dice are rolling or token is moving | Movement must resolve first |
 | A landing choice is unresolved | Buying, skipping, or payment must resolve first |
-| An auction is active | Auction must close before trades resume |
+| An outstanding-share offer is active | Landing player must buy or skip before ending the turn |
 | A card effect is unresolved | Card result may change ownership, cash, or price |
 | Market Open payouts are still resolving | Payout order must complete before the Market Open Trading Window |
 
@@ -515,7 +512,7 @@ The price ladder is the source of truth for each stock's market value. Exact lad
 | Buy an untouched company | No market-price movement; the fixed tier price is paid instead |
 | Sell shares to bank (Trade Step only) | Seller is paid 1 step below market; price moves down 1 step after the sell action, unless already at the $100 floor |
 | Private player-to-player trade | No market price movement |
-| Auction purchase | No market price movement unless a card says otherwise |
+| Outstanding-share purchase | No market price movement unless a card says otherwise |
 | Weak Demand reaches 2 markers | Price moves down 1 step and markers clear, unless already at the $100 floor |
 | Stock becomes Sold Out | This happens as part of the full-company purchase; no price increase is applied |
 | Stock reaches $5,000 ceiling | Price movement stops; triggers a global Market Event card |
@@ -574,9 +571,9 @@ Use this checklist when sending the rules to code.
 | Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance, Outstanding Fees principal/interest, Circuit Breaker holder, remaining stock cost basis, realized/unrealized Stock G/L, salary-adjusted Market Gain |
 | Stock landing | If untouched, offer a full 11-share company buyout at its fixed tier price or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment, with no payment when the owner lands on their own company |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
-| Sell-back | Trade Step action only; pay seller 1 step below market (or floor), move price down 1 step (unless at floor), put shares into Bank Auction Pool, do not reopen normal supply |
-| Auctions | Auction pool shares only, held during Market Open Trading Window; all players may bid; winner pays bank; auction purchase does not move price; Payout Claim frozen until auction closes, then recalculated once |
-| Trading | Trade Step: P2P trades and bank sell-back both allowed. Market Open Trading Window: P2P trades and auction bidding only, no bank sell-back. Offers expire on window close |
+| Sell-back | Trade Step action only; pay seller 1 step below market (or floor), move price down 1 step (unless at floor), mark shares Outstanding on that company, do not reopen normal supply |
+| Outstanding Shares | Only the player landing on that company may buy; any available/affordable quantity at current per-share market price; purchase does not move price; recalculate Payout Claim immediately |
+| Trading | Trade Step: P2P trades and bank sell-back both allowed. Market Open Trading Window: P2P trades only, no bank sell-back. Offers expire on window close |
 | Gain/Loss accounting | Purchases add actual cost basis; sales remove proportional average basis and record proceeds minus basis as realized G/L; current value minus remaining basis is unrealized G/L |
 | Dividends | Pay flat per-share dividend on every regular stock and revealed IPO at every Market Open; apply 2x multiplier for Controllers; Always On, independent of Sold-Out status |
 | IPO reveal | Single shared 4-IPO queue; landing on either IPO space reveals the next unrevealed IPO; only the landing player may buy, up to 2 shares |
@@ -586,8 +583,8 @@ Use this checklist when sending the rules to code.
 | Market Open | Pay salary, dividends, ETF payouts, diversification bonuses, resolve Margin repayment, then open Market Open Trading Window |
 | Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |
 | Investor Day | Space 31; choose Company Growth (+1 eligible owned regular company, or $500 if none) or Insider Information (preview the next Market Event; card stays on top) |
-| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance, Outstanding Fees principal/interest/payment controls, per-holding basis and unrealized G/L, total realized/unrealized Stock G/L, Market Gain and salary excluded. Cardless financial spaces must show the total charge and Pay Now / Carry as Debt choices. |
-| Logs | Separate bank payout, player-paid payout, private trade, full-company buy, bank sell-back, Weak Demand, auction sale, Payout Claim transfer, dividend payout, Margin draw/repay |
+| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, Outstanding Share count, dividend income per Market Open, Margin balance, Outstanding Fees principal/interest/payment controls, per-holding basis and unrealized G/L, total realized/unrealized Stock G/L, Market Gain and salary excluded. Cardless financial spaces must show the total charge and Pay Now / Carry as Debt choices. |
+| Logs | Separate bank payout, player-paid payout, private trade, full-company buy, bank sell-back, outstanding-share purchase, Weak Demand, Payout Claim transfer, dividend payout, Margin draw/repay |
 
 ## 23. Open Balance Items
 
@@ -597,7 +594,6 @@ Use this checklist when sending the rules to code.
 - IPO per-share dividend amount
 - Final ETF payout table
 - Margin default penalty fee amount
-- Whether declined-purchase auctions should be activated or kept out of the standard rule set
 - Exact Market Close trigger and deck placement (Card mode) and round count (Rounds mode)
 - Final confirmation of stock names against existing app/board data, if any exist
 - Confirm Extended Hours round count (currently locked at 1 additional round) during playtesting

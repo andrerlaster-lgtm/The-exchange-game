@@ -20,7 +20,6 @@ import { applyEffect, beginMarketEventEffect, resolveCircuitBreaker, triggerClos
 import { netWorth } from './scoringEngine';
 import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayout } from './soldOut';
-import { handleBid, handlePass } from './auction';
 import { hasSectorPortfolio } from './sector';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
@@ -101,9 +100,9 @@ function resolveLanding(s: GameState, pi: number): void {
       const code = sp.code!;
       const rec = s.soldOut[code];
       if (rec) {
-        // Already owned — pay rent to the claim holder (rulebook §10). No buy
-        // option here: the company's shares are fully allocated and only
-        // circulate again via the owner's sell-backs (→ Bank Auction pool).
+        // Sold-Out landing: resolve the current Payout Claim first. Any shares
+        // previously sold back to the bank then become an exclusive purchase
+        // option for the landing player at the current per-share market price.
         if (rec.claimHolder !== null && rec.claimHolder !== pi) {
           const holder = s.players[rec.claimHolder];
           const sectorComplete = hasSectorPortfolio(holder, STOCK_BY_CODE[code].sector);
@@ -131,6 +130,17 @@ function resolveLanding(s: GameState, pi: number): void {
           addLog(s, `${p.name} lands on their own ${STOCK_BY_CODE[code].name} — no rent owed.`);
         } else {
           addLog(s, `${STOCK_BY_CODE[code].name} is Contested — no Payout Claim to pay.`);
+        }
+        const outstanding = s.bankPool[code] || 0;
+        if (outstanding > 0) {
+          s.outstandingBuy = {
+            code,
+            actor: pi,
+            price: priceOf(s, code),
+            available: outstanding,
+            bought: 0,
+          };
+          addLog(s, `${outstanding} outstanding ${code} share${outstanding === 1 ? '' : 's'} available to ${p.name} at ${money(priceOf(s, code))} each.`, 'b');
         }
         break;
       }
@@ -343,7 +353,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     // the company's fixed Starter / Growth / Premium acquisition price. This
     // instantly sells the stock out and claims the Payout Claim, but does not
     // move its live per-share market price. Once owned, shares only re-enter via
-    // the owner selling back to the bank (→ Bank Auction pool) or a P2P trade.
+    // the owner selling back to the bank (→ outstanding shares) or a P2P trade.
     case 'buy': {
       const { code } = action;
       if (!canTradeNow(s)) break;
@@ -395,8 +405,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       p.cash += proceeds;
       p.shares[code] = owned - qty;
       if (p.shares[code] === 0) delete p.shares[code];
-      // Sold-out stocks are permanent: sold-back shares go to the bank pool
-      // (held aside for future auctions), NOT back into normal supply.
+      // Sold-out stocks are permanent: sold-back shares become outstanding
+      // shares that can only be bought by later landing on this stock space.
       if (s.soldOut[code]) s.bankPool[code] = (s.bankPool[code] || 0) + qty;
       else s.supply[code] = (s.supply[code] || 0) + qty;
       s.bankSoldThisTurn[code] = (s.bankSoldThisTurn[code] || 0) + qty;
@@ -410,7 +420,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     }
     case 'skipStock': {
-      if (s.auction) break; // resolve the auction first
       const { code } = action;
       const t = s.trade;
       if (!t || t.scope !== 'stock' || t.code !== code) break;
@@ -438,9 +447,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     // ---- margin ----
     case 'takeMargin': {
       if (!s.opts.margin) break;
-      if (s.auction) break; // not while a Bank Auction is live
       // Margin may only be taken while buying stock (a purchase context).
-      if (!s.trade && !s.ipoListPick && !s.ipoBuy) break;
+      if (!s.trade && !s.ipoListPick && !s.ipoBuy && !s.outstandingBuy) break;
       const p = s.players[s.cur];
       // A full $2,000 increment must never push the balance past the $4,000 cap —
       // checking only "already at the cap" let a mid-value balance (e.g. $2,300,
@@ -749,18 +757,40 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.etfPick = null;
       break;
 
-    // ---- bank auctions (Market Open, ascending turn-order bidding) ----
-    case 'auctionBid':
-      handleBid(s, action.amount);
+    // ---- outstanding shares (exclusive to the stock-space lander) ----
+    case 'buyOutstandingShares': {
+      const offer = s.outstandingBuy;
+      if (!offer || offer.actor !== s.cur || s.landingNotice || s.insolvency) break;
+      const p = s.players[offer.actor];
+      const available = s.bankPool[offer.code] || 0;
+      const qty = action.qty;
+      const cost = qty * offer.price;
+      if (!Number.isInteger(qty) || qty < 1 || qty > available || p.cash < cost) break;
+      p.cash -= cost;
+      p.shares[offer.code] = (p.shares[offer.code] || 0) + qty;
+      addStockCostBasis(p, offer.code, cost);
+      s.bankPool[offer.code] = available - qty;
+      offer.bought += qty;
+      addLog(s, `${p.name} buys ${qty} outstanding ${offer.code} share${qty === 1 ? '' : 's'} for ${money(cost)} after landing on the company.`, 'g');
+      addTradeLog(s, 'buy', `${qty}× ${offer.code} outstanding @ ${money(offer.price)} each`, -cost, p.name);
+      recomputeAndLogClaim(s, offer.code);
+      if (s.bankPool[offer.code] <= 0) s.outstandingBuy = null;
       break;
-    case 'auctionPass':
-      handlePass(s);
+    }
+    case 'outstandingBuyDone': {
+      const offer = s.outstandingBuy;
+      if (!offer || offer.actor !== s.cur) break;
+      const remaining = s.bankPool[offer.code] || 0;
+      addLog(s, offer.bought > 0
+        ? `${s.players[offer.actor].name} finishes buying ${offer.code}; ${remaining} outstanding share${remaining === 1 ? '' : 's'} remain.`
+        : `${s.players[offer.actor].name} skips the outstanding ${offer.code} shares.`);
+      s.outstandingBuy = null;
       break;
+    }
 
-    // ---- Market Open Trading Window (all players may P2P trade / bid; no bank sell-back) ----
+    // ---- Market Open Trading Window (private trades only; no bank sell-back) ----
     case 'closeMarketOpenWindow': {
       if (!s.marketOpenWindow) break;
-      if (s.auction) break; // pooled-share auctions must finish before the window closes
       s.marketOpenWindow = false;
       addLog(s, 'Market Open Trading Window closed.');
       break;
@@ -768,7 +798,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
 
     // ---- player-to-player trading (negotiated price, never moves the market) ----
     case 'proposeP2POffer': {
-      if (s.auction) break; // no private trades while a Bank Auction is live
       const { from, to, code, qty, direction, price } = action;
       if (from === to) break;
       if (from < 0 || from >= s.players.length || to < 0 || to >= s.players.length) break;

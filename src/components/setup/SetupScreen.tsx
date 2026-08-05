@@ -12,7 +12,7 @@ const QUICK_RULES = [
   'A company bought in full becomes Sold Out for good, and its buyer holds the Payout Claim. Everyone else who lands there pays the claim instead of opening a normal buy step; landing on your own company costs nothing.',
   'Weak Demand has no ownership protection: 2 explicit skips on an untouched company drop its price 1 step. Buying the company clears its markers.',
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own regular companies across 3+ different sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
-  'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window where any player can propose trades or bid on pooled shares.',
+  'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window for private player-to-player trades.',
   'IPOs: 4 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',
   'Audit Notice charges 5% of net worth, rounded to the nearest $100, with a $500 minimum. Carrying Margin raises it to 7.5% with a $750 minimum.',
   'Portfolio Tax and Audit Notice can be paid now or carried as Outstanding Fees. Debt adds 5% at the start of your turn and lowers your score until paid. A Payout Claim owed to another player still uses forced sale.',

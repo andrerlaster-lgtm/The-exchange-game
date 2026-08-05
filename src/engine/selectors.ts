@@ -61,7 +61,7 @@ export interface BuyingPower {
 
 export function getBuyingPower(playerIdx: number, s: GameState): BuyingPower {
   const p = s.players[playerIdx];
-  const inPurchaseContext = !!(s.trade || s.ipoBuy);
+  const inPurchaseContext = !!(s.trade || s.ipoBuy || s.outstandingBuy);
   const marginAvailable = inPurchaseContext && p.margin < MARGIN_MAX ? MARGIN_INCREMENT : 0;
   return {
     cash: p.cash,

@@ -1459,6 +1459,9 @@
             html += cc
               ? `<div class="tt-sub" style="color:${cc}">◆ Payout Claim: ${holderName}</div>`
               : `<div class="tt-sub" style="color:#8a8a8a">Payout Claim: Contested</div>`;
+            if ((info.o || 0) > 0) {
+              html += `<div class="tt-sub" style="color:#4da3ff">◆ ${info.o} outstanding share${info.o === 1 ? '' : 's'} · land here to buy</div>`;
+            }
           }
         }
       } else {

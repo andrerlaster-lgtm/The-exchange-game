@@ -135,6 +135,7 @@ export interface PriceInfo3D {
   d: -1 | 0 | 1;    // direction vs printed starting step
   delta: number;    // signed ladder-step difference from opening
   s: number;        // shares remaining in supply
+  o?: number;       // outstanding sold-back shares available on landing
   so?: boolean;     // sold out (permanent)
   claim?: number | null; // Payout Claim holder player index; null = Contested
 }
@@ -188,6 +189,7 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
   switch (action.t) {
     case 'newGame': case 'roll': case 'takeMargin': case 'repayMargin': case 'payMarginCall':
     case 'payInsolvency': case 'skipShort': case 'ipoBuyShare': case 'ipoBuyDone':
+    case 'outstandingBuyDone':
     case 'skipIpo': case 'skipPick': case 'passCircuitBreaker': case 'callClose':
     case 'skipEtf': case 'auctionPass': case 'closeMarketOpenWindow': case 'endTurn':
     case 'chooseInvestorGrowth': case 'chooseInvestorTip': case 'ackLandingNotice':
@@ -199,6 +201,8 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
       return text('code');
     case 'sell':
       return text('code') && (action.qty === undefined || (integer('qty') && (action.qty as number) > 0));
+    case 'buyOutstandingShares':
+      return integer('qty') && (action.qty as number) > 0;
     case 'draw':
       return action.deck === 'ME' || action.deck === 'FED';
     case 'proposeP2POffer':

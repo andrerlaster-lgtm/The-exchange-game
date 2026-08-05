@@ -97,10 +97,9 @@ describe('3D Action Center parity', () => {
     const s = patch(started(2), (draft) => {
       draft.turnPhase = 'acted';
       draft.marketOpenWindow = true;
-      draft.auction = {
-        code: 'MEDI', poolLeft: 1, startPrice: 500, highBid: 0,
-        highBidder: null, actor: 0, active: [0, 1],
-      };
+      draft.soldOut.MEDI = { code: 'MEDI', claimHolder: 0 };
+      draft.bankPool.MEDI = 2;
+      draft.outstandingBuy = { code: 'MEDI', actor: 0, price: 750, available: 2, bought: 0 };
       draft.pendingDraws = ['FED'];
       draft.marginCall = { player: 0, owed: 2_000 };
       draft.players[0].shares.MEDI = 1;
@@ -109,8 +108,9 @@ describe('3D Action Center parity', () => {
     const center = buildActionCenter(s);
     const ids = center.required.map((entry) => entry.id);
 
-    expect(ids).toEqual(expect.arrayContaining(['market-open', 'auction', 'margin-call', 'draw', 'etf']));
-    expect(center.required.find((entry) => entry.id === 'auction')?.numberAction?.action).toBe('auctionBid');
+    expect(ids).toEqual(expect.arrayContaining(['market-open', 'outstanding-shares', 'margin-call', 'draw', 'etf']));
+    expect(center.required.find((entry) => entry.id === 'outstanding-shares')?.buttons?.map((entry) => entry.action.t))
+      .toEqual(['buyOutstandingShares', 'buyOutstandingShares', 'outstandingBuyDone']);
     expect(center.required.find((entry) => entry.id === 'margin-call')?.rows?.[0].buttons?.[0].action.t).toBe('marginSell');
     expect(center.required.find((entry) => entry.id === 'draw')?.buttons?.[0].action).toEqual({ t: 'draw', deck: 'FED' });
     expect(center.required.find((entry) => entry.id === 'etf')?.buttons?.map((entry) => entry.action.t)).toEqual(['buyEtf', 'skipEtf']);
