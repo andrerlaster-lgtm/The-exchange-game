@@ -2,6 +2,7 @@
 // Called inside produce() in reducer.ts.
 
 import {
+  AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE,
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, IPO_DEFS, LADDER,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
@@ -24,6 +25,7 @@ import { hasSectorPortfolio } from './sector';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
 import { addStockCostBasis, rankingScore, recordStockSale } from './gainLoss';
+import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -75,9 +77,8 @@ function recomputeAndLogClaim(s: GameState, code: string): void {
   recordClaimTakeover(s, code, previousHolder);
 }
 
-/** Open a forced-sale Insolvency for a payment shortfall (Portfolio Tax,
-    Audit Notice, or a Payout Claim landing payment) — or, if the player has
-    no regular stock left to sell, waive it immediately (rulebook §17). */
+/** Open a forced sale for a Payout Claim shortfall owed to another player —
+    or waive it if the payer has no regular stock left to sell. */
 function openInsolvency(
   s: GameState, player: number, owed: number,
   reason: InsolvencyReason, payTo: number | null, label: string,
@@ -115,6 +116,16 @@ function resolveLanding(s: GameState, pi: number): void {
             (sectorComplete ? ' (Sector Portfolio boost)' : ''), 'r');
           addTradeLog(s, 'payout', `Payout Claim ${code} → ${holder.name}`, -paid, p.name);
           addTradeLog(s, 'payout', `Payout Claim ${code} from ${p.name}`, paid, holder.name);
+          s.landingNotice = {
+            kind: 'payout',
+            title: `Payout Claim · ${code}`,
+            player: p.name,
+            amount: owed,
+            paidFromCash: paid,
+            remaining: short,
+            detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}.`,
+            canDefer: false,
+          };
           if (short > 0) openInsolvency(s, pi, short, 'payout', rec.claimHolder, `Payout Claim on ${code} to ${holder.name}`);
         } else if (rec.claimHolder === pi) {
           addLog(s, `${p.name} lands on their own ${STOCK_BY_CODE[code].name} — no rent owed.`);
@@ -178,24 +189,39 @@ function resolveLanding(s: GameState, pi: number): void {
       // Portfolio Tax: 10% of net worth (cash + stocks + ETFs − margin)
       const nw = netWorth(s, p);
       const tax = Math.max(0, Math.round(nw * 0.10 / 100) * 100);
-      const fromCash = Math.min(Math.max(p.cash, 0), tax);
-      p.cash -= fromCash;
-      addLog(s, `${p.name} pays Portfolio Tax: −${money(fromCash)} (10% of net worth ${money(nw)})`, 'r');
-      pushFeeEvent(s, 'tax', p, -fromCash);
-      const shortTax = tax - fromCash;
-      if (shortTax > 0) openInsolvency(s, pi, shortTax, 'tax', null, 'Portfolio Tax');
+      addLog(s, `${p.name} owes Portfolio Tax: ${money(tax)} (10% of net worth ${money(nw)}) — pay now or carry the debt.`, 'r');
+      s.landingNotice = {
+        kind: 'tax',
+        title: 'Portfolio Tax',
+        player: p.name,
+        amount: tax,
+        paidFromCash: 0,
+        remaining: tax,
+        detail: `10% of net worth ${money(nw)}, rounded to the nearest $100.`,
+        canDefer: true,
+      };
       break;
     }
     case 'audit': {
-      // Audit Notice: $500 flat, +$250 extra if player carries outstanding margin
-      const penalty = 500 + (p.margin > 0 ? 250 : 0);
-      const fromCash = Math.min(Math.max(p.cash, 0), penalty);
-      p.cash -= fromCash;
-      const note = p.margin > 0 ? ' (+$250 margin penalty)' : '';
-      addLog(s, `${p.name} pays Audit Notice: −${money(fromCash)}${note}`, 'r');
-      pushFeeEvent(s, 'audit', p, -fromCash);
-      const shortAudit = penalty - fromCash;
-      if (shortAudit > 0) openInsolvency(s, pi, shortAudit, 'audit', null, 'Audit Notice');
+      // Audit Notice scales with wealth but never falls below the former flat
+      // fee. Carrying Margin raises both the rate and minimum.
+      const nw = netWorth(s, p);
+      const carriesMargin = p.margin > 0;
+      const rate = carriesMargin ? AUDIT_MARGIN_RATE : AUDIT_RATE;
+      const minimum = carriesMargin ? AUDIT_MARGIN_MINIMUM : AUDIT_MINIMUM;
+      const percentageCharge = Math.max(0, Math.round(nw * rate / 100) * 100);
+      const penalty = Math.max(minimum, percentageCharge);
+      addLog(s, `${p.name} owes Audit Notice: ${money(penalty)} (${rate * 100}% of net worth ${money(nw)}; ${money(minimum)} minimum) — pay now or carry the debt.`, 'r');
+      s.landingNotice = {
+        kind: 'audit',
+        title: 'Audit Notice',
+        player: p.name,
+        amount: penalty,
+        paidFromCash: 0,
+        remaining: penalty,
+        detail: `${rate * 100}% of net worth ${money(nw)}, rounded to the nearest $100, with a ${money(minimum)} minimum${carriesMargin ? ' because an outstanding margin balance raises the Audit rate' : ''}.`,
+        canDefer: true,
+      };
       break;
     }
     case 'etf': {
@@ -483,8 +509,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     }
 
-    // ---- insolvency / forced sale (Phase 8: Portfolio Tax, Audit Notice, ----
-    // ---- and Payout Claim payments a player can't fully cover in cash) ----
+    // ---- Payout Claim forced sale when the landing player cannot pay cash ----
     case 'forcedSell': {
       const iv = s.insolvency;
       if (!iv) break;
@@ -526,6 +551,40 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       }
       pushFeeEvent(s, iv.reason, p, -paid);
       s.insolvency = null;
+      break;
+    }
+    case 'ackLandingNotice':
+      if (s.landingNotice?.canDefer) break;
+      s.landingNotice = null;
+      break;
+    case 'payLandingFee': {
+      const notice = s.landingNotice;
+      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax')) break;
+      const p = s.players[s.cur];
+      if (p.name !== notice.player || p.cash < notice.amount) break;
+      p.cash -= notice.amount;
+      addLog(s, `${p.name} pays ${notice.title}: −${money(notice.amount)}.`, 'r');
+      pushFeeEvent(s, notice.kind, p, -notice.amount);
+      s.landingNotice = null;
+      break;
+    }
+    case 'deferLandingFee': {
+      const notice = s.landingNotice;
+      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax')) break;
+      const p = s.players[s.cur];
+      if (p.name !== notice.player) break;
+      addFeeDebt(p, notice.amount);
+      addLog(s, `${p.name} carries ${money(notice.amount)} of ${notice.title} as Outstanding Fees debt. Balance ${money(feeDebtBalance(p))}.`, 'y');
+      s.landingNotice = null;
+      break;
+    }
+    case 'payFeeDebt': {
+      if (s.phase !== 'play' || s.landingNotice) break;
+      const p = s.players[s.cur];
+      const paid = payFeeDebt(p, action.mode);
+      if (paid <= 0) break;
+      addLog(s, `${p.name} pays ${money(paid)} toward Outstanding Fees. Balance ${money(feeDebtBalance(p))}.`, 'g');
+      pushFeeEvent(s, 'debt', p, -paid);
       break;
     }
 
@@ -782,6 +841,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       ranked.forEach((entry, rank) => { s.players[entry.i].prevRank = rank; });
       s.cur = (s.cur + 1) % n;
       if (s.cur === 0) startLap(s);
+      const debtInterest = accrueFeeDebt(s.players[s.cur]);
+      if (debtInterest > 0) {
+        addLog(s, `${s.players[s.cur].name}'s Outstanding Fees add ${money(debtInterest)} interest (5%). Balance ${money(feeDebtBalance(s.players[s.cur]))}.`, 'r');
+      }
       // Arm Market Close when the configured final round begins. The closing
       // flow then lets every player finish that round and ends before another
       // lap starts. Waiting until lap > closeRounds added an unintended full

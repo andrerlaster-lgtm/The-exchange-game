@@ -141,12 +141,12 @@ describe('Margin — Market Open call', () => {
     expect(s.marginCall).toBeNull();
   });
 
-  it('blocks voluntary repayMargin while an active insolvency is unresolved', () => {
+  it('blocks voluntary repayMargin while a Payout Claim forced sale is unresolved', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.players[0].margin = 2000;
       d.players[0].cash = 5000;
-      d.insolvency = { player: 0, owed: 500, reason: 'tax', payTo: null, label: 'Portfolio Tax' };
+      d.insolvency = { player: 0, owed: 500, reason: 'payout', payTo: 1, label: 'Payout Claim' };
     });
     s = dispatch(s, { t: 'repayMargin' }, rng());
     expect(s.players[0].margin).toBe(2000); // rejected — unchanged

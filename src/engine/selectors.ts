@@ -50,6 +50,7 @@ import { MARGIN_INCREMENT, MARGIN_MAX } from '../data';
 import { netWorth, sharesValue } from './scoringEngine';
 import { priceOf } from './rules';
 import { marketGain, marketReturnPct, rankingScore, stockGainLoss } from './gainLoss';
+import { feeDebtBalance } from './feeDebt';
 
 export interface BuyingPower {
   cash: number;
@@ -116,6 +117,7 @@ export interface RankedPlayer {
   stocksValue: number;
   etfsValue: number;
   margin: number;
+  feeDebt: number;
   salaryCollected: number;
   marketGain: number;
   marketReturnPct: number;
@@ -142,6 +144,7 @@ export function getRankedPlayers(s: GameState): RankedPlayer[] {
         stocksValue: sv,
         etfsValue: etfValue(p.etfShares),
         margin: p.margin,
+        feeDebt: feeDebtBalance(p),
         salaryCollected: p.salaryCollected,
         marketGain: marketGain(s, p),
         marketReturnPct: marketReturnPct(s, p),

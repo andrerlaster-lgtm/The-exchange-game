@@ -8,6 +8,13 @@ export const MARGIN_INCREMENT = 2_000;       // borrow in $2,000 steps
 export const MARGIN_MAX = 4_000;             // max outstanding margin at any time
 export const MARGIN_DEFAULT_PENALTY = 1_000; // flat fee when a margin call defaults (tunable)
 export const TAX_RATE = 0.10;
+export const AUDIT_RATE = 0.05;
+export const AUDIT_MINIMUM = 500;
+export const AUDIT_MARGIN_RATE = 0.075;
+export const AUDIT_MARGIN_MINIMUM = 750;
+export const FEE_DEBT_INTEREST_RATE = 0.05;
+export const FEE_DEBT_MIN_INTEREST = 100;
+export const FEE_DEBT_INSTALLMENT = 500;
 export const REGULAR_SUPPLY = 11;
 // ── Fixed whole-company acquisition tiers ──────────────────────────────────
 // The acquisition price is intentionally separate from the live per-share

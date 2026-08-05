@@ -90,6 +90,7 @@ export default function Leaderboard() {
                 <BRow label="Stock G/L" value={p.totalStockGain} color={scoreColor(p.totalStockGain)} signed />
                 <BRow label="Salary excluded" value={p.salaryCollected} color="var(--muted)" signed />
                 {p.margin > 0 && <BRow label="Margin" value={-p.margin} color="var(--red)" />}
+                {p.feeDebt > 0 && <BRow label="Outstanding Fees" value={-p.feeDebt} color="var(--red)" />}
               </div>
             )}
           </div>

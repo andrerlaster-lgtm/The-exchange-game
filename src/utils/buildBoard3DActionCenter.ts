@@ -1,11 +1,11 @@
 import {
-  ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, LADDER, MARGIN_DEFAULT_PENALTY,
+  ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, LADDER, MARGIN_DEFAULT_PENALTY,
   MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, isIpoCode, stockOpportunityFor,
 } from '../data';
 import type { GameState } from '../engine';
 import {
   bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
-  fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
+  feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction } from './sync3dBoard';
@@ -61,6 +61,26 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
+  if (s.landingNotice) {
+    const notice = s.landingNotice;
+    const canPayNow = current.cash >= notice.amount;
+    required.push({
+      id: `landing-notice-${notice.kind}`,
+      title: `Landing Result · ${notice.title} · −${money(notice.amount)}`,
+      accent: '#ef4444',
+      urgent: true,
+      description: notice.canDefer
+        ? `${notice.player}: ${notice.detail} Pay now or carry the full charge as debt; debt adds 5% each turn and lowers final score.`
+        : `${notice.player}: ${notice.detail} ${money(notice.paidFromCash)} taken from cash${notice.remaining > 0 ? `; ${money(notice.remaining)} still due.` : '; paid in full.'}`,
+      buttons: notice.canDefer
+        ? [
+            button(canPayNow ? `Pay Now · ${money(notice.amount)}` : `Need ${money(notice.amount - current.cash)} More`, { t: 'payLandingFee' }, 'danger', !canPayNow),
+            button('Carry as Debt', { t: 'deferLandingFee' }, 'gold'),
+          ]
+        : [button(notice.remaining > 0 ? 'Continue to Payment →' : 'Acknowledge', { t: 'ackLandingNotice' }, 'danger')],
+    });
+  }
+
   if (s.marketOpenWindow) {
     required.push({
       id: 'market-open', title: 'Market Open — Trading Window', accent: '#3ed598', urgent: true,
@@ -99,7 +119,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
-  if (s.insolvency) {
+  if (s.insolvency && !s.landingNotice) {
     const iv = s.insolvency;
     const player = s.players[iv.player];
     const rows = Object.entries(player.shares)
@@ -268,13 +288,17 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   const purchaseOpen = gameActive && (!!s.trade || s.ipoListPick || !!s.ipoBuy);
   const stockGl = stockGainLoss(s, current);
   const gameGain = marketGain(s, current);
+  const feeDebt = feeDebtBalance(current);
+  const feeInstallment = Math.min(FEE_DEBT_INSTALLMENT, feeDebt);
   const portfolio: ActionPanel3D = {
     id: 'portfolio', title: `${currentStance.glyph} ${current.name} · ${currentStance.label} Portfolio`, accent: currentStance.color,
-    description: `Cash ${money(current.cash)} · Market Gain ${money(gameGain)} · Stock G/L ${money(stockGl.total)} (unrealized ${money(stockGl.unrealized)}, realized ${money(stockGl.realized)}) · Salary excluded ${money(current.salaryCollected)} · Margin ${money(current.margin)}`,
+    description: `Cash ${money(current.cash)} · Market Gain ${money(gameGain)} · Stock G/L ${money(stockGl.total)} (unrealized ${money(stockGl.unrealized)}, realized ${money(stockGl.realized)}) · Salary excluded ${money(current.salaryCollected)} · Margin ${money(current.margin)} · Outstanding Fees ${money(feeDebt)} (principal ${money(current.feeDebtPrincipal)}, interest ${money(current.feeDebtInterest)})`,
     rows: holdings,
     buttons: [
       button(`Take Margin +${money(MARGIN_INCREMENT)}`, { t: 'takeMargin' }, 'gold', !s.opts.margin || !purchaseOpen || current.margin + MARGIN_INCREMENT > MARGIN_MAX || !!s.auction),
       button(`Repay Margin ${money(repayAmount || MARGIN_INCREMENT)}`, { t: 'repayMargin' }, 'neutral', !gameActive || current.margin <= 0 || current.cash < repayAmount || marginLocked),
+      button(`Pay Fees ${money(feeInstallment || FEE_DEBT_INSTALLMENT)}`, { t: 'payFeeDebt', mode: 'installment' }, 'danger', !gameActive || feeDebt <= 0 || current.cash < feeInstallment || !!s.landingNotice),
+      button('Pay Fees in Full', { t: 'payFeeDebt', mode: 'full' }, 'danger', !gameActive || feeDebt <= 0 || current.cash < feeDebt || !!s.landingNotice),
     ],
   };
 

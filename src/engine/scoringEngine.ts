@@ -4,6 +4,7 @@ import { DIVERSIFIED_SECTORS, etfValue } from '../data';
 import type { GameState, Player } from './types';
 import { priceOf } from './selectors';
 import { distinctSectors } from './sector';
+import { feeDebtBalance } from './feeDebt';
 
 /** Total dollar value of all a player's stock holdings (regular + IPO) at current prices. */
 export function sharesValue(s: GameState, p: Player): number {
@@ -12,9 +13,9 @@ export function sharesValue(s: GameState, p: Player): number {
   return v;
 }
 
-/** Final / running portfolio value = cash + stock value + ETF value − margin. (Rule 11) */
+/** Final / running portfolio value = cash + stock value + ETF value − margin − unpaid fees. */
 export function netWorth(s: GameState, p: Player): number {
-  return p.cash + sharesValue(s, p) + etfValue(p.etfShares) - p.margin;
+  return p.cash + sharesValue(s, p) + etfValue(p.etfShares) - p.margin - feeDebtBalance(p);
 }
 
 /**

@@ -190,7 +190,8 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
     case 'payInsolvency': case 'skipShort': case 'ipoBuyShare': case 'ipoBuyDone':
     case 'skipIpo': case 'skipPick': case 'passCircuitBreaker': case 'callClose':
     case 'skipEtf': case 'auctionPass': case 'closeMarketOpenWindow': case 'endTurn':
-    case 'chooseInvestorGrowth': case 'chooseInvestorTip':
+    case 'chooseInvestorGrowth': case 'chooseInvestorTip': case 'ackLandingNotice':
+    case 'payLandingFee': case 'deferLandingFee':
       return true;
     case 'buy': case 'skipStock': case 'marginSell': case 'forcedSell':
     case 'doShort': case 'pickKnownIpo': case 'pickTarget': case 'playCircuitBreaker':
@@ -208,6 +209,8 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
       return integer('id') && (action.id as number) >= 0;
     case 'auctionBid':
       return nonNegativeNumber('amount');
+    case 'payFeeDebt':
+      return action.mode === 'installment' || action.mode === 'full';
     default:
       return false;
   }

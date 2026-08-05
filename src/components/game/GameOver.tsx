@@ -1,202 +1,381 @@
-import { getRankedPlayers } from '../../engine';
+import { useEffect, useState } from 'react';
+import { buildSessionDebrief, debriefShareText, getRankedPlayers } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
+
+const DEBRIEF_TEXT = '#f0e8d8';
+const DEBRIEF_MUTED = '#a99b88';
+const DEBRIEF_GOLD = '#d4a535';
+const DEBRIEF_GREEN = '#4ade80';
+const DEBRIEF_RED = '#f87171';
 
 export default function GameOver() {
   const s = useGameState();
   const dispatch = useDispatch();
   const ranked = getRankedPlayers(s);
-  const winner = ranked[0];
+  const debrief = buildSessionDebrief(s);
+  const [copied, setCopied] = useState(false);
   const gainLossMode = s.opts.scoringMode === 'gainLoss';
-  const winnerScoreColor = gainLossMode ? gainColor(winner.marketGain) : '#22c55e';
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollLeft = 0;
+  }, []);
+
+  async function copyDebrief() {
+    try {
+      await navigator.clipboard.writeText(debriefShareText(s));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflowY: 'auto',
-      padding: '32px 16px',
-      background: 'radial-gradient(ellipse 100% 70% at 50% 0%, #2e2010 0%, #1e1608 45%, var(--bg) 70%)',
-    }}>
-      <div style={{ width: 520, display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-        {/* Header */}
-        <div style={{ textAlign: 'center', userSelect: 'none' }}>
-          <div style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: 4,
-            color: 'rgba(212,165,53,0.65)', textTransform: 'uppercase', marginBottom: 10,
-          }}>Market Closed</div>
-          <h1 style={{
-            fontSize: 34, fontWeight: 900, lineHeight: 1, letterSpacing: -0.5,
-            color: '#f0e8d8',
-            textShadow: '0 2px 20px rgba(212,165,53,0.2)',
-          }}>Game Over</h1>
-          <div style={{ width: 56, height: 2, background: 'linear-gradient(90deg, transparent, rgba(212,165,53,0.6), transparent)', margin: '14px auto 0' }} />
-        </div>
-
-        {/* Winner spotlight */}
-        <div style={{
-          background: `linear-gradient(135deg, ${winner.color}18 0%, rgba(212,165,53,0.06) 100%)`,
-          border: `1px solid ${winner.color}50`,
-          borderTop: `1px solid ${winner.color}80`,
-          borderRadius: 14,
-          padding: '22px 24px',
-          textAlign: 'center',
-          boxShadow: `0 0 40px ${winner.color}18, var(--panel-shadow)`,
-        }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 3, color: 'rgba(212,165,53,0.7)', textTransform: 'uppercase', marginBottom: 8 }}>
-            🏆 Winner
+    <main style={styles.page}>
+      <div style={styles.shell}>
+        <header style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+          <div style={styles.eyebrow}>The Exchange · Post-Mortem</div>
+          <h1 style={styles.title}>Session Debrief</h1>
+          <p style={styles.subtitle}>
+            Market closed after lap {debrief.summary.lapsReached}. The trades are final. The excuses remain highly liquid.
+          </p>
+          <div style={styles.sessionMeta}>
+            <span>{debrief.summary.players} players</span>
+            <span>•</span>
+            <span>{gainLossMode ? 'Gain / Loss Mode' : 'Net Worth Mode'}</span>
+            <span>•</span>
+            <span>{debrief.summary.marketEvents} market signals</span>
           </div>
-          <div style={{
-            fontSize: 28, fontWeight: 900,
-            color: winner.color,
-            textShadow: `0 0 24px ${winner.color}66`,
-            marginBottom: 6,
-          }}>{winner.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
-            {gainLossMode ? 'Winning Market Gain' : 'Final Net Worth'}
-          </div>
-          <div className="mono" style={{
-            fontSize: 36, fontWeight: 800, color: winnerScoreColor,
-            textShadow: `0 0 20px ${winner.marketGain < 0 && gainLossMode ? 'rgba(239,68,68,0.35)' : 'rgba(34,197,94,0.4)'}`,
-            letterSpacing: -1,
-          }}>
-            {gainLossMode ? signedMoney(winner.marketGain) : `$${winner.nw.toLocaleString()}`}
-          </div>
+        </header>
 
-          {/* Winner breakdown */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: gainLossMode ? '1fr 1fr 1fr 1fr' : winner.etfsValue > 0 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr',
-            gap: 10, marginTop: 18,
-            padding: '14px 0 2px',
-            borderTop: '1px solid rgba(212,165,53,0.12)',
-          }}>
-            {gainLossMode ? (
-              <>
-                <BreakdownCell label="Net Worth" value={`$${winner.nw.toLocaleString()}`} color="var(--green)" />
-                <BreakdownCell label="Start" value={`$${s.opts.startCash.toLocaleString()}`} color="var(--muted)" />
-                <BreakdownCell label="Salary Removed" value={`−$${winner.salaryCollected.toLocaleString()}`} color="var(--muted)" />
-                <BreakdownCell label="Stock G/L" value={signedMoney(winner.totalStockGain)} color={gainColor(winner.totalStockGain)} />
-              </>
-            ) : (
-              <>
-                <BreakdownCell label="Cash" value={`$${winner.cash.toLocaleString()}`} color="var(--green)" />
-                <BreakdownCell label="Stocks" value={`$${winner.stocksValue.toLocaleString()}`} color="var(--blue)" />
-                {winner.etfsValue > 0 && (
-                  <BreakdownCell label="ETFs" value={`$${winner.etfsValue.toLocaleString()}`} color="var(--accent)" />
-                )}
-                <BreakdownCell label="Margin" value={winner.margin > 0 ? `−$${winner.margin.toLocaleString()}` : '—'} color={winner.margin > 0 ? 'var(--red)' : 'var(--muted)'} />
-              </>
-            )}
-          </div>
-          <div style={{ fontSize: 10, color: 'rgba(212,165,53,0.45)', marginTop: 10, letterSpacing: 0.5 }}>
-            {gainLossMode
-              ? `Net Worth − Starting Cash − Salary = ${signedMoney(winner.marketGain)} · Return ${signedPercent(winner.marketReturnPct)}`
-              : `Cash + Stocks${winner.etfsValue > 0 ? ' + ETFs' : ''} − Margin = $${winner.nw.toLocaleString()}`}
-          </div>
-        </div>
+        <section aria-label="Session summary" style={styles.summaryGrid}>
+          <SummaryCard
+            icon="🧾"
+            label="Outstanding at Bell"
+            value={money(debrief.summary.outstandingFees)}
+            note={debrief.summary.outstandingFees > 0 ? 'Deducted from final scores' : 'The bank found nobody to chase'}
+            danger={debrief.summary.outstandingFees > 0}
+          />
+          <SummaryCard
+            icon="⏱"
+            label="Interest Still Owed"
+            value={money(debrief.summary.interestStillOwed)}
+            note="5% each debtor turn · $100 minimum"
+            danger={debrief.summary.interestStillOwed > 0}
+          />
+          <SummaryCard
+            icon="🏢"
+            label="Companies Cornered"
+            value={debrief.summary.companiesCornered.toString()}
+            note={`${debrief.summary.companiesUntouched} never bought`}
+          />
+          <SummaryCard
+            icon="↕"
+            label="Biggest Swing"
+            value={signedMoney(debrief.summary.biggestSwing)}
+            note={debrief.summary.biggestSwingPlayer}
+            tone={gainColor(debrief.summary.biggestSwing)}
+          />
+        </section>
 
-        {/* Final leaderboard */}
-        <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          <span className="slabel">Final {gainLossMode ? 'Gain / Loss' : 'Net Worth'} Standings</span>
-          {ranked.map((p, idx) => (
-            <div key={p.playerIdx} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '11px 8px',
-              borderBottom: idx < ranked.length - 1 ? '1px solid rgba(212,165,53,0.1)' : 'none',
-              background: idx === 0 ? 'linear-gradient(105deg, rgba(212,165,53,0.07), transparent)' : 'transparent',
-              borderRadius: idx === 0 ? 7 : 0,
-            }}>
-              {/* Rank */}
-              <span className="mono" style={{
-                fontSize: 13, width: 26, flexShrink: 0, fontWeight: 700,
-                color: idx === 0 ? 'var(--gold)' : 'var(--muted)',
-              }}>#{idx + 1}</span>
-
-              {/* Token */}
-              <div style={{
-                width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
-                background: `radial-gradient(circle at 35% 35%, ${p.color}ff, ${p.color}88)`,
-                boxShadow: idx === 0 ? `0 0 10px ${p.color}99` : `0 0 5px ${p.color}66`,
-                border: '1.5px solid rgba(255,255,255,0.2)',
-              }} />
-
-              {/* Name */}
-              <span style={{
-                flex: 1, fontSize: 13,
-                fontWeight: idx === 0 ? 700 : 400,
-                color: idx === 0 ? 'var(--gold)' : 'var(--text)',
+        <section style={styles.panel} aria-labelledby="final-standings-title">
+          <SectionHeading id="final-standings-title" kicker="The Closing Bell" title="Final Standings" />
+          <div style={{ display: 'grid', gap: 7 }}>
+            {ranked.map((player, index) => (
+              <div key={player.playerIdx} style={{
+                ...styles.standingRow,
+                ...(index === 0 ? styles.winnerRow : {}),
               }}>
-                {p.name}
-                {idx === 0 && <span style={{ marginLeft: 6, fontSize: 12 }}>★</span>}
-              </span>
-
-              {/* Breakdown */}
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>{gainLossMode ? 'STOCK G/L' : 'CASH'}</div>
-                  <div className="mono" style={{ fontSize: 11, color: gainLossMode ? gainColor(p.totalStockGain) : 'var(--green)' }}>
-                    {gainLossMode ? signedMoney(p.totalStockGain) : `$${p.cash.toLocaleString()}`}
+                <span className="mono" style={{ color: index === 0 ? DEBRIEF_GOLD : DEBRIEF_MUTED, width: 28 }}>#{index + 1}</span>
+                <span aria-hidden="true" style={{ ...styles.token, background: player.color, boxShadow: `0 0 10px ${player.color}77` }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ color: index === 0 ? DEBRIEF_GOLD : DEBRIEF_TEXT, fontWeight: 800 }}>
+                    {player.name}{index === 0 ? ' ★' : ''}
+                  </div>
+                  <div style={styles.mutedLine}>
+                    Cash {money(player.cash)} · Stocks {money(player.stocksValue)}
+                    {player.margin > 0 ? ` · Margin −${money(player.margin)}` : ''}
+                    {player.feeDebt > 0 ? ` · Fees −${money(player.feeDebt)}` : ''}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>{gainLossMode ? 'SALARY' : 'STOCKS'}</div>
-                  <div className="mono" style={{ fontSize: 11, color: gainLossMode ? 'var(--muted)' : 'var(--blue)' }}>
-                    ${gainLossMode ? p.salaryCollected.toLocaleString() : p.stocksValue.toLocaleString()}
+                  <div className="mono" style={{ fontSize: 17, fontWeight: 900, color: gainLossMode ? gainColor(player.marketGain) : index === 0 ? DEBRIEF_GREEN : DEBRIEF_TEXT }}>
+                    {gainLossMode ? signedMoney(player.marketGain) : money(player.nw)}
                   </div>
-                </div>
-                {p.etfsValue > 0 && (
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>ETFS</div>
-                    <div className="mono" style={{ fontSize: 11, color: 'var(--accent)' }}>${p.etfsValue.toLocaleString()}</div>
-                  </div>
-                )}
-                {p.margin > 0 && (
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>MARGIN</div>
-                    <div className="mono" style={{ fontSize: 11, color: 'var(--red)' }}>−${p.margin.toLocaleString()}</div>
-                  </div>
-                )}
-                <div style={{ textAlign: 'right', minWidth: 72 }}>
-                  <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>{gainLossMode ? 'MARKET GAIN' : 'NET WORTH'}</div>
-                  <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: gainLossMode ? gainColor(p.marketGain) : idx === 0 ? '#22c55e' : 'var(--text)' }}>
-                    {gainLossMode ? signedMoney(p.marketGain) : `$${p.nw.toLocaleString()}`}
-                  </div>
+                  <div style={styles.tinyLabel}>{gainLossMode ? 'MARKET GAIN' : 'NET WORTH'}</div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <p style={{ ...styles.mutedLine, textAlign: 'center', margin: '14px 0 0' }}>
+            {gainLossMode
+              ? 'Market Gain = Net Worth − Starting Cash − Salary Collected'
+              : 'Net Worth = Cash + Stock Value + ETF Value − Margin − Outstanding Fees'}
+          </p>
+        </section>
 
-        {/* Formula reminder */}
-        <div style={{
-          textAlign: 'center', fontSize: 11, color: 'var(--muted)',
-          padding: '6px 0', letterSpacing: 0.5,
-        }}>
-          {gainLossMode
-            ? 'Market Gain = Net Worth − Starting Cash − Salary Collected'
-            : 'Net Worth = Cash + Stock Value + ETF Value − Outstanding Margin'}
-        </div>
+        <section aria-labelledby="post-mortem-title">
+          <SectionHeading id="post-mortem-title" kicker="No Analysts Were Spared" title="Player Post-Mortems" />
+          <div style={styles.playerGrid}>
+            {ranked.map((player) => {
+              const card = debrief.players.find((entry) => entry.playerIdx === player.playerIdx)!;
+              return (
+                <article key={player.playerIdx} style={{ ...styles.playerCard, borderTopColor: player.color }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span aria-hidden="true" style={{ ...styles.token, width: 12, height: 12, background: player.color }} />
+                    <span style={{ fontWeight: 850, color: DEBRIEF_TEXT }}>{player.name}</span>
+                    <span className="mono" style={{ marginLeft: 'auto', color: gainColor(player.marketGain), fontWeight: 800 }}>
+                      {signedMoney(player.marketGain)}
+                    </span>
+                  </div>
+                  <h3 style={styles.jokeTitle}>{card.title}</h3>
+                  <p style={styles.verdict}>{card.verdict}</p>
+                  <div style={styles.cardStats}>
+                    <Stat label="Sectors" value={card.sectors.toString()} />
+                    <Stat label="Claims" value={card.controlledCompanies.toString()} />
+                    <Stat label="Top Bet" value={card.largestHolding ?? 'CASH'} />
+                    <Stat label="Focus" value={card.concentrationPct > 0 ? `${card.concentrationPct}%` : '—'} />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            style={{ flex: 1, padding: '12px 0', fontSize: 13 }}
-            onClick={() => dispatch({ t: 'newGame' })}>
-            Back to Setup
+        <section style={styles.panel} aria-labelledby="tape-title">
+          <SectionHeading id="tape-title" kicker="The Receipts" title="The Tape" />
+          <div style={{ display: 'grid', gap: 0 }}>
+            {debrief.tape.map((entry, index) => (
+              <div key={`${entry.lap}-${index}-${entry.text}`} style={styles.tapeRow}>
+                <span className="mono" style={styles.lapPill}>LAP {entry.lap}</span>
+                <span aria-hidden="true" style={{ color: tapeColor(entry.tone), fontSize: 13 }}>
+                  {entry.tone === 'up' ? '▲' : entry.tone === 'down' ? '▼' : '◆'}
+                </span>
+                <span style={{ color: DEBRIEF_TEXT, lineHeight: 1.45 }}>{entry.text}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div style={styles.actions}>
+          <button onClick={() => dispatch({ t: 'newGame' })} style={{ flex: 1, minWidth: 150, padding: '12px 18px' }}>
+            Change Setup
           </button>
-          <button
-            className="primary"
-            style={{ flex: 2, padding: '12px 0', fontSize: 15, letterSpacing: 0.5 }}
-            onClick={() => dispatch({ t: 'newGame' })}>
-            Play Again
+          <button onClick={copyDebrief} style={{ flex: 1, minWidth: 170, padding: '12px 18px' }}>
+            {copied ? 'Copied ✓' : 'Copy the Damage'}
+          </button>
+          <button className="primary" onClick={() => dispatch({ t: 'startGame' })} style={{ flex: 1.4, minWidth: 180, padding: '12px 18px', fontSize: 15 }}>
+            Run It Back
           </button>
         </div>
-
+        <div aria-live="polite" style={styles.copyStatus}>{copied ? 'Session debrief copied to your clipboard.' : ''}</div>
       </div>
+    </main>
+  );
+}
+
+function SectionHeading({ id, kicker, title }: { id: string; kicker: string; title: string }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={styles.eyebrow}>{kicker}</div>
+      <h2 id={id} style={{ fontSize: 21, margin: '4px 0 0', color: DEBRIEF_TEXT }}>{title}</h2>
     </div>
   );
+}
+
+function SummaryCard({ icon, label, value, note, danger = false, tone }: {
+  icon: string;
+  label: string;
+  value: string;
+  note: string;
+  danger?: boolean;
+  tone?: string;
+}) {
+  return (
+    <article style={styles.summaryCard}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span aria-hidden="true" style={{ fontSize: 18 }}>{icon}</span>
+        <span style={styles.tinyLabel}>{label}</span>
+      </div>
+      <div className="mono" style={{ fontSize: 25, fontWeight: 900, color: tone ?? (danger ? DEBRIEF_RED : DEBRIEF_GOLD), marginTop: 12 }}>{value}</div>
+      <div style={{ ...styles.mutedLine, marginTop: 5 }}>{note}</div>
+    </article>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={styles.tinyLabel}>{label}</div>
+      <div className="mono" style={{ marginTop: 4, fontWeight: 800, color: DEBRIEF_TEXT }}>{value}</div>
+    </div>
+  );
+}
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    overflowY: 'auto' as const,
+    padding: '54px 16px 38px',
+    background: 'radial-gradient(ellipse 90% 45% at 50% 0%, #2f2110 0%, #18130b 48%, var(--bg) 76%)',
+  },
+  shell: {
+    width: 'min(1120px, 100%)',
+    margin: '0 auto',
+    display: 'grid',
+    gap: 20,
+  },
+  eyebrow: {
+    color: 'rgba(212,165,53,0.72)',
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: 2.5,
+    textTransform: 'uppercase' as const,
+  },
+  title: {
+    margin: '7px 0 10px',
+    color: '#f0e8d8',
+    fontSize: 'clamp(34px, 6vw, 58px)',
+    lineHeight: 0.98,
+    letterSpacing: -1.5,
+  },
+  subtitle: {
+    margin: '0 auto',
+    maxWidth: 690,
+    color: DEBRIEF_MUTED,
+    fontSize: 13,
+    lineHeight: 1.6,
+  },
+  sessionMeta: {
+    marginTop: 13,
+    display: 'flex',
+    justifyContent: 'center',
+    flexWrap: 'wrap' as const,
+    gap: 9,
+    color: 'rgba(212,165,53,0.6)',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase' as const,
+  },
+  summaryGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+    gap: 11,
+  },
+  summaryCard: {
+    padding: '16px 17px',
+    borderRadius: 11,
+    border: '1px solid rgba(212,165,53,0.16)',
+    background: 'linear-gradient(145deg, rgba(38,30,19,0.96), rgba(19,17,13,0.96))',
+    boxShadow: 'var(--panel-shadow)',
+  },
+  panel: {
+    padding: '20px',
+    borderRadius: 13,
+    border: '1px solid rgba(212,165,53,0.16)',
+    background: 'rgba(21,18,13,0.91)',
+    boxShadow: 'var(--panel-shadow)',
+  },
+  standingRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '12px 11px',
+    borderRadius: 8,
+    border: '1px solid rgba(212,165,53,0.08)',
+    background: 'rgba(255,255,255,0.015)',
+  },
+  winnerRow: {
+    borderColor: 'rgba(212,165,53,0.35)',
+    background: 'linear-gradient(100deg, rgba(212,165,53,0.10), rgba(255,255,255,0.01))',
+  },
+  token: {
+    width: 13,
+    height: 13,
+    borderRadius: '50%',
+    flexShrink: 0,
+    border: '1px solid rgba(255,255,255,0.35)',
+  },
+  tinyLabel: {
+    color: DEBRIEF_MUTED,
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: 1,
+    textTransform: 'uppercase' as const,
+  },
+  mutedLine: {
+    color: DEBRIEF_MUTED,
+    fontSize: 10,
+    lineHeight: 1.5,
+  },
+  playerGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))',
+    gap: 12,
+  },
+  playerCard: {
+    padding: '17px',
+    borderRadius: 11,
+    border: '1px solid rgba(212,165,53,0.14)',
+    borderTop: '3px solid',
+    background: 'linear-gradient(150deg, rgba(34,28,19,0.96), rgba(18,16,13,0.97))',
+    boxShadow: 'var(--panel-shadow)',
+  },
+  jokeTitle: {
+    margin: '18px 0 7px',
+    color: DEBRIEF_GOLD,
+    fontSize: 18,
+    lineHeight: 1.15,
+  },
+  verdict: {
+    minHeight: 61,
+    margin: 0,
+    color: DEBRIEF_MUTED,
+    fontSize: 12,
+    lineHeight: 1.55,
+  },
+  cardStats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 8,
+    paddingTop: 13,
+    marginTop: 14,
+    borderTop: '1px solid rgba(212,165,53,0.12)',
+  },
+  tapeRow: {
+    display: 'grid',
+    gridTemplateColumns: '60px 18px 1fr',
+    alignItems: 'start',
+    gap: 9,
+    padding: '10px 0',
+    borderBottom: '1px solid rgba(212,165,53,0.08)',
+    fontSize: 11,
+  },
+  lapPill: {
+    color: 'rgba(212,165,53,0.9)',
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: 0.6,
+  },
+  actions: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: 10,
+    justifyContent: 'center',
+  },
+  copyStatus: {
+    minHeight: 16,
+    textAlign: 'center' as const,
+    color: DEBRIEF_GREEN,
+    fontSize: 10,
+  },
+};
+
+function money(value: number): string {
+  return `$${Math.round(value).toLocaleString()}`;
 }
 
 function signedMoney(value: number): string {
@@ -205,19 +384,10 @@ function signedMoney(value: number): string {
   return `${rounded > 0 ? '+' : '−'}$${Math.abs(rounded).toLocaleString()}`;
 }
 
-function signedPercent(value: number): string {
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
-}
-
 function gainColor(value: number): string {
-  return value > 0 ? 'var(--green)' : value < 0 ? 'var(--red)' : 'var(--muted)';
+  return value > 0 ? DEBRIEF_GREEN : value < 0 ? DEBRIEF_RED : DEBRIEF_MUTED;
 }
 
-function BreakdownCell({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
-      <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</div>
-      <div className="mono" style={{ fontSize: 14, fontWeight: 700, color }}>{value}</div>
-    </div>
-  );
+function tapeColor(tone: 'up' | 'down' | 'neutral'): string {
+  return tone === 'up' ? DEBRIEF_GREEN : tone === 'down' ? DEBRIEF_RED : DEBRIEF_GOLD;
 }

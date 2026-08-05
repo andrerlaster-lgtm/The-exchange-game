@@ -60,6 +60,7 @@ The setup screen offers two winning-score modes:
 - Plus the current market value of all owned regular stock shares
 - Plus the current value of owned IPO holdings, plus owned ETF holdings valued at their fixed purchase/card price (see Section 15; ETFs have no price ladder)
 - Minus outstanding Margin balance (see Section 17, Margin System)
+- Minus Outstanding Fees principal and accumulated interest
 - Plus any final bonuses specifically granted by cards or variant rules
 
 ## 2. Components
@@ -444,16 +445,15 @@ Margin (renamed from Loans) is an advanced-mode borrowing system. It is off by d
 
 **Note:** Margin is fully specified but remains an advanced-mode toggle — off by default in the standard game (see Section 21, Standard Mode Settings).
 
-**Insolvency and Forced Sale (standard mode)**
+**Outstanding Fees and Payout Claim Forced Sale (standard mode)**
 
-The Exchange is a net-worth race, not a bankruptcy-elimination game (see Section 20). This rule covers what happens when a player owes a required cash payment — Portfolio Tax, Audit Notice fee, a Sold-Out landing payout to a Payout Claim holder, or a card-mandated payment — and does not have enough cash on hand, whether or not Margin is in use.
+Audit Notice and Portfolio Tax are bank fees. After either landing, the player chooses **Pay Now** or **Carry as Debt**. If the player cannot afford the full fee, carrying it is required.
 
-- If a player cannot cover a required cash payment, the bank forces the sale of that player's regular stock shares, at the normal sell-back price (Section 11: one price step below current market, or the $100 floor price), until the payment is covered.
-- The player chooses which shares to sell and in what order, continuing until either the payment is fully covered or the player has no regular stock shares left to sell.
-- Forced sales follow all normal sell-back mechanics: they move market price down one step per sale (unless at the floor), and go into that stock's Bank Auction Pool. A forced sale can change Payout Claim ownership exactly as a voluntary sell-back would (see Section 10).
-- IPO and ETF holdings cannot be force-sold under this rule, since they have no defined sell-back mechanic.
-- If forced-selling all available regular stock shares still does not cover the full payment, the player pays cash down to $0 and the remaining shortfall is waived. Cash never goes negative, and the player is not eliminated.
-- Bankruptcy/elimination remains an optional variant only (see Section 21) and is unaffected by this rule.
+- Carried Audit Notice and Portfolio Tax charges appear in the player's Portfolio as **Outstanding Fees**.
+- At the beginning of each of that player's later turns, the current balance adds 5% interest, rounded to the nearest $100 with a $100 minimum increase.
+- A player may pay $500 installments or pay the full balance from the Portfolio during their turn. Payments cover outstanding interest first, then principal.
+- Outstanding Fees are subtracted from Net Worth and therefore reduce both Standard Mode and Gain/Loss Mode scoring. Any balance left at Market Close remains deducted from the final score.
+- A Sold-Out Payout Claim is different because another player is owed immediately. If the landing player cannot cover it, the bank forces sales of regular shares at the normal sell-back price until it is covered or regular shares are exhausted. IPOs and ETFs cannot be force-sold; any remaining Payout Claim shortfall is waived. Cash never goes negative, and no player is eliminated.
 
 ## 18. Special Spaces
 
@@ -466,8 +466,8 @@ The Exchange is a net-worth race, not a bankruptcy-elimination game (see Section
 | Bear Run — space 26 | Resolve the Bear Run stock movements and every player's current stance, then reset all players to Balanced. Circuit Breaker may protect one affected owned company. |
 | IPO | Resolve IPO reveal/purchase per Section 16. |
 | Investor Day — space 31 | Choose Company Growth or Insider Information. Company Growth moves 1 owned regular company below the $5,000 ceiling up 1 price step; reaching $5,000 triggers a Market Event. If none qualifies, collect $500. Insider Information reveals the title and effect of the next Market Event without drawing, resolving, or removing that card from the top of the deck. |
-| Portfolio Tax | Player pays 10% of current net worth. Net worth uses the same formula as Final Portfolio Value (see Section 1): cash + current value of regular stock shares + IPO holdings + ETF holdings - outstanding Margin balance. ETF holdings are valued at their fixed purchase/card price (see Section 15). |
-| Audit Notice | Player pays $500. If they have any outstanding Margin balance, pay an extra $250. In standard mode, with Margin off by default, this extra fee is normally dormant. |
+| Portfolio Tax | Charge equals 10% of current net worth. Choose Pay Now or Carry as Debt under Outstanding Fees. |
+| Audit Notice | Charge equals 5% of current net worth, rounded to the nearest $100, with a $500 minimum. Outstanding Margin raises the rate to 7.5% with a $750 minimum. Choose Pay Now or Carry as Debt. |
 
 **Investor Day rollback note:** The previous rule is retained here in case playtesting favors it: choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step; if no owned company can rise, automatically collect $500. This version had no Insider Information choice.
 
@@ -536,6 +536,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 - Add each player's cash.
 - Add the current market value of all owned regular stocks and IPOs, plus owned ETF holdings valued at their fixed purchase/card price (ETFs have no price ladder — see Section 15).
 - Subtract outstanding Margin balance, if the advanced Margin mode is on.
+- Subtract all Outstanding Fees principal and accumulated interest.
 - Do not add separate value for Payout Claims, Sector Portfolio badges, or Controller badges unless a specific card/rule grants an endgame bonus.
 - In Net Worth Mode, the highest Final Portfolio Value wins.
 - In Gain/Loss Mode, subtract Starting Cash and base Salary Collected from Final Portfolio Value. The highest resulting Market Gain wins. Other earned income and penalties remain in the result because they reflect game decisions and consequences.
@@ -570,7 +571,7 @@ Use this checklist when sending the rules to code.
 | Area | Implementation requirement |
 |---|---|
 | Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares; fixed acquisition tiers = $5,000 / $7,500 / $10,000; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
-| Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance, Circuit Breaker holder, remaining stock cost basis, realized/unrealized Stock G/L, salary-adjusted Market Gain |
+| Derived state | Ownership tier, Controller, Sector Portfolio, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Margin balance, Outstanding Fees principal/interest, Circuit Breaker holder, remaining stock cost basis, realized/unrealized Stock G/L, salary-adjusted Market Gain |
 | Stock landing | If untouched, offer a full 11-share company buyout at its fixed tier price or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment, with no payment when the owner lands on their own company |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
 | Sell-back | Trade Step action only; pay seller 1 step below market (or floor), move price down 1 step (unless at floor), put shares into Bank Auction Pool, do not reopen normal supply |
@@ -580,11 +581,12 @@ Use this checklist when sending the rules to code.
 | Dividends | Pay flat per-share dividend on every regular stock and revealed IPO at every Market Open; apply 2x multiplier for Controllers; Always On, independent of Sold-Out status |
 | IPO reveal | Single shared 4-IPO queue; landing on either IPO space reveals the next unrevealed IPO; only the landing player may buy, up to 2 shares |
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default |
-| Insolvency | Standard mode: if a player can't cover a required payment, force-sell regular stock only (not IPO/ETF) at sell-back price until covered or shares exhausted; unpaid shortfall after that is waived, cash floors at $0, no elimination |
+| Outstanding Fees | Audit Notice and Portfolio Tax may be paid immediately or carried as debt; add 5% each debtor turn, rounded to $100 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
+| Insolvency | Payout Claim only: if the landing player can't pay another player, force-sell regular stock (not IPO/ETF) until covered or exhausted; waive any remaining shortfall, cash floors at $0, no elimination |
 | Market Open | Pay salary, dividends, ETF payouts, diversification bonuses, resolve Margin repayment, then open Market Open Trading Window |
 | Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |
 | Investor Day | Space 31; choose Company Growth (+1 eligible owned regular company, or $500 if none) or Insider Information (preview the next Market Event; card stays on top) |
-| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance, per-holding basis and unrealized G/L, total realized/unrealized Stock G/L, Market Gain and salary excluded |
+| UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, sector progress, diversification badge, held Circuit Breaker, auction pool count, dividend income per Market Open, Margin balance, Outstanding Fees principal/interest/payment controls, per-holding basis and unrealized G/L, total realized/unrealized Stock G/L, Market Gain and salary excluded. Cardless financial spaces must show the total charge and Pay Now / Carry as Debt choices. |
 | Logs | Separate bank payout, player-paid payout, private trade, full-company buy, bank sell-back, Weak Demand, auction sale, Payout Claim transfer, dividend payout, Margin draw/repay |
 
 ## 23. Open Balance Items

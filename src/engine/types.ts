@@ -29,6 +29,8 @@ export interface Player {
   etfShares: Record<string, number>; // ETF code -> qty held
   salaryCollected: number;           // base Market Open salary only; excluded from Gain/Loss Mode
   margin: number;                    // total outstanding margin dollars
+  feeDebtPrincipal: number;          // unpaid Audit Notice / Portfolio Tax charges still outstanding
+  feeDebtInterest: number;           // unpaid turn-by-turn interest on those charges
   marketStance: MarketStance;        // latest qualifying market position, resolved by Bull/Bear Run
   prevRank: number | null;           // rank at end of previous turn (null = first turn)
 }
@@ -110,7 +112,7 @@ export interface MarketSignal {
 }
 
 /** Taxes & Fees panel entry kinds. */
-export type FeeEventKind = 'marginCall' | 'income' | 'audit' | 'tax' | 'payout';
+export type FeeEventKind = 'marginCall' | 'income' | 'audit' | 'tax' | 'payout' | 'debt';
 
 /** One Taxes & Fees event: a margin call, Market Open income, Audit Notice,
     Portfolio Tax, or a forced-sale-settled Payout Claim shortfall. */
@@ -129,18 +131,29 @@ export interface MarginCall {
 }
 
 /** What kind of required payment triggered an Insolvency (Phase 8). */
-export type InsolvencyReason = 'tax' | 'audit' | 'payout';
+export type InsolvencyReason = 'payout';
 
-/** Active forced-sale resolution: a player owes more than their cash covers
-    for a required payment (Portfolio Tax, Audit Notice, or a Sold-Out Payout
-    Claim landing payment) and must sell regular stock to raise the rest, or
-    exhaust their holdings and have the remainder waived (rulebook §17). */
+/** Active forced-sale resolution for a Sold-Out Payout Claim owed to another
+    player. Audit and Tax shortfalls use Outstanding Fees instead. */
 export interface Insolvency {
   player: number;              // player index who owes the payment
   owed: number;                // remaining dollars still needed
   reason: InsolvencyReason;
   payTo: number | null;        // player index to receive the payment; null = paid to the bank
   label: string;                // short human label for UI/log text, e.g. "Portfolio Tax"
+}
+
+/** A cardless financial landing result that must be acknowledged so the
+    active player cannot miss cash deducted by Audit, Tax, or Payout Claim. */
+export interface LandingNotice {
+  kind: 'audit' | 'tax' | 'payout';
+  title: string;
+  player: string;
+  amount: number;               // total charge for the landing
+  paidFromCash: number;         // amount deducted immediately
+  remaining: number;            // unresolved amount subject to forced sale / waiver
+  detail: string;               // human-readable rule explanation
+  canDefer: boolean;            // Audit/Tax may be paid now or carried as score-reducing debt
 }
 
 /** Most recent card draw / IPO reveal — seq is unique per draw so views can
@@ -257,7 +270,8 @@ export interface GameState {
   opts: GameOptions;
   etfPick: string | null;   // ETF code player landed on, awaiting buy/skip
   marginCall: MarginCall | null; // active forced-sell margin call, if any
-  insolvency: Insolvency | null; // active forced-sale resolution for an unaffordable tax/audit/payout, if any
+  insolvency: Insolvency | null; // active Payout Claim forced-sale resolution, if any
+  landingNotice: LandingNotice | null; // visible acknowledgement for cardless financial landing results
   feeLog: FeeEventEntry[];           // Taxes & Fees panel: margin calls, income, audit notices (most recent first)
   lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
@@ -283,6 +297,10 @@ export type Action =
   | { t: 'payMarginCall' }
   | { t: 'forcedSell'; code: string }
   | { t: 'payInsolvency' }
+  | { t: 'ackLandingNotice' }
+  | { t: 'payLandingFee' }
+  | { t: 'deferLandingFee' }
+  | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
   | { t: 'doShort'; code: string }
   | { t: 'skipShort' }
   | { t: 'pickKnownIpo'; code: string }

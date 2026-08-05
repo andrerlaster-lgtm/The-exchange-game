@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, PIECE_BY_KEY, SECTORS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode } from '../../data';
+import { ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, SECTORS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode } from '../../data';
 import {
   completedSectors, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
-  holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
+  feeDebtBalance, holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
   projectedDividend, stockGainLoss,
 } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
@@ -36,6 +36,8 @@ export default function Portfolio() {
   const sectors = completedSectors(p);
   const divTier = diversificationTier(p);
   const divBonus = diversificationBonus(p);
+  const feeDebt = feeDebtBalance(p);
+  const installment = Math.min(FEE_DEBT_INSTALLMENT, feeDebt);
 
   return (
     <div style={{
@@ -116,6 +118,7 @@ export default function Portfolio() {
       }}>
         <FinRow label="Cash" value={`$${bp.cash.toLocaleString()}`} color="var(--green)" />
         <FinRow label="Margin Balance" value={bp.marginBalance > 0 ? `−$${bp.marginBalance.toLocaleString()}` : '$0'} color={bp.marginBalance > 0 ? 'var(--red)' : 'var(--muted)'} />
+        <FinRow label="Outstanding Fees" value={feeDebt > 0 ? `−$${feeDebt.toLocaleString()}` : '$0'} color={feeDebt > 0 ? 'var(--red)' : 'var(--muted)'} />
         <FinRow label="Buying Power" value={`$${bp.buyingPower.toLocaleString()}`} color="var(--accent)" bold />
         <div style={{ height: 1, background: 'rgba(212,165,53,0.12)', margin: '2px 0' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -139,6 +142,40 @@ export default function Portfolio() {
           <span>Realized {signedMoney(stockGl.realized)}</span>
         </div>
       </div>
+
+      {feeDebt > 0 && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 7,
+          padding: '10px 11px', borderRadius: 8,
+          background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.35)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--red)', letterSpacing: 0.6 }}>OUTSTANDING FEES</span>
+            <span className="mono" style={{ fontSize: 15, fontWeight: 800, color: 'var(--red)' }}>−${feeDebt.toLocaleString()}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)' }}>
+            <span>Unpaid charges ${p.feeDebtPrincipal.toLocaleString()}</span>
+            <span>Interest ${p.feeDebtInterest.toLocaleString()}</span>
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
+            Adds 5% at the beginning of this player’s turn, rounded to $100 with a $100 minimum. Already deducted from score.
+          </div>
+          {isOwnTurn && s.phase === 'play' && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button style={{ flex: 1, fontSize: 10, padding: '6px 7px' }}
+                disabled={p.cash < installment || installment <= 0 || !!s.landingNotice}
+                onClick={() => dispatch({ t: 'payFeeDebt', mode: 'installment' })}>
+                Pay ${installment.toLocaleString()}
+              </button>
+              <button className="danger" style={{ flex: 1, fontSize: 10, padding: '6px 7px' }}
+                disabled={p.cash < feeDebt || !!s.landingNotice}
+                onClick={() => dispatch({ t: 'payFeeDebt', mode: 'full' })}>
+                Pay in Full
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Projected dividend on next Market Open pass (from current holdings) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '0 2px' }}>
@@ -305,6 +342,7 @@ export default function Portfolio() {
                 : f.kind === 'audit' ? 'Audit Notice'
                 : f.kind === 'tax' ? 'Portfolio Tax'
                 : f.kind === 'payout' ? 'Payout Claim'
+                : f.kind === 'debt' ? 'Debt Payment'
                 : 'Income';
               const amtColor = f.amount >= 0 ? 'var(--green)' : 'var(--red)';
               return (

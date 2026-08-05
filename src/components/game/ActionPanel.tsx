@@ -162,6 +162,9 @@ export default function ActionPanel() {
         )}
       </div>
 
+      {/* Cardless financial spaces still need a loud, explicit result. */}
+      {s.landingNotice && <LandingResultBanner s={s} dispatch={dispatch} />}
+
       {/* Market Open Trading Window — P2P trades + auction bidding only, no bank sell-back */}
       {s.marketOpenWindow && <MarketOpenWindowPanel s={s} dispatch={dispatch} />}
 
@@ -173,8 +176,8 @@ export default function ActionPanel() {
         <MarginCallPanel s={s} dispatch={dispatch} />
       )}
 
-      {/* Insolvency — Portfolio Tax / Audit Notice / Payout Claim shortfall, forced-sale to cover */}
-      {s.insolvency && <InsolvencyPanel s={s} dispatch={dispatch} />}
+      {/* Payout Claim shortfall — forced sale to pay the other player */}
+      {s.insolvency && !s.landingNotice && <InsolvencyPanel s={s} dispatch={dispatch} />}
 
       {/* Pending draw — loud, deck-colored, pulsing banner: the turn cannot
           continue until this button is pressed, so make it impossible to miss. */}
@@ -185,6 +188,62 @@ export default function ActionPanel() {
       {s.pick?.source === 'investor' && <InvestorDayPanel s={s} dispatch={dispatch} />}
 
       {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
+    </div>
+  );
+}
+
+function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const notice = s.landingNotice!;
+  const needsMore = notice.remaining > 0;
+  const canPayNow = s.players[s.cur].cash >= notice.amount;
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14,
+      padding: '14px 16px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(239,68,68,0.22), rgba(239,68,68,0.07))',
+      border: '2px solid #ef4444',
+      boxShadow: '0 3px 20px rgba(239,68,68,0.2)',
+    }}>
+      <div style={{ fontSize: 28, lineHeight: 1 }}>{notice.kind === 'audit' ? '⚑' : notice.kind === 'tax' ? '$' : '↗'}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: '#fca5a5', letterSpacing: 1, textTransform: 'uppercase' }}>
+          Landing Result · {notice.title}
+        </div>
+        <div className="mono" style={{ fontSize: 24, fontWeight: 900, color: '#ef4444', marginTop: 3 }}>
+          −${notice.amount.toLocaleString()}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45, marginTop: 3 }}>
+          {notice.player}: {notice.detail}
+        </div>
+        {notice.canDefer ? (
+          <div style={{ fontSize: 11, color: '#f0b429', marginTop: 4 }}>
+            Choose now: pay from cash or carry the full amount as debt. Unpaid debt adds 5% each turn and lowers final score.
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: needsMore ? '#f0b429' : 'var(--muted)', marginTop: 4 }}>
+            ${notice.paidFromCash.toLocaleString()} taken from cash
+            {needsMore ? ` · $${notice.remaining.toLocaleString()} still due — sell regular stock if available` : ' · paid in full'}
+          </div>
+        )}
+      </div>
+      {notice.canDefer ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button className="danger" disabled={!canPayNow}
+            style={{ fontSize: 12, padding: '8px 12px', whiteSpace: 'nowrap' }}
+            onClick={() => dispatch({ t: 'payLandingFee' })}>
+            {canPayNow ? `Pay Now · $${notice.amount.toLocaleString()}` : `Need $${(notice.amount - s.players[s.cur].cash).toLocaleString()} More`}
+          </button>
+          <button style={{ fontSize: 12, padding: '8px 12px', whiteSpace: 'nowrap' }}
+            onClick={() => dispatch({ t: 'deferLandingFee' })}>
+            Carry as Debt
+          </button>
+        </div>
+      ) : (
+        <button className="danger" style={{ fontSize: 12, padding: '9px 14px', whiteSpace: 'nowrap' }}
+          onClick={() => dispatch({ t: 'ackLandingNotice' })}>
+          {needsMore ? 'Continue to Payment →' : 'Acknowledge'}
+        </button>
+      )}
     </div>
   );
 }

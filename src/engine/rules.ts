@@ -81,6 +81,7 @@ export function blocked(s: GameState): boolean {
   if (s.turnPhase === 'preRoll') return true;
   if (s.marginCall) return true;
   if (s.insolvency) return true; // forced-sale payment shortfall must be resolved first
+  if (s.landingNotice) return true; // cardless financial result must be acknowledged
   if (s.auction) return true;  // a live Bank Auction must be resolved first
   if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
   if (s.pendingDraws.length > 0) return true;

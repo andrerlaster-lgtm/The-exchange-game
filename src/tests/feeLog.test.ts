@@ -2,8 +2,8 @@
 // payments are logged to s.feeLog. projectedDividend reports the next-pass payout.
 
 import { describe, expect, it } from 'vitest';
-import { projectedDividend } from '../engine';
-import { dispatch, patch, scriptedRng, started } from './helpers';
+import { blocked, projectedDividend } from '../engine';
+import { dispatch, patch, rollTo, scriptedRng, started } from './helpers';
 
 describe('Taxes & Fees — feeLog', () => {
   it('logs an income entry on Market Open with no dividends owed', () => {
@@ -65,15 +65,46 @@ describe('Taxes & Fees — feeLog', () => {
     expect(s.marginCall).toBeNull();
   });
 
-  it('logs an audit entry when landing on Audit Notice', () => {
+  it('logs an audit entry after the player chooses Pay Now', () => {
     let s = started(2);
     // Space 34 is Audit Notice — land there by rolling 2 from space 32.
     s = patch(s, (d) => { d.players[0].pos = 32; d.turnPhase = 'preRoll'; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1])); // 32 + 2 = 34
 
     expect(s.players[0].pos).toBe(34);
+    expect(s.landingNotice).toMatchObject({
+      kind: 'audit', amount: 1_500, paidFromCash: 0, remaining: 1_500, canDefer: true,
+    });
+    expect(blocked(s)).toBe(true);
+
+    s = dispatch(s, { t: 'payLandingFee' }, scriptedRng([]));
     const audit = s.feeLog.find((f) => f.kind === 'audit');
-    expect(audit).toBeDefined();
-    expect(audit!.amount).toBeLessThan(0);
+    expect(audit?.amount).toBe(-1_500);
+    expect(s.landingNotice).toBeNull();
+    expect(blocked(s)).toBe(false);
+  });
+
+  it('raises the Audit Notice rate to 7.5% when margin is outstanding', () => {
+    let s = patch(started(2), (d) => {
+      d.players[0].pos = 32;
+      d.players[0].cash += 2_000; // borrowed cash offsets the new margin in net worth
+      d.players[0].margin = 2_000;
+    });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
+
+    expect(s.landingNotice).toMatchObject({
+      kind: 'audit', amount: 2_300, paidFromCash: 0, remaining: 2_300, canDefer: true,
+    });
+    expect(s.landingNotice?.detail).toContain('7.5% of net worth $30,000');
+  });
+
+  it('explains the 10% Portfolio Tax and exact amount charged', () => {
+    let s = started(2);
+    s = rollTo(s, 25);
+
+    expect(s.landingNotice).toMatchObject({
+      kind: 'tax', amount: 3_000, paidFromCash: 0, remaining: 3_000, canDefer: true,
+    });
+    expect(s.landingNotice?.detail).toContain('10% of net worth $30,000');
   });
 });

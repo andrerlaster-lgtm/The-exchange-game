@@ -9,6 +9,9 @@ describe('3D command boundary', () => {
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'roll' } })).toBe(true);
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'sell', code: 'MEDI', qty: 2 } })).toBe(true);
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'chooseInvestorTip' } })).toBe(true);
+    expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'ackLandingNotice' } })).toBe(true);
+    expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'deferLandingFee' } })).toBe(true);
+    expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'payFeeDebt', mode: 'full' } })).toBe(true);
     expect(isBoard3DCommand({
       t: 'dispatch', ts: now,
       action: { t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 500 },
@@ -18,6 +21,7 @@ describe('3D command boundary', () => {
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'startGame' } })).toBe(false);
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'sell', qty: 1 } })).toBe(false);
     expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'draw', deck: 'IPO' } })).toBe(false);
+    expect(isBoard3DCommand({ t: 'dispatch', ts: now, action: { t: 'payFeeDebt', mode: 'later' } })).toBe(false);
     expect(isBoard3DCommand({ t: 'roll', ts: now })).toBe(false);
   });
 
@@ -55,7 +59,7 @@ describe('3D Action Center parity', () => {
     const center = buildActionCenter(s);
 
     expect(center.portfolio.rows?.[0].buttons?.map((entry) => entry.action.t)).toEqual(['sell']);
-    expect(center.portfolio.buttons?.map((entry) => entry.action.t)).toEqual(['takeMargin', 'repayMargin']);
+    expect(center.portfolio.buttons?.map((entry) => entry.action.t)).toEqual(['takeMargin', 'repayMargin', 'payFeeDebt', 'payFeeDebt']);
     expect(center.portfolio.title).toContain('Bullish Portfolio');
     expect(center.tradeDesk.players).toHaveLength(2);
     expect(center.canCallClose).toBe(true);
@@ -110,6 +114,19 @@ describe('3D Action Center parity', () => {
     expect(center.required.find((entry) => entry.id === 'margin-call')?.rows?.[0].buttons?.[0].action.t).toBe('marginSell');
     expect(center.required.find((entry) => entry.id === 'draw')?.buttons?.[0].action).toEqual({ t: 'draw', deck: 'FED' });
     expect(center.required.find((entry) => entry.id === 'etf')?.buttons?.map((entry) => entry.action.t)).toEqual(['buyEtf', 'skipEtf']);
+  });
+
+  it('shows Pay Now and Carry as Debt for Audit Notice in 3D', () => {
+    let s = rollTo(started(2), 34);
+    const notice = buildActionCenter(s).required.find((entry) => entry.id === 'landing-notice-audit');
+
+    expect(notice?.title).toContain('−$1,500');
+    expect(notice?.description).toContain('carry the full charge as debt');
+    expect(notice?.buttons?.map((entry) => entry.action.t)).toEqual(['payLandingFee', 'deferLandingFee']);
+
+    s = dispatch(s, notice!.buttons![1].action, rng());
+    expect(s.players[0].feeDebtPrincipal).toBe(1_500);
+    expect(buildActionCenter(s).required.some((entry) => entry.id === 'landing-notice-audit')).toBe(false);
   });
 
   it('provides both IPO selection and IPO purchase controls', () => {
