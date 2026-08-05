@@ -107,7 +107,25 @@ describe('Market Intelligence signals', () => {
 
     expect(center.marketIntel.title).toBe('Fed Watch · Rate Hike');
     expect(center.marketIntel.description).toContain('Tailwind: FTRB');
-    expect(center.marketIntel.rows?.[0]).toMatchObject({ title: 'Bear Run', value: 'Lap 1' });
+    expect(center.marketIntel.rows?.[0]).toMatchObject({ title: 'Bear Run', value: 'MAJOR' });
+  });
+
+  it('records each $100k portfolio milestone once and promotes it as important', () => {
+    let s = patch(started(2), (draft) => {
+      draft.players[0].cash = 100_000;
+    });
+
+    s = dispatch(s, { t: 'toggleTest' }, rng());
+    expect(s.portfolioMilestones[0]).toBe(100_000);
+    expect(importantMarketSignals(s)[0]).toMatchObject({
+      kind: 'milestone',
+      title: 'Morgan Reaches $100,000',
+      playerIndex: 0,
+      milestone: 100_000,
+    });
+
+    s = dispatch(s, { t: 'toggleTest' }, rng());
+    expect(s.marketSignals.filter((signal) => signal.kind === 'milestone')).toHaveLength(1);
   });
 
   it('clears old intelligence when a new game starts', () => {
@@ -117,5 +135,6 @@ describe('Market Intelligence signals', () => {
     s = dispatch(s, { t: 'startGame' }, rng());
     expect(s.marketSignals).toEqual([]);
     expect(s.marketSignalSeq).toBe(0);
+    expect(s.portfolioMilestones).toEqual({});
   });
 });

@@ -145,11 +145,10 @@ export default function GameOver() {
         </section>
 
         <section style={styles.panel} aria-labelledby="tape-title">
-          <SectionHeading id="tape-title" kicker="The Receipts" title="The Tape" />
+          <SectionHeading id="tape-title" kicker="Game-changing moments only" title="The Tape" />
           <div style={{ display: 'grid', gap: 0 }}>
             {debrief.tape.map((entry, index) => (
               <div key={`${entry.lap}-${index}-${entry.text}`} style={styles.tapeRow}>
-                <span className="mono" style={styles.lapPill}>LAP {entry.lap}</span>
                 <span aria-hidden="true" style={{ color: tapeColor(entry.tone), fontSize: 13 }}>
                   {entry.tone === 'up' ? '▲' : entry.tone === 'down' ? '▼' : '◆'}
                 </span>
@@ -347,18 +346,12 @@ const styles = {
   },
   tapeRow: {
     display: 'grid',
-    gridTemplateColumns: '60px 18px 1fr',
+    gridTemplateColumns: '18px 1fr',
     alignItems: 'start',
     gap: 9,
     padding: '10px 0',
     borderBottom: '1px solid rgba(212,165,53,0.08)',
     fontSize: 11,
-  },
-  lapPill: {
-    color: 'rgba(212,165,53,0.9)',
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: 0.6,
   },
   actions: {
     display: 'flex',

@@ -308,7 +308,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         s.supply[st.code] = REGULAR_SUPPLY;
       }
       s.skips = {}; s.soldOut = {}; s.bankPool = {}; s.lap = 1; s.log = []; s.tradeLog = []; s.feeLog = [];
-      s.marketSignals = []; s.marketSignalSeq = 0;
+      s.marketSignals = []; s.marketSignalSeq = 0; s.portfolioMilestones = {};
       s.decks = freshDecks(rng); s.discard = { ME: [], FED: [] };
       s.ipos = freshIpos();
       s.shorts = []; s.closing = false; s.closeDrawer = null; s.etfPick = null;

@@ -4,10 +4,12 @@ import { produce } from 'immer';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState } from './types';
 import { resolveAction } from './actionResolver';
+import { recordPortfolioMilestones } from './marketSignals';
 
 export function reduce(state: GameState, action: Action, rng: Rng): GameState {
   return produce(state, (draft) => {
     resolveAction(draft as GameState, action, rng);
+    recordPortfolioMilestones(draft as GameState);
   });
 }
 

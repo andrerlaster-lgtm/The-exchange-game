@@ -52,6 +52,7 @@ export function initialState(rng: Rng): GameState {
     log: [],
     marketSignals: [],
     marketSignalSeq: 0,
+    portfolioMilestones: {},
     tradeLog: [],
     trade: null, pendingDraws: [], card: null, cardPreviewMode: null, pick: null, investorDay: null, shortPick: false,
     ipos: freshIpos(),

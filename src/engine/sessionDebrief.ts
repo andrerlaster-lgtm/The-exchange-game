@@ -1,6 +1,7 @@
 import { STOCK_BY_CODE } from '../data';
 import { distinctSectors } from './sector';
 import { feeDebtBalance } from './feeDebt';
+import { importantMarketSignals } from './marketSignals';
 import { getRankedPlayers } from './selectors';
 import { priceOf } from './rules';
 import type { GameState, Player } from './types';
@@ -38,8 +39,6 @@ export interface SessionDebrief {
   players: PlayerDebrief[];
   tape: TapeEntry[];
 }
-
-const IMPORTANT_LOG = /buys the|carries .*outstanding fees|outstanding fees add|payout claim|bull run|bear run|market close|launched ipo|taken over|takes margin|repays margin/i;
 
 export function buildSessionDebrief(s: GameState): SessionDebrief {
   const ranked = getRankedPlayers(s);
@@ -217,20 +216,9 @@ function buildTape(s: GameState): TapeEntry[] {
     entries.push({ lap, text, tone });
   };
 
-  for (const signal of [...s.marketSignals].reverse()) {
+  for (const signal of [...importantMarketSignals(s)].reverse()) {
     const impact = signal.impacts.reduce((sum, item) => sum + item.d, 0);
     add(signal.lap, `${signal.title} — ${signal.summary}`, impact > 0 ? 'up' : impact < 0 ? 'down' : 'neutral');
-  }
-
-  for (const entry of [...s.log].reverse()) {
-    if (!IMPORTANT_LOG.test(entry.text)) continue;
-    const lower = entry.text.toLowerCase();
-    const tone = lower.includes('bear') || lower.includes('interest') || lower.includes('carries')
-      ? 'down'
-      : lower.includes('bull') || lower.includes('buys the') || lower.includes('repays')
-        ? 'up'
-        : 'neutral';
-    add(entry.t, entry.text, tone);
   }
 
   if (entries.length === 0) {

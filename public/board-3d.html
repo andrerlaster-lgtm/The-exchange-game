@@ -383,6 +383,24 @@
     .ac-section-label { font-size: 8px; letter-spacing: 1.8px; color: rgba(212,165,53,.58); text-transform: uppercase; padding: 2px 2px 0; }
     .ac-panel { --ac:#d4a535; border: 1px solid color-mix(in srgb,var(--ac) 45%,transparent); border-left: 3px solid var(--ac); border-radius: 8px; padding: 9px; background: rgba(255,255,255,.025); }
     .ac-panel.urgent { box-shadow: inset 0 0 18px color-mix(in srgb,var(--ac) 7%,transparent); }
+    .ac-panel.ipo {
+      position: relative; overflow: hidden; border: 2px solid color-mix(in srgb,var(--ac) 62%,#b68a37);
+      border-radius: 11px; padding: 12px 10px 10px;
+      background:
+        radial-gradient(circle at 82% 10%,color-mix(in srgb,var(--ac) 17%,transparent),transparent 34%),
+        linear-gradient(145deg,#151915,#090c0a 55%,#11120f);
+      box-shadow: 0 9px 26px rgba(0,0,0,.42), inset 0 0 0 1px rgba(212,165,53,.18);
+    }
+    .ac-panel.ipo::before {
+      content:'THE EXCHANGE · IPO'; display:block; margin:-12px -10px 10px; padding:6px 9px;
+      color:#06110c; background:linear-gradient(100deg,color-mix(in srgb,var(--ac) 88%,#d4a535),var(--ac));
+      font-size:7px; font-weight:900; letter-spacing:1.5px;
+    }
+    .ac-panel.ipo .ac-title { color:#f3ead7; font-size:14px; letter-spacing:1px; }
+    .ac-panel.ipo .ac-description { color:rgba(213,202,182,.84); }
+    .ac-panel.ipo .ac-row { border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.028); }
+    .ac-panel.ipo .ac-row-detail { color:rgba(180,168,148,.9); line-height:1.45; }
+    .ac-panel.ipo .ac-row-value { color:var(--ac); font-weight:900; }
     .ac-title { color: var(--ac); font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
     .ac-description { margin-top: 5px; color: rgba(192,180,162,.85); font-size: 9px; line-height: 1.45; }
     .ac-rows { margin-top: 7px; display: flex; flex-direction: column; gap: 5px; max-height: 230px; overflow-y: auto; }
@@ -1911,7 +1929,7 @@
 
     function renderAcPanel(def) {
       const panel = document.createElement('section');
-      panel.className = `ac-panel${def.urgent ? ' urgent' : ''}`;
+      panel.className = `ac-panel${def.urgent ? ' urgent' : ''}${def.variant === 'ipo' ? ' ipo' : ''}`;
       panel.style.setProperty('--ac', def.accent || '#d4a535');
 
       const title = document.createElement('div');

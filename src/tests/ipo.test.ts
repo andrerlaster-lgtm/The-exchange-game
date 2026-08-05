@@ -3,12 +3,22 @@
 // IPO space may buy during that landing.
 
 import { describe, expect, it } from 'vitest';
-import { IPO_FIXED_PRICE, LADDER } from '../data';
+import { IPO_DEFS, IPO_FIXED_PRICE, IPO_PRESENTATION, LADDER } from '../data';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
 const IPO_SPACE = 10;
 
 describe('IPO reveal — shared queue, fixed price', () => {
+  it('has complete, unique card presentation copy for every listing', () => {
+    const cards = IPO_DEFS.map((ipo) => IPO_PRESENTATION[ipo.code]);
+
+    expect(cards.every((card) => card.icon && card.volatilityLabel && card.opportunityText && card.flavor)).toBe(true);
+    expect(new Set(cards.map((card) => card.flavor)).size).toBe(IPO_DEFS.length);
+    expect(IPO_PRESENTATION.RNST.opportunityTitle).toBe('INCOME + GROWTH');
+    expect(IPO_PRESENTATION.RNST.opportunityText).toContain('$50 per-share dividend');
+    expect(IPO_DEFS.filter((ipo) => ipo.div === 0).every((ipo) => IPO_PRESENTATION[ipo.code].opportunityText.includes('No dividend'))).toBe(true);
+  });
+
   it('landing on an IPO space with hidden IPOs reveals the next one at $3,000', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);

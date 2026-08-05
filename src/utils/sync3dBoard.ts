@@ -94,6 +94,7 @@ export interface NumberAction3D {
 export interface ActionPanel3D {
   id: string;
   title: string;
+  variant?: 'ipo';
   description?: string;
   accent?: string;
   urgent?: boolean;

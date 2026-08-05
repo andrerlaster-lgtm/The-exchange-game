@@ -1,6 +1,6 @@
 import {
-  ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, LADDER, MARGIN_DEFAULT_PENALTY,
-  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, isIpoCode, stockOpportunityFor,
+  ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, IPO_PRESENTATION, LADDER, MARGIN_DEFAULT_PENALTY,
+  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, STOCKS, isIpoCode, stockOpportunityFor,
 } from '../data';
 import type { GameState } from '../engine';
 import {
@@ -47,7 +47,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
       key: `signal-${signal.id}`,
       title: signal.title,
       detail: signal.summary,
-      value: `Lap ${signal.lap}`,
+      value: signal.kind === 'milestone' ? 'MILESTONE' : 'MAJOR',
       color: signal.kind === 'fed' ? stanceColor : undefined,
     })),
   };
@@ -194,26 +194,41 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
 
   if (s.ipoListPick) {
     required.push({
-      id: 'ipo-list', title: 'IPO Market', accent: '#4ade80', urgent: true,
-      description: 'Select a listed IPO to buy up to two shares.',
-      rows: s.ipos.filter((ipo) => ipo.revealed && ipo.supply > 0).map((ipo) => ({
-        key: ipo.code, title: `${ipo.code} · ${IPO_BY_CODE[ipo.code]?.name ?? ipo.code}`,
-        detail: `${ipo.supply} available`, value: money(LADDER[ipo.step]),
-        buttons: [button('Select', { t: 'pickKnownIpo', code: ipo.code }, 'primary')],
-      })),
+      id: 'ipo-list', variant: 'ipo', title: 'THE EXCHANGE · IPO MARKET', accent: '#4ade80', urgent: true,
+      description: `${current.name} is the only buyer. Select a live listing and buy up to two shares this landing.`,
+      rows: s.ipos.filter((ipo) => ipo.revealed && ipo.supply > 0).map((ipo) => {
+        const def = IPO_BY_CODE[ipo.code];
+        const presentation = IPO_PRESENTATION[ipo.code];
+        const dividend = def.div > 0 ? `${money(def.div)}/share dividend` : 'No dividend';
+        return {
+          key: ipo.code,
+          title: `${presentation.icon} ${ipo.code} · ${def.name}`,
+          detail: `${SECTORS[def.sector].name} · ${presentation.volatilityLabel} · ${dividend} · ${ipo.supply} available · “${presentation.flavor}”`,
+          value: money(LADDER[ipo.step]),
+          color: def.color,
+          buttons: [button(`Select ${ipo.code}`, { t: 'pickKnownIpo', code: ipo.code }, 'primary')],
+        };
+      }),
       buttons: [button('Skip IPO', { t: 'skipIpo' })],
     });
   } else if (s.ipoBuy) {
     const ipo = s.ipos.find((entry) => entry.code === s.ipoBuy!.code);
     const actor = s.players[s.ipoBuy.actor];
+    const def = IPO_BY_CODE[s.ipoBuy.code];
+    const presentation = IPO_PRESENTATION[s.ipoBuy.code];
     const disabled = s.ipoBuy.bought >= s.ipoBuy.max || (ipo?.supply ?? 0) <= 0 || actor.cash < s.ipoBuy.price;
     required.push({
-      id: 'ipo-buy', title: `IPO · ${s.ipoBuy.code}`, accent: '#4ade80', urgent: true,
-      description: `${actor.name} is the only buyer. ${s.ipoBuy.bought}/${s.ipoBuy.max} bought at ${money(s.ipoBuy.price)} each; ${(ipo?.supply ?? 0)} remain.`,
-      buttons: [button('Buy 1 Share', { t: 'ipoBuyShare' }, 'primary', disabled), button('Done', { t: 'ipoBuyDone' })],
+      id: 'ipo-buy', variant: 'ipo', title: `${presentation.icon} ${s.ipoBuy.code} · ${def.name}`, accent: def.color, urgent: true,
+      description: `${SECTORS[def.sector].name.toUpperCase()} · ${presentation.volatilityLabel}. ${actor.name} is the only buyer; ${s.ipoBuy.bought}/${s.ipoBuy.max} bought and ${(ipo?.supply ?? 0)} remain. ${presentation.flavor}`,
+      rows: [
+        { key: 'ipo-price', title: 'LIVE IPO PRICE', value: money(s.ipoBuy.price), detail: 'Price is locked for this landing.' },
+        { key: 'ipo-dividend', title: `DIVIDEND · ${money(def.div)} / SHARE`, detail: presentation.opportunityText, color: def.color },
+        { key: 'ipo-profile', title: presentation.opportunityTitle, detail: 'BUY UP TO 2 SHARES THIS LANDING' },
+      ],
+      buttons: [button(`Buy 1 Share · ${money(s.ipoBuy.price)}`, { t: 'ipoBuyShare' }, 'primary', disabled), button('Done', { t: 'ipoBuyDone' })],
     });
   } else if (s.ipoChoice) {
-    required.push({ id: 'ipo-choice', title: 'IPO Market', accent: '#4ade80', urgent: true, buttons: [button('Skip IPO', { t: 'skipIpo' })] });
+    required.push({ id: 'ipo-choice', variant: 'ipo', title: 'THE EXCHANGE · IPO MARKET', accent: '#4ade80', urgent: true, buttons: [button('Skip IPO', { t: 'skipIpo' })] });
   }
 
   if (s.etfPick) {

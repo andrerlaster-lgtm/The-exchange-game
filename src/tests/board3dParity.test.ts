@@ -136,6 +136,10 @@ describe('3D Action Center parity', () => {
       draft.ipoListPick = true;
     });
     const list = buildActionCenter(listState).required.find((entry) => entry.id === 'ipo-list');
+    expect(list?.variant).toBe('ipo');
+    expect(list?.description).toContain('only buyer');
+    expect(list?.rows?.[0].detail).toContain('SPECULATIVE');
+    expect(list?.rows?.[0].detail).toContain('No dividend');
     expect(list?.rows?.[0].buttons?.[0].action.t).toBe('pickKnownIpo');
     expect(list?.buttons?.[0].action.t).toBe('skipIpo');
 
@@ -144,6 +148,9 @@ describe('3D Action Center parity', () => {
       draft.ipoBuy = { code: draft.ipos[0].code, max: 2, bought: 0, price: 500, actor: 0 };
     });
     const buy = buildActionCenter(buyState).required.find((entry) => entry.id === 'ipo-buy');
+    expect(buy?.variant).toBe('ipo');
+    expect(buy?.rows?.map((entry) => entry.title)).toContain('DIVIDEND · $0 / SHARE');
+    expect(buy?.rows?.find((entry) => entry.key === 'ipo-profile')?.detail).toContain('BUY UP TO 2 SHARES');
     expect(buy?.buttons?.map((entry) => entry.action.t)).toEqual(['ipoBuyShare', 'ipoBuyDone']);
   });
 

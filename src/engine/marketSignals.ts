@@ -1,9 +1,11 @@
 import { STOCK_BY_CODE } from '../data';
 import type { Card, Effect } from '../data/types';
 import { eventPool, stepOf } from './rules';
+import { netWorth } from './scoringEngine';
 import type { GameState, MarketSignal, MarketSignalImpact } from './types';
 
 const MAX_SIGNALS = 24;
+const PORTFOLIO_MILESTONE = 100_000;
 
 type SignalInput = Omit<MarketSignal, 'id' | 'lap'> & { lap?: number };
 
@@ -18,14 +20,36 @@ export function recordMarketSignal(s: GameState, input: SignalInput): void {
   if (s.marketSignals.length > MAX_SIGNALS) s.marketSignals.length = MAX_SIGNALS;
 }
 
-/** Events important enough for the compact 2D/3D highlights feed.
-    Fed decisions have their own persistent Fed Watch panel; routine IPO
-    reveals, purchases, and weak-demand markers stay out of this feed. */
+/** Events important enough for the compact 2D/3D highlights feed and closing
+    Tape. Fed decisions have their own persistent panel. Routine cards, IPO
+    reveals, purchases, fees, and weak-demand markers stay out of this feed. */
 export function importantMarketSignals(s: GameState): MarketSignal[] {
   return s.marketSignals.filter((signal) =>
-    (signal.kind === 'market' && signal.impacts.length > 0)
+    (signal.kind === 'market' && /bull run|bear run/i.test(signal.title))
     || signal.kind === 'claim'
-    || signal.kind === 'close');
+    || signal.kind === 'close'
+    || signal.kind === 'milestone');
+}
+
+/** Record each player's highest $100k net-worth threshold once. This runs
+    after every action so price moves, dividends, and trades can all trigger it. */
+export function recordPortfolioMilestones(s: GameState): void {
+  s.portfolioMilestones ??= {};
+  s.players.forEach((player, playerIndex) => {
+    const reached = Math.floor(netWorth(s, player) / PORTFOLIO_MILESTONE) * PORTFOLIO_MILESTONE;
+    const previous = s.portfolioMilestones[playerIndex] ?? 0;
+    if (reached < PORTFOLIO_MILESTONE || reached <= previous) return;
+
+    s.portfolioMilestones[playerIndex] = reached;
+    recordMarketSignal(s, {
+      kind: 'milestone',
+      title: `${player.name} Reaches $${reached.toLocaleString()}`,
+      summary: `${player.name}'s portfolio reached a net worth milestone of $${reached.toLocaleString()}.`,
+      impacts: [],
+      playerIndex,
+      milestone: reached,
+    });
+  });
 }
 
 /** Promote a real ownership takeover, but not an initial purchase or a move

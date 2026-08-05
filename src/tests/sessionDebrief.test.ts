@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSessionDebrief, debriefShareText } from '../engine';
+import { buildSessionDebrief, debriefShareText, recordMarketSignal } from '../engine';
 import { patch, started } from './helpers';
 
 describe('Session Debrief', () => {
@@ -54,20 +54,27 @@ describe('Session Debrief', () => {
     expect(diversified.title).toBe('Diversified-ish');
   });
 
-  it('keeps routine dice rolls off The Tape and shows real important events', () => {
+  it('keeps routine laps, purchases, and fees off The Tape and shows only major events', () => {
     const s = patch(started(2), (draft) => {
       draft.log = [
         { text: 'Morgan rolls 7 → space 8', kind: 'n', t: 1 },
         { text: 'Riley carries $3,000 of Portfolio Tax as Outstanding Fees debt.', kind: 'y', t: 2 },
         { text: 'Morgan buys the SafeMart Stores company for $5,000!', kind: 'g', t: 2 },
       ];
+      recordMarketSignal(draft, {
+        kind: 'claim',
+        title: 'SAFE Taken Over',
+        summary: 'Riley took control of SAFE from Morgan.',
+        impacts: [],
+      });
     });
 
     const tape = buildSessionDebrief(s).tape;
 
     expect(tape.some((entry) => entry.text.includes('rolls 7'))).toBe(false);
-    expect(tape.some((entry) => entry.text.includes('Outstanding Fees'))).toBe(true);
-    expect(tape.some((entry) => entry.text.includes('buys the SafeMart'))).toBe(true);
+    expect(tape.some((entry) => entry.text.includes('Outstanding Fees'))).toBe(false);
+    expect(tape.some((entry) => entry.text.includes('buys the SafeMart'))).toBe(false);
+    expect(tape.some((entry) => entry.text.includes('SAFE Taken Over'))).toBe(true);
   });
 
   it('copies current rankings and debt without old mock values', () => {

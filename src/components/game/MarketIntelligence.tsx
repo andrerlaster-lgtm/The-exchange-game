@@ -17,6 +17,7 @@ const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   weakDemand: 'WEAK DEMAND',
   ipo: 'IPO',
   close: 'MARKET CLOSE',
+  milestone: 'PORTFOLIO MILESTONE',
 };
 
 function ImpactLine({ signal }: { signal: MarketSignal }) {
@@ -119,11 +120,10 @@ export default function MarketIntelligence() {
                 minWidth: 0, borderRadius: 6, padding: '6px 8px',
                 background: 'rgba(74,48,25,0.045)', border: '1px solid rgba(74,48,25,0.08)',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
                   <span style={{ fontSize: 8, color: signal.kind === 'fed' ? '#b7791f' : 'var(--muted)', fontWeight: 900, letterSpacing: 0.6 }}>
                     {KIND_LABEL[signal.kind]}
                   </span>
-                  <span style={{ fontSize: 8, color: 'var(--muted)' }}>L{signal.lap}</span>
                 </div>
                 <div style={{ color: 'var(--text)', fontSize: 10.5, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
                   {signal.title}

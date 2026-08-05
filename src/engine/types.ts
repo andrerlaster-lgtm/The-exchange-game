@@ -101,7 +101,7 @@ export interface LogEntry {
   t: number;          // lap number
 }
 
-export type MarketSignalKind = 'fed' | 'market' | 'soldout' | 'claim' | 'weakDemand' | 'ipo' | 'close';
+export type MarketSignalKind = 'fed' | 'market' | 'soldout' | 'claim' | 'weakDemand' | 'ipo' | 'close' | 'milestone';
 
 export interface MarketSignalImpact {
   code: string;
@@ -118,6 +118,8 @@ export interface MarketSignal {
   stance?: 'hawkish' | 'dovish' | 'neutral' | 'mixed';
   insight?: string;
   impacts: MarketSignalImpact[];
+  playerIndex?: number;
+  milestone?: number;
 }
 
 /** Taxes & Fees panel entry kinds. */
@@ -254,6 +256,7 @@ export interface GameState {
   log: LogEntry[];
   marketSignals: MarketSignal[];
   marketSignalSeq: number;
+  portfolioMilestones: Record<number, number>; // highest $100k net-worth milestone reached per player
   tradeLog: TradeEntry[];
   trade: TradeContext | null;
   pendingDraws: DeckId[];              // ordered queue of forced draws, resolved one at a time
