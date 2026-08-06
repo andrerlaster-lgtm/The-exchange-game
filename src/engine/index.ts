@@ -12,6 +12,7 @@ export * from './gameProgress';
 export * from './marketRegime';
 export * from './gainLoss';
 export * from './feeDebt';
+export * from './playerLoans';
 export * from './companyMode';
 export * from './sessionDebrief';
 export { minNextBid } from './auction';

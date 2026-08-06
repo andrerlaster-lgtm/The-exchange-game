@@ -59,7 +59,7 @@ describe('Insolvency — Payout Claim landing payment', () => {
     });
   }
 
-  it('still opens forced-sale insolvency because another player is owed', () => {
+  it('presents a shortfall choice because another player is owed', () => {
     let s = payoutState();
     const holderBefore = s.players[1].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
@@ -67,16 +67,23 @@ describe('Insolvency — Payout Claim landing payment', () => {
     expect(s.players[0].pos).toBe(SPACE);
     expect(s.players[0].cash).toBe(0);
     expect(s.players[1].cash).toBe(holderBefore + 100);
+    expect(s.payoutShortfallChoice).toMatchObject({
+      player: 0, creditor: 1, owed: PAYOUT_TIER_CONTROL - 100, canForceSell: true,
+    });
+    expect(s.landingNotice?.canDefer).toBe(false);
+
+    s = dispatch(s, { t: 'ackLandingNotice' }, rng());
+    s = dispatch(s, { t: 'choosePayoutForceSell' }, rng());
     expect(s.insolvency).toMatchObject({
       reason: 'payout', payTo: 1, owed: PAYOUT_TIER_CONTROL - 100,
     });
-    expect(s.landingNotice?.canDefer).toBe(false);
   });
 
   it('routes forced-sale cash to the Payout Claim holder', () => {
     let s = payoutState();
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
+    s = dispatch(s, { t: 'choosePayoutForceSell' }, rng());
     const owed = s.insolvency!.owed;
     let guard = 0;
     while (s.players[0].cash < owed && guard++ < 10) {
@@ -94,10 +101,27 @@ describe('Insolvency — Payout Claim landing payment', () => {
     s = patch(s, (d) => { d.players[0].shares.NDRV = 3; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
+    s = dispatch(s, { t: 'choosePayoutForceSell' }, rng());
     const cashBefore = s.players[0].cash;
     s = dispatch(s, { t: 'forcedSell', code: 'NDRV' }, rng());
 
     expect(s.players[0].cash).toBe(cashBefore);
     expect(s.players[0].shares.NDRV).toBe(3);
+  });
+
+  it('can negotiate a loan instead of force-selling when the debtor cannot fully cover the shortfall', () => {
+    let s = payoutState();
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
+    s = dispatch(s, { t: 'ackLandingNotice' }, rng());
+    const owed = s.payoutShortfallChoice!.owed;
+    s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
+
+    expect(s.payoutShortfallChoice).toBeNull();
+    expect(s.loanRatePrompt).toMatchObject({ debtor: 0, creditor: 1, amount: owed });
+
+    s = dispatch(s, { t: 'setLoanRate', rate: 3 }, rng());
+    expect(s.loanRatePrompt).toBeNull();
+    expect(s.playerDebts).toMatchObject([{ debtor: 0, creditor: 1, principal: owed, interest: 0, rate: 3 }]);
+    expect(s.insolvency).toBeNull();
   });
 });

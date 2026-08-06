@@ -125,6 +125,31 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
+  if (s.payoutShortfallChoice && !s.landingNotice) {
+    const choice = s.payoutShortfallChoice;
+    const debtor = s.players[choice.player];
+    const creditor = s.players[choice.creditor];
+    required.push({
+      id: 'payout-shortfall-choice', title: `Can't Cover ${choice.label}`, accent: '#f0b429', urgent: true,
+      description: `${debtor.name} still owes ${creditor.name} ${money(choice.owed)}. ${choice.canForceSell ? 'Force-sell regular stock to cover it now, or ask for a loan instead.' : 'No regular stock left to force-sell — negotiate a loan instead.'}`,
+      buttons: [
+        ...(choice.canForceSell ? [button('Force-Sell Stock', { t: 'choosePayoutForceSell' }, 'danger')] : []),
+        button(`Ask ${creditor.name} for a Loan`, { t: 'choosePayoutLoan' }, 'primary'),
+      ],
+    });
+  }
+
+  if (s.loanRatePrompt) {
+    const prompt = s.loanRatePrompt;
+    const debtor = s.players[prompt.debtor];
+    const creditor = s.players[prompt.creditor];
+    required.push({
+      id: 'loan-rate', title: `${creditor.name} — Set Loan Rate`, accent: '#4da3ff', urgent: true,
+      description: `${debtor.name} is asking to borrow ${money(prompt.amount)} on their ${prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against ${debtor.name}'s score and adds to yours.`,
+      buttons: [1, 2, 3, 4, 5].map((rate) => button(`${rate}%`, { t: 'setLoanRate', rate }, 'primary')),
+    });
+  }
+
   if (s.insolvency && !s.landingNotice) {
     const iv = s.insolvency;
     const player = s.players[iv.player];

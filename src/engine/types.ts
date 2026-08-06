@@ -196,6 +196,39 @@ export interface RegulatoryInvestigationPrompt {
   codes: string[];
 }
 
+/** A negotiated player-to-player loan, created when a landing player can't
+    fully cover a Payout Claim in cash and chooses to defer the shortfall
+    instead of force-selling stock. The creditor picks the per-turn rate. */
+export interface PlayerDebt {
+  id: number;
+  debtor: number;     // player index who owes
+  creditor: number;   // player index who is owed
+  code: string;        // originating stock, for context/log
+  principal: number;
+  interest: number;
+  rate: number;         // 1-5, chosen by the creditor when the loan was made
+}
+
+/** Presented to the debtor immediately after a Payout Claim shortfall: force-
+    sell stock (existing behavior) or negotiate a loan with the creditor. */
+export interface PayoutShortfallChoice {
+  player: number;       // debtor
+  creditor: number;
+  code: string;
+  owed: number;          // remaining shortfall after the cash portion is paid
+  label: string;
+  canForceSell: boolean; // false when the debtor has no regular stock left to sell
+}
+
+/** Presented to the creditor after the debtor chooses to negotiate a loan:
+    pick the 1-5% per-turn rate that creates the PlayerDebt record. */
+export interface LoanRatePrompt {
+  debtor: number;
+  creditor: number;
+  code: string;
+  amount: number;
+  label: string;
+}
 
 /** Most recent card draw / IPO reveal — seq is unique per draw so views can
     animate exactly once per event. */
@@ -324,6 +357,10 @@ export interface GameState {
   cyberattackPrompt: CyberattackPrompt | null;
   openingBellPrompt: OpeningBellPrompt | null;
   regulatoryInvestigationPrompt: RegulatoryInvestigationPrompt | null;
+  payoutShortfallChoice: PayoutShortfallChoice | null; // debtor choice: force-sell vs. negotiate a loan
+  loanRatePrompt: LoanRatePrompt | null;               // creditor's pending 1-5% rate choice
+  playerDebts: PlayerDebt[];                            // active negotiated Payout Claim loans
+  playerDebtSeq: number;                                // id source for playerDebts
   feeLog: FeeEventEntry[];           // Taxes & Fees panel: margin calls, income, audit notices (most recent first)
   lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
@@ -366,6 +403,10 @@ export type Action =
   | { t: 'passOpeningBell' }
   | { t: 'chooseRegulatoryInvestigationStock'; code: string }
   | { t: 'payRegulatoryInvestigation' }
+  | { t: 'choosePayoutForceSell' }
+  | { t: 'choosePayoutLoan' }
+  | { t: 'setLoanRate'; rate: number }
+  | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
   | { t: 'doShort'; code: string }
   | { t: 'skipShort' }

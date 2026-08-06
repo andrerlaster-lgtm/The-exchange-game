@@ -80,6 +80,8 @@ export function blocked(s: GameState): boolean {
   if (s.turnPhase === 'preRoll') return true;
   if (s.marginCall) return true;
   if (s.insolvency) return true; // forced-sale payment shortfall must be resolved first
+  if (s.payoutShortfallChoice) return true; // debtor must choose force-sell or negotiate a loan
+  if (s.loanRatePrompt) return true; // creditor must pick the loan's 1-5% rate
   if (s.landingNotice) return true; // cardless financial result must be acknowledged
   if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
   if (s.auction) return true; // Bank Auction variant — bidding must resolve before ending the turn

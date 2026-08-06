@@ -6,6 +6,7 @@ import {
   feeDebtBalance, holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
   projectedDividend, stockGainLoss,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
+  playerDebtBalance, playerDebtInstallment,
 } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -39,6 +40,8 @@ export default function Portfolio() {
   const divBonus = diversificationBonus(p);
   const feeDebt = feeDebtBalance(p);
   const installment = Math.min(FEE_DEBT_INSTALLMENT, feeDebt);
+  const debtsOwed = s.playerDebts.filter((d) => d.debtor === viewIdx);
+  const debtsReceivable = s.playerDebts.filter((d) => d.creditor === viewIdx);
   const [companyRevealed, setCompanyRevealed] = useState(false);
   const companyLoan = companyLoanBalance(p);
   const companyMarketOpen = companyMarketTradingOpen(s);
@@ -250,6 +253,69 @@ export default function Portfolio() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {debtsOwed.length > 0 && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 7,
+          padding: '10px 11px', borderRadius: 8,
+          background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.35)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--red)', letterSpacing: 0.6 }}>LOANS OWED</div>
+          {debtsOwed.map((d) => {
+            const balance = playerDebtBalance(d);
+            const inst = playerDebtInstallment(d);
+            const creditorName = s.players[d.creditor].name;
+            return (
+              <div key={d.id} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                  <span style={{ color: 'var(--muted)' }}>{d.code} · to {creditorName} · {d.rate}%/turn</span>
+                  <span className="mono" style={{ fontWeight: 800, color: 'var(--red)' }}>−${balance.toLocaleString()}</span>
+                </div>
+                {isOwnTurn && s.phase === 'play' && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button style={{ flex: 1, fontSize: 10, padding: '5px 7px' }}
+                      disabled={p.cash < inst || inst <= 0 || !!s.landingNotice}
+                      onClick={() => dispatch({ t: 'payPlayerDebt', debtId: d.id, mode: 'installment' })}>
+                      Pay ${inst.toLocaleString()}
+                    </button>
+                    <button className="danger" style={{ flex: 1, fontSize: 10, padding: '5px 7px' }}
+                      disabled={p.cash < balance || !!s.landingNotice}
+                      onClick={() => dispatch({ t: 'payPlayerDebt', debtId: d.id, mode: 'full' })}>
+                      Pay in Full
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
+            Unpaid balance is subtracted from this player's final score.
+          </div>
+        </div>
+      )}
+
+      {debtsReceivable.length > 0 && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 7,
+          padding: '10px 11px', borderRadius: 8,
+          background: 'rgba(61,213,152,0.10)', border: '1px solid rgba(61,213,152,0.35)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--green)', letterSpacing: 0.6 }}>LOANS RECEIVABLE</div>
+          {debtsReceivable.map((d) => {
+            const balance = playerDebtBalance(d);
+            const debtorName = s.players[d.debtor].name;
+            return (
+              <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                <span style={{ color: 'var(--muted)' }}>{d.code} · from {debtorName} · {d.rate}%/turn</span>
+                <span className="mono" style={{ fontWeight: 800, color: 'var(--green)' }}>+${balance.toLocaleString()}</span>
+              </div>
+            );
+          })}
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
+            Unpaid balance is added to this player's final score.
+          </div>
         </div>
       )}
 

@@ -156,7 +156,7 @@ describe('Landing rent on a sold-out stock', () => {
     expect(s.players[0].cash).toBe(before);
   });
 
-  it('floors an unaffordable payout at $0 and waives the shortfall (cash never negative)', () => {
+  it('floors an unaffordable payout at $0 and offers a loan when there is no stock to force-sell (cash never negative)', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.supply[CODE] = 0;
@@ -169,7 +169,7 @@ describe('Landing rent on a sold-out stock', () => {
     s = rollTo(s, SPACE);
     expect(s.players[0].cash).toBe(0);
     expect(s.players[1].cash).toBe(holderBefore + 300);
-    expect(s.log.some((l) => /waived/i.test(l.text))).toBe(true);
+    expect(s.payoutShortfallChoice).toMatchObject({ player: 0, creditor: 1, owed: 1700, canForceSell: false });
   });
 
   it('landing on a sold-out stock never opens a Trade Step — buying it is simply unavailable', () => {

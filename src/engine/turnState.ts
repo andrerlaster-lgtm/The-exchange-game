@@ -16,5 +16,7 @@ export function clearTurnState(s: GameState): void {
   s.cyberattackPrompt = null;
   s.openingBellPrompt = null;
   s.regulatoryInvestigationPrompt = null;
+  s.payoutShortfallChoice = null;
+  s.loanRatePrompt = null;
   s.bankSoldThisTurn = {};
 }

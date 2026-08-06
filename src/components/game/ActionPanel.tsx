@@ -193,6 +193,12 @@ export default function ActionPanel() {
         <MarginCallPanel s={s} dispatch={dispatch} />
       )}
 
+      {/* Payout Claim shortfall — debtor chooses force-sale or a negotiated loan */}
+      {s.payoutShortfallChoice && !s.landingNotice && <PayoutShortfallChoicePanel s={s} dispatch={dispatch} />}
+
+      {/* Creditor picks the 1-5%/turn rate for a newly-negotiated loan */}
+      {s.loanRatePrompt && <LoanRatePanel s={s} dispatch={dispatch} />}
+
       {/* Payout Claim shortfall — forced sale to pay the other player */}
       {s.insolvency && !s.landingNotice && <InsolvencyPanel s={s} dispatch={dispatch} />}
 
@@ -509,6 +515,74 @@ function MarginCallPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
           ? `Pay Margin Call — $${(mc.owed + MARGIN_DEFAULT_PENALTY).toLocaleString()}`
           : `Need $${(mc.owed - Math.max(p.cash, 0)).toLocaleString()} more`}
       </button>
+    </div>
+  );
+}
+
+function PayoutShortfallChoicePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const choice = s.payoutShortfallChoice!;
+  const debtor = s.players[choice.player];
+  const creditor = s.players[choice.creditor];
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(240,180,41,0.18), rgba(240,180,41,0.06))',
+      border: '2px solid rgba(240,180,41,0.65)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--yellow)' }}>⚠ CAN'T COVER {choice.label.toUpperCase()}</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        {debtor.name} still owes {creditor.name} <span className="mono" style={{ color: 'var(--yellow)', fontWeight: 800 }}>${choice.owed.toLocaleString()}</span>.
+        {choice.canForceSell
+          ? ' Force-sell regular stock to cover it now, or ask for a loan instead.'
+          : ' No regular stock left to force-sell — negotiate a loan instead.'}
+      </div>
+      <div style={{ display: 'flex', gap: 7 }}>
+        {choice.canForceSell && (
+          <button className="danger" style={{ fontSize: 11, padding: '7px 11px' }}
+            onClick={() => dispatch({ t: 'choosePayoutForceSell' })}>
+            Force-Sell Stock
+          </button>
+        )}
+        <button className="primary" style={{ fontSize: 11, padding: '7px 11px' }}
+          onClick={() => dispatch({ t: 'choosePayoutLoan' })}>
+          Ask {creditor.name} for a Loan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const prompt = s.loanRatePrompt!;
+  const debtor = s.players[prompt.debtor];
+  const creditor = s.players[prompt.creditor];
+  const [rate, setRate] = useState(3);
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(96,165,250,0.18), rgba(96,165,250,0.06))',
+      border: '2px solid rgba(96,165,250,0.65)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#93c5fd' }}>💰 {creditor.name} — SET LOAN RATE</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: '#93c5fd' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against {debtor.name}'s score and adds to yours.
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {[1, 2, 3, 4, 5].map((r) => (
+          <button key={r}
+            className={rate === r ? 'primary' : undefined}
+            style={{ fontSize: 12, padding: '6px 12px', fontWeight: 800 }}
+            onClick={() => setRate(r)}>
+            {r}%
+          </button>
+        ))}
+        <button className="primary" style={{ fontSize: 11, padding: '7px 12px', marginLeft: 'auto' }}
+          onClick={() => dispatch({ t: 'setLoanRate', rate })}>
+          Extend Loan at {rate}%
+        </button>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, IPO_DEFS, LADDER,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
+  PLAYER_LOAN_MAX_RATE, PLAYER_LOAN_MIN_RATE,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
@@ -26,6 +27,7 @@ import { setMarketStance } from './marketRegime';
 import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
+import { accruePlayerDebt, payPlayerDebt, playerDebtBalance, playerDebtInstallment } from './playerLoans';
 import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
@@ -138,7 +140,20 @@ function resolveLanding(s: GameState, pi: number): void {
             detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}.`,
             canDefer: false,
           };
-          if (short > 0) openInsolvency(s, pi, short, 'payout', rec.claimHolder, `Payout Claim on ${code} to ${holder.name}`);
+          if (short > 0) {
+            // Give the debtor a real choice instead of forcing a sale: force-sell
+            // stock now (the old automatic behavior), or negotiate a loan with
+            // the creditor at a rate the creditor picks (1-5%/turn).
+            const hasSellable = Object.keys(p.shares).some((c) => !isIpoCode(c) && (p.shares[c] ?? 0) > 0);
+            s.payoutShortfallChoice = {
+              player: pi,
+              creditor: rec.claimHolder,
+              code,
+              owed: short,
+              label: `Payout Claim on ${code} to ${holder.name}`,
+              canForceSell: hasSellable,
+            };
+          }
         } else if (rec.claimHolder === pi) {
           addLog(s, `${p.name} lands on their own ${STOCK_BY_CODE[code].name} — no rent owed.`);
         } else {
@@ -332,6 +347,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.p2pOffers = []; s.p2pSeq = 0;
       s.auction = null; s.auctionQueue = []; s.marketOpenWindow = false;
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
+      s.playerDebts = []; s.playerDebtSeq = 0;
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;
@@ -722,6 +738,54 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.insolvency = null;
       break;
     }
+
+    // ---- Payout Claim shortfall: force-sell stock, or negotiate a loan ----
+    case 'choosePayoutForceSell': {
+      const choice = s.payoutShortfallChoice;
+      if (!choice || choice.player !== s.cur) break;
+      s.payoutShortfallChoice = null;
+      openInsolvency(s, choice.player, choice.owed, 'payout', choice.creditor, choice.label);
+      break;
+    }
+    case 'choosePayoutLoan': {
+      const choice = s.payoutShortfallChoice;
+      if (!choice || choice.player !== s.cur) break;
+      s.payoutShortfallChoice = null;
+      s.loanRatePrompt = { debtor: choice.player, creditor: choice.creditor, code: choice.code, amount: choice.owed, label: choice.label };
+      addLog(s, `${s.players[choice.player].name} asks ${s.players[choice.creditor].name} for a loan on the remaining ${money(choice.owed)}.`, 'y');
+      break;
+    }
+    case 'setLoanRate': {
+      const prompt = s.loanRatePrompt;
+      if (!prompt) break;
+      const rate = Math.max(PLAYER_LOAN_MIN_RATE, Math.min(PLAYER_LOAN_MAX_RATE, Math.round(action.rate)));
+      s.loanRatePrompt = null;
+      s.playerDebtSeq += 1;
+      s.playerDebts.push({
+        id: s.playerDebtSeq, debtor: prompt.debtor, creditor: prompt.creditor,
+        code: prompt.code, principal: prompt.amount, interest: 0, rate,
+      });
+      addLog(s, `${s.players[prompt.creditor].name} extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
+      break;
+    }
+    case 'payPlayerDebt': {
+      const debt = s.playerDebts.find((d) => d.id === action.debtId);
+      if (!debt) break;
+      const debtor = s.players[debt.debtor];
+      const creditor = s.players[debt.creditor];
+      const balance = playerDebtBalance(debt);
+      const requested = action.mode === 'full' ? balance : playerDebtInstallment(debt);
+      if (requested <= 0 || debtor.cash < requested) break;
+      const paid = payPlayerDebt(debt, action.mode);
+      debtor.cash -= paid;
+      creditor.cash += paid;
+      addLog(s, `${debtor.name} pays ${money(paid)} to ${creditor.name} on their ${debt.code} loan.`, 'g');
+      addTradeLog(s, 'repay', `Loan repayment → ${creditor.name}`, -paid, debtor.name);
+      addTradeLog(s, 'repay', `Loan repayment from ${debtor.name}`, paid, creditor.name);
+      if (playerDebtBalance(debt) <= 0) s.playerDebts = s.playerDebts.filter((d) => d.id !== debt.id);
+      break;
+    }
+
     case 'ackLandingNotice':
       if (s.landingNotice?.canDefer) break;
       s.landingNotice = null;
@@ -1047,6 +1111,12 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const debtInterest = accrueFeeDebt(s.players[s.cur]);
       if (debtInterest > 0) {
         addLog(s, `${s.players[s.cur].name}'s Outstanding Fees add ${money(debtInterest)} interest (5%). Balance ${money(feeDebtBalance(s.players[s.cur]))}.`, 'r');
+      }
+      for (const debt of s.playerDebts.filter((d) => d.debtor === s.cur)) {
+        const loanInterest = accruePlayerDebt(debt);
+        if (loanInterest > 0) {
+          addLog(s, `${s.players[debt.debtor].name}'s loan from ${s.players[debt.creditor].name} on ${debt.code} adds ${money(loanInterest)} interest (${debt.rate}%). Balance ${money(playerDebtBalance(debt))}.`, 'r');
+        }
       }
       const companyLoan = s.players[s.cur];
       if (companyLoan.companyLoanPrincipal > 0) {

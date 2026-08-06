@@ -5,11 +5,16 @@ import type { GameState, Player } from './types';
 import { priceOf } from './selectors';
 import { distinctSectors } from './sector';
 import { feeDebtBalance } from './feeDebt';
+import { totalOwedByPlayer, totalOwedToPlayer } from './playerLoans';
 
-/** Net worth before player-company holdings; used as the non-circular price base. */
+/** Net worth before player-company holdings; used as the non-circular price base.
+    Negotiated Payout Claim loans (playerDebts) count as a liability for the
+    debtor and an asset for the creditor — a real IOU on both sides. */
 export function operatingNetWorth(s: GameState, p: Player): number {
+  const idx = s.players.indexOf(p);
   return p.cash + sharesValue(s, p) + etfValue(p.etfShares) - p.margin - feeDebtBalance(p)
-    - (p.companyLoanPrincipal ?? 0) - (p.companyLoanInterest ?? 0);
+    - (p.companyLoanPrincipal ?? 0) - (p.companyLoanInterest ?? 0)
+    - totalOwedByPlayer(s, idx) + totalOwedToPlayer(s, idx);
 }
 
 function companyHoldingsValue(s: GameState, p: Player): number {
