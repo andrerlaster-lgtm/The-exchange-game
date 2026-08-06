@@ -12,4 +12,5 @@ export * from './gameProgress';
 export * from './marketRegime';
 export * from './gainLoss';
 export * from './feeDebt';
+export * from './companyMode';
 export * from './sessionDebrief';

@@ -88,6 +88,7 @@ export function blocked(s: GameState): boolean {
   if (s.pick) return true;
   if (s.ipoChoice || s.ipoListPick || s.ipoBuy || s.outstandingBuy) return true;
   if (s.etfPick) return true;  // ETF buy/skip prompt must be answered explicitly
+  if (s.companyLoanOffer) return true; // emergency company loan must be accepted
   return false;
 }
 

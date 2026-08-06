@@ -25,6 +25,7 @@ import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSigna
 import { setMarketStance } from './marketRegime';
 import { addStockCostBasis, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
+import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -34,6 +35,15 @@ function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
 function addTradeLog(s: GameState, kind: TradeKind, text: string, amount: number, player: string): void {
   s.tradeLog.unshift({ kind, text, amount, player, t: s.lap });
   if (s.tradeLog.length > 60) s.tradeLog.pop();
+}
+
+function offerCompanyLoanIfNeeded(s: GameState, rng: Rng, player: number): void {
+  if (!s.opts.companiesMode || s.companyLoanOffer || s.players[player].companyLoanPrincipal > 0) return;
+  if (companyValue(s, player) > 0) return;
+  const ceiling = Math.max(100, Math.floor(s.opts.startCash * 0.75));
+  const amount = Math.max(100, Math.round(rng.int(100, ceiling) / 100) * 100);
+  s.companyLoanOffer = { player, amount };
+  addLog(s, `${s.players[player].name}'s company hit zero value — emergency loan required.`, 'r');
 }
 
 /**
@@ -317,6 +327,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
       s.p2pOffers = []; s.p2pSeq = 0;
       s.auction = null; s.auctionQueue = []; s.marketOpenWindow = false;
+      s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;
@@ -332,12 +343,87 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.testMode = !s.testMode;
       break;
 
+    // ---- Companies Mode ----
+    case 'takeCompanyLoan': {
+      const offer = s.companyLoanOffer;
+      if (!offer || offer.player !== s.cur || !s.opts.companiesMode) break;
+      const p = s.players[s.cur];
+      if (p.companyLoanPrincipal > 0) break;
+      p.companyLoanPrincipal = offer.amount;
+      p.cash += offer.amount;
+      s.companyLoanOffer = null;
+      addLog(s, `${p.name} takes a ${money(offer.amount)} emergency company loan (5% interest).`, 'y');
+      addTradeLog(s, 'margin', `Emergency company loan +${money(offer.amount)}`, offer.amount, p.name);
+      break;
+    }
+    case 'repayCompanyLoan': {
+      if (!s.opts.companiesMode) break;
+      const p = s.players[s.cur];
+      const balance = companyLoanBalance(p);
+      if (balance <= 0 || p.cash < balance) break;
+      p.cash -= balance;
+      p.companyLoanPrincipal = 0;
+      p.companyLoanInterest = 0;
+      addLog(s, `${p.name} repays emergency company loan ${money(balance)}.`, 'g');
+      addTradeLog(s, 'repay', `Company loan repaid ${money(balance)}`, -balance, p.name);
+      break;
+    }
+    case 'buyCompanyShare': {
+      if (!companyMarketTradingOpen(s)) break;
+      const owner = action.owner;
+      if (owner < 0 || owner >= s.players.length) break;
+      const p = s.players[s.cur];
+      if (companyPublicSharesRemaining(s, owner) <= 0) break;
+      if (owner !== s.cur && companySharesHeld(p, owner) >= 20) break;
+      const price = companySharePrice(s, owner);
+      if (p.cash < price) break;
+      p.cash -= price;
+      p.companyHoldings[owner] = companySharesHeld(p, owner) + 1;
+      addLog(s, `${p.name} buys 1 public share of ${owner === s.cur ? 'their own' : `${s.players[owner].name}'s`} company @ ${money(price)}.`, 'g');
+      addTradeLog(s, 'buy', `Company share ${s.players[owner].name} @ ${money(price)}`, -price, p.name);
+      break;
+    }
+    case 'sellCompanyShare': {
+      if (!companyMarketTradingOpen(s)) break;
+      const owner = action.owner;
+      if (owner < 0 || owner >= s.players.length) break;
+      const p = s.players[s.cur];
+      const held = companySharesHeld(p, owner);
+      if (held <= 0) break;
+      const market = companySharePrice(s, owner);
+      const founder = s.players[owner];
+      const refusalPrice = market;
+      const buyer = owner !== s.cur && founder.cash >= refusalPrice ? founder : null;
+      const price = buyer ? refusalPrice : Math.max(1, Math.round(market * 0.9));
+      p.cash += price;
+      p.companyHoldings[owner] = held - 1;
+      if (p.companyHoldings[owner] <= 0) delete p.companyHoldings[owner];
+      if (buyer) {
+        founder.cash -= price;
+        founder.companyHoldings[owner] = companySharesHeld(founder, owner) + 1;
+        addLog(s, `${founder.name} exercises first refusal and buys ${p.name}'s company share @ ${money(price)}.`, 'b');
+      } else {
+        addLog(s, `${p.name} sells 1 share of ${founder.name}'s company to the bank @ ${money(price)} (10% discount).`, 'r');
+      }
+      addTradeLog(s, 'sell', `Company share ${founder.name} @ ${money(price)}`, price, p.name);
+      break;
+    }
+
     // ---- roll ----
     case 'roll': {
       if (s.turnPhase !== 'preRoll' || s.rolling) break;
       const a = rng.int(1, 6);
       const b = rng.int(1, 6);
       s.dice = [a, b];
+      if (s.opts.companiesMode && a === b) {
+        s.marketHeat += 1;
+        addLog(s, `Market Heat +1 (${s.marketHeat}/3) after doubles.`, 'y');
+        if (s.marketHeat >= 3) {
+          s.marketHaltUntilLap = s.lap + 1;
+          s.marketHeat = 0;
+          addLog(s, 'MARKET HALT — player-company trading pauses until the next lap.', 'r');
+        }
+      }
       s.bonusRollPending = a === b && !s.bonusRollUsed;
       if (s.bonusRollPending) {
         s.bonusRollUsed = true;
@@ -362,6 +448,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (t.scope === 'stock' && t.code !== code) break;
       if (s.supply[code] !== REGULAR_SUPPLY) break; // already bought out — no partial stake available
       const p = s.players[s.cur];
+      if (s.opts.companiesMode && companyLoanBalance(p) > 0) {
+        addLog(s, `${p.name} must repay the emergency company loan before buying another board space.`, 'r');
+        break;
+      }
       const stock = STOCK_BY_CODE[code];
       const cost = stock.buyout;
       if (p.cash < cost) break;
@@ -870,10 +960,22 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       ranked.forEach((entry, rank) => { s.players[entry.i].prevRank = rank; });
       s.cur = (s.cur + 1) % n;
       if (s.cur === 0) startLap(s);
+      if (s.opts.companiesMode && s.lap >= 2) s.companyMarketOpen = true;
+      if (s.marketHaltUntilLap !== null && s.lap >= s.marketHaltUntilLap) {
+        s.marketHaltUntilLap = null;
+        addLog(s, 'Market halt lifted — player-company trading resumes.', 'g');
+      }
       const debtInterest = accrueFeeDebt(s.players[s.cur]);
       if (debtInterest > 0) {
         addLog(s, `${s.players[s.cur].name}'s Outstanding Fees add ${money(debtInterest)} interest (5%). Balance ${money(feeDebtBalance(s.players[s.cur]))}.`, 'r');
       }
+      const companyLoan = s.players[s.cur];
+      if (companyLoan.companyLoanPrincipal > 0) {
+        const interest = Math.max(100, Math.round(companyLoanBalance(companyLoan) * COMPANY_LOAN_RATE / 100) * 100);
+        companyLoan.companyLoanInterest += interest;
+        addLog(s, `${companyLoan.name}'s emergency company loan adds ${money(interest)} interest (5%).`, 'r');
+      }
+      offerCompanyLoanIfNeeded(s, rng, s.cur);
       // Arm Market Close when the configured final round begins. The closing
       // flow then lets every player finish that round and ends before another
       // lap starts. Waiting until lap > closeRounds added an unintended full

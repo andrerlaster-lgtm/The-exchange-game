@@ -5,6 +5,7 @@ import {
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
   feeDebtBalance, holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
   projectedDividend, stockGainLoss,
+  companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
 } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -38,6 +39,13 @@ export default function Portfolio() {
   const divBonus = diversificationBonus(p);
   const feeDebt = feeDebtBalance(p);
   const installment = Math.min(FEE_DEBT_INSTALLMENT, feeDebt);
+  const [companyRevealed, setCompanyRevealed] = useState(false);
+  const companyLoan = companyLoanBalance(p);
+  const companyMarketOpen = companyMarketTradingOpen(s);
+  const companyLoanOffer = s.companyLoanOffer?.player === viewIdx ? s.companyLoanOffer.amount : null;
+  const companyPublicHeld = companyPublicSharesHeld(s, viewIdx);
+  const companyPublicAvailable = companyPublicSharesRemaining(s, viewIdx);
+  const ownPublicShares = companySharesHeld(p, viewIdx);
 
   return (
     <div style={{
@@ -142,6 +150,74 @@ export default function Portfolio() {
           <span>Realized {signedMoney(stockGl.realized)}</span>
         </div>
       </div>
+
+      {s.opts.companiesMode && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 8,
+          padding: '10px 11px', borderRadius: 8,
+          background: 'linear-gradient(105deg, rgba(212,165,53,0.10), rgba(74,48,25,0.05))',
+          border: '1px solid rgba(212,165,53,0.28)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="slabel">Company Portfolio</span>
+            <span style={{ fontSize: 9, color: companyMarketOpen ? 'var(--green)' : 'var(--muted)' }}>
+              {companyMarketOpen ? (s.marketHaltUntilLap !== null ? 'MARKET HALTED' : 'MARKET OPEN') : 'OPENS AFTER LAP 1'}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 10 }}>
+            <div style={{ color: 'var(--muted)' }}>Company value<div className="mono" style={{ color: 'var(--text)', fontWeight: 700, fontSize: 12 }}>${companyValue(s, viewIdx).toLocaleString()}</div></div>
+            <div style={{ color: 'var(--muted)' }}>Founder stake<div className="mono" style={{ color: 'var(--text)', fontWeight: 700, fontSize: 12 }}>60 / 100 shares</div></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 10 }}>
+            <div style={{ color: 'var(--muted)' }}>Public held by players<div className="mono" style={{ color: 'var(--text)', fontWeight: 700, fontSize: 12 }}>{companyPublicHeld} / 40</div></div>
+            <div style={{ color: 'var(--muted)' }}>Bank shares available<div className="mono" style={{ color: companyPublicAvailable > 0 ? 'var(--green)' : 'var(--muted)', fontWeight: 700, fontSize: 12 }}>{companyPublicAvailable}</div></div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: 'var(--muted)' }}>
+            <span>{isOwnTurn ? 'Your public shares' : `${p.name}'s public shares`}</span>
+            <span className="mono" style={{ color: 'var(--text)', fontWeight: 700 }}>{ownPublicShares} · ${companySharePrice(s, viewIdx)} each</span>
+          </div>
+
+          {companyLoan > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'var(--red)' }}>
+            <span>Emergency loan −${companyLoan.toLocaleString()}</span>
+            {isOwnTurn && <button disabled={p.cash < companyLoan} style={{ marginLeft: 'auto', fontSize: 10, padding: '4px 7px' }} onClick={() => dispatch({ t: 'repayCompanyLoan' })}>Repay</button>}
+          </div>}
+
+          {companyLoanOffer !== null && isOwnTurn && <div style={{ padding: 8, borderRadius: 6, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)' }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#fca5a5' }}>EMERGENCY LOAN REQUIRED</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>Company hit $0. Randomized offer: <b>${companyLoanOffer.toLocaleString()}</b> · 5% interest.</div>
+            <button className="danger" style={{ width: '100%', marginTop: 6, fontSize: 10 }} onClick={() => dispatch({ t: 'takeCompanyLoan' })}>Take Loan</button>
+          </div>}
+
+          {isOwnTurn && <button
+            style={{ fontSize: 10, padding: '5px 8px' }}
+            onPointerDown={() => setCompanyRevealed(true)} onPointerUp={() => setCompanyRevealed(false)} onPointerLeave={() => setCompanyRevealed(false)}
+          >{companyRevealed ? 'Release to hide company investments' : 'Hold to reveal company investments'}</button>}
+
+          {companyRevealed && isOwnTurn && <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+            {Object.keys(p.companyHoldings).length === 0 ? 'No public company shares held.' : Object.entries(p.companyHoldings).map(([owner, qty]) => {
+              const oi = Number(owner);
+              return <div key={owner} style={{ display: 'flex', justifyContent: 'space-between' }}><span>{s.players[oi]?.name}</span><span className="mono">{qty} × ${companySharePrice(s, oi).toLocaleString()}</span></div>;
+            })}
+          </div>}
+
+          {isOwnTurn && <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+              <span style={{ flex: 1 }}>{p.name} public shares · <span className="mono">${companySharePrice(s, viewIdx)}</span></span>
+              <button disabled={!companyMarketOpen || companyPublicAvailable < 1 || p.cash < companySharePrice(s, viewIdx)} style={{ fontSize: 10, padding: '3px 6px' }} onClick={() => dispatch({ t: 'buyCompanyShare', owner: viewIdx })}>Buy More</button>
+            </div>
+            {s.players.map((owner, oi) => {
+              if (oi === viewIdx) return null;
+              const held = companySharesHeld(p, oi);
+              const price = companySharePrice(s, oi);
+              return <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+                <span style={{ flex: 1 }}>{owner.name} · <span className="mono">${price}</span>{companyRevealed && held ? ` · ${held} held` : ''}</span>
+                <button disabled={!companyMarketOpen || p.cash < price} style={{ fontSize: 10, padding: '3px 6px' }} onClick={() => dispatch({ t: 'buyCompanyShare', owner: oi })}>Buy</button>
+                <button disabled={!companyMarketOpen || held < 1} style={{ fontSize: 10, padding: '3px 6px' }} onClick={() => dispatch({ t: 'sellCompanyShare', owner: oi })}>Sell</button>
+              </div>;
+            })}
+          </div>}
+        </div>
+      )}
 
       {feeDebt > 0 && (
         <div style={{

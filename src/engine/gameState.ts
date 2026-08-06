@@ -69,6 +69,10 @@ export function initialState(rng: Rng): GameState {
     lastDraw: null,
     p2pOffers: [],
     p2pSeq: 0,
+    companyMarketOpen: false,
+    marketHeat: 0,
+    marketHaltUntilLap: null,
+    companyLoanOffer: null,
     testMode: false,
     opts: { ...DEFAULT_OPTIONS },
   };
@@ -82,7 +86,8 @@ export function resetPlayers(s: GameState): void {
       name, color: PLAYER_COLORS[i], piece: s.pieces[i] ?? DEFAULT_PIECES[i],
       cash: s.opts.startCash, pos: 1, shares: {}, stockCostBasis: {}, realizedStockGain: 0,
       etfShares: {}, salaryCollected: 0, margin: 0, feeDebtPrincipal: 0, feeDebtInterest: 0,
-      marketStance: 'balanced', prevRank: null,
+      marketStance: 'balanced', prevRank: null, companyShares: 60, companyHoldings: {},
+      companyLoanPrincipal: 0, companyLoanInterest: 0,
     });
   }
 }

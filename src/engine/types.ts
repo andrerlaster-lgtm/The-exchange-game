@@ -33,6 +33,15 @@ export interface Player {
   feeDebtInterest: number;           // unpaid turn-by-turn interest on those charges
   marketStance: MarketStance;        // latest qualifying market position, resolved by Bull/Bear Run
   prevRank: number | null;           // rank at end of previous turn (null = first turn)
+  companyShares: number;             // founder shares retained in their own company (Companies Mode)
+  companyHoldings: Record<number, number>; // public shares held in other player companies
+  companyLoanPrincipal: number;      // one emergency loan principal (Companies Mode)
+  companyLoanInterest: number;       // accrued 5% emergency-loan interest (Companies Mode)
+}
+
+export interface CompanyLoanOffer {
+  player: number;
+  amount: number;
 }
 
 export interface IpoState {
@@ -219,6 +228,7 @@ export interface GameOptions {
   ipos: boolean;              // IPO spaces active
   closeMode: 'card' | 'rounds';
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
+  companiesMode: boolean;     // optional player-owned company market
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
@@ -229,6 +239,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   ipos: true,
   closeMode: 'card',
   closeRounds: 5,
+  companiesMode: false,
 };
 
 export interface GameState {
@@ -289,6 +300,10 @@ export interface GameState {
   lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
   p2pSeq: number;                    // monotonically increasing id source for p2pOffers
+  companyMarketOpen: boolean;         // opens after the first lap in Companies Mode
+  marketHeat: number;                 // doubles-based shared Market Heat meter (0-3)
+  marketHaltUntilLap: number | null; // trading is paused until this lap
+  companyLoanOffer: CompanyLoanOffer | null;
 }
 
 // Actions the reducer accepts. Kept explicit for testability.
@@ -303,6 +318,10 @@ export type Action =
   | { t: 'roll' }                      // rolls dice + resolves move + landing
   | { t: 'buy'; code: string }             // all-or-nothing: buys out the whole 11-share company
   | { t: 'sell'; code: string; qty?: number }
+  | { t: 'buyCompanyShare'; owner: number }
+  | { t: 'sellCompanyShare'; owner: number }
+  | { t: 'takeCompanyLoan' }
+  | { t: 'repayCompanyLoan' }
   | { t: 'skipStock'; code: string }
   | { t: 'takeMargin' }
   | { t: 'repayMargin' }
