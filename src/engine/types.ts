@@ -28,6 +28,7 @@ export interface Player {
   realizedStockGain: number;         // cumulative realized gain/loss from sold shares and settled shorts
   etfShares: Record<string, number>; // ETF code -> qty held
   salaryCollected: number;           // base Market Open salary only; excluded from Gain/Loss Mode
+  dividendCuts: Record<string, number>; // one-time 50% next-dividend penalties by holding code
   margin: number;                    // total outstanding margin dollars
   feeDebtPrincipal: number;          // unpaid Audit Notice / Portfolio Tax charges still outstanding
   feeDebtInterest: number;           // unpaid turn-by-turn interest on those charges
@@ -176,6 +177,26 @@ export interface LandingNotice {
   canDefer: boolean;            // Audit/Tax may be paid now or carried as score-reducing debt
 }
 
+/** Active Cyberattack card choice: price hit on one holding or a portfolio fee. */
+export interface CyberattackPrompt {
+  player: number;
+  fee: number;
+  codes: string[];
+}
+
+export interface OpeningBellPrompt {
+  player: number;
+  code: string;
+  price: number;
+}
+
+export interface RegulatoryInvestigationPrompt {
+  player: number;
+  fee: number;
+  codes: string[];
+}
+
+
 /** Most recent card draw / IPO reveal — seq is unique per draw so views can
     animate exactly once per event. */
 export interface DrawEvent {
@@ -300,6 +321,9 @@ export interface GameState {
   marginCall: MarginCall | null; // active forced-sell margin call, if any
   insolvency: Insolvency | null; // active Payout Claim forced-sale resolution, if any
   landingNotice: LandingNotice | null; // visible acknowledgement for cardless financial landing results
+  cyberattackPrompt: CyberattackPrompt | null;
+  openingBellPrompt: OpeningBellPrompt | null;
+  regulatoryInvestigationPrompt: RegulatoryInvestigationPrompt | null;
   feeLog: FeeEventEntry[];           // Taxes & Fees panel: margin calls, income, audit notices (most recent first)
   lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
@@ -336,6 +360,12 @@ export type Action =
   | { t: 'ackLandingNotice' }
   | { t: 'payLandingFee' }
   | { t: 'deferLandingFee' }
+  | { t: 'chooseCyberattackStock'; code: string }
+  | { t: 'payCyberattackFee' }
+  | { t: 'buyOpeningBell' }
+  | { t: 'passOpeningBell' }
+  | { t: 'chooseRegulatoryInvestigationStock'; code: string }
+  | { t: 'payRegulatoryInvestigation' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
   | { t: 'doShort'; code: string }
   | { t: 'skipShort' }

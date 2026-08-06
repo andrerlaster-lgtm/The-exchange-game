@@ -119,6 +119,8 @@ export function effectImpacts(s: GameState, effect: Effect): MarketSignalImpact[
     // margin, protection, timing, and close cards do not directly move a code.
     case 'pick':
     case 'cash':
+    case 'dividend':
+    case 'cyberattack':
     case 'margin':
     case 'circuitBreaker':
     case 'extend':

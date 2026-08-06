@@ -13,5 +13,8 @@ export function clearTurnState(s: GameState): void {
   s.ipoChoice = false; s.ipoListPick = false; s.ipoBuy = null; s.outstandingBuy = null; s.etfPick = null;
   s.marginCall = null; s.insolvency = null;
   s.landingNotice = null;
+  s.cyberattackPrompt = null;
+  s.openingBellPrompt = null;
+  s.regulatoryInvestigationPrompt = null;
   s.bankSoldThisTurn = {};
 }

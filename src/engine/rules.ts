@@ -85,6 +85,9 @@ export function blocked(s: GameState): boolean {
   if (s.auction) return true; // Bank Auction variant — bidding must resolve before ending the turn
   if (s.pendingDraws.length > 0) return true;
   if (s.circuitBreakerPrompt) return true;
+  if (s.cyberattackPrompt) return true;
+  if (s.openingBellPrompt) return true;
+  if (s.regulatoryInvestigationPrompt) return true;
   if (s.investorDay) return true;
   if (s.pick) return true;
   if (s.ipoChoice || s.ipoListPick || s.ipoBuy || s.outstandingBuy) return true;

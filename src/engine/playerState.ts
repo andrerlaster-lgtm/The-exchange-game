@@ -26,13 +26,12 @@ export function marginCallDue(balance: number): number {
   return Math.min(call, balance);
 }
 
-export function payMarketOpen(s: GameState, pi: number): void {
+/** Stock and IPO dividends due for one player, excluding salary/ETF/portfolio bonuses. */
+export function dividendPayment(s: GameState, pi: number): { amount: number; controllingCodes: string[]; cutCodes: string[] } {
   const p = s.players[pi];
-
-  // Stock / IPO dividends — Controlling Stake (6+ regular shares or 3+ IPO
-  // shares of one code) doubles that code's dividend payout.
-  let div = 0;
+  let amount = 0;
   const controllingCodes: string[] = [];
+  const cutCodes: string[] = [];
   for (const code of Object.keys(p.shares)) {
     const isIpo = isIpoCode(code);
     const printed = isIpo ? (IPO_BY_CODE[code]?.div ?? 0) : (STOCK_BY_CODE[code]?.div ?? 0);
@@ -41,8 +40,21 @@ export function payMarketOpen(s: GameState, pi: number): void {
     const threshold = isIpo ? CONTROL_THRESHOLD_IPO : CONTROL_THRESHOLD_REGULAR;
     const controlling = qty >= threshold;
     if (controlling) controllingCodes.push(code);
-    div += printed * qty * (controlling ? CONTROL_DIVIDEND_MULTIPLIER : 1);
+    const gross = printed * qty * (controlling ? CONTROL_DIVIDEND_MULTIPLIER : 1);
+    const cut = (p.dividendCuts[code] ?? 0) > 0;
+    amount += cut ? Math.floor(gross / 2) : gross;
+    if (cut) cutCodes.push(code);
   }
+  return { amount, controllingCodes, cutCodes };
+}
+
+export function payMarketOpen(s: GameState, pi: number): void {
+  const p = s.players[pi];
+
+  // Stock / IPO dividends — Controlling Stake (6+ regular shares or 3+ IPO
+  // shares of one code) doubles that code's dividend payout.
+  const { amount: div, controllingCodes, cutCodes } = dividendPayment(s, pi);
+  cutCodes.forEach((code) => { delete p.dividendCuts[code]; });
 
   // ETF payout (tiered by total funds owned) + Full-Diversification bonus
   // (only paid when the player holds all 4 distinct funds, not just 4 shares
@@ -101,4 +113,20 @@ export function payMarketOpen(s: GameState, pi: number): void {
   // call. It does NOT force a Market Event draw — those are triggered solely by
   // landing on space 19 (the Market Event space).
 
+}
+
+/** Immediate dividend-only payout from the Dividend Payment Market Event card. */
+export function payDividendCard(s: GameState, pi: number): void {
+  const p = s.players[pi];
+  const { amount, controllingCodes, cutCodes } = dividendPayment(s, pi);
+  cutCodes.forEach((code) => { delete p.dividendCuts[code]; });
+  if (amount <= 0) {
+    addLog(s, `${p.name} draws Dividend Payment but has no dividend-paying holdings.`, 'y');
+    return;
+  }
+  p.cash += amount;
+  addLog(s, `${p.name} receives ${money(amount)} in Dividend Payment${controllingCodes.length ? ` (control bonus: ${controllingCodes.join(', ')})` : ''}.`, 'g');
+  s.tradeLog.unshift({ kind: 'dividend', text: `Dividend Payment +${money(amount)}`, amount, player: p.name, t: s.lap });
+  if (s.tradeLog.length > 60) s.tradeLog.pop();
+  pushFeeEvent(s, 'income', p, amount);
 }

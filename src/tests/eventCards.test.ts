@@ -45,6 +45,7 @@ describe('Event card draw', () => {
       expect(s.decks.ME.length).toBeLessThan(before); // draw must consume a card
       if (s.circuitBreakerPrompt) s = dispatch(s, { t: 'passCircuitBreaker' }, rng());
       if (s.pick) s = dispatch(s, { t: 'skipPick' }, rng());
+      if (s.openingBellPrompt) s = dispatch(s, { t: 'passOpeningBell' }, rng());
       if (!s.closing && s.phase !== 'over') {
         s = dispatch(s, { t: 'endTurn' }, rng());
         s = rollTo(s, 19);

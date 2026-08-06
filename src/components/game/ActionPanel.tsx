@@ -165,6 +165,18 @@ export default function ActionPanel() {
       {/* Cardless financial spaces still need a loud, explicit result. */}
       {s.landingNotice && <LandingResultBanner s={s} dispatch={dispatch} />}
 
+      {s.cyberattackPrompt && s.cyberattackPrompt.player === s.cur && (
+        <CyberattackPanel s={s} dispatch={dispatch} />
+      )}
+
+      {s.openingBellPrompt && s.openingBellPrompt.player === s.cur && (
+        <OpeningBellCardPanel s={s} dispatch={dispatch} />
+      )}
+
+      {s.regulatoryInvestigationPrompt && s.regulatoryInvestigationPrompt.player === s.cur && (
+        <RegulatoryInvestigationPanel s={s} dispatch={dispatch} />
+      )}
+
       {/* Market Open Trading Window — private trades only, no bank sell-back */}
       {s.marketOpenWindow && <MarketOpenWindowPanel s={s} dispatch={dispatch} />}
 
@@ -193,6 +205,85 @@ export default function ActionPanel() {
       {s.pick?.source === 'investor' && <InvestorDayPanel s={s} dispatch={dispatch} />}
 
       {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
+    </div>
+  );
+}
+
+function CyberattackPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const prompt = s.cyberattackPrompt!;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(239,68,68,0.20), rgba(239,68,68,0.06))',
+      border: '2px solid rgba(239,68,68,0.70)',
+      boxShadow: '0 3px 18px rgba(239,68,68,0.14)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#fca5a5' }}>⚠ CYBERATTACK · CHOOSE ONE</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        Your portfolio security system has been breached. Protect your cash by dropping one owned holding one price step, or pay <span className="mono" style={{ color: '#fca5a5', fontWeight: 800 }}>${prompt.fee.toLocaleString()}</span>.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {prompt.codes.map((code) => (
+          <button key={code} className="danger" style={{ fontSize: 11, padding: '6px 9px' }} onClick={() => dispatch({ t: 'chooseCyberattackStock', code })}>
+            {code} ↓1 · ${priceOf(s, code).toLocaleString()}
+          </button>
+        ))}
+        <button style={{ fontSize: 11, padding: '6px 10px', marginLeft: 'auto' }} onClick={() => dispatch({ t: 'payCyberattackFee' })}>
+          Pay ${prompt.fee.toLocaleString()}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OpeningBellCardPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const offer = s.openingBellPrompt!;
+  const stock = STOCK_BY_CODE[offer.code];
+  const canBuy = s.players[s.cur].cash >= offer.price;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '12px 14px', borderRadius: 10,
+      background: 'rgba(61,213,152,0.12)', border: '2px solid rgba(61,213,152,0.55)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--green)' }}>🔔 OPENING BELL · CARD OPPORTUNITY</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        The card reveals an untouched company: <strong>{stock?.name ?? offer.code} ({offer.code})</strong>. Buy the entire 11-share company at its normal tier price of <span className="mono" style={{ fontWeight: 800 }}>${offer.price.toLocaleString()}</span>, or pass.
+      </div>
+      <div style={{ display: 'flex', gap: 7 }}>
+        <button className="primary" disabled={!canBuy} style={{ fontSize: 11, padding: '6px 10px' }} onClick={() => dispatch({ t: 'buyOpeningBell' })}>
+          {canBuy ? `Buy ${offer.code}` : 'Not enough cash'}
+        </button>
+        <button style={{ fontSize: 11, padding: '6px 10px' }} onClick={() => dispatch({ t: 'passOpeningBell' })}>Pass</button>
+      </div>
+    </div>
+  );
+}
+
+function RegulatoryInvestigationPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const prompt = s.regulatoryInvestigationPrompt!;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '12px 14px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(239,68,68,0.18), rgba(245,158,11,0.08))',
+      border: '2px solid rgba(245,158,11,0.70)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#fbbf24' }}>⚖ REGULATORY INVESTIGATION · CHOOSE ONE</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        Choose a holding to drop 1 price step and lose 50% of its next dividend, or pay <span className="mono" style={{ fontWeight: 800, color: '#fbbf24' }}>${prompt.fee.toLocaleString()}</span> to settle the investigation.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {prompt.codes.map((code) => (
+          <button key={code} className="danger" style={{ fontSize: 11, padding: '6px 9px' }} onClick={() => dispatch({ t: 'chooseRegulatoryInvestigationStock', code })}>
+            {code} ↓1 · −50% next dividend
+          </button>
+        ))}
+        <button style={{ fontSize: 11, padding: '6px 10px', marginLeft: 'auto' }} onClick={() => dispatch({ t: 'payRegulatoryInvestigation' })}>
+          Pay ${prompt.fee.toLocaleString()}
+        </button>
+      </div>
     </div>
   );
 }

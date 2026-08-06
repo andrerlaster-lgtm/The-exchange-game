@@ -413,6 +413,73 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     }
 
+    case 'chooseCyberattackStock': {
+      const prompt = s.cyberattackPrompt;
+      if (!prompt || prompt.player !== s.cur || !prompt.codes.includes(action.code)) break;
+      moveEventPrice(s, action.code, -1);
+      s.cyberattackPrompt = null;
+      addLog(s, `${s.players[s.cur].name} shields cash from Cyberattack — ${action.code} drops 1 price step.`, 'r');
+      break;
+    }
+    case 'payCyberattackFee': {
+      const prompt = s.cyberattackPrompt;
+      if (!prompt || prompt.player !== s.cur) break;
+      const p = s.players[s.cur];
+      const paid = Math.min(Math.max(0, p.cash), prompt.fee);
+      p.cash -= paid;
+      const remaining = prompt.fee - paid;
+      if (remaining > 0) addFeeDebt(p, remaining);
+      s.cyberattackPrompt = null;
+      addLog(s, `${p.name} pays ${money(paid)} Cyberattack response fee${remaining > 0 ? ` — ${money(remaining)} carried as debt` : ''}.`, 'r');
+      break;
+    }
+    case 'buyOpeningBell': {
+      const offer = s.openingBellPrompt;
+      if (!offer || offer.player !== s.cur) break;
+      const stock = STOCK_BY_CODE[offer.code];
+      const p = s.players[s.cur];
+      if (!stock || p.cash < offer.price || s.supply[offer.code] !== REGULAR_SUPPLY || s.soldOut[offer.code]) break;
+      p.cash -= offer.price;
+      p.shares[offer.code] = REGULAR_SUPPLY;
+      addStockCostBasis(p, offer.code, offer.price);
+      setMarketStance(p, 'bullish');
+      s.supply[offer.code] = 0;
+      s.soldOut[offer.code] = { code: offer.code, claimHolder: topOwner(s, offer.code) };
+      s.openingBellPrompt = null;
+      addLog(s, `${p.name} buys the Opening Bell company ${stock.name} for ${money(offer.price)}!`, 'g');
+      addTradeLog(s, 'buy', `Opening Bell bought ${offer.code} company @ ${money(offer.price)}`, -offer.price, p.name);
+      addLog(s, `${offer.code} is SOLD OUT — ${p.name} holds the Payout Claim.`, 'y');
+      break;
+    }
+    case 'passOpeningBell': {
+      const offer = s.openingBellPrompt;
+      if (!offer || offer.player !== s.cur) break;
+      s.openingBellPrompt = null;
+      addLog(s, `${s.players[s.cur].name} passes on the Opening Bell opportunity for ${offer.code}.`);
+      break;
+    }
+    case 'chooseRegulatoryInvestigationStock': {
+      const prompt = s.regulatoryInvestigationPrompt;
+      if (!prompt || prompt.player !== s.cur || !prompt.codes.includes(action.code)) break;
+      moveEventPrice(s, action.code, -1);
+      s.players[s.cur].dividendCuts[action.code] = 1;
+      s.regulatoryInvestigationPrompt = null;
+      addLog(s, `${s.players[s.cur].name} accepts the investigation penalty: ${action.code} drops 1 step and its next dividend is cut 50%.`, 'r');
+      break;
+    }
+    case 'payRegulatoryInvestigation': {
+      const prompt = s.regulatoryInvestigationPrompt;
+      if (!prompt || prompt.player !== s.cur) break;
+      const p = s.players[s.cur];
+      const paid = Math.min(Math.max(0, p.cash), prompt.fee);
+      p.cash -= paid;
+      const remaining = prompt.fee - paid;
+      if (remaining > 0) addFeeDebt(p, remaining);
+      s.regulatoryInvestigationPrompt = null;
+      addLog(s, `${p.name} settles Regulatory Investigation for ${money(paid)}${remaining > 0 ? ` — ${money(remaining)} carried as debt` : ''}.`, 'r');
+      break;
+    }
+
     // ---- roll ----
     case 'roll': {
       if (s.turnPhase !== 'preRoll' || s.rolling) break;
@@ -807,7 +874,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // interaction; clearing trade would silently strip their landing trade.
       addLog(s, `Drew ${DECK_META[deck].label}: ${c.title}`, deck === 'ME' ? 'r' : deck === 'FED' ? 'y' : 'b');
       recordCardSignal(s, c);
-      if (deck === 'ME') beginMarketEventEffect(s, c.eff);
+      if (deck === 'ME') beginMarketEventEffect(s, c.eff, rng);
       else applyEffect(s, c.eff);
       break;
     }
