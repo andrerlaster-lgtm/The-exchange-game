@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, isIpoCode } from '../../data';
-import { blocked, gameProgressLabel, priceOf, sellBackPrice } from '../../engine';
+import { blocked, gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -166,12 +166,15 @@ export default function ActionPanel() {
       {s.landingNotice && <LandingResultBanner s={s} dispatch={dispatch} />}
 
       {/* Market Open Trading Window — private trades only, no bank sell-back */}
-      {s.marketOpenWindow && <MarketOpenWindowPanel dispatch={dispatch} />}
+      {s.marketOpenWindow && <MarketOpenWindowPanel s={s} dispatch={dispatch} />}
 
       {/* Sold-back shares can only be bought by landing on that company. */}
       {s.outstandingBuy && !s.landingNotice && !s.insolvency && (
         <OutstandingSharesPanel s={s} dispatch={dispatch} />
       )}
+
+      {/* Bank Auction variant (s.opts.bankAuction) — pooled shares bid out at Market Open */}
+      {s.auction && <AuctionPanel s={s} dispatch={dispatch} />}
 
       {/* Margin call — forced sell-to-cover, blocks the turn until resolved */}
       {s.marginCall && s.marginCall.player === s.cur && (
@@ -484,7 +487,7 @@ function InsolvencyPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
   );
 }
 
-function MarketOpenWindowPanel({ dispatch }: { dispatch: (a: Action) => void }) {
+function MarketOpenWindowPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 8,
@@ -496,8 +499,9 @@ function MarketOpenWindowPanel({ dispatch }: { dispatch: (a: Action) => void }) 
         <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--green)' }}>MARKET OPEN — TRADING WINDOW</span>
       </div>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
-        Any player may propose a private trade. Outstanding bank shares stay with
-        their company and can only be bought by landing on that stock space.
+        {s.opts.bankAuction
+          ? 'Any player may propose a private trade. Pooled bank shares are being auctioned below.'
+          : 'Any player may propose a private trade. Outstanding bank shares stay with their company and can only be bought by landing on that stock space.'}
       </div>
       <button
         className="primary"
@@ -568,6 +572,75 @@ function OutstandingSharesPanel({ s, dispatch }: { s: GameState; dispatch: (a: A
       </div>
       {affordable < 1 && (
         <div style={{ fontSize: 10, color: 'var(--red)' }}>{actor.name} cannot afford one share. Skip to continue.</div>
+      )}
+    </div>
+  );
+}
+
+function AuctionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const a = s.auction!;
+  const stock = STOCK_BY_CODE[a.code];
+  const actor = s.players[a.actor];
+  const min = minNextBid(s);
+  const [bid, setBid] = useState(min);
+  useEffect(() => { setBid(min); }, [min, a.code, a.highBid]);
+  const canAfford = actor.cash >= min;
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '10px 12px', borderRadius: 8,
+      background: 'rgba(212,165,53,0.10)',
+      border: '1px solid rgba(212,165,53,0.5)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--gold)' }}>⚖ BANK AUCTION</span>
+        <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: stock?.color ?? 'var(--text)', marginLeft: 2 }}>{a.code}</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>{a.poolLeft} share{a.poolLeft === 1 ? '' : 's'} left</span>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
+        {a.highBidder === null
+          ? <>Opening bid on {stock?.name ?? a.code} is <span className="mono" style={{ color: 'var(--gold)', fontWeight: 800 }}>${a.startPrice.toLocaleString()}</span> (one step below market).</>
+          : <>High bid <span className="mono" style={{ color: 'var(--gold)', fontWeight: 800 }}>${a.highBid.toLocaleString()}</span> by <strong style={{ color: s.players[a.highBidder].color }}>{s.players[a.highBidder].name}</strong>.</>}
+      </div>
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '5px 8px', borderRadius: 6,
+        background: `${actor.color}14`, border: `1px solid ${actor.color}55`,
+      }}>
+        <span style={{
+          width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+          background: `radial-gradient(circle at 35% 35%, ${actor.color}, ${actor.color}88)`,
+        }} />
+        <span style={{ fontSize: 12, fontWeight: 700, color: actor.color }}>{actor.name}</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>to bid or pass</span>
+        <span className="mono" style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>${actor.cash.toLocaleString()}</span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <input
+          type="number"
+          className="mono"
+          min={min}
+          step={100}
+          value={bid}
+          onChange={(e) => setBid(Math.max(min, Number(e.target.value) || min))}
+          style={{ width: 96, fontSize: 12, padding: '6px 8px', borderRadius: 6 }}
+        />
+        <button className="primary" style={{ fontSize: 12, padding: '6px 14px' }}
+          disabled={!canAfford || bid < min}
+          onClick={() => dispatch({ t: 'auctionBid', amount: bid })}>
+          Bid ${bid.toLocaleString()}
+        </button>
+        <button style={{ fontSize: 12, padding: '6px 14px' }}
+          onClick={() => dispatch({ t: 'auctionPass' })}>
+          Pass
+        </button>
+      </div>
+      {!canAfford && (
+        <div style={{ fontSize: 10, color: 'var(--red)' }}>{actor.name} can't meet ${min.toLocaleString()} — pass to continue.</div>
       )}
     </div>
   );

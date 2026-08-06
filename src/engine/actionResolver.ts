@@ -23,6 +23,7 @@ import { topOwner, recomputeClaim, claimPayout } from './soldOut';
 import { hasSectorPortfolio } from './sector';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
+import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
 import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
@@ -110,9 +111,11 @@ function resolveLanding(s: GameState, pi: number): void {
       const code = sp.code!;
       const rec = s.soldOut[code];
       if (rec) {
-        // Sold-Out landing: resolve the current Payout Claim first. Any shares
-        // previously sold back to the bank then become an exclusive purchase
-        // option for the landing player at the current per-share market price.
+        // Sold-Out landing: resolve the current Payout Claim first. In standard
+        // mode, shares previously sold back to the bank then become an
+        // exclusive purchase option for the landing player at the current
+        // per-share price (rulebook §11). With the Bank Auction option on,
+        // pooled shares skip this offer and wait for the Market Open auction.
         if (rec.claimHolder !== null && rec.claimHolder !== pi) {
           const holder = s.players[rec.claimHolder];
           const sectorComplete = hasSectorPortfolio(holder, STOCK_BY_CODE[code].sector);
@@ -141,7 +144,7 @@ function resolveLanding(s: GameState, pi: number): void {
         } else {
           addLog(s, `${STOCK_BY_CODE[code].name} is Contested — no Payout Claim to pay.`);
         }
-        const outstanding = s.bankPool[code] || 0;
+        const outstanding = s.opts.bankAuction ? 0 : (s.bankPool[code] || 0);
         if (outstanding > 0) {
           s.outstandingBuy = {
             code,
@@ -290,6 +293,7 @@ function applyMove(s: GameState, steps: number): void {
     payMarketOpen(s, s.cur);
     s.marketOpenWindow = true;
     addLog(s, 'Market Open Trading Window is open — trade freely, then close it to continue.', 'b');
+    if (s.opts.bankAuction) queueMarketOpenAuctions(s);
   }
   s.turnPhase = 'acted';
   resolveLanding(s, s.cur);
@@ -877,6 +881,14 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.outstandingBuy = null;
       break;
     }
+
+    // ---- Bank Auction (variant mode — off by default; see s.opts.bankAuction) ----
+    case 'auctionBid':
+      handleBid(s, action.amount);
+      break;
+    case 'auctionPass':
+      handlePass(s);
+      break;
 
     // ---- Market Open Trading Window (private trades only; no bank sell-back) ----
     case 'closeMarketOpenWindow': {

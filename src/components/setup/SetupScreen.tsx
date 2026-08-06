@@ -211,6 +211,14 @@ export default function SetupScreen() {
             <TBtn active={!opts.ipos} onClick={() => setOpt('ipos', false)}>Off</TBtn>
           </OptRow>
 
+          <OptRow label="Bank Auction">
+            <TBtn active={opts.bankAuction} onClick={() => setOpt('bankAuction', true)}>On</TBtn>
+            <TBtn active={!opts.bankAuction} onClick={() => setOpt('bankAuction', false)}>Off</TBtn>
+          </OptRow>
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45, padding: '0 2px' }}>
+            Off: sold-back shares can only be bought by landing on that company (Outstanding Shares, standard mode). On: pooled shares are auctioned to all players in turn order at the next Market Open instead.
+          </div>
+
           <div style={{ height: 1, background: 'rgba(212,165,53,0.1)' }} />
 
           <OptRow label="Game End">

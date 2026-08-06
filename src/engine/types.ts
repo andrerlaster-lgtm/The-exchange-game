@@ -229,6 +229,9 @@ export interface GameOptions {
   closeMode: 'card' | 'rounds';
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
   companiesMode: boolean;     // optional player-owned company market
+  bankAuction: boolean;       // alternate resale mode: pooled shares go to a turn-order
+                               // Market Open auction instead of the standard-mode Outstanding
+                               // Shares offer (buy-on-landing) — off by default
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
@@ -240,6 +243,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   closeMode: 'card',
   closeRounds: 5,
   companiesMode: false,
+  bankAuction: false, // standard mode uses Outstanding Shares (rulebook §11); this is the variant
 };
 
 export interface GameState {

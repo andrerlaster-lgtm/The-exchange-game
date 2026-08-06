@@ -82,6 +82,7 @@ export function blocked(s: GameState): boolean {
   if (s.insolvency) return true; // forced-sale payment shortfall must be resolved first
   if (s.landingNotice) return true; // cardless financial result must be acknowledged
   if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
+  if (s.auction) return true; // Bank Auction variant — bidding must resolve before ending the turn
   if (s.pendingDraws.length > 0) return true;
   if (s.circuitBreakerPrompt) return true;
   if (s.investorDay) return true;
