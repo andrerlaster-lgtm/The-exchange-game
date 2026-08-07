@@ -1,7 +1,14 @@
+import { useEffect, useRef, useState } from 'react';
 import { LADDER, PLAYER_COLORS, SECTORS, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { getStockMovementStatus } from '../../engine';
 import { useGameState } from '../../store';
 import investabearImg from '../../assets/investabear.png';
+
+// Chrome around the square tile grid inside the walnut slab — title row +
+// its margin, plus the slab's own padding on each side.
+const SLAB_PAD = 12;
+const TITLE_CHROME = 22;
+const MIN_GRID = 200;
 
 // Bull Market Club palette — mirrors PAL in public/board-3d.html
 const PARCH = '#f0e7d1', ETF_PARCH = '#eddbb0', SPEC_PARCH = '#e9dec3';
@@ -85,7 +92,31 @@ export default function BoardTrack() {
   const byPos: Record<number, number[]> = {};
   s.players.forEach((p, i) => { if (!byPos[p.pos]) byPos[p.pos] = []; byPos[p.pos].push(i); });
 
+  // The board is a fixed 1:1 grid, but its column shares vertical space with
+  // ActionPanel/MarketIntelligence/TradingMarket above and Trade History
+  // below — width alone can't tell it how tall it's allowed to be. Measure
+  // the flexed wrapper and size the grid to the largest square that fits,
+  // so the whole board is always visible without scrolling the column.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [gridSize, setGridSize] = useState(560);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const compute = () => {
+      const { width, height } = el.getBoundingClientRect();
+      const availW = width - SLAB_PAD * 2;
+      const availH = height - SLAB_PAD * 2 - TITLE_CHROME;
+      setGridSize(Math.max(MIN_GRID, Math.floor(Math.min(availW, availH))));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
+    <div ref={wrapRef} style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
     <div style={{
       // Lacquered walnut slab — repeating grain + warm sheen, brass edge
       background: [
@@ -97,6 +128,7 @@ export default function BoardTrack() {
       borderRadius: 14,
       padding: '12px',
       boxShadow: '0 8px 48px rgba(0,0,0,0.7), inset 0 1px 0 rgba(201,162,79,0.12), 0 0 0 1px rgba(201,162,79,0.1)',
+      flexShrink: 0,
     }}>
       <div className="display" style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, color: 'rgba(224,193,132,0.9)', textTransform: 'uppercase', marginBottom: 8 }}>
         The Exchange · Board
@@ -107,7 +139,8 @@ export default function BoardTrack() {
         gridTemplateColumns: 'repeat(10, 1fr)',
         gridTemplateRows: 'repeat(10, 1fr)',
         gap: 3,
-        aspectRatio: '1',
+        width: gridSize,
+        height: gridSize,
       }}>
         {/* Center panel — club-green felt well, brass bezel, bear-mascot medallion */}
         <div style={{
@@ -345,6 +378,7 @@ export default function BoardTrack() {
           );
         })}
       </div>
+    </div>
     </div>
   );
 }
