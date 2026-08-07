@@ -175,4 +175,87 @@ describe('Player-to-player trading', () => {
     s = dispatch(s, { t: 'proposeP2POffer', from: 0, to: 0, code: 'MEDI', qty: 1, direction: 'sell', price: 100 }, rng());
     expect(s.p2pOffers).toHaveLength(before); // from === to rejected
   });
+
+  it('supports a pure share-for-share swap with no cash changing hands', () => {
+    let s = started();
+    s = patch(s, (d) => {
+      d.players[0].shares.MEDI = 3;
+      d.players[1].shares.OILW = 2;
+    });
+    const p0CashBefore = s.players[0].cash;
+    const p1CashBefore = s.players[1].cash;
+
+    s = dispatch(s, {
+      t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 2, direction: 'sell', price: 0,
+      counterCode: 'OILW', counterQty: 2,
+    }, rng());
+    const offerId = s.p2pOffers[0].id;
+    s = dispatch(s, { t: 'acceptP2POffer', id: offerId }, rng());
+
+    expect(s.players[0].shares.MEDI).toBe(1);
+    expect(s.players[0].shares.OILW).toBe(2);
+    expect(s.players[1].shares.MEDI).toBe(2);
+    expect(s.players[1].shares.OILW ?? 0).toBe(0);
+    expect(s.players[0].cash).toBe(p0CashBefore); // no cash moved
+    expect(s.players[1].cash).toBe(p1CashBefore);
+  });
+
+  it('supports a mixed offer — shares plus cash sweetener from the paying side', () => {
+    let s = started();
+    s = patch(s, (d) => {
+      d.players[0].shares.MEDI = 2;
+      d.players[1].shares.OILW = 3;
+    });
+    const p0CashBefore = s.players[0].cash;
+    const p1CashBefore = s.players[1].cash;
+
+    s = dispatch(s, {
+      t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 500,
+      counterCode: 'OILW', counterQty: 1,
+    }, rng());
+    const offerId = s.p2pOffers[0].id;
+    s = dispatch(s, { t: 'acceptP2POffer', id: offerId }, rng());
+
+    expect(s.players[0].shares.MEDI).toBe(1);
+    expect(s.players[0].shares.OILW).toBe(1);
+    expect(s.players[1].shares.MEDI).toBe(1);
+    expect(s.players[1].shares.OILW).toBe(2);
+    expect(s.players[0].cash).toBe(p0CashBefore + 500);
+    expect(s.players[1].cash).toBe(p1CashBefore - 500);
+  });
+
+  it('a share-for-share offer fails gracefully if the payer no longer holds enough of the counter shares', () => {
+    let s = started();
+    s = patch(s, (d) => {
+      d.players[0].shares.MEDI = 2;
+      d.players[1].shares.OILW = 1;
+    });
+    s = dispatch(s, {
+      t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 0,
+      counterCode: 'OILW', counterQty: 2,
+    }, rng());
+    const offerId = s.p2pOffers[0].id;
+
+    s = dispatch(s, { t: 'acceptP2POffer', id: offerId }, rng());
+
+    expect(s.p2pOffers).toHaveLength(0);
+    expect(s.players[0].shares.MEDI).toBe(2); // nothing moved
+    expect(s.players[1].shares.OILW).toBe(1);
+  });
+
+  it('rejects a counter offer for an ETF code or the same code being traded', () => {
+    let s = started();
+    s = patch(s, (d) => { d.players[0].shares.MEDI = 2; });
+    const before = s.p2pOffers.length;
+    s = dispatch(s, {
+      t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 0,
+      counterCode: 'GRW', counterQty: 1,
+    }, rng());
+    expect(s.p2pOffers).toHaveLength(before); // ETF counter code rejected
+    s = dispatch(s, {
+      t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 0,
+      counterCode: 'MEDI', counterQty: 1,
+    }, rng());
+    expect(s.p2pOffers).toHaveLength(before); // same-code counter rejected
+  });
 });

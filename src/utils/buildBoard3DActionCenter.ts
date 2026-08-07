@@ -357,13 +357,19 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     const to = s.players[offer.to];
     const buyer = offer.direction === 'sell' ? to : from;
     const seller = offer.direction === 'sell' ? from : to;
+    const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
     const canAfford = buyer.cash >= offer.price;
     const hasShares = (seller.shares[offer.code] ?? 0) >= offer.qty;
+    const hasCounterShares = !hasCounter || (buyer.shares[offer.counterCode!] ?? 0) >= offer.counterQty!;
+    const considerationParts: string[] = [];
+    if (offer.price > 0) considerationParts.push(money(offer.price));
+    if (hasCounter) considerationParts.push(`${offer.counterQty}× ${offer.counterCode}`);
+    const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
     return {
       id: offer.id,
-      summary: `${from.name} offers to ${offer.direction} ${offer.qty}× ${offer.code} ${offer.direction === 'sell' ? 'to' : 'from'} ${to.name} for ${money(offer.price)}`,
-      warning: !canAfford ? `${buyer.name} cannot afford the offer.` : !hasShares ? `${seller.name} no longer owns enough shares.` : undefined,
-      canAccept: canAfford && hasShares,
+      summary: `${from.name} offers to ${offer.direction} ${offer.qty}× ${offer.code} ${offer.direction === 'sell' ? 'to' : 'from'} ${to.name} for ${considerationLabel}`,
+      warning: !canAfford ? `${buyer.name} cannot afford the offer.` : !hasShares ? `${seller.name} no longer owns enough shares.` : !hasCounterShares ? `${buyer.name} no longer owns enough ${offer.counterCode}.` : undefined,
+      canAccept: canAfford && hasShares && hasCounterShares,
     };
   });
 

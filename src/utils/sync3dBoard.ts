@@ -209,7 +209,8 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
     case 'proposeP2POffer':
       return integer('from') && integer('to') && text('code') && integer('qty')
         && (action.qty as number) > 0 && (action.direction === 'sell' || action.direction === 'buy')
-        && nonNegativeNumber('price');
+        && nonNegativeNumber('price')
+        && (action.counterCode === undefined || (text('counterCode') && integer('counterQty') && (action.counterQty as number) > 0));
     case 'acceptP2POffer': case 'declineP2POffer': case 'cancelP2POffer':
       return integer('id') && (action.id as number) >= 0;
     case 'auctionBid':

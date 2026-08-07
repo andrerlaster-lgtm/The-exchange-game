@@ -4,7 +4,6 @@ import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
 describe('Player-to-player Payout Claim loans', () => {
   const CODE = 'FTRB';
-  const SPACE = 8;
 
   function payoutState() {
     return patch(started(2), (d) => {

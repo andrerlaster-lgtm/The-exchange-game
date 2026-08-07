@@ -260,9 +260,11 @@ export interface Auction {
 }
 
 /**
- * A negotiated player-to-player share trade offer. Cash-for-shares only, never
- * involves ETFs, never moves the market ladder or the bank's supply pool —
- * shares and cash transfer directly between the two named players.
+ * A negotiated player-to-player trade offer. Never involves ETFs, never moves
+ * the market ladder or the bank's supply pool — shares and cash transfer
+ * directly between the two named players. The paying side (whoever isn't
+ * giving up `code`/`qty`) settles with cash (`price`), shares of a second
+ * company (`counterCode`/`counterQty`), or both at once.
  */
 export interface P2POffer {
   id: number;
@@ -271,7 +273,9 @@ export interface P2POffer {
   code: string;                 // regular stock or IPO code (never an ETF)
   qty: number;                  // shares changing hands
   direction: 'sell' | 'buy';    // from the proposer's perspective
-  price: number;                // total negotiated cash amount (not per-share)
+  price: number;                // cash the paying side hands over (can be 0)
+  counterCode?: string;         // shares the paying side hands over instead of/alongside cash
+  counterQty?: number;
 }
 
 export interface GameOptions {
@@ -426,7 +430,7 @@ export type Action =
   | { t: 'callClose' }
   | { t: 'buyEtf'; code: string }
   | { t: 'skipEtf' }
-  | { t: 'proposeP2POffer'; from: number; to: number; code: string; qty: number; direction: 'sell' | 'buy'; price: number }
+  | { t: 'proposeP2POffer'; from: number; to: number; code: string; qty: number; direction: 'sell' | 'buy'; price: number; counterCode?: string; counterQty?: number }
   | { t: 'acceptP2POffer'; id: number }
   | { t: 'declineP2POffer'; id: number }
   | { t: 'cancelP2POffer'; id: number }

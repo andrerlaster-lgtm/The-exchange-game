@@ -60,7 +60,10 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   const seller = offer.direction === 'sell' ? s.players[offer.from] : s.players[offer.to];
   const buyer = offer.direction === 'sell' ? s.players[offer.to] : s.players[offer.from];
   const owned = seller.shares[offer.code] || 0;
+  const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
+  const counterOwned = hasCounter ? (buyer.shares[offer.counterCode!] || 0) : 0;
   if (owned < offer.qty || buyer.cash < offer.price) return false;
+  if (hasCounter && counterOwned < offer.counterQty!) return false;
 
   const realized = recordStockSale(seller, offer.code, offer.qty, offer.price, owned);
   seller.shares[offer.code] = owned - offer.qty;
@@ -71,10 +74,32 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   seller.cash += offer.price;
   if (offer.qty >= 3) setMarketStance(seller, 'bearish');
 
-  addLog(s, `${seller.name} sells ${offer.qty}× ${offer.code} to ${buyer.name} for ${money(offer.price)} (private trade · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)})`, 'b');
-  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, offer.price, seller.name);
-  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} from ${seller.name} · basis ${money(offer.price)}`, -offer.price, buyer.name);
+  // The counter leg (shares paid back the other way) has no negotiated cash
+  // figure to value it by, so it's booked at current market price.
+  let counterValue = 0;
+  if (hasCounter) {
+    const counterCode = offer.counterCode!;
+    const counterQty = offer.counterQty!;
+    counterValue = priceOf(s, counterCode) * counterQty;
+    recordStockSale(buyer, counterCode, counterQty, counterValue, counterOwned);
+    buyer.shares[counterCode] = counterOwned - counterQty;
+    if (buyer.shares[counterCode] === 0) delete buyer.shares[counterCode];
+    seller.shares[counterCode] = (seller.shares[counterCode] || 0) + counterQty;
+    addStockCostBasis(seller, counterCode, counterValue);
+    if (counterQty >= 3) setMarketStance(buyer, 'bearish');
+  }
+
+  const considerationParts: string[] = [];
+  if (offer.price > 0) considerationParts.push(money(offer.price));
+  if (hasCounter) considerationParts.push(`${offer.counterQty}× ${offer.counterCode}`);
+  const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
+  const totalConsideration = offer.price + counterValue;
+
+  addLog(s, `${seller.name} trades ${offer.qty}× ${offer.code} to ${buyer.name} for ${considerationLabel} (private trade · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)})`, 'b');
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, totalConsideration, seller.name);
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} from ${seller.name} · basis ${money(totalConsideration)}`, -totalConsideration, buyer.name);
   recomputeAndLogClaim(s, offer.code);
+  if (hasCounter) recomputeAndLogClaim(s, offer.counterCode!);
   return true;
 }
 
@@ -1031,17 +1056,31 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
 
     // ---- player-to-player trading (negotiated price, never moves the market) ----
     case 'proposeP2POffer': {
-      const { from, to, code, qty, direction, price } = action;
+      const { from, to, code, qty, direction, price, counterCode, counterQty } = action;
       if (from === to) break;
       if (from < 0 || from >= s.players.length || to < 0 || to >= s.players.length) break;
       if (qty < 1 || price < 0) break;
       if (!STOCK_BY_CODE[code] && !IPO_BY_CODE[code]) break; // regular stock or IPO only — never ETFs
+      let counter: { code: string; qty: number } | null = null;
+      if (counterCode) {
+        if (!STOCK_BY_CODE[counterCode] && !IPO_BY_CODE[counterCode]) break; // never ETFs
+        if (!counterQty || counterQty < 1) break;
+        if (counterCode === code) break; // trading a code for itself is meaningless
+        counter = { code: counterCode, qty: counterQty };
+      }
       s.p2pSeq += 1;
-      s.p2pOffers.push({ id: s.p2pSeq, from, to, code, qty, direction, price });
+      s.p2pOffers.push({
+        id: s.p2pSeq, from, to, code, qty, direction, price,
+        counterCode: counter?.code, counterQty: counter?.qty,
+      });
       const proposer = s.players[from];
       const counterparty = s.players[to];
       const verb = direction === 'sell' ? 'sell' : 'buy';
-      addLog(s, `${proposer.name} offers to ${verb} ${qty}× ${code} ${direction === 'sell' ? 'to' : 'from'} ${counterparty.name} for ${money(price)}`, 'b');
+      const considerationParts: string[] = [];
+      if (price > 0) considerationParts.push(money(price));
+      if (counter) considerationParts.push(`${counter.qty}× ${counter.code}`);
+      const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
+      addLog(s, `${proposer.name} offers to ${verb} ${qty}× ${code} ${direction === 'sell' ? 'to' : 'from'} ${counterparty.name} for ${considerationLabel}`, 'b');
       break;
     }
     case 'acceptP2POffer': {
