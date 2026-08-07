@@ -1,75 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
 import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, isIpoCode } from '../../data';
-import { blocked, gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
+import { gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
-
-const ROLL_DURATION = 860;
-const SETTLE_MS = 320;
-const FADEOUT_MS = 300;
-
-type OverlayPhase = 'hidden' | 'rolling' | 'settled' | 'fadeout';
 
 export default function ActionPanel() {
   const s = useGameState();
   const dispatch = useDispatch();
   const p = s.players[s.cur];
-  const isBlocked = blocked(s);
-  const [rolling, setRolling] = useState(false);
-  const [animDice, setAnimDice] = useState<[number, number]>([1, 1]);
-  const [overlayPhase, setOverlayPhase] = useState<OverlayPhase>('hidden');
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Pending setTimeout chain for the current roll's overlay animation. Rolling
-  // is only disabled-gated on the "Roll Dice" button, not on ending the turn —
-  // a fast End Turn → Roll Dice by the next player can fire a new roll while the
-  // previous roll's ~1.5s chain is still in flight. Without cancelling it first,
-  // the stale callbacks fire out of order and can clobber overlayPhase, leaving
-  // the dice overlay stuck on screen indefinitely.
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  function handleRoll() {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    if (intervalRef.current) clearInterval(intervalRef.current);
-
-    dispatch({ t: 'roll' });
-    setRolling(true);
-    setOverlayPhase('rolling');
-
-    intervalRef.current = setInterval(() => {
-      setAnimDice([Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6)]);
-    }, 80);
-
-    const settleTimer = setTimeout(() => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setRolling(false);
-      setOverlayPhase('settled');
-
-      const fadeTimer = setTimeout(() => {
-        setOverlayPhase('fadeout');
-        const hideTimer = setTimeout(() => setOverlayPhase('hidden'), FADEOUT_MS);
-        timersRef.current.push(hideTimer);
-      }, SETTLE_MS);
-      timersRef.current.push(fadeTimer);
-    }, ROLL_DURATION);
-    timersRef.current.push(settleTimer);
-  }
-
-  useEffect(() => () => {
-    timersRef.current.forEach(clearTimeout);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-  }, []);
-
-  const realDice = s.dice as [number, number];
 
   // Head of the forced-draw queue — the draw the player must resolve next.
   const nextDraw = s.pendingDraws[0] ?? null;
 
   return (
     <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {overlayPhase !== 'hidden' && (
-        <DiceRollOverlay phase={overlayPhase} animDice={animDice} realDice={realDice} />
-      )}
       {/* Player header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{
@@ -141,30 +84,7 @@ export default function ActionPanel() {
         </button>
       </div>
 
-      {/* Dice + actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Die value={rolling ? animDice[0] : s.dice[0]} rolling={rolling} />
-        <Die value={rolling ? animDice[1] : s.dice[1]} rolling={rolling} />
-        <div style={{ width: 1, height: 30, background: 'var(--border)', margin: '0 2px', flexShrink: 0 }} />
-        {s.turnPhase === 'preRoll' && (
-          <button className="primary" style={{ padding: '8px 22px', fontSize: 13 }}
-            disabled={rolling}
-            onClick={handleRoll}>
-            {rolling ? 'Rolling…' : s.bonusRollUsed ? 'Roll Bonus Dice' : 'Roll Dice'}
-          </button>
-        )}
-        {s.turnPhase === 'acted' && (
-          <button className="primary" style={{ padding: '8px 22px', fontSize: 13 }}
-            disabled={isBlocked}
-            onClick={() => dispatch({ t: 'endTurn' })}>
-            {isBlocked ? 'Resolve action…' : s.bonusRollPending ? 'Bonus Roll →' : 'End Turn →'}
-          </button>
-        )}
-      </div>
-
       {/* Cardless financial spaces still need a loud, explicit result. */}
-      {s.landingNotice && <LandingResultBanner s={s} dispatch={dispatch} />}
-
       {s.cyberattackPrompt && s.cyberattackPrompt.player === s.cur && (
         <CyberattackPanel s={s} dispatch={dispatch} />
       )}
@@ -210,7 +130,6 @@ export default function ActionPanel() {
 
       {s.pick?.source === 'investor' && <InvestorDayPanel s={s} dispatch={dispatch} />}
 
-      {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
     </div>
   );
 }
@@ -294,7 +213,7 @@ function RegulatoryInvestigationPanel({ s, dispatch }: { s: GameState; dispatch:
   );
 }
 
-function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+export function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   const notice = s.landingNotice!;
   const needsMore = notice.remaining > 0;
   const canPayNow = s.players[s.cur].cash >= notice.amount;
@@ -306,7 +225,7 @@ function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (a: Acti
       border: '2px solid #ef4444',
       boxShadow: '0 3px 20px rgba(239,68,68,0.2)',
     }}>
-      <div style={{ fontSize: 28, lineHeight: 1 }}>{notice.kind === 'audit' ? '⚑' : notice.kind === 'tax' ? '$' : '↗'}</div>
+      <div style={{ fontSize: 28, lineHeight: 1 }}>{notice.kind === 'audit' ? '⚑' : notice.kind === 'tax' ? '$' : notice.kind === 'fund' ? '◆' : '↗'}</div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: '#fca5a5', letterSpacing: 1, textTransform: 'uppercase' }}>
           Landing Result · {notice.title}
@@ -811,7 +730,7 @@ function AuctionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => 
   );
 }
 
-function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; dispatch: (a: Action) => void }) {
+export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; dispatch: (a: Action) => void }) {
   const etf = ETF_BY_CODE[code];
   if (!etf) return null;
   const p = s.players[s.cur];
@@ -869,80 +788,4 @@ function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; dispatch
     </div>
   );
 }
-
-
-function DiceRollOverlay({ phase, animDice, realDice }: {
-  phase: OverlayPhase;
-  animDice: [number, number];
-  realDice: [number, number];
-}) {
-  const shown: [number, number] = phase === 'rolling' ? animDice : realDice;
-  return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 300,
-      pointerEvents: 'none',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      animation: phase === 'fadeout' ? 'diceOverlayOut 0.3s ease-in forwards' : 'none',
-    }}>
-      <div style={{ display: 'flex', gap: 28, position: 'relative' }}>
-        <OverlayDie value={shown[0]} phase={phase} delay={0} />
-        <OverlayDie value={shown[1]} phase={phase} delay={80} />
-      </div>
-    </div>
-  );
-}
-
-function OverlayDie({ value, phase, delay }: { value: number; phase: OverlayPhase; delay: number }) {
-  // Fold delay + fill-mode into the shorthand so we never mix `animation`
-  // shorthand with longhand props (which triggers React style-merge warnings).
-  const anim = phase === 'rolling'
-    ? `diceDropIn ${ROLL_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94) ${delay}ms both`
-    : phase === 'settled'
-    ? `diceSettlePop ${SETTLE_MS}ms ease-out ${delay}ms both`
-    : 'none';
-
-  return (
-    <div style={{
-      width: 76, height: 76, borderRadius: 14,
-      background: 'linear-gradient(145deg, #d8b25a, #a5813a)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 800, fontSize: 34,
-      fontFamily: 'IBM Plex Mono, monospace',
-      color: '#fff',
-      boxShadow: '0 6px 40px rgba(201,162,79,0.75), 0 2px 8px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.3)',
-      border: '2px solid rgba(255,255,255,0.35)',
-      animation: anim,
-    }}>
-      {value}
-    </div>
-  );
-}
-
-function Die({ value, rolling }: { value: number | null; rolling?: boolean }) {
-  const active = value != null;
-  return (
-    <div style={{
-      width: 42, height: 42, borderRadius: 9,
-      background: active
-        ? 'linear-gradient(145deg, #d4a94f, #a07f38)'
-        : 'linear-gradient(145deg, #141926, #0d1120)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 700, fontSize: 22,
-      fontFamily: 'IBM Plex Mono, monospace',
-      color: active ? '#fff' : '#252d45',
-      boxShadow: active
-        ? '0 2px 16px rgba(201,162,79,0.45), inset 0 1px 0 rgba(255,255,255,0.2)'
-        : '0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(74,48,25,0.06)',
-      border: active ? '1px solid rgba(201,162,79,0.5)' : '1px solid var(--border)',
-      transition: rolling ? 'none' : 'all 0.2s',
-      flexShrink: 0,
-      animation: rolling ? 'dieShake 0.12s infinite alternate' : 'none',
-    }}>
-      {value ?? '·'}
-    </div>
-  );
-}
+import { useEffect, useState } from 'react';

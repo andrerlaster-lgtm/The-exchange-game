@@ -167,7 +167,7 @@ export interface Insolvency {
 /** A cardless financial landing result that must be acknowledged so the
     active player cannot miss cash deducted by Audit, Tax, or Payout Claim. */
 export interface LandingNotice {
-  kind: 'audit' | 'tax' | 'payout';
+  kind: 'audit' | 'tax' | 'payout' | 'fund';
   title: string;
   player: string;
   amount: number;               // total charge for the landing
@@ -175,6 +175,7 @@ export interface LandingNotice {
   remaining: number;            // unresolved amount subject to forced sale / waiver
   detail: string;               // human-readable rule explanation
   canDefer: boolean;            // Audit/Tax may be paid now or carried as score-reducing debt
+  payTo?: number | null;        // fund owner who receives a payment, when applicable
 }
 
 /** Active Cyberattack card choice: price hit on one holding or a portfolio fee. */

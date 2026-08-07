@@ -3,7 +3,7 @@
 
 import {
   AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE,
-  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, IPO_DEFS, LADDER,
+  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, LADDER,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
   PLAYER_LOAN_MAX_RATE, PLAYER_LOAN_MIN_RATE,
@@ -290,8 +290,20 @@ function resolveLanding(s: GameState, pi: number): void {
     case 'etf': {
       const etf = ETF_BY_SPACE[p.pos];
       if (etf) {
-        s.etfPick = etf.code;
-        addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
+        const owner = s.players.findIndex((player, i) => i !== s.cur && (player.etfShares[etf.code] ?? 0) > 0);
+        if (owner >= 0) {
+          const distinctFunds = ETF_DEFS.filter((fund) => (s.players[owner].etfShares[fund.code] ?? 0) > 0).length;
+          const fee = etfLandingFee(distinctFunds);
+          s.landingNotice = {
+            kind: 'fund', title: `${etf.name} Landing Fee`, player: p.name,
+            amount: fee, paidFromCash: 0, remaining: fee, canDefer: true, payTo: owner,
+            detail: `${s.players[owner].name} controls ${distinctFunds} distinct fund${distinctFunds === 1 ? '' : 's'} — pay the ${money(fee)} landing fee now or carry it as Outstanding Fees debt.`,
+          };
+          addLog(s, `${p.name} lands on ${etf.name} and owes ${money(fee)} to ${s.players[owner].name}. Pay now or carry it as debt.`, 'r');
+        } else {
+          s.etfPick = etf.code;
+          addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
+        }
       }
       break;
     }
@@ -860,18 +872,23 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     case 'payLandingFee': {
       const notice = s.landingNotice;
-      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax')) break;
+      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax' && notice.kind !== 'fund')) break;
       const p = s.players[s.cur];
       if (p.name !== notice.player || p.cash < notice.amount) break;
       p.cash -= notice.amount;
+      if (notice.kind === 'fund' && notice.payTo != null) {
+        s.players[notice.payTo].cash += notice.amount;
+        addTradeLog(s, 'payout', `${notice.title} paid to ${s.players[notice.payTo].name}`, notice.amount, s.players[notice.payTo].name);
+      }
       addLog(s, `${p.name} pays ${notice.title}: −${money(notice.amount)}.`, 'r');
-      pushFeeEvent(s, notice.kind, p, -notice.amount);
+      pushFeeEvent(s, notice.kind === 'fund' ? 'payout' : notice.kind, p, -notice.amount);
+      addTradeLog(s, 'payout', notice.title, -notice.amount, p.name);
       s.landingNotice = null;
       break;
     }
     case 'deferLandingFee': {
       const notice = s.landingNotice;
-      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax')) break;
+      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax' && notice.kind !== 'fund')) break;
       const p = s.players[s.cur];
       if (p.name !== notice.player) break;
       addFeeDebt(p, notice.amount);
