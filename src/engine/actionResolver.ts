@@ -20,7 +20,7 @@ import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
 import { pushFeeEvent } from './feeLog';
-import { topOwner, recomputeClaim, claimPayout } from './soldOut';
+import { topOwner, recomputeClaim, claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from './soldOut';
 import { hasSectorPortfolio } from './sector';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
@@ -146,13 +146,19 @@ function resolveLanding(s: GameState, pi: number): void {
         if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap !== false) {
           const holder = s.players[rec.claimHolder];
           const sectorComplete = hasSectorPortfolio(holder, STOCK_BY_CODE[code].sector);
-          const owed = claimPayout(holder.shares[code] || 0, sectorComplete);
+          const landingShares = p.shares[code] || 0;
+          const stock = STOCK_BY_CODE[code];
+          const multiplier = landingValueMultiplier(LADDER[s.prices[code]], LADDER[stock.step]);
+          const discount = shareholderLandingDiscount(landingShares);
+          const owed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
           const paid = Math.min(owed, Math.max(0, p.cash)); // pay what cash covers now
           p.cash -= paid;
           holder.cash += paid;
           const short = owed - paid;
           addLog(s, `${p.name} pays ${holder.name} ${money(paid)} Payout Claim on ${code}` +
-            (sectorComplete ? ' (Sector Portfolio boost)' : ''), 'r');
+            (sectorComplete ? ' (Sector Portfolio boost)' : '') +
+            (multiplier > 1 ? ` (space value ${multiplier}×)` : '') +
+            (discount > 0 ? ` (${Math.round(discount * 100)}% shareholder discount)` : ''), 'r');
           addTradeLog(s, 'payout', `Payout Claim ${code} → ${holder.name}`, -paid, p.name);
           addTradeLog(s, 'payout', `Payout Claim ${code} from ${p.name}`, paid, holder.name);
           s.landingNotice = {
@@ -162,7 +168,7 @@ function resolveLanding(s: GameState, pi: number): void {
             amount: owed,
             paidFromCash: paid,
             remaining: short,
-            detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}.`,
+            detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}.`,
             canDefer: false,
           };
           if (short > 0) {

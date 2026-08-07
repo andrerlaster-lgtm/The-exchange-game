@@ -6,6 +6,7 @@ import {
   PAYOUT_TIER_CONTROL_SECTOR, PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID_SECTOR,
   CONTROL_THRESHOLD_REGULAR,
 } from '../data';
+import { LADDER } from '../data';
 import type { GameState } from './types';
 
 /**
@@ -54,4 +55,40 @@ export function claimPayout(holderShares: number, sectorComplete = false): numbe
   if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_TIER_CONTROL; // 6+  → 2000
   if (holderShares >= 3) return PAYOUT_TIER_MID;                             // 3-5 → 1000
   return PAYOUT_TIER_LOW;                                                    // 1-2 → 500
+}
+
+/**
+ * Market-value rent multiplier for a controlled space. A stock at or below
+ * its opening price keeps the normal payout; once it rises above opening,
+ * rent steps up to 1.5×, then 2× when it reaches at least twice opening.
+ */
+export function landingValueMultiplier(currentPrice: number, openingPrice: number): number {
+  if (currentPrice >= openingPrice * 2) return 2;
+  if (currentPrice > openingPrice) return 1.5;
+  return 1;
+}
+
+/** Landing player's shareholder discount: 10% per share, capped at 50%. */
+export function shareholderLandingDiscount(sharesHeld: number): number {
+  return Math.min(0.5, Math.max(0, sharesHeld) * 0.10);
+}
+
+/**
+ * Final Payout Claim after the stock's market-value multiplier and the
+ * landing player's shareholder discount. Payments stay in $50 increments so
+ * the existing sector payouts ($750/$1,500/$3,000) remain intact.
+ */
+export function claimPayoutForLanding(
+  holderShares: number,
+  sectorComplete: boolean,
+  currentStep: number,
+  openingStep: number,
+  landingShares: number,
+): number {
+  const base = claimPayout(holderShares, sectorComplete);
+  const currentPrice = LADDER[Math.max(0, Math.min(LADDER.length - 1, currentStep))];
+  const openingPrice = LADDER[Math.max(0, Math.min(LADDER.length - 1, openingStep))];
+  const multiplier = landingValueMultiplier(currentPrice, openingPrice);
+  const discount = shareholderLandingDiscount(landingShares);
+  return Math.max(50, Math.round((base * multiplier * (1 - discount)) / 50) * 50);
 }
