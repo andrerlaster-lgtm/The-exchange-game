@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGameState } from '../store';
 import SetupScreen from '../components/setup/SetupScreen';
+import OrderRollScreen from '../components/setup/OrderRollScreen';
 import GameScreen from '../components/game/GameScreen';
 import GameOver from '../components/game/GameOver';
 import Board3DSync from '../components/game/Board3DSync';
@@ -30,6 +31,7 @@ export default function App() {
   }, []);
 
   if (s.phase === 'setup') return <SetupScreen />;
+  if (s.phase === 'orderRoll') return <OrderRollScreen />;
 
   return (
     <>

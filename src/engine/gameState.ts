@@ -41,6 +41,7 @@ export function initialState(rng: Rng): GameState {
     names: ['Morgan', 'Riley', 'Avery', 'Quinn', 'Sage', 'Devon'],
     pieces: [...DEFAULT_PIECES],
     players: [],
+    orderRoll: null,
     cur: 0,
     turnPhase: 'preRoll',
     dice: [null, null],

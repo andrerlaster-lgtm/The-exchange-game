@@ -376,13 +376,56 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;
-      s.phase = 'play'; s.cur = 0; s.turnPhase = 'preRoll';
+      s.cur = 0; s.turnPhase = 'preRoll';
+      s.phase = 'orderRoll';
+      s.orderRoll = { rolls: s.players.map(() => null), pending: s.players.map((_, i) => i) };
+      break;
+    }
+
+    // ---- pre-game "roll for order" ceremony ----
+    case 'rollForOrder': {
+      const or = s.orderRoll;
+      if (!or || or.pending.length === 0) break;
+      const rollerIdx = or.pending[0];
+      const value = rng.int(1, 6) + rng.int(1, 6);
+      or.rolls[rollerIdx] = value;
+      or.pending.shift();
+      addLog(s, `${s.players[rollerIdx].name} rolls ${value} for turn order.`, 'y');
+      if (or.pending.length === 0) {
+        const byValue = new Map<number, number[]>();
+        or.rolls.forEach((v, i) => {
+          if (v === null) return;
+          const group = byValue.get(v) ?? [];
+          group.push(i);
+          byValue.set(v, group);
+        });
+        const tiedGroups = Array.from(byValue.entries()).filter(([, idxs]) => idxs.length > 1);
+        if (tiedGroups.length > 0) {
+          const tiedIdxs = tiedGroups.flatMap(([, idxs]) => idxs).sort((a, b) => a - b);
+          for (const i of tiedIdxs) or.rolls[i] = null;
+          or.pending = tiedIdxs;
+          const names = tiedIdxs.map((i) => s.players[i].name).join(', ');
+          const values = tiedGroups.map(([v]) => v).join(', ');
+          addLog(s, `Tie at ${values} — ${names} roll again to break it.`, 'y');
+        }
+      }
+      break;
+    }
+    case 'finishOrderRoll': {
+      const or = s.orderRoll;
+      if (!or || or.pending.length > 0) break;
+      const order = s.players.map((_, i) => i).sort((a, b) => (or.rolls[b] ?? 0) - (or.rolls[a] ?? 0));
+      s.players = order.map((i) => s.players[i]);
+      s.orderRoll = null;
+      s.phase = 'play';
+      s.cur = 0; s.turnPhase = 'preRoll';
       addLog(s, `Market open. ${s.players[0].name} starts.`, 'g');
       if (s.opts.closeMode === 'rounds' && s.opts.closeRounds <= 1) triggerClose(s);
       break;
     }
     case 'newGame':
       s.phase = 'setup';
+      s.orderRoll = null;
       break;
     case 'toggleTest':
       s.testMode = !s.testMode;

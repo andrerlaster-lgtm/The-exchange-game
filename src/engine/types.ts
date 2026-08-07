@@ -3,7 +3,7 @@
 
 import type { Card, DeckId, Effect } from '../data/types';
 
-export type Phase = 'setup' | 'play' | 'over';
+export type Phase = 'setup' | 'orderRoll' | 'play' | 'over';
 export type TurnPhase = 'preRoll' | 'acted';
 export type LogKind = 'g' | 'r' | 'y' | 'b' | 'n';
 export type TradeKind = 'buy' | 'sell' | 'ipo' | 'short' | 'settle' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
@@ -304,12 +304,27 @@ export const DEFAULT_OPTIONS: GameOptions = {
   bankAuction: false, // standard mode uses Outstanding Shares (rulebook §11); this is the variant
 };
 
+/**
+ * Pre-game "roll for order" ceremony. `rolls[i]` is player i's (2d6) roll
+ * for the round currently in progress, null until they've rolled. `pending`
+ * holds the players still due to roll this round, front-first; when it
+ * empties, ties (equal values shared by 2+ players) are detected and those
+ * players' rolls are reset and requeued into `pending` for another round.
+ * Once a round empties with no ties, `pending` stays empty and the ceremony
+ * is ready to finish.
+ */
+export interface OrderRollState {
+  rolls: (number | null)[];
+  pending: number[];
+}
+
 export interface GameState {
   phase: Phase;
   numPlayers: number;
   names: string[];
   pieces: string[];                    // selected piece key per player slot
   players: Player[];
+  orderRoll: OrderRollState | null;    // active only while phase === 'orderRoll'
   cur: number;                         // current player index
   turnPhase: TurnPhase;
   dice: [number | null, number | null];
@@ -382,6 +397,8 @@ export type Action =
   | { t: 'setPiece'; i: number; piece: string }
   | { t: 'setOpt'; opt: Partial<GameOptions> }
   | { t: 'startGame' }
+  | { t: 'rollForOrder' }
+  | { t: 'finishOrderRoll' }
   | { t: 'newGame' }
   | { t: 'toggleTest' }
   | { t: 'roll' }                      // rolls dice + resolves move + landing
