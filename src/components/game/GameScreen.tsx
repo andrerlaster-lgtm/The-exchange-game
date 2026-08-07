@@ -33,12 +33,15 @@ export default function GameScreen() {
       {/* Left column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, overflowY: 'auto' }}>
-          <PlayerCards />
-          <DeckStatus />
-          <CardDisplay />
+          {/* Time-sensitive "act now" cards go first so landing on a stock or
+              drawing a card never requires scrolling past the reference panels
+              below to find them. */}
           <StockTradeCard />
+          <CardDisplay />
           <IpoPanel />
           <ShortPanel />
+          <PlayerCards />
+          <DeckStatus />
         </div>
       </div>
 
