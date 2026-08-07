@@ -143,7 +143,7 @@ function resolveLanding(s: GameState, pi: number): void {
         // exclusive purchase option for the landing player at the current
         // per-share price (rulebook §11). With the Bank Auction option on,
         // pooled shares skip this offer and wait for the Market Open auction.
-        if (rec.claimHolder !== null && rec.claimHolder !== pi) {
+        if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap !== false) {
           const holder = s.players[rec.claimHolder];
           const sectorComplete = hasSectorPortfolio(holder, STOCK_BY_CODE[code].sector);
           const owed = claimPayout(holder.shares[code] || 0, sectorComplete);
@@ -179,6 +179,8 @@ function resolveLanding(s: GameState, pi: number): void {
               canForceSell: hasSellable,
             };
           }
+        } else if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap === false) {
+          addLog(s, `${p.name} lands on ${code} during the first lap — no Payout Claim is owed yet.`, 'y');
         } else if (rec.claimHolder === pi) {
           addLog(s, `${p.name} lands on their own ${STOCK_BY_CODE[code].name} — no rent owed.`);
         } else {
@@ -291,7 +293,7 @@ function resolveLanding(s: GameState, pi: number): void {
       const etf = ETF_BY_SPACE[p.pos];
       if (etf) {
         const owner = s.players.findIndex((player, i) => i !== s.cur && (player.etfShares[etf.code] ?? 0) > 0);
-        if (owner >= 0) {
+        if (owner >= 0 && p.hasCompletedLap !== false) {
           const distinctFunds = ETF_DEFS.filter((fund) => (s.players[owner].etfShares[fund.code] ?? 0) > 0).length;
           const fee = etfLandingFee(distinctFunds);
           s.landingNotice = {
@@ -300,6 +302,8 @@ function resolveLanding(s: GameState, pi: number): void {
             detail: `${s.players[owner].name} controls ${distinctFunds} distinct fund${distinctFunds === 1 ? '' : 's'} — pay the ${money(fee)} landing fee now or carry it as Outstanding Fees debt.`,
           };
           addLog(s, `${p.name} lands on ${etf.name} and owes ${money(fee)} to ${s.players[owner].name}. Pay now or carry it as debt.`, 'r');
+        } else if (owner >= 0 && p.hasCompletedLap === false) {
+          addLog(s, `${p.name} lands on ${etf.name} during the first lap — no landing fee is owed yet.`, 'y');
         } else {
           s.etfPick = etf.code;
           addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
@@ -342,6 +346,7 @@ function applyMove(s: GameState, steps: number): void {
   p.pos = ((from - 1 + steps) % 36) + 1;
   addLog(s, `${p.name} rolls ${steps} → space ${p.pos}`);
   if (passed || p.pos === 1) {
+    p.hasCompletedLap = true;
     payMarketOpen(s, s.cur);
     s.marketOpenWindow = true;
     addLog(s, 'Market Open Trading Window is open — trade freely, then close it to continue.', 'b');

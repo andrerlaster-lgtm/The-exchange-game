@@ -23,6 +23,7 @@ export interface Player {
   piece: string;                     // piece key (see PIECES in data/pieces.ts)
   cash: number;
   pos: number;                       // board space 1..36
+  hasCompletedLap: boolean;          // first-lap grace: landing payments start after passing Start
   shares: Record<string, number>;    // code -> qty (regular + IPO)
   stockCostBasis: Record<string, number>; // code -> total cost basis of shares still held
   realizedStockGain: number;         // cumulative realized gain/loss from sold shares and settled shorts

@@ -7,7 +7,7 @@ import {
   PAYOUT_TIER_CONTROL, PAYOUT_TIER_CONTROL_SECTOR, PAYOUT_TIER_LOW,
   PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID, PAYOUT_TIER_MID_SECTOR, REGULAR_SUPPLY,
 } from '../data';
-import { dispatch, patch, rng, rollTo, started } from './helpers';
+import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 // MEDI is a regular stock at board space 5 (safe for rollTo, which needs space >= 4).
 const CODE = 'MEDI';
@@ -102,6 +102,30 @@ describe('Landing rent on a sold-out stock', () => {
     });
     return rollTo(s, SPACE); // player 0 lands on MEDI
   }
+
+  it('grants the landing player a first-lap grace period', () => {
+    let s = started(2);
+    s = patch(s, (d) => {
+      d.supply[CODE] = 0;
+      d.soldOut[CODE] = { code: CODE, claimHolder: 1 };
+      d.players[1].shares[CODE] = 2;
+      d.players[0].pos = 2;
+      d.players[0].hasCompletedLap = false;
+    });
+    const payerCash = s.players[0].cash;
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 2]));
+    expect(s.players[0].cash).toBe(payerCash);
+    expect(s.landingNotice).toBeNull();
+    expect(s.log.some((l) => /first lap.*no Payout Claim/i.test(l.text))).toBe(true);
+
+    s = patch(s, (d) => {
+      d.players[0].pos = 2;
+      d.players[0].hasCompletedLap = true;
+      d.turnPhase = 'preRoll';
+    });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 2]));
+    expect(s.landingNotice?.kind).toBe('payout');
+  });
 
   it('charges $500 when the holder owns 1-2 shares', () => {
     const s0 = started(2);

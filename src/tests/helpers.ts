@@ -59,6 +59,12 @@ export function rollTo(s: GameState, targetSpace: number): GameState {
   const b = 2; // deliberately non-doubles so general landing tests do not earn a bonus roll
   const fromPos = targetSpace - (a + b);
   const r = scriptedRng([a, b]);
-  const placed = patch(s, (d) => { d.players[d.cur].pos = fromPos; });
+  // Most legacy landing tests exercise post-first-lap economics. Explicitly
+  // mark the synthetic setup as having completed the grace lap; first-lap
+  // behavior is tested with a real start-of-game state instead.
+  const placed = patch(s, (d) => {
+    d.players[d.cur].pos = fromPos;
+    d.players[d.cur].hasCompletedLap = true;
+  });
   return reduce(placed, { t: 'roll' }, r);
 }

@@ -55,6 +55,7 @@ describe('Insolvency — Payout Claim landing payment', () => {
       d.players[0].cash = 100;
       d.players[0].shares = { MEDI: 5 };
       d.players[0].pos = 6;
+      d.players[0].hasCompletedLap = true;
       d.turnPhase = 'preRoll';
     });
   }

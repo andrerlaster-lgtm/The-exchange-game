@@ -11,6 +11,7 @@ describe('railroad-style ETF landing fees', () => {
       d.players[1].cash = 10_000;
       d.players[1].etfShares = { GRW: 1, INC: 1, PROP: 1 };
       d.players[0].pos = 1;
+      d.players[0].hasCompletedLap = true;
       d.turnPhase = 'preRoll';
     });
     s = reduce(s, { t: 'roll' }, scriptedRng([1, 2])); // 1 + 3 = fund space 4
