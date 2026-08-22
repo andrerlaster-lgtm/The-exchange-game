@@ -1,8 +1,10 @@
-// Phase 5: Market Open Trading Window. After Market Open payouts, an explicit
-// private-trading window opens for all players before the turn can continue.
+// Phase 5: Market Open Trading Window. After Market Open payouts, a
+// private-trading window opens for all players. It no longer force-blocks
+// End Turn (players found closing it every single lap tedious) — the
+// current player can just end their turn, which silently closes it.
 
 import { describe, expect, it } from 'vitest';
-import { blocked } from '../engine';
+import { blocked, canMarketSell } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
 /** Roll the current player onto Market Open (space 1). */
@@ -25,12 +27,20 @@ describe('Market Open Trading Window — opening', () => {
     expect(s.marketOpenWindow).toBe(false);
   });
 
-  it('blocks End Turn until the window is explicitly closed', () => {
+  it('does not block End Turn — ending the turn silently closes it instead', () => {
     let s = started(2);
     s = passMarketOpen(s);
-    expect(blocked(s)).toBe(true);
+    expect(blocked(s)).toBe(false);
     s = dispatch(s, { t: 'endTurn' }, rng());
-    expect(s.cur).toBe(0); // endTurn was a no-op — still blocked
+    expect(s.cur).toBe(1); // turn actually advanced
+    expect(s.marketOpenWindow).toBe(false); // auto-closed as part of ending the turn
+  });
+
+  it('still pauses bank sell-back while open, even though it no longer blocks End Turn', () => {
+    let s = started(2);
+    s = passMarketOpen(s);
+    s = patch(s, (d) => { d.trade = null; d.turnPhase = 'acted'; });
+    expect(canMarketSell(s)).toBe(false);
   });
 });
 

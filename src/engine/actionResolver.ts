@@ -356,7 +356,7 @@ function applyMove(s: GameState, steps: number): void {
     p.hasCompletedLap = true;
     payMarketOpen(s, s.cur);
     s.marketOpenWindow = true;
-    addLog(s, 'Market Open Trading Window is open — trade freely, then close it to continue.', 'b');
+    addLog(s, 'Market Open Trading Window is open — trade freely, or just end your turn to move on.', 'b');
     if (s.opts.bankAuction) queueMarketOpenAuctions(s);
   }
   s.turnPhase = 'acted';
@@ -1223,6 +1223,14 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     case 'endTurn': {
       if (blocked(s)) break;
+      // Market Open Trading Window no longer force-blocks End Turn (players
+      // found having to explicitly close it every single lap tedious) — but
+      // it still needs to actually close here so bank sell-back reopens for
+      // the next turn, exactly as if the player had clicked Close themselves.
+      if (s.marketOpenWindow) {
+        s.marketOpenWindow = false;
+        addLog(s, 'Market Open Trading Window closed.');
+      }
       if (s.bonusRollPending) {
         s.bonusRollPending = false;
         s.turnPhase = 'preRoll';

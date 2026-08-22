@@ -359,7 +359,7 @@ export interface GameState {
   bankSoldThisTurn: Record<string, number>; // regular shares sold to the bank by the current player this turn
   auction: Auction | null;             // legacy inactive auction state retained for old-session compatibility
   auctionQueue: string[];              // legacy inactive queue retained for old-session compatibility
-  marketOpenWindow: boolean;           // Market Open Trading Window open (blocks End Turn until closed)
+  marketOpenWindow: boolean;           // Market Open Trading Window open — optional, does not block End Turn; endTurn auto-closes it
   lap: number;
   log: LogEntry[];
   marketSignals: MarketSignal[];

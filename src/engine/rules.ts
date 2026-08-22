@@ -56,6 +56,10 @@ export function canTradeNow(s: GameState): boolean {
  * (that reopens on the Trade Step).
  */
 export function canMarketSell(s: GameState): boolean {
+  // Bank sell-back pauses during the Market Open Trading Window (private
+  // P2P trades only, no bank sell-back) even though the window itself no
+  // longer force-blocks End Turn.
+  if (s.marketOpenWindow) return false;
   return s.turnPhase === 'acted' && !blocked(s);
 }
 
@@ -83,7 +87,6 @@ export function blocked(s: GameState): boolean {
   if (s.payoutShortfallChoice) return true; // debtor must choose force-sell or negotiate a loan
   if (s.loanRatePrompt) return true; // creditor must pick the loan's 1-5% rate
   if (s.landingNotice) return true; // cardless financial result must be acknowledged
-  if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
   if (s.auction) return true; // Bank Auction variant — bidding must resolve before ending the turn
   if (s.pendingDraws.length > 0) return true;
   if (s.circuitBreakerPrompt) return true;
