@@ -125,10 +125,20 @@ export function finalizeCard(s: GameState, card: Card, impacts: MarketSignalImpa
     Returns the real, resolved impacts when applied immediately; null when the
     caller must not finalize/record yet (paused for a Circuit Breaker
     decision, or a 'pick' effect deferred to pickTarget). */
-export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng): MarketSignalImpact[] | null {
+export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng, card?: Card): MarketSignalImpact[] | null {
   if (effect.k === 'pick') {
-    applyEffect(s, effect, [], rng);
-    return null;
+    const impacts = applyEffect(s, effect, [], rng);
+    // applyEffect only opens s.pick when an eligible target exists. If it
+    // didn't (every legal target already clamped), there's nothing to defer
+    // — finalize now with the empty impacts already logged inside applyEffect,
+    // exactly like the lowest/highest no-target case below. Returning null
+    // unconditionally here would silently drop the card's signal forever,
+    // since nothing would ever open pickTarget to finalize it later.
+    if (s.pick) {
+      s.pick.card = card;
+      return null;
+    }
+    return impacts;
   }
   if (effect.k === 'lowest' || effect.k === 'highest') {
     const target = selectExtremeTarget(s, effect, rng);
@@ -138,7 +148,7 @@ export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng):
     }
     const holder = s.circuitBreakerHolder;
     if (effect.d < 0 && holder != null && (s.players[holder].shares[target] ?? 0) > 0) {
-      s.circuitBreakerPrompt = { player: holder, effect, targetCode: target };
+      s.circuitBreakerPrompt = { player: holder, effect, targetCode: target, card };
       addLog(s, `${s.players[holder].name} may play Circuit Breaker on ${target} before it moves.`, 'y');
       return null;
     }
@@ -150,7 +160,7 @@ export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng):
   }
   const holder = s.circuitBreakerHolder;
   if (holder == null) return applyEffect(s, effect, [], rng);
-  s.circuitBreakerPrompt = { player: holder, effect };
+  s.circuitBreakerPrompt = { player: holder, effect, card };
   if (circuitBreakerOptions(s).length === 0) {
     s.circuitBreakerPrompt = null;
     return applyEffect(s, effect, [], rng);
@@ -160,13 +170,15 @@ export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng):
 }
 
 /** Resolve the holder's play/pass choice, apply the paused event, then
-    finalize (signal + meter sentiment) using the real outcome. `card` is the
-    currently-drawn card (s.card) — pass it whenever the prompt originated
-    from a real card draw, so finalization always reflects the true result.
-    It is omitted only for the pre-existing board-space Bull/Bear Run effect,
-    which is not a Card and records its own (pre-existing, unchanged) signal
-    before this pause ever begins. */
-export function resolveCircuitBreaker(s: GameState, code: string | null, card?: Card): void {
+    finalize (signal + meter sentiment) using the real outcome. The card to
+    finalize against comes from `prompt.card`, captured when the prompt was
+    created — never from the mutable `s.card`, which a later forced draw
+    (e.g. a ceiling-crossing trade queuing another Market Event mid-pick) can
+    overwrite before this decision resolves. `prompt.card` is undefined only
+    for the pre-existing board-space Bull/Bear Run effect, which is not a
+    Card and records its own (pre-existing, unchanged) signal before this
+    pause ever begins. */
+export function resolveCircuitBreaker(s: GameState, code: string | null): void {
   const prompt = s.circuitBreakerPrompt;
   if (!prompt) return;
   const holder = prompt.player;
@@ -177,6 +189,11 @@ export function resolveCircuitBreaker(s: GameState, code: string | null, card?: 
     const targetEffect = prompt.effect as Extract<Effect, { k: 'pick' | 'lowest' | 'highest' }>;
     const target = prompt.targetCode;
     if (code != null && code !== target) return;
+    // Ownership can change between the prompt opening and this decision (a
+    // still-open trade step can sell the exact target out from under the
+    // holder) — re-check now rather than trusting the prompt's snapshot,
+    // the same way the batch branch below re-checks circuitBreakerOptions.
+    if (code != null && (s.players[holder].shares[target] ?? 0) <= 0) return;
     s.circuitBreakerPrompt = null;
     let impacts: MarketSignalImpact[] = [];
     if (code == null) {
@@ -191,7 +208,7 @@ export function resolveCircuitBreaker(s: GameState, code: string | null, card?: 
       addLog(s, `${s.players[holder].name} plays Circuit Breaker on ${target}.`, 'g');
     }
     if (prompt.effect.k === 'pick') s.pick = null;
-    if (card) finalizeCard(s, card, impacts);
+    if (prompt.card) finalizeCard(s, prompt.card, impacts);
     return;
   }
 
@@ -201,14 +218,14 @@ export function resolveCircuitBreaker(s: GameState, code: string | null, card?: 
   if (code == null) {
     addLog(s, `${s.players[holder].name} keeps Circuit Breaker for a future Market Event.`);
     const impacts = applyEffect(s, effect);
-    if (card) finalizeCard(s, card, impacts);
+    if (prompt.card) finalizeCard(s, prompt.card, impacts);
     return;
   }
   s.circuitBreakerHolder = null;
   s.discard.ME.push(CIRCUIT_BREAKER_INDEX);
   addLog(s, `${s.players[holder].name} plays Circuit Breaker on ${code}.`, 'g');
   const impacts = applyEffect(s, effect, [code]);
-  if (card) finalizeCard(s, card, impacts);
+  if (prompt.card) finalizeCard(s, prompt.card, impacts);
 }
 
 export function triggerClose(s: GameState): void {

@@ -107,6 +107,64 @@ describe('Deck Rebuild — actual-impact accounting', () => {
     expect(signal).toBeDefined();
     expect(signal!.impacts).toEqual([{ code: target, d: s.prices[target] - before }]);
   });
+
+  it('still records a signal for a pick card that finds no eligible target at all', () => {
+    // Every company and revealed IPO already at the price floor — Earnings
+    // Miss (d: -2) has nothing left it can legally move.
+    let s = patch(started(2), (d) => {
+      Object.keys(d.prices).forEach((code) => { d.prices[code] = 0; });
+    });
+    s = drawCard(s, 'Earnings Miss');
+    expect(s.pick).toBeNull(); // never opened — nothing eligible to choose
+    const signal = s.marketSignals.find((sig) => sig.title === 'Earnings Miss');
+    expect(signal).toBeDefined();
+    expect(signal!.impacts).toEqual([]);
+  });
+
+  it('finalizes a pending pick against the card that actually opened it, even if another forced Market Event draw happens first', () => {
+    // A ceiling-crossing trade can legitimately queue a second forced 'ME'
+    // draw while an earlier pick is still unresolved (see actionResolver.ts's
+    // 'draw' case comment on trade state). The eventual signal must still
+    // credit the original card, not whichever card was drawn most recently.
+    let s = started(2);
+    s = drawCard(s, 'Earnings Miss');
+    expect(s.pick).not.toBeNull();
+
+    const otherIdx = CARDS.ME.findIndex((c) => c.title === 'Melt-Up Rally');
+    s = patch(s, (d) => { d.pendingDraws = ['ME']; d.decks.ME = [otherIdx, ...d.decks.ME]; });
+    s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());
+    expect(s.card?.title).toBe('Melt-Up Rally');
+    expect(s.pick).not.toBeNull(); // the original pick survives the interleaved draw
+
+    const target = s.pick!.codes![0];
+    s = dispatch(s, { t: 'pickTarget', code: target }, rng());
+
+    const earningsMissSignal = s.marketSignals.find((sig) => sig.title === 'Earnings Miss');
+    expect(earningsMissSignal).toBeDefined();
+    expect(earningsMissSignal!.impacts).toEqual([{ code: target, d: -2 }]);
+  });
+
+  it('re-validates ownership before honoring a Circuit Breaker play on a locked pick target', () => {
+    // The holder owned the target when the prompt opened, but sold out of it
+    // via a still-open trade step before actually deciding. "Play" must not
+    // succeed against a company they no longer hold.
+    let s = patch(started(2), (d) => {
+      d.circuitBreakerHolder = 0;
+      d.players[0].shares.MEDI = 11;
+    });
+    s = drawCard(s, 'Earnings Miss');
+    s = dispatch(s, { t: 'pickTarget', code: 'MEDI' }, rng());
+    expect(s.circuitBreakerPrompt?.targetCode).toBe('MEDI');
+
+    s = patch(s, (d) => { d.players[0].shares.MEDI = 0; });
+    const before = s.prices.MEDI;
+    s = dispatch(s, { t: 'playCircuitBreaker', code: 'MEDI' }, rng());
+
+    // Rejected: prompt still open, card still held, price still unmoved.
+    expect(s.circuitBreakerPrompt).not.toBeNull();
+    expect(s.circuitBreakerHolder).toBe(0);
+    expect(s.prices.MEDI).toBe(before);
+  });
 });
 
 describe('Deck Rebuild — fair automatic lowest/highest targeting', () => {

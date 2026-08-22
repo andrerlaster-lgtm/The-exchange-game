@@ -90,6 +90,11 @@ export interface PickContext {
   label: string;
   codes?: string[];   // optional restrict to these codes (UI hint)
   source?: 'card' | 'investor';
+  // The Market Event card that opened this pick (source: 'card' only) —
+  // captured here, not read back off the mutable s.card, so a later forced
+  // draw (e.g. a ceiling-crossing trade queuing another 'ME' draw) can't
+  // silently misattribute this pick's eventual signal to a different card.
+  card?: Card;
 }
 
 /** Investor Day decision before the player chooses the price boost/cash option
@@ -110,6 +115,11 @@ export interface CircuitBreakerPrompt {
   player: number;
   effect: Effect;
   targetCode?: string;
+  // The Market Event card this prompt paused, captured at prompt-creation
+  // time rather than read back off the mutable s.card — see PickContext.card.
+  // Undefined for the pre-existing board-space Bull/Bear Run pause, which is
+  // not a Card and records its own signal before this pause ever begins.
+  card?: Card;
 }
 
 export interface LogEntry {

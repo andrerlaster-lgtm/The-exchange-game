@@ -1044,7 +1044,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // Real, post-clamp/post-protection impacts only. A 'pick' effect or a
         // Circuit Breaker pause returns null here — finalizeCard runs later,
         // once pickTarget or resolveCircuitBreaker knows the true outcome.
-        const impacts = beginMarketEventEffect(s, c.eff, rng);
+        const impacts = beginMarketEventEffect(s, c.eff, rng, c);
         if (impacts !== null) finalizeCard(s, c, impacts);
       } else {
         // FED cards are immediate and unprotectable — predicted == actual.
@@ -1069,7 +1069,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const holder = s.circuitBreakerHolder;
       if (s.pick.d < 0 && holder != null && (s.players[holder].shares[code] ?? 0) > 0) {
         s.pick = { ...s.pick, codes: [code] };
-        s.circuitBreakerPrompt = { player: holder, effect: { k: 'pick', d: s.pick.d, label: s.pick.label }, targetCode: code };
+        s.circuitBreakerPrompt = { player: holder, effect: { k: 'pick', d: s.pick.d, label: s.pick.label }, targetCode: code, card: s.pick.card };
         addLog(s, `${s.players[holder].name} may play Circuit Breaker on ${code} before it moves.`, 'y');
         break;
       }
@@ -1078,8 +1078,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const after = stepOf(s, code);
       const impacts = after !== before ? [{ code, d: after - before }] : [];
       addLog(s, `${code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
+      const pickedCard = s.pick.card;
       s.pick = null;
-      if (s.card) finalizeCard(s, s.card, impacts);
+      if (pickedCard) finalizeCard(s, pickedCard, impacts);
       break;
     }
     case 'skipPick':
@@ -1091,10 +1092,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.pick = null;
       break;
     case 'playCircuitBreaker':
-      resolveCircuitBreaker(s, action.code, s.card ?? undefined);
+      resolveCircuitBreaker(s, action.code);
       break;
     case 'passCircuitBreaker':
-      resolveCircuitBreaker(s, null, s.card ?? undefined);
+      resolveCircuitBreaker(s, null);
       break;
 
     // ---- ETF ----
