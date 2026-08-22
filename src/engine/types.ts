@@ -319,7 +319,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   ipos: true,
   closeMode: 'card',
   closeRounds: 5,
-  marketMeter: false, // off by default until existing price-assertion fixtures are updated
+  marketMeter: true, // core rule as of the 2026-08-21 Market Regime Display task — approved Market Overhaul contract, not an experimental option
   companiesMode: false,
   bankAuction: false, // standard mode uses Outstanding Shares (rulebook §11); this is the variant
 };

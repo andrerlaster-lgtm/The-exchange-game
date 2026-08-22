@@ -68,7 +68,12 @@ describe('Market Intelligence signals', () => {
     expect(importantMarketSignals(s)).toEqual([]);
   });
 
-  it('shows market-wide Runs and real player-to-player takeovers as important', () => {
+  it('shows real player-to-player takeovers as important, but excludes Bull/Bear Run landing signals', () => {
+    // 2026-08-21 Market Regime Display: Bull Run / Bear Run board-space
+    // landings no longer occupy the curated Important Events feed — they
+    // already have a dedicated board space, landing presentation, and
+    // activity-log record, and the persistent Market Condition display now
+    // covers the same information continuously.
     let s = patch(started(2), (draft) => {
       recordMarketSignal(draft, {
         kind: 'market', title: 'Bull Run', summary: 'The entire market moved.', impacts: [{ code: 'CCAI', d: 2 }],
@@ -85,13 +90,13 @@ describe('Market Intelligence signals', () => {
     s = dispatch(s, { t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 4, direction: 'sell', price: 100 }, rng());
     s = dispatch(s, { t: 'acceptP2POffer', id: s.p2pOffers[0].id }, rng());
 
-    expect(importantMarketSignals(s).map((signal) => signal.title)).toEqual([
-      'MEDI Taken Over', 'Bull Run',
-    ]);
+    expect(importantMarketSignals(s).map((signal) => signal.title)).toEqual(['MEDI Taken Over']);
     expect(importantMarketSignals(s)[0].summary).toContain('Riley took control of MEDI from Morgan');
+    // The Bull Run landing itself is untouched in the full chronological log.
+    expect(s.marketSignals.some((signal) => signal.title === 'Bull Run')).toBe(true);
   });
 
-  it('exposes the same Fed Watch in the 3D Action Center', () => {
+  it('exposes the same Fed Watch in the 3D Action Center, without a Bear Run row', () => {
     const s = patch(started(2), (draft) => {
       draft.players[0].shares.FTRB = 11;
       recordMarketSignal(draft, {
@@ -107,7 +112,7 @@ describe('Market Intelligence signals', () => {
 
     expect(center.marketIntel.title).toBe('Fed Watch · Rate Hike');
     expect(center.marketIntel.description).toContain('Tailwind: FTRB');
-    expect(center.marketIntel.rows?.[0]).toMatchObject({ title: 'Bear Run', value: 'MAJOR' });
+    expect(center.marketIntel.rows).toEqual([]);
   });
 
   it('records each $100k portfolio milestone once and promotes it as important', () => {

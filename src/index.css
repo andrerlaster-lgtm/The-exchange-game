@@ -214,6 +214,54 @@ input[type="number"]:focus, select:focus {
 .market-ticker-entry.up .market-ticker-move { color: #4ade80; }
 .market-ticker-entry.down .market-ticker-move { color: #f87171; }
 .market-ticker-entry.flat .market-ticker-move { color: #9a8f7c; }
+/* Persistent Market Condition badge — top banner + 2D board. One shared
+   presentation (src/utils/marketRegime.ts) so both never disagree; --regime-color
+   is set inline per-zone. Color is never the only signal: label text, glyph,
+   and the −3..+3 scale all carry the same information independently. */
+.market-regime-badge {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0 11px;
+  color: var(--regime-color);
+  font-family: 'IBM Plex Mono', monospace;
+  white-space: nowrap;
+}
+.market-regime-badge--ticker {
+  border-right: 1px solid rgba(212,165,53,0.34);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--regime-color) 20%, transparent), color-mix(in srgb, var(--regime-color) 10%, transparent));
+}
+.market-regime-badge--board {
+  border: 1px solid color-mix(in srgb, var(--regime-color) 55%, transparent);
+  border-radius: 7px;
+  background: rgba(10,14,11,0.72);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  padding: 4px 10px;
+}
+.market-regime-glyph { font-size: 11px; line-height: 1; }
+.market-regime-label { font-size: 10px; font-weight: 900; letter-spacing: 1px; }
+.market-regime-value { font-size: 10px; font-weight: 700; opacity: 0.85; }
+.market-regime-scale { display: flex; align-items: center; gap: 2px; margin-left: 2px; }
+.market-regime-scale-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(154,143,124,0.35);
+}
+.market-regime-scale-dot.bear { background: rgba(239,68,68,0.35); }
+.market-regime-scale-dot.bull { background: rgba(62,213,152,0.35); }
+.market-regime-scale-dot.active {
+  width: 7px; height: 7px;
+  background: var(--regime-color);
+  box-shadow: 0 0 6px var(--regime-color);
+}
+@keyframes marketRegimePulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--regime-color) 55%, transparent); }
+  70% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--regime-color) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--regime-color) 0%, transparent); }
+}
+.market-regime-badge--pulse { animation: marketRegimePulse 900ms ease-out 1; }
+
 @keyframes marketTickerScroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }

@@ -22,11 +22,15 @@ export function recordMarketSignal(s: GameState, input: SignalInput): void {
 
 /** Events important enough for the compact 2D/3D highlights feed and closing
     Tape. Fed decisions have their own persistent panel. Routine cards, IPO
-    reveals, purchases, fees, and weak-demand markers stay out of this feed. */
+    reveals, purchases, fees, and weak-demand markers stay out of this feed.
+    Bull Run / Bear Run board-space landing signals are deliberately excluded
+    (2026-08-21 Add Persistent Market Regime Display and Reset) — they already
+    have a dedicated board space, immediate landing presentation, a
+    persistent activity-log record, and the always-visible Market Condition
+    display now covers the same information continuously. */
 export function importantMarketSignals(s: GameState): MarketSignal[] {
   return s.marketSignals.filter((signal) =>
-    (signal.kind === 'market' && /bull run|bear run/i.test(signal.title))
-    || signal.kind === 'claim'
+    signal.kind === 'claim'
     || signal.kind === 'close'
     || signal.kind === 'milestone');
 }

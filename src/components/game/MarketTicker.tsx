@@ -2,6 +2,7 @@ import { STOCKS } from '../../data';
 import { getStockMovementStatus, priceOf } from '../../engine';
 import type { GameState } from '../../engine';
 import { useGameState } from '../../store';
+import MarketRegimeBadge from './MarketRegimeBadge';
 
 interface TickerEntry {
   code: string;
@@ -51,6 +52,7 @@ export default function MarketTicker() {
   return (
     <section className="market-ticker" aria-label="Live stock price tracker" tabIndex={0}>
       <div className="market-ticker-title">MARKET TICKER</div>
+      {s.opts.marketMeter && <MarketRegimeBadge meter={s.meter} variant="ticker" />}
       <div className="market-ticker-viewport">
         <div className="market-ticker-track">
           <TickerGroup entries={entries} />

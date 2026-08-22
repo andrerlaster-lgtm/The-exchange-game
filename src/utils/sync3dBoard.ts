@@ -118,9 +118,27 @@ export interface P2POffer3D {
   canAccept: boolean;
 }
 
+/** Persistent Market Condition — the same presentation data the 2D banner
+    and board render, via src/utils/marketRegime.ts's single source of truth.
+    `enabled: false` means the Market Meter option is off; the 3D page should
+    hide the display entirely rather than show a stale/meaningless zone. */
+export interface MarketCondition3D {
+  enabled: boolean;
+  zone: 'bear' | 'neutral' | 'bull';
+  label: string;
+  meter: number;
+  meterText: string;
+  color: string;
+  glyph: string;
+  ariaLabel: string;
+  min: number;
+  max: number;
+}
+
 export interface ActionCenter3D {
   required: ActionPanel3D[];
   marketIntel: ActionPanel3D;
+  marketCondition: MarketCondition3D;
   portfolio: ActionPanel3D;
   tradeDesk: {
     players: P2PPlayer3D[];

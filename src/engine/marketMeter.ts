@@ -13,7 +13,12 @@ import type { Rng } from '../utils/rng';
 import { moveMeterPrice } from './stockState';
 import { stepOf } from './rules';
 import { recordMarketSignal } from './marketSignals';
-import type { GameState } from './types';
+import type { GameState, LogKind } from './types';
+
+function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
+  s.log.unshift({ text, kind, t: s.lap });
+  if (s.log.length > 40) s.log.pop();
+}
 
 export const METER_MIN = -3;
 export const METER_MAX = 3;
@@ -104,31 +109,42 @@ export function advanceMeterOnRoll(s: GameState, a: number, b: number): void {
 
 /**
  * Guaranteed once-per-non-final-round reprice, driven by the needle's zone
- * at the moment a round completes. No snap-back reset: this mechanic is
- * continuous by design (guaranteed movement every round), not an extreme
- * event, so an artificial reset would only add an unneeded rule on top of
- * plain clamping.
+ * at the moment a round completes. A Bull or Bear zone captured here always
+ * resets the meter to Neutral after its (best-effort) repricing attempt —
+ * 2026-08-21 Add Persistent Market Regime Display and Reset — so the market
+ * can never stay trapped in one condition for the whole game, even when
+ * every eligible company was already clamped and nothing actually moved.
+ * Neutral rounds keep their pre-existing behavior unchanged: no reset,
+ * because there is nothing to reset away from.
  */
 export function repriceRoundBoundary(s: GameState, rng: Rng): void {
   if (!s.opts.marketMeter) return;
-  const zone = meterZone(s.meter);
+  const zone = meterZone(s.meter); // captured before any repricing or reset
   const parts: string[] = [];
   const impacts: Array<{ code: string; d: number }> = [];
 
   if (zone === 'bull' || zone === 'bear') {
     const dir: 1 | -1 = zone === 'bull' ? 1 : -1;
     const elig = eligibleSectors(s, dir);
-    if (elig.length === 0) return; // genuinely nothing left that can move — a real, measured edge case
-    const sec = pick(rng, elig);
-    for (const code of moveSector(s, sec, dir)) impacts.push({ code, d: dir });
-    if (impacts.length === 0) return;
-    parts.push(`${sec} ${dir === 1 ? 'up' : 'down'}`);
-    recordMarketSignal(s, {
-      kind: 'market',
-      title: `Market Meter — ${zone === 'bull' ? 'Bullish' : 'Bearish'}`,
-      summary: `Ambient market move — ${parts.join(', ')}.`,
-      impacts,
-    });
+    if (elig.length > 0) {
+      const sec = pick(rng, elig);
+      for (const code of moveSector(s, sec, dir)) impacts.push({ code, d: dir });
+      if (impacts.length > 0) {
+        parts.push(`${sec} ${dir === 1 ? 'up' : 'down'}`);
+        recordMarketSignal(s, {
+          kind: 'market',
+          title: `Market Meter — ${zone === 'bull' ? 'Bullish' : 'Bearish'}`,
+          summary: `Ambient market move — ${parts.join(', ')}.`,
+          impacts,
+        });
+      }
+    }
+    // Reset regardless of whether the attempted repricing above actually
+    // moved anything — see the function comment. No additional price move,
+    // card draw, stance payout, RNG use, or Important Event; just the meter
+    // snapping to 0 and an ordinary (non-curated) log line recording it.
+    s.meter = 0;
+    addLog(s, `${zone === 'bull' ? 'Bull Run' : 'Bear Run'} resolved; Market Meter returned to Neutral.`, 'y');
     return;
   }
 

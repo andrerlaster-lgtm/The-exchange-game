@@ -1,5 +1,9 @@
-// THE MARKET METER — 2026-08-21 Market Overhaul. Off by default (see
-// DEFAULT_OPTIONS.marketMeter); every test here explicitly opts in.
+// THE MARKET METER — 2026-08-21 Market Overhaul, later made the default core
+// rule by the 2026-08-21 Market Regime Display task (see
+// DEFAULT_OPTIONS.marketMeter). Tests below explicitly opt in via `withMeter`
+// even though it's now the default, so this file's coverage never silently
+// depends on whatever DEFAULT_OPTIONS happens to be; the "off" tests
+// explicitly opt out for the same reason.
 
 import { describe, expect, it } from 'vitest';
 import { LADDER, SECTOR_CODES, STOCK_BY_CODE } from '../data';
@@ -56,7 +60,7 @@ describe('advanceMeterOnRoll', () => {
   });
 
   it('does nothing when the option is off', () => {
-    const s = started(2); // marketMeter defaults to false
+    const s = patch(started(2), (d) => { d.opts.marketMeter = false; });
     advanceMeterOnRoll(s, 6, 6);
     expect(s.meter).toBe(0);
   });
@@ -118,10 +122,11 @@ describe('repriceRoundBoundary', () => {
 
   it('does nothing when the option is off', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.meter = 2; });
+    s = patch(s, (d) => { d.opts.marketMeter = false; d.meter = 2; });
     const before = { ...s.prices };
     repriceRoundBoundary(s, rng());
     expect(s.prices).toEqual(before);
+    expect(s.meter).toBe(2); // no reset either, while the option is off
   });
 
   it('a fresh game always has a movable sector in every zone (no dead no-op at game start)', () => {
@@ -217,7 +222,7 @@ describe('end-to-end wiring: endTurn hook fires the round-boundary reprice', () 
 
   it('never fires when marketMeter is off, even at a real round boundary', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.cur = 1; d.turnPhase = 'acted'; d.trade = null; });
+    s = patch(s, (d) => { d.opts.marketMeter = false; d.cur = 1; d.turnPhase = 'acted'; d.trade = null; });
     const before = { ...s.prices };
     s = dispatch(s, { t: 'endTurn' }, scriptedRng([0]));
     expect(s.cur).toBe(0);

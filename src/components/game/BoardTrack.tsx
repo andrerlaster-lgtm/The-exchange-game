@@ -4,6 +4,7 @@ import { useGameState, useDispatch } from '../../store';
 import { LandingResultBanner } from './ActionPanel';
 import investabearImg from '../../assets/investabear.png';
 import BoardDiceControls from './BoardDiceControls';
+import MarketRegimeBadge from './MarketRegimeBadge';
 
 // Bull Market Club palette — mirrors PAL in public/board-3d.html
 const PARCH = '#f0e7d1', ETF_PARCH = '#eddbb0', SPEC_PARCH = '#e9dec3';
@@ -162,6 +163,12 @@ export default function BoardTrack() {
           <div style={{ position: 'absolute', bottom: 7, left: 0, right: 0, textAlign: 'center', userSelect: 'none' }}>
             <span style={{ fontSize: 5, color: 'rgba(201,162,79,0.5)', letterSpacing: 2, fontFamily: 'IBM Plex Mono, monospace' }}>EST. 2025</span>
           </div>
+
+          {s.opts.marketMeter && (
+            <div style={{ position: 'absolute', top: '30%', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 4 }}>
+              <MarketRegimeBadge meter={s.meter} variant="board" />
+            </div>
+          )}
 
           <BoardDiceControls />
 

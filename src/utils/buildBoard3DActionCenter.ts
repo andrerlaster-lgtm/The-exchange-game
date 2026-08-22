@@ -8,7 +8,8 @@ import {
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss,
 } from '../engine';
-import type { ActionCenter3D, ActionPanel3D, Board3DAction } from './sync3dBoard';
+import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
+import { marketRegimeInfo } from './marketRegime';
 
 function money(value: number): string {
   return `$${value.toLocaleString()}`;
@@ -372,9 +373,24 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     };
   });
 
+  const regime = marketRegimeInfo(s.meter);
+  const marketCondition: MarketCondition3D = {
+    enabled: s.opts.marketMeter,
+    zone: regime.zone,
+    label: regime.label,
+    meter: regime.meter,
+    meterText: regime.meterText,
+    color: regime.color,
+    glyph: regime.glyph,
+    ariaLabel: regime.ariaLabel,
+    min: regime.min,
+    max: regime.max,
+  };
+
   return {
     required,
     marketIntel,
+    marketCondition,
     portfolio,
     tradeDesk: { players: tradePlayers, offers },
     canCallClose: gameActive && !s.closing,

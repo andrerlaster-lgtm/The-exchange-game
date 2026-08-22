@@ -35,6 +35,31 @@
     .ticker3d-entry.down .ticker3d-move { color:#f87171; }
     .ticker3d-entry.flat .ticker3d-move { color:#9a8f7c; }
     @keyframes marketTicker3D { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+    /* Persistent Market Condition — same data/labels as the 2D banner and
+       board (src/utils/marketRegime.ts is the single source of truth this
+       mirrors; only the container markup differs between 2D/3D). */
+    #market-condition {
+      display:flex; align-items:center; gap:6px; flex-shrink:0; padding:0 11px;
+      border-right:1px solid rgba(212,165,53,.34);
+      font-family:'IBM Plex Mono',monospace; white-space:nowrap;
+    }
+    #market-condition-glyph { font-size:11px; line-height:1; }
+    #market-condition-label { font-size:10px; font-weight:900; letter-spacing:1px; }
+    #market-condition-value { font-size:10px; font-weight:700; opacity:.85; }
+    #market-condition-scale { display:flex; align-items:center; gap:2px; margin-left:2px; }
+    .mc3d-dot { width:5px; height:5px; border-radius:50%; background:rgba(154,143,124,.35); }
+    .mc3d-dot.bear { background:rgba(239,68,68,.35); }
+    .mc3d-dot.bull { background:rgba(62,213,152,.35); }
+    .mc3d-dot.active { width:7px; height:7px; }
+    @keyframes marketConditionPulse3D {
+      0% { box-shadow:0 0 0 0 var(--mc-color); }
+      70% { box-shadow:0 0 0 8px transparent; }
+      100% { box-shadow:0 0 0 0 transparent; }
+    }
+    #market-condition.pulse { animation: marketConditionPulse3D 900ms ease-out 1; }
+    @media (prefers-reduced-motion: reduce) {
+      #market-condition.pulse { animation-duration: 0.001ms; }
+    }
     #back {
       position: fixed; top: 14px; left: 14px; color: #8a7a68; font-size: 11px;
       background: rgba(22,18,13,0.9); padding: 6px 14px; cursor: pointer;
@@ -460,6 +485,12 @@
 <body>
   <section id="market-ticker" aria-label="Live stock price tracker" tabindex="0">
     <div id="market-ticker-title">MARKET TICKER</div>
+    <div id="market-condition" role="status" style="display:none">
+      <span id="market-condition-glyph" aria-hidden="true"></span>
+      <span id="market-condition-label"></span>
+      <span id="market-condition-value"></span>
+      <div id="market-condition-scale"></div>
+    </div>
     <div id="market-ticker-viewport"><div id="market-ticker-track"></div></div>
   </section>
   <button id="back">← Back to Game</button>
@@ -674,6 +705,46 @@
       if (key === marketTickerKey) return;
       marketTickerKey = key;
       marketTickerTrack.replaceChildren(makeTickerGroup(prices, false), makeTickerGroup(prices, true));
+    }
+
+    // Persistent Market Condition — mirrors src/components/game/MarketRegimeBadge.tsx.
+    // The zone/label/color/glyph all come from the server-built marketCondition
+    // payload (built off src/utils/marketRegime.ts), so this never re-derives
+    // the meter-to-zone mapping itself.
+    const marketConditionEl = document.getElementById('market-condition');
+    const marketConditionGlyph = document.getElementById('market-condition-glyph');
+    const marketConditionLabel = document.getElementById('market-condition-label');
+    const marketConditionValue = document.getElementById('market-condition-value');
+    const marketConditionScale = document.getElementById('market-condition-scale');
+    let previousMarketZone = null;
+
+    function updateMarketCondition(mc) {
+      if (!mc || !mc.enabled) { marketConditionEl.style.display = 'none'; return; }
+      marketConditionEl.style.display = '';
+      marketConditionEl.style.setProperty('--mc-color', mc.color);
+      marketConditionEl.style.color = mc.color;
+      marketConditionGlyph.textContent = mc.glyph;
+      marketConditionLabel.textContent = mc.label;
+      marketConditionValue.textContent = mc.meterText;
+      marketConditionEl.setAttribute('aria-label', mc.ariaLabel);
+
+      marketConditionScale.replaceChildren();
+      for (let pos = mc.min; pos <= mc.max; pos++) {
+        const zoneOfPos = pos <= -2 ? 'bear' : pos >= 2 ? 'bull' : 'neutral';
+        const dot = document.createElement('span');
+        dot.className = `mc3d-dot ${zoneOfPos}${pos === mc.meter ? ' active' : ''}`;
+        if (pos === mc.meter) dot.style.background = mc.color;
+        marketConditionScale.appendChild(dot);
+      }
+
+      // Non-blocking pulse only on an actual zone change — never on a bare
+      // meter-value change within the same zone, and never on first paint.
+      if (previousMarketZone !== null && previousMarketZone !== mc.zone) {
+        marketConditionEl.classList.remove('pulse');
+        void marketConditionEl.offsetWidth; // restart the CSS animation
+        marketConditionEl.classList.add('pulse');
+      }
+      previousMarketZone = mc.zone;
     }
 
     function gridPos(n) {
@@ -2109,6 +2180,7 @@
     function updateActionCenter(payload) {
       const data = payload?.actionCenter;
       if (!data) return;
+      updateMarketCondition(data.marketCondition);
       const requiredSignature = (data.required || []).map(panel => panel.id).join('|');
       const hasNewRequiredAction = !!requiredSignature && requiredSignature !== previousRequiredSignature;
       if (hasNewRequiredAction) {
