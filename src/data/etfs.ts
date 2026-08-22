@@ -26,6 +26,13 @@ export const ETF_PAYOUT = [0, 200, 500, 900, 1_200];
 // just a flat income ladder that rewards raw share count.
 export const ETF_DIVERSIFICATION_BONUS = 300;
 
+// Railroad-style landing fee paid to the player who controls a fund space.
+export const ETF_LANDING_FEES = [0, 500, 1_000, 1_500, 2_500];
+
+export function etfLandingFee(distinctFunds: number): number {
+  return ETF_LANDING_FEES[Math.max(0, Math.min(4, distinctFunds))];
+}
+
 export const ETF_DEFS: EtfDef[] = [
   { code: 'GRW',  name: 'Growth Fund',   space:  4, price: ETF_PRICE, color: '#4DA3FF', glyph: '◆' },
   { code: 'INC',  name: 'Income Fund',   space: 13, price: ETF_PRICE, color: '#3ED598', glyph: '■' },

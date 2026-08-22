@@ -1,7 +1,9 @@
 import { LADDER, PLAYER_COLORS, SECTORS, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { getStockMovementStatus } from '../../engine';
-import { useGameState } from '../../store';
+import { useGameState, useDispatch } from '../../store';
+import { LandingResultBanner } from './ActionPanel';
 import investabearImg from '../../assets/investabear.png';
+import BoardDiceControls from './BoardDiceControls';
 
 // Bull Market Club palette — mirrors PAL in public/board-3d.html
 const PARCH = '#f0e7d1', ETF_PARCH = '#eddbb0', SPEC_PARCH = '#e9dec3';
@@ -82,6 +84,7 @@ function PlayerTokens({ players, s }: { players: number[]; s: ReturnType<typeof 
 
 export default function BoardTrack() {
   const s = useGameState();
+  const dispatch = useDispatch();
   const byPos: Record<number, number[]> = {};
   s.players.forEach((p, i) => { if (!byPos[p.pos]) byPos[p.pos] = []; byPos[p.pos].push(i); });
 
@@ -159,6 +162,16 @@ export default function BoardTrack() {
           <div style={{ position: 'absolute', bottom: 7, left: 0, right: 0, textAlign: 'center', userSelect: 'none' }}>
             <span style={{ fontSize: 5, color: 'rgba(201,162,79,0.5)', letterSpacing: 2, fontFamily: 'IBM Plex Mono, monospace' }}>EST. 2025</span>
           </div>
+
+          <BoardDiceControls />
+
+
+          {s.landingNotice && (
+            <div style={{ position: 'absolute', left: '4%', right: '4%', top: '38%', zIndex: 9 }}>
+              <LandingResultBanner s={s} dispatch={dispatch} />
+            </div>
+          )}
+
         </div>
 
         {SPACES.map((sp) => {

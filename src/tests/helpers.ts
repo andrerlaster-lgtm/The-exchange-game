@@ -18,10 +18,28 @@ export function scriptedRng(ints: number[]): Rng {
   };
 }
 
+/**
+ * Fast-forwards the post-startGame "roll for order" ceremony deterministically,
+ * with rolls strictly descending in original seat order (player 0 highest) so
+ * no ties occur and every test's assumptions about player indices still hold.
+ */
+export function resolveOrderRoll(s: GameState, numPlayers: number): GameState {
+  const ints: number[] = [];
+  for (let i = 0; i < numPlayers; i++) {
+    const target = 12 - i; // 12, 11, 10, ... — distinct for up to 6 players
+    ints.push(6, target - 6);
+  }
+  const orderRng = scriptedRng(ints);
+  let out = s;
+  for (let i = 0; i < numPlayers; i++) out = reduce(out, { t: 'rollForOrder' }, orderRng);
+  return reduce(out, { t: 'finishOrderRoll' }, orderRng);
+}
+
 export function started(numPlayers = 4, r: Rng = rng()): GameState {
   let s = initialState(r);
   s = reduce(s, { t: 'setNum', n: numPlayers }, r);
   s = reduce(s, { t: 'startGame' }, r);
+  s = resolveOrderRoll(s, numPlayers);
   return s;
 }
 
@@ -41,6 +59,12 @@ export function rollTo(s: GameState, targetSpace: number): GameState {
   const b = 2; // deliberately non-doubles so general landing tests do not earn a bonus roll
   const fromPos = targetSpace - (a + b);
   const r = scriptedRng([a, b]);
-  const placed = patch(s, (d) => { d.players[d.cur].pos = fromPos; });
+  // Most legacy landing tests exercise post-first-lap economics. Explicitly
+  // mark the synthetic setup as having completed the grace lap; first-lap
+  // behavior is tested with a real start-of-game state instead.
+  const placed = patch(s, (d) => {
+    d.players[d.cur].pos = fromPos;
+    d.players[d.cur].hasCompletedLap = true;
+  });
   return reduce(placed, { t: 'roll' }, r);
 }

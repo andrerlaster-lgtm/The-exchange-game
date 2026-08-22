@@ -3,7 +3,7 @@
 
 import type { Card, DeckId, Effect } from '../data/types';
 
-export type Phase = 'setup' | 'play' | 'over';
+export type Phase = 'setup' | 'orderRoll' | 'play' | 'over';
 export type TurnPhase = 'preRoll' | 'acted';
 export type LogKind = 'g' | 'r' | 'y' | 'b' | 'n';
 export type TradeKind = 'buy' | 'sell' | 'ipo' | 'short' | 'settle' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
@@ -23,16 +23,27 @@ export interface Player {
   piece: string;                     // piece key (see PIECES in data/pieces.ts)
   cash: number;
   pos: number;                       // board space 1..36
+  hasCompletedLap: boolean;          // first-lap grace: landing payments start after passing Start
   shares: Record<string, number>;    // code -> qty (regular + IPO)
   stockCostBasis: Record<string, number>; // code -> total cost basis of shares still held
   realizedStockGain: number;         // cumulative realized gain/loss from sold shares and settled shorts
   etfShares: Record<string, number>; // ETF code -> qty held
   salaryCollected: number;           // base Market Open salary only; excluded from Gain/Loss Mode
+  dividendCuts: Record<string, number>; // one-time 50% next-dividend penalties by holding code
   margin: number;                    // total outstanding margin dollars
   feeDebtPrincipal: number;          // unpaid Audit Notice / Portfolio Tax charges still outstanding
   feeDebtInterest: number;           // unpaid turn-by-turn interest on those charges
   marketStance: MarketStance;        // latest qualifying market position, resolved by Bull/Bear Run
   prevRank: number | null;           // rank at end of previous turn (null = first turn)
+  companyShares: number;             // founder shares retained in their own company (Companies Mode)
+  companyHoldings: Record<number, number>; // public shares held in other player companies
+  companyLoanPrincipal: number;      // one emergency loan principal (Companies Mode)
+  companyLoanInterest: number;       // accrued 5% emergency-loan interest (Companies Mode)
+}
+
+export interface CompanyLoanOffer {
+  player: number;
+  amount: number;
 }
 
 export interface IpoState {
@@ -157,7 +168,7 @@ export interface Insolvency {
 /** A cardless financial landing result that must be acknowledged so the
     active player cannot miss cash deducted by Audit, Tax, or Payout Claim. */
 export interface LandingNotice {
-  kind: 'audit' | 'tax' | 'payout';
+  kind: 'audit' | 'tax' | 'payout' | 'fund';
   title: string;
   player: string;
   amount: number;               // total charge for the landing
@@ -165,6 +176,60 @@ export interface LandingNotice {
   remaining: number;            // unresolved amount subject to forced sale / waiver
   detail: string;               // human-readable rule explanation
   canDefer: boolean;            // Audit/Tax may be paid now or carried as score-reducing debt
+  payTo?: number | null;        // fund owner who receives a payment, when applicable
+}
+
+/** Active Cyberattack card choice: price hit on one holding or a portfolio fee. */
+export interface CyberattackPrompt {
+  player: number;
+  fee: number;
+  codes: string[];
+}
+
+export interface OpeningBellPrompt {
+  player: number;
+  code: string;
+  price: number;
+}
+
+export interface RegulatoryInvestigationPrompt {
+  player: number;
+  fee: number;
+  codes: string[];
+}
+
+/** A negotiated player-to-player loan, created when a landing player can't
+    fully cover a Payout Claim in cash and chooses to defer the shortfall
+    instead of force-selling stock. The creditor picks the per-turn rate. */
+export interface PlayerDebt {
+  id: number;
+  debtor: number;     // player index who owes
+  creditor: number;   // player index who is owed
+  code: string;        // originating stock, for context/log
+  principal: number;
+  interest: number;
+  rate: number;         // 1-5, chosen by the creditor when the loan was made
+}
+
+/** Presented to the debtor immediately after a Payout Claim shortfall: force-
+    sell stock (existing behavior) or negotiate a loan with the creditor. */
+export interface PayoutShortfallChoice {
+  player: number;       // debtor
+  creditor: number;
+  code: string;
+  owed: number;          // remaining shortfall after the cash portion is paid
+  label: string;
+  canForceSell: boolean; // false when the debtor has no regular stock left to sell
+}
+
+/** Presented to the creditor after the debtor chooses to negotiate a loan:
+    pick the 1-5% per-turn rate that creates the PlayerDebt record. */
+export interface LoanRatePrompt {
+  debtor: number;
+  creditor: number;
+  code: string;
+  amount: number;
+  label: string;
 }
 
 /** Most recent card draw / IPO reveal — seq is unique per draw so views can
@@ -197,9 +262,11 @@ export interface Auction {
 }
 
 /**
- * A negotiated player-to-player share trade offer. Cash-for-shares only, never
- * involves ETFs, never moves the market ladder or the bank's supply pool —
- * shares and cash transfer directly between the two named players.
+ * A negotiated player-to-player trade offer. Never involves ETFs, never moves
+ * the market ladder or the bank's supply pool — shares and cash transfer
+ * directly between the two named players. The paying side (whoever isn't
+ * giving up `code`/`qty`) settles with cash (`price`), shares of a second
+ * company (`counterCode`/`counterQty`), or both at once.
  */
 export interface P2POffer {
   id: number;
@@ -208,7 +275,9 @@ export interface P2POffer {
   code: string;                 // regular stock or IPO code (never an ETF)
   qty: number;                  // shares changing hands
   direction: 'sell' | 'buy';    // from the proposer's perspective
-  price: number;                // total negotiated cash amount (not per-share)
+  price: number;                // cash the paying side hands over (can be 0)
+  counterCode?: string;         // shares the paying side hands over instead of/alongside cash
+  counterQty?: number;
 }
 
 export interface GameOptions {
@@ -220,6 +289,10 @@ export interface GameOptions {
   closeMode: 'card' | 'rounds';
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
   marketMeter: boolean;       // ambient roll-driven market repricing (2026-08-21 Market Overhaul)
+  companiesMode: boolean;     // optional player-owned company market
+  bankAuction: boolean;       // alternate resale mode: pooled shares go to a turn-order
+                               // Market Open auction instead of the standard-mode Outstanding
+                               // Shares offer (buy-on-landing) — off by default
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
@@ -231,7 +304,23 @@ export const DEFAULT_OPTIONS: GameOptions = {
   closeMode: 'card',
   closeRounds: 5,
   marketMeter: false, // off by default until existing price-assertion fixtures are updated
+  companiesMode: false,
+  bankAuction: false, // standard mode uses Outstanding Shares (rulebook §11); this is the variant
 };
+
+/**
+ * Pre-game "roll for order" ceremony. `rolls[i]` is player i's (2d6) roll
+ * for the round currently in progress, null until they've rolled. `pending`
+ * holds the players still due to roll this round, front-first; when it
+ * empties, ties (equal values shared by 2+ players) are detected and those
+ * players' rolls are reset and requeued into `pending` for another round.
+ * Once a round empties with no ties, `pending` stays empty and the ceremony
+ * is ready to finish.
+ */
+export interface OrderRollState {
+  rolls: (number | null)[];
+  pending: number[];
+}
 
 export interface GameState {
   phase: Phase;
@@ -239,6 +328,7 @@ export interface GameState {
   names: string[];
   pieces: string[];                    // selected piece key per player slot
   players: Player[];
+  orderRoll: OrderRollState | null;    // active only while phase === 'orderRoll'
   cur: number;                         // current player index
   turnPhase: TurnPhase;
   dice: [number | null, number | null];
@@ -287,11 +377,22 @@ export interface GameState {
   marginCall: MarginCall | null; // active forced-sell margin call, if any
   insolvency: Insolvency | null; // active Payout Claim forced-sale resolution, if any
   landingNotice: LandingNotice | null; // visible acknowledgement for cardless financial landing results
+  cyberattackPrompt: CyberattackPrompt | null;
+  openingBellPrompt: OpeningBellPrompt | null;
+  regulatoryInvestigationPrompt: RegulatoryInvestigationPrompt | null;
+  payoutShortfallChoice: PayoutShortfallChoice | null; // debtor choice: force-sell vs. negotiate a loan
+  loanRatePrompt: LoanRatePrompt | null;               // creditor's pending 1-5% rate choice
+  playerDebts: PlayerDebt[];                            // active negotiated Payout Claim loans
+  playerDebtSeq: number;                                // id source for playerDebts
   feeLog: FeeEventEntry[];           // Taxes & Fees panel: margin calls, income, audit notices (most recent first)
   lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
   p2pSeq: number;                    // monotonically increasing id source for p2pOffers
   meter: number;                     // Market Meter needle, METER_MIN..METER_MAX, starts at 0
+  companyMarketOpen: boolean;         // opens after the first lap in Companies Mode
+  marketHeat: number;                 // doubles-based shared Market Heat meter (0-3)
+  marketHaltUntilLap: number | null; // trading is paused until this lap
+  companyLoanOffer: CompanyLoanOffer | null;
 }
 
 // Actions the reducer accepts. Kept explicit for testability.
@@ -301,11 +402,17 @@ export type Action =
   | { t: 'setPiece'; i: number; piece: string }
   | { t: 'setOpt'; opt: Partial<GameOptions> }
   | { t: 'startGame' }
+  | { t: 'rollForOrder' }
+  | { t: 'finishOrderRoll' }
   | { t: 'newGame' }
   | { t: 'toggleTest' }
   | { t: 'roll' }                      // rolls dice + resolves move + landing
   | { t: 'buy'; code: string }             // all-or-nothing: buys out the whole 11-share company
   | { t: 'sell'; code: string; qty?: number }
+  | { t: 'buyCompanyShare'; owner: number }
+  | { t: 'sellCompanyShare'; owner: number }
+  | { t: 'takeCompanyLoan' }
+  | { t: 'repayCompanyLoan' }
   | { t: 'skipStock'; code: string }
   | { t: 'takeMargin' }
   | { t: 'repayMargin' }
@@ -316,6 +423,16 @@ export type Action =
   | { t: 'ackLandingNotice' }
   | { t: 'payLandingFee' }
   | { t: 'deferLandingFee' }
+  | { t: 'chooseCyberattackStock'; code: string }
+  | { t: 'payCyberattackFee' }
+  | { t: 'buyOpeningBell' }
+  | { t: 'passOpeningBell' }
+  | { t: 'chooseRegulatoryInvestigationStock'; code: string }
+  | { t: 'payRegulatoryInvestigation' }
+  | { t: 'choosePayoutForceSell' }
+  | { t: 'choosePayoutLoan' }
+  | { t: 'setLoanRate'; rate: number }
+  | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
   | { t: 'doShort'; code: string }
   | { t: 'skipShort' }
@@ -335,7 +452,7 @@ export type Action =
   | { t: 'callClose' }
   | { t: 'buyEtf'; code: string }
   | { t: 'skipEtf' }
-  | { t: 'proposeP2POffer'; from: number; to: number; code: string; qty: number; direction: 'sell' | 'buy'; price: number }
+  | { t: 'proposeP2POffer'; from: number; to: number; code: string; qty: number; direction: 'sell' | 'buy'; price: number; counterCode?: string; counterQty?: number }
   | { t: 'acceptP2POffer'; id: number }
   | { t: 'declineP2POffer'; id: number }
   | { t: 'cancelP2POffer'; id: number }

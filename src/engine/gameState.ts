@@ -41,6 +41,7 @@ export function initialState(rng: Rng): GameState {
     names: ['Morgan', 'Riley', 'Avery', 'Quinn', 'Sage', 'Devon'],
     pieces: [...DEFAULT_PIECES],
     players: [],
+    orderRoll: null,
     cur: 0,
     turnPhase: 'preRoll',
     dice: [null, null],
@@ -65,11 +66,22 @@ export function initialState(rng: Rng): GameState {
     marginCall: null,
     insolvency: null,
     landingNotice: null,
+    cyberattackPrompt: null,
+    openingBellPrompt: null,
+    regulatoryInvestigationPrompt: null,
+    payoutShortfallChoice: null,
+    loanRatePrompt: null,
+    playerDebts: [],
+    playerDebtSeq: 0,
     feeLog: [],
     lastDraw: null,
     p2pOffers: [],
     p2pSeq: 0,
     meter: 0,
+    companyMarketOpen: false,
+    marketHeat: 0,
+    marketHaltUntilLap: null,
+    companyLoanOffer: null,
     testMode: false,
     opts: { ...DEFAULT_OPTIONS },
   };
@@ -81,9 +93,10 @@ export function resetPlayers(s: GameState): void {
     const name = (s.names[i] || `Player ${i + 1}`).trim() || `Player ${i + 1}`;
     s.players.push({
       name, color: PLAYER_COLORS[i], piece: s.pieces[i] ?? DEFAULT_PIECES[i],
-      cash: s.opts.startCash, pos: 1, shares: {}, stockCostBasis: {}, realizedStockGain: 0,
+      cash: s.opts.startCash, pos: 1, hasCompletedLap: false, shares: {}, stockCostBasis: {}, realizedStockGain: 0, dividendCuts: {},
       etfShares: {}, salaryCollected: 0, margin: 0, feeDebtPrincipal: 0, feeDebtInterest: 0,
-      marketStance: 'balanced', prevRank: null,
+      marketStance: 'balanced', prevRank: null, companyShares: 60, companyHoldings: {},
+      companyLoanPrincipal: 0, companyLoanInterest: 0,
     });
   }
 }

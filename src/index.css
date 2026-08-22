@@ -601,6 +601,12 @@ input[type="number"]:focus, select:focus {
   100% { transform: translate(2px,  1px) rotate( 4deg); }
 }
 
+@keyframes boardDieTumble {
+  0% { transform: translateX(-24px) translateY(2px) rotate(-18deg); }
+  50% { transform: translateX(0) translateY(-7px) rotate(8deg); }
+  100% { transform: translateX(24px) translateY(2px) rotate(20deg); }
+}
+
 /* Large rolling dice overlay — drops from above and bounces to rest */
 @keyframes diceDropIn {
   0%   { transform: translateY(-55vh) rotate(0deg) scale(0.65); opacity: 0; }

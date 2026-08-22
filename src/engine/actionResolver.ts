@@ -3,9 +3,10 @@
 
 import {
   AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE,
-  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, IPO_DEFS, LADDER,
+  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, LADDER,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
+  PLAYER_LOAN_MAX_RATE, PLAYER_LOAN_MIN_RATE,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
@@ -20,12 +21,15 @@ import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
 import { pushFeeEvent } from './feeLog';
-import { topOwner, recomputeClaim, claimPayout } from './soldOut';
+import { topOwner, recomputeClaim, claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from './soldOut';
 import { hasSectorPortfolio } from './sector';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
+import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
+import { accruePlayerDebt, payPlayerDebt, playerDebtBalance, playerDebtInstallment } from './playerLoans';
+import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -35,6 +39,15 @@ function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
 function addTradeLog(s: GameState, kind: TradeKind, text: string, amount: number, player: string): void {
   s.tradeLog.unshift({ kind, text, amount, player, t: s.lap });
   if (s.tradeLog.length > 60) s.tradeLog.pop();
+}
+
+function offerCompanyLoanIfNeeded(s: GameState, rng: Rng, player: number): void {
+  if (!s.opts.companiesMode || s.companyLoanOffer || s.players[player].companyLoanPrincipal > 0) return;
+  if (companyValue(s, player) > 0) return;
+  const ceiling = Math.max(100, Math.floor(s.opts.startCash * 0.75));
+  const amount = Math.max(100, Math.round(rng.int(100, ceiling) / 100) * 100);
+  s.companyLoanOffer = { player, amount };
+  addLog(s, `${s.players[player].name}'s company hit zero value — emergency loan required.`, 'r');
 }
 
 /**
@@ -48,7 +61,10 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   const seller = offer.direction === 'sell' ? s.players[offer.from] : s.players[offer.to];
   const buyer = offer.direction === 'sell' ? s.players[offer.to] : s.players[offer.from];
   const owned = seller.shares[offer.code] || 0;
+  const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
+  const counterOwned = hasCounter ? (buyer.shares[offer.counterCode!] || 0) : 0;
   if (owned < offer.qty || buyer.cash < offer.price) return false;
+  if (hasCounter && counterOwned < offer.counterQty!) return false;
 
   const realized = recordStockSale(seller, offer.code, offer.qty, offer.price, owned);
   seller.shares[offer.code] = owned - offer.qty;
@@ -59,10 +75,32 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   seller.cash += offer.price;
   if (offer.qty >= 3) setMarketStance(seller, 'bearish');
 
-  addLog(s, `${seller.name} sells ${offer.qty}× ${offer.code} to ${buyer.name} for ${money(offer.price)} (private trade · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)})`, 'b');
-  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, offer.price, seller.name);
-  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} from ${seller.name} · basis ${money(offer.price)}`, -offer.price, buyer.name);
+  // The counter leg (shares paid back the other way) has no negotiated cash
+  // figure to value it by, so it's booked at current market price.
+  let counterValue = 0;
+  if (hasCounter) {
+    const counterCode = offer.counterCode!;
+    const counterQty = offer.counterQty!;
+    counterValue = priceOf(s, counterCode) * counterQty;
+    recordStockSale(buyer, counterCode, counterQty, counterValue, counterOwned);
+    buyer.shares[counterCode] = counterOwned - counterQty;
+    if (buyer.shares[counterCode] === 0) delete buyer.shares[counterCode];
+    seller.shares[counterCode] = (seller.shares[counterCode] || 0) + counterQty;
+    addStockCostBasis(seller, counterCode, counterValue);
+    if (counterQty >= 3) setMarketStance(buyer, 'bearish');
+  }
+
+  const considerationParts: string[] = [];
+  if (offer.price > 0) considerationParts.push(money(offer.price));
+  if (hasCounter) considerationParts.push(`${offer.counterQty}× ${offer.counterCode}`);
+  const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
+  const totalConsideration = offer.price + counterValue;
+
+  addLog(s, `${seller.name} trades ${offer.qty}× ${offer.code} to ${buyer.name} for ${considerationLabel} (private trade · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)})`, 'b');
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, totalConsideration, seller.name);
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} from ${seller.name} · basis ${money(totalConsideration)}`, -totalConsideration, buyer.name);
   recomputeAndLogClaim(s, offer.code);
+  if (hasCounter) recomputeAndLogClaim(s, offer.counterCode!);
   return true;
 }
 
@@ -101,19 +139,27 @@ function resolveLanding(s: GameState, pi: number): void {
       const code = sp.code!;
       const rec = s.soldOut[code];
       if (rec) {
-        // Sold-Out landing: resolve the current Payout Claim first. Any shares
-        // previously sold back to the bank then become an exclusive purchase
-        // option for the landing player at the current per-share market price.
-        if (rec.claimHolder !== null && rec.claimHolder !== pi) {
+        // Sold-Out landing: resolve the current Payout Claim first. In standard
+        // mode, shares previously sold back to the bank then become an
+        // exclusive purchase option for the landing player at the current
+        // per-share price (rulebook §11). With the Bank Auction option on,
+        // pooled shares skip this offer and wait for the Market Open auction.
+        if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap !== false) {
           const holder = s.players[rec.claimHolder];
           const sectorComplete = hasSectorPortfolio(holder, STOCK_BY_CODE[code].sector);
-          const owed = claimPayout(holder.shares[code] || 0, sectorComplete);
+          const landingShares = p.shares[code] || 0;
+          const stock = STOCK_BY_CODE[code];
+          const multiplier = landingValueMultiplier(LADDER[s.prices[code]], LADDER[stock.step]);
+          const discount = shareholderLandingDiscount(landingShares);
+          const owed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
           const paid = Math.min(owed, Math.max(0, p.cash)); // pay what cash covers now
           p.cash -= paid;
           holder.cash += paid;
           const short = owed - paid;
           addLog(s, `${p.name} pays ${holder.name} ${money(paid)} Payout Claim on ${code}` +
-            (sectorComplete ? ' (Sector Portfolio boost)' : ''), 'r');
+            (sectorComplete ? ' (Sector Portfolio boost)' : '') +
+            (multiplier > 1 ? ` (space value ${multiplier}×)` : '') +
+            (discount > 0 ? ` (${Math.round(discount * 100)}% shareholder discount)` : ''), 'r');
           addTradeLog(s, 'payout', `Payout Claim ${code} → ${holder.name}`, -paid, p.name);
           addTradeLog(s, 'payout', `Payout Claim ${code} from ${p.name}`, paid, holder.name);
           s.landingNotice = {
@@ -123,16 +169,31 @@ function resolveLanding(s: GameState, pi: number): void {
             amount: owed,
             paidFromCash: paid,
             remaining: short,
-            detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}.`,
+            detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}.`,
             canDefer: false,
           };
-          if (short > 0) openInsolvency(s, pi, short, 'payout', rec.claimHolder, `Payout Claim on ${code} to ${holder.name}`);
+          if (short > 0) {
+            // Give the debtor a real choice instead of forcing a sale: force-sell
+            // stock now (the old automatic behavior), or negotiate a loan with
+            // the creditor at a rate the creditor picks (1-5%/turn).
+            const hasSellable = Object.keys(p.shares).some((c) => !isIpoCode(c) && (p.shares[c] ?? 0) > 0);
+            s.payoutShortfallChoice = {
+              player: pi,
+              creditor: rec.claimHolder,
+              code,
+              owed: short,
+              label: `Payout Claim on ${code} to ${holder.name}`,
+              canForceSell: hasSellable,
+            };
+          }
+        } else if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap === false) {
+          addLog(s, `${p.name} lands on ${code} during the first lap — no Payout Claim is owed yet.`, 'y');
         } else if (rec.claimHolder === pi) {
           addLog(s, `${p.name} lands on their own ${STOCK_BY_CODE[code].name} — no rent owed.`);
         } else {
           addLog(s, `${STOCK_BY_CODE[code].name} is Contested — no Payout Claim to pay.`);
         }
-        const outstanding = s.bankPool[code] || 0;
+        const outstanding = s.opts.bankAuction ? 0 : (s.bankPool[code] || 0);
         if (outstanding > 0) {
           s.outstandingBuy = {
             code,
@@ -238,8 +299,22 @@ function resolveLanding(s: GameState, pi: number): void {
     case 'etf': {
       const etf = ETF_BY_SPACE[p.pos];
       if (etf) {
-        s.etfPick = etf.code;
-        addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
+        const owner = s.players.findIndex((player, i) => i !== s.cur && (player.etfShares[etf.code] ?? 0) > 0);
+        if (owner >= 0 && p.hasCompletedLap !== false) {
+          const distinctFunds = ETF_DEFS.filter((fund) => (s.players[owner].etfShares[fund.code] ?? 0) > 0).length;
+          const fee = etfLandingFee(distinctFunds);
+          s.landingNotice = {
+            kind: 'fund', title: `${etf.name} Landing Fee`, player: p.name,
+            amount: fee, paidFromCash: 0, remaining: fee, canDefer: true, payTo: owner,
+            detail: `${s.players[owner].name} controls ${distinctFunds} distinct fund${distinctFunds === 1 ? '' : 's'} — pay the ${money(fee)} landing fee now or carry it as Outstanding Fees debt.`,
+          };
+          addLog(s, `${p.name} lands on ${etf.name} and owes ${money(fee)} to ${s.players[owner].name}. Pay now or carry it as debt.`, 'r');
+        } else if (owner >= 0 && p.hasCompletedLap === false) {
+          addLog(s, `${p.name} lands on ${etf.name} during the first lap — no landing fee is owed yet.`, 'y');
+        } else {
+          s.etfPick = etf.code;
+          addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
+        }
       }
       break;
     }
@@ -278,9 +353,11 @@ function applyMove(s: GameState, steps: number): void {
   p.pos = ((from - 1 + steps) % 36) + 1;
   addLog(s, `${p.name} rolls ${steps} → space ${p.pos}`);
   if (passed || p.pos === 1) {
+    p.hasCompletedLap = true;
     payMarketOpen(s, s.cur);
     s.marketOpenWindow = true;
     addLog(s, 'Market Open Trading Window is open — trade freely, then close it to continue.', 'b');
+    if (s.opts.bankAuction) queueMarketOpenAuctions(s);
   }
   s.turnPhase = 'acted';
   resolveLanding(s, s.cur);
@@ -318,20 +395,198 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
       s.p2pOffers = []; s.p2pSeq = 0;
       s.auction = null; s.auctionQueue = []; s.marketOpenWindow = false;
+      s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
+      s.playerDebts = []; s.playerDebtSeq = 0;
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;
-      s.phase = 'play'; s.cur = 0; s.turnPhase = 'preRoll';
+      s.cur = 0; s.turnPhase = 'preRoll';
+      s.phase = 'orderRoll';
+      s.orderRoll = { rolls: s.players.map(() => null), pending: s.players.map((_, i) => i) };
+      break;
+    }
+
+    // ---- pre-game "roll for order" ceremony ----
+    case 'rollForOrder': {
+      const or = s.orderRoll;
+      if (!or || or.pending.length === 0) break;
+      const rollerIdx = or.pending[0];
+      const value = rng.int(1, 6) + rng.int(1, 6);
+      or.rolls[rollerIdx] = value;
+      or.pending.shift();
+      addLog(s, `${s.players[rollerIdx].name} rolls ${value} for turn order.`, 'y');
+      if (or.pending.length === 0) {
+        const byValue = new Map<number, number[]>();
+        or.rolls.forEach((v, i) => {
+          if (v === null) return;
+          const group = byValue.get(v) ?? [];
+          group.push(i);
+          byValue.set(v, group);
+        });
+        const tiedGroups = Array.from(byValue.entries()).filter(([, idxs]) => idxs.length > 1);
+        if (tiedGroups.length > 0) {
+          const tiedIdxs = tiedGroups.flatMap(([, idxs]) => idxs).sort((a, b) => a - b);
+          for (const i of tiedIdxs) or.rolls[i] = null;
+          or.pending = tiedIdxs;
+          const names = tiedIdxs.map((i) => s.players[i].name).join(', ');
+          const values = tiedGroups.map(([v]) => v).join(', ');
+          addLog(s, `Tie at ${values} — ${names} roll again to break it.`, 'y');
+        }
+      }
+      break;
+    }
+    case 'finishOrderRoll': {
+      const or = s.orderRoll;
+      if (!or || or.pending.length > 0) break;
+      const order = s.players.map((_, i) => i).sort((a, b) => (or.rolls[b] ?? 0) - (or.rolls[a] ?? 0));
+      s.players = order.map((i) => s.players[i]);
+      s.orderRoll = null;
+      s.phase = 'play';
+      s.cur = 0; s.turnPhase = 'preRoll';
       addLog(s, `Market open. ${s.players[0].name} starts.`, 'g');
       if (s.opts.closeMode === 'rounds' && s.opts.closeRounds <= 1) triggerClose(s);
       break;
     }
     case 'newGame':
       s.phase = 'setup';
+      s.orderRoll = null;
       break;
     case 'toggleTest':
       s.testMode = !s.testMode;
       break;
+
+    // ---- Companies Mode ----
+    case 'takeCompanyLoan': {
+      const offer = s.companyLoanOffer;
+      if (!offer || offer.player !== s.cur || !s.opts.companiesMode) break;
+      const p = s.players[s.cur];
+      if (p.companyLoanPrincipal > 0) break;
+      p.companyLoanPrincipal = offer.amount;
+      p.cash += offer.amount;
+      s.companyLoanOffer = null;
+      addLog(s, `${p.name} takes a ${money(offer.amount)} emergency company loan (5% interest).`, 'y');
+      addTradeLog(s, 'margin', `Emergency company loan +${money(offer.amount)}`, offer.amount, p.name);
+      break;
+    }
+    case 'repayCompanyLoan': {
+      if (!s.opts.companiesMode) break;
+      const p = s.players[s.cur];
+      const balance = companyLoanBalance(p);
+      if (balance <= 0 || p.cash < balance) break;
+      p.cash -= balance;
+      p.companyLoanPrincipal = 0;
+      p.companyLoanInterest = 0;
+      addLog(s, `${p.name} repays emergency company loan ${money(balance)}.`, 'g');
+      addTradeLog(s, 'repay', `Company loan repaid ${money(balance)}`, -balance, p.name);
+      break;
+    }
+    case 'buyCompanyShare': {
+      if (!companyMarketTradingOpen(s)) break;
+      const owner = action.owner;
+      if (owner < 0 || owner >= s.players.length) break;
+      const p = s.players[s.cur];
+      if (companyPublicSharesRemaining(s, owner) <= 0) break;
+      if (owner !== s.cur && companySharesHeld(p, owner) >= 20) break;
+      const price = companySharePrice(s, owner);
+      if (p.cash < price) break;
+      p.cash -= price;
+      p.companyHoldings[owner] = companySharesHeld(p, owner) + 1;
+      addLog(s, `${p.name} buys 1 public share of ${owner === s.cur ? 'their own' : `${s.players[owner].name}'s`} company @ ${money(price)}.`, 'g');
+      addTradeLog(s, 'buy', `Company share ${s.players[owner].name} @ ${money(price)}`, -price, p.name);
+      break;
+    }
+    case 'sellCompanyShare': {
+      if (!companyMarketTradingOpen(s)) break;
+      const owner = action.owner;
+      if (owner < 0 || owner >= s.players.length) break;
+      const p = s.players[s.cur];
+      const held = companySharesHeld(p, owner);
+      if (held <= 0) break;
+      const market = companySharePrice(s, owner);
+      const founder = s.players[owner];
+      const refusalPrice = market;
+      const buyer = owner !== s.cur && founder.cash >= refusalPrice ? founder : null;
+      const price = buyer ? refusalPrice : Math.max(1, Math.round(market * 0.9));
+      p.cash += price;
+      p.companyHoldings[owner] = held - 1;
+      if (p.companyHoldings[owner] <= 0) delete p.companyHoldings[owner];
+      if (buyer) {
+        founder.cash -= price;
+        founder.companyHoldings[owner] = companySharesHeld(founder, owner) + 1;
+        addLog(s, `${founder.name} exercises first refusal and buys ${p.name}'s company share @ ${money(price)}.`, 'b');
+      } else {
+        addLog(s, `${p.name} sells 1 share of ${founder.name}'s company to the bank @ ${money(price)} (10% discount).`, 'r');
+      }
+      addTradeLog(s, 'sell', `Company share ${founder.name} @ ${money(price)}`, price, p.name);
+      break;
+    }
+
+    case 'chooseCyberattackStock': {
+      const prompt = s.cyberattackPrompt;
+      if (!prompt || prompt.player !== s.cur || !prompt.codes.includes(action.code)) break;
+      moveEventPrice(s, action.code, -1);
+      s.cyberattackPrompt = null;
+      addLog(s, `${s.players[s.cur].name} shields cash from Cyberattack — ${action.code} drops 1 price step.`, 'r');
+      break;
+    }
+    case 'payCyberattackFee': {
+      const prompt = s.cyberattackPrompt;
+      if (!prompt || prompt.player !== s.cur) break;
+      const p = s.players[s.cur];
+      const paid = Math.min(Math.max(0, p.cash), prompt.fee);
+      p.cash -= paid;
+      const remaining = prompt.fee - paid;
+      if (remaining > 0) addFeeDebt(p, remaining);
+      s.cyberattackPrompt = null;
+      addLog(s, `${p.name} pays ${money(paid)} Cyberattack response fee${remaining > 0 ? ` — ${money(remaining)} carried as debt` : ''}.`, 'r');
+      break;
+    }
+    case 'buyOpeningBell': {
+      const offer = s.openingBellPrompt;
+      if (!offer || offer.player !== s.cur) break;
+      const stock = STOCK_BY_CODE[offer.code];
+      const p = s.players[s.cur];
+      if (!stock || p.cash < offer.price || s.supply[offer.code] !== REGULAR_SUPPLY || s.soldOut[offer.code]) break;
+      p.cash -= offer.price;
+      p.shares[offer.code] = REGULAR_SUPPLY;
+      addStockCostBasis(p, offer.code, offer.price);
+      setMarketStance(p, 'bullish');
+      s.supply[offer.code] = 0;
+      s.soldOut[offer.code] = { code: offer.code, claimHolder: topOwner(s, offer.code) };
+      s.openingBellPrompt = null;
+      addLog(s, `${p.name} buys the Opening Bell company ${stock.name} for ${money(offer.price)}!`, 'g');
+      addTradeLog(s, 'buy', `Opening Bell bought ${offer.code} company @ ${money(offer.price)}`, -offer.price, p.name);
+      addLog(s, `${offer.code} is SOLD OUT — ${p.name} holds the Payout Claim.`, 'y');
+      break;
+    }
+    case 'passOpeningBell': {
+      const offer = s.openingBellPrompt;
+      if (!offer || offer.player !== s.cur) break;
+      s.openingBellPrompt = null;
+      addLog(s, `${s.players[s.cur].name} passes on the Opening Bell opportunity for ${offer.code}.`);
+      break;
+    }
+    case 'chooseRegulatoryInvestigationStock': {
+      const prompt = s.regulatoryInvestigationPrompt;
+      if (!prompt || prompt.player !== s.cur || !prompt.codes.includes(action.code)) break;
+      moveEventPrice(s, action.code, -1);
+      s.players[s.cur].dividendCuts[action.code] = 1;
+      s.regulatoryInvestigationPrompt = null;
+      addLog(s, `${s.players[s.cur].name} accepts the investigation penalty: ${action.code} drops 1 step and its next dividend is cut 50%.`, 'r');
+      break;
+    }
+    case 'payRegulatoryInvestigation': {
+      const prompt = s.regulatoryInvestigationPrompt;
+      if (!prompt || prompt.player !== s.cur) break;
+      const p = s.players[s.cur];
+      const paid = Math.min(Math.max(0, p.cash), prompt.fee);
+      p.cash -= paid;
+      const remaining = prompt.fee - paid;
+      if (remaining > 0) addFeeDebt(p, remaining);
+      s.regulatoryInvestigationPrompt = null;
+      addLog(s, `${p.name} settles Regulatory Investigation for ${money(paid)}${remaining > 0 ? ` — ${money(remaining)} carried as debt` : ''}.`, 'r');
+      break;
+    }
 
     // ---- roll ----
     case 'roll': {
@@ -341,8 +596,19 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.dice = [a, b];
       // THE MARKET METER — the roll reads twice: once as movement, once as
       // market. Advanced before applyMove so a landing trades at whatever
-      // price the needle already reflects this turn.
+      // price the needle already reflects this turn. Independent of Market
+      // Heat below: the meter reads every roll's sum, Heat only counts
+      // doubles under companiesMode — different trigger, no overlap.
       advanceMeterOnRoll(s, a, b);
+      if (s.opts.companiesMode && a === b) {
+        s.marketHeat += 1;
+        addLog(s, `Market Heat +1 (${s.marketHeat}/3) after doubles.`, 'y');
+        if (s.marketHeat >= 3) {
+          s.marketHaltUntilLap = s.lap + 1;
+          s.marketHeat = 0;
+          addLog(s, 'MARKET HALT — player-company trading pauses until the next lap.', 'r');
+        }
+      }
       s.bonusRollPending = a === b && !s.bonusRollUsed;
       if (s.bonusRollPending) {
         s.bonusRollUsed = true;
@@ -367,6 +633,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (t.scope === 'stock' && t.code !== code) break;
       if (s.supply[code] !== REGULAR_SUPPLY) break; // already bought out — no partial stake available
       const p = s.players[s.cur];
+      if (s.opts.companiesMode && companyLoanBalance(p) > 0) {
+        addLog(s, `${p.name} must repay the emergency company loan before buying another board space.`, 'r');
+        break;
+      }
       const stock = STOCK_BY_CODE[code];
       const cost = stock.buyout;
       if (p.cash < cost) break;
@@ -566,24 +836,77 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.insolvency = null;
       break;
     }
+
+    // ---- Payout Claim shortfall: force-sell stock, or negotiate a loan ----
+    case 'choosePayoutForceSell': {
+      const choice = s.payoutShortfallChoice;
+      if (!choice || choice.player !== s.cur) break;
+      s.payoutShortfallChoice = null;
+      openInsolvency(s, choice.player, choice.owed, 'payout', choice.creditor, choice.label);
+      break;
+    }
+    case 'choosePayoutLoan': {
+      const choice = s.payoutShortfallChoice;
+      if (!choice || choice.player !== s.cur) break;
+      s.payoutShortfallChoice = null;
+      s.loanRatePrompt = { debtor: choice.player, creditor: choice.creditor, code: choice.code, amount: choice.owed, label: choice.label };
+      addLog(s, `${s.players[choice.player].name} asks ${s.players[choice.creditor].name} for a loan on the remaining ${money(choice.owed)}.`, 'y');
+      break;
+    }
+    case 'setLoanRate': {
+      const prompt = s.loanRatePrompt;
+      if (!prompt) break;
+      const rate = Math.max(PLAYER_LOAN_MIN_RATE, Math.min(PLAYER_LOAN_MAX_RATE, Math.round(action.rate)));
+      s.loanRatePrompt = null;
+      s.playerDebtSeq += 1;
+      s.playerDebts.push({
+        id: s.playerDebtSeq, debtor: prompt.debtor, creditor: prompt.creditor,
+        code: prompt.code, principal: prompt.amount, interest: 0, rate,
+      });
+      addLog(s, `${s.players[prompt.creditor].name} extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
+      break;
+    }
+    case 'payPlayerDebt': {
+      const debt = s.playerDebts.find((d) => d.id === action.debtId);
+      if (!debt) break;
+      const debtor = s.players[debt.debtor];
+      const creditor = s.players[debt.creditor];
+      const balance = playerDebtBalance(debt);
+      const requested = action.mode === 'full' ? balance : playerDebtInstallment(debt);
+      if (requested <= 0 || debtor.cash < requested) break;
+      const paid = payPlayerDebt(debt, action.mode);
+      debtor.cash -= paid;
+      creditor.cash += paid;
+      addLog(s, `${debtor.name} pays ${money(paid)} to ${creditor.name} on their ${debt.code} loan.`, 'g');
+      addTradeLog(s, 'repay', `Loan repayment → ${creditor.name}`, -paid, debtor.name);
+      addTradeLog(s, 'repay', `Loan repayment from ${debtor.name}`, paid, creditor.name);
+      if (playerDebtBalance(debt) <= 0) s.playerDebts = s.playerDebts.filter((d) => d.id !== debt.id);
+      break;
+    }
+
     case 'ackLandingNotice':
       if (s.landingNotice?.canDefer) break;
       s.landingNotice = null;
       break;
     case 'payLandingFee': {
       const notice = s.landingNotice;
-      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax')) break;
+      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax' && notice.kind !== 'fund')) break;
       const p = s.players[s.cur];
       if (p.name !== notice.player || p.cash < notice.amount) break;
       p.cash -= notice.amount;
+      if (notice.kind === 'fund' && notice.payTo != null) {
+        s.players[notice.payTo].cash += notice.amount;
+        addTradeLog(s, 'payout', `${notice.title} paid to ${s.players[notice.payTo].name}`, notice.amount, s.players[notice.payTo].name);
+      }
       addLog(s, `${p.name} pays ${notice.title}: −${money(notice.amount)}.`, 'r');
-      pushFeeEvent(s, notice.kind, p, -notice.amount);
+      pushFeeEvent(s, notice.kind === 'fund' ? 'payout' : notice.kind, p, -notice.amount);
+      addTradeLog(s, 'payout', notice.title, -notice.amount, p.name);
       s.landingNotice = null;
       break;
     }
     case 'deferLandingFee': {
       const notice = s.landingNotice;
-      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax')) break;
+      if (!notice?.canDefer || (notice.kind !== 'audit' && notice.kind !== 'tax' && notice.kind !== 'fund')) break;
       const p = s.players[s.cur];
       if (p.name !== notice.player) break;
       addFeeDebt(p, notice.amount);
@@ -718,7 +1041,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // interaction; clearing trade would silently strip their landing trade.
       addLog(s, `Drew ${DECK_META[deck].label}: ${c.title}`, deck === 'ME' ? 'r' : deck === 'FED' ? 'y' : 'b');
       recordCardSignal(s, c);
-      if (deck === 'ME') beginMarketEventEffect(s, c.eff);
+      if (deck === 'ME') beginMarketEventEffect(s, c.eff, rng);
       else applyEffect(s, c.eff);
       break;
     }
@@ -793,6 +1116,14 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     }
 
+    // ---- Bank Auction (variant mode — off by default; see s.opts.bankAuction) ----
+    case 'auctionBid':
+      handleBid(s, action.amount);
+      break;
+    case 'auctionPass':
+      handlePass(s);
+      break;
+
     // ---- Market Open Trading Window (private trades only; no bank sell-back) ----
     case 'closeMarketOpenWindow': {
       if (!s.marketOpenWindow) break;
@@ -803,17 +1134,31 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
 
     // ---- player-to-player trading (negotiated price, never moves the market) ----
     case 'proposeP2POffer': {
-      const { from, to, code, qty, direction, price } = action;
+      const { from, to, code, qty, direction, price, counterCode, counterQty } = action;
       if (from === to) break;
       if (from < 0 || from >= s.players.length || to < 0 || to >= s.players.length) break;
       if (qty < 1 || price < 0) break;
       if (!STOCK_BY_CODE[code] && !IPO_BY_CODE[code]) break; // regular stock or IPO only — never ETFs
+      let counter: { code: string; qty: number } | null = null;
+      if (counterCode) {
+        if (!STOCK_BY_CODE[counterCode] && !IPO_BY_CODE[counterCode]) break; // never ETFs
+        if (!counterQty || counterQty < 1) break;
+        if (counterCode === code) break; // trading a code for itself is meaningless
+        counter = { code: counterCode, qty: counterQty };
+      }
       s.p2pSeq += 1;
-      s.p2pOffers.push({ id: s.p2pSeq, from, to, code, qty, direction, price });
+      s.p2pOffers.push({
+        id: s.p2pSeq, from, to, code, qty, direction, price,
+        counterCode: counter?.code, counterQty: counter?.qty,
+      });
       const proposer = s.players[from];
       const counterparty = s.players[to];
       const verb = direction === 'sell' ? 'sell' : 'buy';
-      addLog(s, `${proposer.name} offers to ${verb} ${qty}× ${code} ${direction === 'sell' ? 'to' : 'from'} ${counterparty.name} for ${money(price)}`, 'b');
+      const considerationParts: string[] = [];
+      if (price > 0) considerationParts.push(money(price));
+      if (counter) considerationParts.push(`${counter.qty}× ${counter.code}`);
+      const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
+      addLog(s, `${proposer.name} offers to ${verb} ${qty}× ${code} ${direction === 'sell' ? 'to' : 'from'} ${counterparty.name} for ${considerationLabel}`, 'b');
       break;
     }
     case 'acceptP2POffer': {
@@ -884,10 +1229,31 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // all of them without a separate "final round" flag.
         if (!s.closing) repriceRoundBoundary(s, rng);
       }
+      // These two checks are lap-number-based, not round-boundary-based —
+      // they must keep evaluating on every turn (not only inside the
+      // s.cur===0 block above), same as before the meter was added.
+      if (s.opts.companiesMode && s.lap >= 2) s.companyMarketOpen = true;
+      if (s.marketHaltUntilLap !== null && s.lap >= s.marketHaltUntilLap) {
+        s.marketHaltUntilLap = null;
+        addLog(s, 'Market halt lifted — player-company trading resumes.', 'g');
+      }
       const debtInterest = accrueFeeDebt(s.players[s.cur]);
       if (debtInterest > 0) {
         addLog(s, `${s.players[s.cur].name}'s Outstanding Fees add ${money(debtInterest)} interest (5%). Balance ${money(feeDebtBalance(s.players[s.cur]))}.`, 'r');
       }
+      for (const debt of s.playerDebts.filter((d) => d.debtor === s.cur)) {
+        const loanInterest = accruePlayerDebt(debt);
+        if (loanInterest > 0) {
+          addLog(s, `${s.players[debt.debtor].name}'s loan from ${s.players[debt.creditor].name} on ${debt.code} adds ${money(loanInterest)} interest (${debt.rate}%). Balance ${money(playerDebtBalance(debt))}.`, 'r');
+        }
+      }
+      const companyLoan = s.players[s.cur];
+      if (companyLoan.companyLoanPrincipal > 0) {
+        const interest = Math.max(100, Math.round(companyLoanBalance(companyLoan) * COMPANY_LOAN_RATE / 100) * 100);
+        companyLoan.companyLoanInterest += interest;
+        addLog(s, `${companyLoan.name}'s emergency company loan adds ${money(interest)} interest (5%).`, 'r');
+      }
+      offerCompanyLoanIfNeeded(s, rng, s.cur);
       // Arm Market Close when the configured final round begins. The closing
       // flow then lets every player finish that round and ends before another
       // lap starts. Waiting until lap > closeRounds added an unintended full

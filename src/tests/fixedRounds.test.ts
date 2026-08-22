@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { gameProgressLabel, initialState } from '../engine';
 import type { GameState } from '../engine';
-import { dispatch, patch, rng, started } from './helpers';
+import { dispatch, patch, resolveOrderRoll, rng, started } from './helpers';
 
 function finishFixedGame(numPlayers: number, rounds: number, extendedHours = false): { state: GameState; turns: number } {
   const setupRng = rng(`setup-${numPlayers}-${rounds}`);
@@ -9,6 +9,7 @@ function finishFixedGame(numPlayers: number, rounds: number, extendedHours = fal
   state = dispatch(state, { t: 'setNum', n: numPlayers }, setupRng);
   state = dispatch(state, { t: 'setOpt', opt: { closeMode: 'rounds', closeRounds: rounds } }, setupRng);
   state = dispatch(state, { t: 'startGame' }, setupRng);
+  state = resolveOrderRoll(state, numPlayers);
   if (extendedHours) state = patch(state, (draft) => { draft.extendedHoursAvailable = true; });
   let turns = 0;
 

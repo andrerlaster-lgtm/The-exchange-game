@@ -80,14 +80,21 @@ export function blocked(s: GameState): boolean {
   if (s.turnPhase === 'preRoll') return true;
   if (s.marginCall) return true;
   if (s.insolvency) return true; // forced-sale payment shortfall must be resolved first
+  if (s.payoutShortfallChoice) return true; // debtor must choose force-sell or negotiate a loan
+  if (s.loanRatePrompt) return true; // creditor must pick the loan's 1-5% rate
   if (s.landingNotice) return true; // cardless financial result must be acknowledged
   if (s.marketOpenWindow) return true; // Market Open Trading Window must be explicitly closed
+  if (s.auction) return true; // Bank Auction variant — bidding must resolve before ending the turn
   if (s.pendingDraws.length > 0) return true;
   if (s.circuitBreakerPrompt) return true;
+  if (s.cyberattackPrompt) return true;
+  if (s.openingBellPrompt) return true;
+  if (s.regulatoryInvestigationPrompt) return true;
   if (s.investorDay) return true;
   if (s.pick) return true;
   if (s.ipoChoice || s.ipoListPick || s.ipoBuy || s.outstandingBuy) return true;
   if (s.etfPick) return true;  // ETF buy/skip prompt must be answered explicitly
+  if (s.companyLoanOffer) return true; // emergency company loan must be accepted
   return false;
 }
 

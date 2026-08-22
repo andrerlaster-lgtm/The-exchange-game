@@ -7,7 +7,8 @@ import {
   PAYOUT_TIER_CONTROL, PAYOUT_TIER_CONTROL_SECTOR, PAYOUT_TIER_LOW,
   PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID, PAYOUT_TIER_MID_SECTOR, REGULAR_SUPPLY,
 } from '../data';
-import { dispatch, patch, rng, rollTo, started } from './helpers';
+import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
+import { claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from '../engine/soldOut';
 
 // MEDI is a regular stock at board space 5 (safe for rollTo, which needs space >= 4).
 const CODE = 'MEDI';
@@ -90,6 +91,16 @@ describe('Landing rent on a sold-out stock', () => {
     expect([PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID_SECTOR, PAYOUT_TIER_CONTROL_SECTOR]).toEqual([750, 1_500, 3_000]);
   });
 
+  it('scales rent with market value and discounts shareholders', () => {
+    expect(landingValueMultiplier(750, 750)).toBe(1);
+    expect(landingValueMultiplier(1_000, 750)).toBe(1.5);
+    expect(landingValueMultiplier(1_500, 750)).toBe(2);
+    expect(shareholderLandingDiscount(3)).toBeCloseTo(0.3);
+    expect(shareholderLandingDiscount(8)).toBe(0.5);
+    expect(claimPayoutForLanding(2, false, 3, 2, 0)).toBe(750); // $500 × 1.5
+    expect(claimPayoutForLanding(2, false, 3, 2, 3)).toBe(550); // 30% shareholder discount
+  });
+
   function landOn(holderShares: number) {
     let s = started(2);
     // Preset: MEDI sold out (via an earlier buy-out), player 1 holds the claim
@@ -102,6 +113,30 @@ describe('Landing rent on a sold-out stock', () => {
     });
     return rollTo(s, SPACE); // player 0 lands on MEDI
   }
+
+  it('grants the landing player a first-lap grace period', () => {
+    let s = started(2);
+    s = patch(s, (d) => {
+      d.supply[CODE] = 0;
+      d.soldOut[CODE] = { code: CODE, claimHolder: 1 };
+      d.players[1].shares[CODE] = 2;
+      d.players[0].pos = 2;
+      d.players[0].hasCompletedLap = false;
+    });
+    const payerCash = s.players[0].cash;
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 2]));
+    expect(s.players[0].cash).toBe(payerCash);
+    expect(s.landingNotice).toBeNull();
+    expect(s.log.some((l) => /first lap.*no Payout Claim/i.test(l.text))).toBe(true);
+
+    s = patch(s, (d) => {
+      d.players[0].pos = 2;
+      d.players[0].hasCompletedLap = true;
+      d.turnPhase = 'preRoll';
+    });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 2]));
+    expect(s.landingNotice?.kind).toBe('payout');
+  });
 
   it('charges $500 when the holder owns 1-2 shares', () => {
     const s0 = started(2);
@@ -156,7 +191,7 @@ describe('Landing rent on a sold-out stock', () => {
     expect(s.players[0].cash).toBe(before);
   });
 
-  it('floors an unaffordable payout at $0 and waives the shortfall (cash never negative)', () => {
+  it('floors an unaffordable payout at $0 and offers a loan when there is no stock to force-sell (cash never negative)', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.supply[CODE] = 0;
@@ -169,7 +204,7 @@ describe('Landing rent on a sold-out stock', () => {
     s = rollTo(s, SPACE);
     expect(s.players[0].cash).toBe(0);
     expect(s.players[1].cash).toBe(holderBefore + 300);
-    expect(s.log.some((l) => /waived/i.test(l.text))).toBe(true);
+    expect(s.payoutShortfallChoice).toMatchObject({ player: 0, creditor: 1, owed: 1700, canForceSell: false });
   });
 
   it('landing on a sold-out stock never opens a Trade Step — buying it is simply unavailable', () => {

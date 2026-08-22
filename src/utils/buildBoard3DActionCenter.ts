@@ -125,6 +125,31 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
+  if (s.payoutShortfallChoice && !s.landingNotice) {
+    const choice = s.payoutShortfallChoice;
+    const debtor = s.players[choice.player];
+    const creditor = s.players[choice.creditor];
+    required.push({
+      id: 'payout-shortfall-choice', title: `Can't Cover ${choice.label}`, accent: '#f0b429', urgent: true,
+      description: `${debtor.name} still owes ${creditor.name} ${money(choice.owed)}. ${choice.canForceSell ? 'Force-sell regular stock to cover it now, or ask for a loan instead.' : 'No regular stock left to force-sell — negotiate a loan instead.'}`,
+      buttons: [
+        ...(choice.canForceSell ? [button('Force-Sell Stock', { t: 'choosePayoutForceSell' }, 'danger')] : []),
+        button(`Ask ${creditor.name} for a Loan`, { t: 'choosePayoutLoan' }, 'primary'),
+      ],
+    });
+  }
+
+  if (s.loanRatePrompt) {
+    const prompt = s.loanRatePrompt;
+    const debtor = s.players[prompt.debtor];
+    const creditor = s.players[prompt.creditor];
+    required.push({
+      id: 'loan-rate', title: `${creditor.name} — Set Loan Rate`, accent: '#4da3ff', urgent: true,
+      description: `${debtor.name} is asking to borrow ${money(prompt.amount)} on their ${prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against ${debtor.name}'s score and adds to yours.`,
+      buttons: [1, 2, 3, 4, 5].map((rate) => button(`${rate}%`, { t: 'setLoanRate', rate }, 'primary')),
+    });
+  }
+
   if (s.insolvency && !s.landingNotice) {
     const iv = s.insolvency;
     const player = s.players[iv.player];
@@ -332,13 +357,19 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     const to = s.players[offer.to];
     const buyer = offer.direction === 'sell' ? to : from;
     const seller = offer.direction === 'sell' ? from : to;
+    const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
     const canAfford = buyer.cash >= offer.price;
     const hasShares = (seller.shares[offer.code] ?? 0) >= offer.qty;
+    const hasCounterShares = !hasCounter || (buyer.shares[offer.counterCode!] ?? 0) >= offer.counterQty!;
+    const considerationParts: string[] = [];
+    if (offer.price > 0) considerationParts.push(money(offer.price));
+    if (hasCounter) considerationParts.push(`${offer.counterQty}× ${offer.counterCode}`);
+    const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
     return {
       id: offer.id,
-      summary: `${from.name} offers to ${offer.direction} ${offer.qty}× ${offer.code} ${offer.direction === 'sell' ? 'to' : 'from'} ${to.name} for ${money(offer.price)}`,
-      warning: !canAfford ? `${buyer.name} cannot afford the offer.` : !hasShares ? `${seller.name} no longer owns enough shares.` : undefined,
-      canAccept: canAfford && hasShares,
+      summary: `${from.name} offers to ${offer.direction} ${offer.qty}× ${offer.code} ${offer.direction === 'sell' ? 'to' : 'from'} ${to.name} for ${considerationLabel}`,
+      warning: !canAfford ? `${buyer.name} cannot afford the offer.` : !hasShares ? `${seller.name} no longer owns enough shares.` : !hasCounterShares ? `${buyer.name} no longer owns enough ${offer.counterCode}.` : undefined,
+      canAccept: canAfford && hasShares && hasCounterShares,
     };
   });
 

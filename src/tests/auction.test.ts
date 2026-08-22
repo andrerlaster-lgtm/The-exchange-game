@@ -18,6 +18,7 @@ function withOutstanding(s: ReturnType<typeof started>, qty: number, claimHolder
 function landOnMedi(s: ReturnType<typeof started>) {
   const placed = patch(s, (draft) => {
     draft.players[draft.cur].pos = 2;
+    draft.players[draft.cur].hasCompletedLap = true;
     draft.turnPhase = 'preRoll';
   });
   return dispatch(placed, { t: 'roll' }, scriptedRng([1, 2]));

@@ -43,9 +43,11 @@ export default function P2PTradeDesk() {
             // (so 'to' pays), 'buy' offers work the other way.
             const buyer = offer.direction === 'sell' ? to : from;
             const seller = offer.direction === 'sell' ? from : to;
+            const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
             const canAfford = buyer.cash >= offer.price;
             const hasShares = (seller.shares[offer.code] ?? 0) >= offer.qty;
-            const canAccept = canAfford && hasShares;
+            const hasCounterShares = !hasCounter || (buyer.shares[offer.counterCode!] ?? 0) >= offer.counterQty!;
+            const canAccept = canAfford && hasShares && hasCounterShares;
             return (
               <div key={offer.id} style={{
                 padding: '8px 10px', borderRadius: 7,
@@ -60,7 +62,16 @@ export default function P2PTradeDesk() {
                   {' '}{prep}{' '}
                   <span style={{ color: to.color, fontWeight: 700 }}>{to.name}</span>
                   {' for '}
-                  <span className="mono" style={{ color: 'var(--green)' }}>${offer.price.toLocaleString()}</span>
+                  {offer.price > 0 && (
+                    <span className="mono" style={{ color: 'var(--green)' }}>${offer.price.toLocaleString()}</span>
+                  )}
+                  {offer.price > 0 && hasCounter && ' + '}
+                  {hasCounter && (
+                    <span className="mono" style={{ color: 'var(--accent)' }}>{offer.counterQty}× {offer.counterCode}</span>
+                  )}
+                  {offer.price === 0 && !hasCounter && (
+                    <span className="mono" style={{ color: 'var(--green)' }}>$0</span>
+                  )}
                 </div>
                 {!canAfford && (
                   <div style={{ fontSize: 10, color: 'var(--red)' }}>
@@ -72,6 +83,11 @@ export default function P2PTradeDesk() {
                     {seller.name} no longer holds enough {offer.code} shares.
                   </div>
                 )}
+                {canAfford && hasShares && !hasCounterShares && (
+                  <div style={{ fontSize: 10, color: 'var(--red)' }}>
+                    {buyer.name} no longer holds enough {offer.counterCode} shares.
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
                     style={{
@@ -81,7 +97,7 @@ export default function P2PTradeDesk() {
                       cursor: canAccept ? 'pointer' : 'not-allowed',
                     }}
                     disabled={!canAccept}
-                    title={!canAccept ? (!canAfford ? `${buyer.name} can't afford $${offer.price.toLocaleString()}` : `${seller.name} no longer holds enough shares`) : undefined}
+                    title={!canAccept ? (!canAfford ? `${buyer.name} can't afford $${offer.price.toLocaleString()}` : !hasShares ? `${seller.name} no longer holds enough shares` : `${buyer.name} no longer holds enough ${offer.counterCode}`) : undefined}
                     onClick={() => dispatch({ t: 'acceptP2POffer', id: offer.id })}>
                     Accept
                   </button>
@@ -117,6 +133,9 @@ function ProposeForm({ s, dispatch, onDone }: {
   const [code, setCode] = useState('');
   const [qty, setQty] = useState(1);
   const [price, setPrice] = useState(0);
+  const [wantShares, setWantShares] = useState(false);
+  const [counterCode, setCounterCode] = useState('');
+  const [counterQty, setCounterQty] = useState(1);
 
   const toOptions = s.players.map((p, i) => ({ p, i })).filter(({ i }) => i !== fromIdx);
 
@@ -129,11 +148,22 @@ function ProposeForm({ s, dispatch, onDone }: {
   const buyerCash = buyer?.cash ?? 0;
   const priceTooHigh = price > buyerCash;
 
-  const valid = fromIdx !== toIdx && effCode !== '' && effQty >= 1 && effQty <= maxQty && price >= 0 && !priceTooHigh;
+  // Shares the buyer can pay with — never the same code being bought.
+  const counterCodes = holdingsOf(s, toIdx).filter((c) => c !== effCode);
+  const effCounterCode = counterCodes.includes(counterCode) ? counterCode : (counterCodes[0] ?? '');
+  const maxCounterQty = effCounterCode ? (buyer?.shares[effCounterCode] ?? 0) : 0;
+  const effCounterQty = Math.min(counterQty, Math.max(maxCounterQty, 1));
+  const counterValid = !wantShares || (effCounterCode !== '' && effCounterQty >= 1 && effCounterQty <= maxCounterQty);
+
+  const valid = fromIdx !== toIdx && effCode !== '' && effQty >= 1 && effQty <= maxQty
+    && price >= 0 && !priceTooHigh && counterValid;
 
   function submit() {
     if (!valid) return;
-    dispatch({ t: 'proposeP2POffer', from: fromIdx, to: toIdx, code: effCode, qty: effQty, direction: 'sell', price });
+    dispatch({
+      t: 'proposeP2POffer', from: fromIdx, to: toIdx, code: effCode, qty: effQty, direction: 'sell', price,
+      ...(wantShares && effCounterCode ? { counterCode: effCounterCode, counterQty: effCounterQty } : {}),
+    });
     onDone();
   }
 
@@ -193,6 +223,30 @@ function ProposeForm({ s, dispatch, onDone }: {
       {priceTooHigh && (
         <div style={{ fontSize: 10, color: 'var(--red)' }}>
           {buyer?.name} only has ${buyerCash.toLocaleString()} — lower the price to send this offer.
+        </div>
+      )}
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
+        <input type="checkbox" checked={wantShares} onChange={(e) => setWantShares(e.target.checked)}
+          disabled={counterCodes.length === 0} />
+        {counterCodes.length > 0
+          ? `${buyer?.name ?? 'Buyer'} pays with shares instead of (or on top of) cash`
+          : `${buyer?.name ?? 'Buyer'} owns no shares to trade back`}
+      </label>
+
+      {wantShares && counterCodes.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <Field label={`Stock / IPO — ${buyer?.name}'s holdings`}>
+            <select value={effCounterCode} onChange={(e) => setCounterCode(e.target.value)}>
+              {counterCodes.map((c) => (
+                <option key={c} value={c}>{c} — {codeName(c)} (×{buyer?.shares[c] ?? 0})</option>
+              ))}
+            </select>
+          </Field>
+          <Field label={maxCounterQty > 0 ? `Qty (max ${maxCounterQty})` : 'Qty'}>
+            <input type="number" min={1} max={Math.max(maxCounterQty, 1)} value={effCounterQty}
+              onChange={(e) => setCounterQty(Math.max(1, parseInt(e.target.value, 10) || 1))} />
+          </Field>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 // Card effect application and market-close trigger (called on Immer drafts).
 
-import { CIRCUIT_BREAKER_INDEX, MARKET_RUN_MOVE_BY_RISK, STOCK_BY_CODE } from '../data';
+import { CIRCUIT_BREAKER_INDEX, MARKET_RUN_MOVE_BY_RISK, REGULAR_SUPPLY, STOCK_BY_CODE } from '../data';
 import { money } from '../utils/formatMoney';
 import type { Effect } from '../data/types';
 import type { GameState, LogKind } from './types';
@@ -9,10 +9,18 @@ import { moveEventPrice } from './stockState';
 import { pushFeeEvent } from './feeLog';
 import { recordMarketSignal } from './marketSignals';
 import { marketStanceMeta, regimeCashDelta } from './marketRegime';
+import { payDividendCard } from './playerState';
+import { netWorth } from './scoringEngine';
+import { addFeeDebt } from './feeDebt';
+import type { Rng } from '../utils/rng';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
   if (s.log.length > 40) s.log.pop();
+}
+
+function cyberattackFee(s: GameState, player: number): number {
+  return Math.max(500, Math.round(netWorth(s, s.players[player]) * 0.03 / 100) * 100);
 }
 
 /** Codes whose price this effect can move down right now. Circuit Breaker is
@@ -70,13 +78,13 @@ export function circuitBreakerOptions(s: GameState): string[] {
 
 /** Pause a negative market effect only when the holder has an affected company.
     Otherwise the effect resolves immediately and the held card stays available. */
-export function beginMarketEventEffect(s: GameState, e: Effect): void {
+export function beginMarketEventEffect(s: GameState, e: Effect, rng?: Rng): void {
   const holder = s.circuitBreakerHolder;
-  if (holder == null) { applyEffect(s, e); return; }
+  if (holder == null) { applyEffect(s, e, [], rng); return; }
   s.circuitBreakerPrompt = { player: holder, effect: e };
   if (circuitBreakerOptions(s).length === 0) {
     s.circuitBreakerPrompt = null;
-    applyEffect(s, e);
+    applyEffect(s, e, [], rng);
     return;
   }
   addLog(s, `${s.players[holder].name} may play Circuit Breaker before prices move.`, 'y');
@@ -130,7 +138,7 @@ export function triggerClose(s: GameState): void {
   }
 }
 
-export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = []): void {
+export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = [], rng?: Rng): void {
   const pool = eventPool(s);
   const protectedSet = new Set(protectedCodes);
   const move = (code: string, d: number): boolean => {
@@ -176,6 +184,55 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
       s.players[s.cur].cash += e.amt;
       addLog(s, `${s.players[s.cur].name} collects ${money(e.amt)}`, 'g');
       break;
+    case 'dividend':
+      payDividendCard(s, s.cur);
+      break;
+    case 'cyberattack': {
+      const p = s.players[s.cur];
+      const codes = Object.keys(p.shares).filter((code) => (p.shares[code] ?? 0) > 0 && stepOf(s, code) > 0);
+      const fee = cyberattackFee(s, s.cur);
+      if (codes.length === 0) {
+        const paid = Math.min(Math.max(0, p.cash), fee);
+        p.cash -= paid;
+        const remaining = fee - paid;
+        if (remaining > 0) addFeeDebt(p, remaining);
+        addLog(s, `${p.name} has no holding to shield from Cyberattack — charged ${money(fee)}${remaining > 0 ? ` (${money(remaining)} carried as debt)` : ''}.`, 'r');
+      } else {
+        s.cyberattackPrompt = { player: s.cur, fee, codes };
+        addLog(s, `${p.name} must resolve Cyberattack: protect a holding or pay ${money(fee)}.`, 'r');
+      }
+      break;
+    }
+    case 'openingBell': {
+      const candidates = Object.values(STOCK_BY_CODE).filter((stock) =>
+        s.supply[stock.code] === REGULAR_SUPPLY && !s.soldOut[stock.code]
+          && !s.players.some((p) => (p.shares[stock.code] ?? 0) > 0),
+      );
+      if (candidates.length === 0) {
+        addLog(s, 'Opening Bell finds no untouched company — the opportunity passes.', 'y');
+        break;
+      }
+      const stock = candidates[rng ? rng.int(0, candidates.length - 1) : 0];
+      s.openingBellPrompt = { player: s.cur, code: stock.code, price: stock.buyout };
+      addLog(s, `${s.players[s.cur].name} gets an Opening Bell opportunity: buy untouched ${stock.code} for ${money(stock.buyout)}, or pass.`, 'b');
+      break;
+    }
+    case 'regulatoryInvestigation': {
+      const p = s.players[s.cur];
+      const codes = Object.keys(p.shares).filter((code) => (p.shares[code] ?? 0) > 0 && stepOf(s, code) > 0);
+      const fee = 5_000;
+      if (codes.length === 0) {
+        const paid = Math.min(Math.max(0, p.cash), fee);
+        p.cash -= paid;
+        const remaining = fee - paid;
+        if (remaining > 0) addFeeDebt(p, remaining);
+        addLog(s, `${p.name} has no holding to investigate — charged ${money(fee)}${remaining > 0 ? ` (${money(remaining)} carried as debt)` : ''}.`, 'r');
+      } else {
+        s.regulatoryInvestigationPrompt = { player: s.cur, fee, codes };
+        addLog(s, `${p.name} must resolve Regulatory Investigation: penalize a holding or pay ${money(fee)}.`, 'r');
+      }
+      break;
+    }
     case 'margin':
       s.players.forEach((p) => {
         if (p.margin > 0) {

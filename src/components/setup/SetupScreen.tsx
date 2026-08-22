@@ -186,6 +186,16 @@ export default function SetupScreen() {
 
           <div style={{ height: 1, background: 'rgba(212,165,53,0.1)' }} />
 
+          <OptRow label="Companies Mode">
+            <TBtn active={opts.companiesMode} onClick={() => setOpt('companiesMode', true)}>On</TBtn>
+            <TBtn active={!opts.companiesMode} onClick={() => setOpt('companiesMode', false)}>Off</TBtn>
+          </OptRow>
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45, padding: '0 2px' }}>
+            Players become holding companies. Each keeps 60 founder shares; 40 public shares open after the first lap. A zero-value company receives one emergency bank loan up to 75% of its starting value at 5% interest.
+          </div>
+
+          <div style={{ height: 1, background: 'rgba(212,165,53,0.1)' }} />
+
           <OptRow label="Margin Trading">
             <TBtn active={opts.margin} onClick={() => setOpt('margin', true)}>On</TBtn>
             <TBtn active={!opts.margin} onClick={() => setOpt('margin', false)}>Off</TBtn>
@@ -200,6 +210,14 @@ export default function SetupScreen() {
             <TBtn active={opts.ipos} onClick={() => setOpt('ipos', true)}>On</TBtn>
             <TBtn active={!opts.ipos} onClick={() => setOpt('ipos', false)}>Off</TBtn>
           </OptRow>
+
+          <OptRow label="Bank Auction">
+            <TBtn active={opts.bankAuction} onClick={() => setOpt('bankAuction', true)}>On</TBtn>
+            <TBtn active={!opts.bankAuction} onClick={() => setOpt('bankAuction', false)}>Off</TBtn>
+          </OptRow>
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45, padding: '0 2px' }}>
+            Off: sold-back shares can only be bought by landing on that company (Outstanding Shares, standard mode). On: pooled shares are auctioned to all players in turn order at the next Market Open instead.
+          </div>
 
           <div style={{ height: 1, background: 'rgba(212,165,53,0.1)' }} />
 

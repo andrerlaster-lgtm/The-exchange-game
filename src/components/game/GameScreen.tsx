@@ -1,4 +1,3 @@
-import ActionPanel from './ActionPanel';
 import BoardTrack from './BoardTrack';
 import TradeHistory from './TradeHistory';
 import TradingMarket from './TradingMarket';
@@ -8,13 +7,17 @@ import DeckStatus from './DeckStatus';
 import Portfolio from './Portfolio';
 import Leaderboard from './Leaderboard';
 import P2PTradeDesk from './P2PTradeDesk';
+import ActionPanel, { EtfPicker } from './ActionPanel';
 import CardDisplay from '../cards/CardDisplay';
 import IpoPanel from '../cards/IpoPanel';
 import ShortPanel from '../cards/ShortPanel';
 import MarketIntelligence from './MarketIntelligence';
 import MarketTicker from './MarketTicker';
+import { useDispatch, useGameState } from '../../store';
 
 export default function GameScreen() {
+  const s = useGameState();
+  const dispatch = useDispatch();
   return (
     <div style={{
       display: 'grid',
@@ -36,7 +39,9 @@ export default function GameScreen() {
           <PlayerCards />
           <DeckStatus />
           <CardDisplay />
+          <ActionPanel />
           <StockTradeCard />
+          {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
           <IpoPanel />
           <ShortPanel />
         </div>
@@ -44,11 +49,12 @@ export default function GameScreen() {
 
       {/* Center column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0 }}>
-        <ActionPanel />
         <MarketIntelligence />
-        <TradingMarket />
         <BoardTrack />
-        <TradeHistory />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <TradingMarket />
+          <TradeHistory />
+        </div>
       </div>
 
       {/* Right column */}

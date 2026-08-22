@@ -1,75 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
 import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, isIpoCode } from '../../data';
-import { blocked, gameProgressLabel, priceOf, sellBackPrice } from '../../engine';
+import { gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
-
-const ROLL_DURATION = 860;
-const SETTLE_MS = 320;
-const FADEOUT_MS = 300;
-
-type OverlayPhase = 'hidden' | 'rolling' | 'settled' | 'fadeout';
 
 export default function ActionPanel() {
   const s = useGameState();
   const dispatch = useDispatch();
   const p = s.players[s.cur];
-  const isBlocked = blocked(s);
-  const [rolling, setRolling] = useState(false);
-  const [animDice, setAnimDice] = useState<[number, number]>([1, 1]);
-  const [overlayPhase, setOverlayPhase] = useState<OverlayPhase>('hidden');
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Pending setTimeout chain for the current roll's overlay animation. Rolling
-  // is only disabled-gated on the "Roll Dice" button, not on ending the turn —
-  // a fast End Turn → Roll Dice by the next player can fire a new roll while the
-  // previous roll's ~1.5s chain is still in flight. Without cancelling it first,
-  // the stale callbacks fire out of order and can clobber overlayPhase, leaving
-  // the dice overlay stuck on screen indefinitely.
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  function handleRoll() {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    if (intervalRef.current) clearInterval(intervalRef.current);
-
-    dispatch({ t: 'roll' });
-    setRolling(true);
-    setOverlayPhase('rolling');
-
-    intervalRef.current = setInterval(() => {
-      setAnimDice([Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6)]);
-    }, 80);
-
-    const settleTimer = setTimeout(() => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setRolling(false);
-      setOverlayPhase('settled');
-
-      const fadeTimer = setTimeout(() => {
-        setOverlayPhase('fadeout');
-        const hideTimer = setTimeout(() => setOverlayPhase('hidden'), FADEOUT_MS);
-        timersRef.current.push(hideTimer);
-      }, SETTLE_MS);
-      timersRef.current.push(fadeTimer);
-    }, ROLL_DURATION);
-    timersRef.current.push(settleTimer);
-  }
-
-  useEffect(() => () => {
-    timersRef.current.forEach(clearTimeout);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-  }, []);
-
-  const realDice = s.dice as [number, number];
 
   // Head of the forced-draw queue — the draw the player must resolve next.
   const nextDraw = s.pendingDraws[0] ?? null;
 
   return (
     <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {overlayPhase !== 'hidden' && (
-        <DiceRollOverlay phase={overlayPhase} animDice={animDice} realDice={realDice} />
-      )}
       {/* Player header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{
@@ -141,42 +84,40 @@ export default function ActionPanel() {
         </button>
       </div>
 
-      {/* Dice + actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Die value={rolling ? animDice[0] : s.dice[0]} rolling={rolling} />
-        <Die value={rolling ? animDice[1] : s.dice[1]} rolling={rolling} />
-        <div style={{ width: 1, height: 30, background: 'var(--border)', margin: '0 2px', flexShrink: 0 }} />
-        {s.turnPhase === 'preRoll' && (
-          <button className="primary" style={{ padding: '8px 22px', fontSize: 13 }}
-            disabled={rolling}
-            onClick={handleRoll}>
-            {rolling ? 'Rolling…' : s.bonusRollUsed ? 'Roll Bonus Dice' : 'Roll Dice'}
-          </button>
-        )}
-        {s.turnPhase === 'acted' && (
-          <button className="primary" style={{ padding: '8px 22px', fontSize: 13 }}
-            disabled={isBlocked}
-            onClick={() => dispatch({ t: 'endTurn' })}>
-            {isBlocked ? 'Resolve action…' : s.bonusRollPending ? 'Bonus Roll →' : 'End Turn →'}
-          </button>
-        )}
-      </div>
-
       {/* Cardless financial spaces still need a loud, explicit result. */}
-      {s.landingNotice && <LandingResultBanner s={s} dispatch={dispatch} />}
+      {s.cyberattackPrompt && s.cyberattackPrompt.player === s.cur && (
+        <CyberattackPanel s={s} dispatch={dispatch} />
+      )}
+
+      {s.openingBellPrompt && s.openingBellPrompt.player === s.cur && (
+        <OpeningBellCardPanel s={s} dispatch={dispatch} />
+      )}
+
+      {s.regulatoryInvestigationPrompt && s.regulatoryInvestigationPrompt.player === s.cur && (
+        <RegulatoryInvestigationPanel s={s} dispatch={dispatch} />
+      )}
 
       {/* Market Open Trading Window — private trades only, no bank sell-back */}
-      {s.marketOpenWindow && <MarketOpenWindowPanel dispatch={dispatch} />}
+      {s.marketOpenWindow && <MarketOpenWindowPanel s={s} dispatch={dispatch} />}
 
       {/* Sold-back shares can only be bought by landing on that company. */}
       {s.outstandingBuy && !s.landingNotice && !s.insolvency && (
         <OutstandingSharesPanel s={s} dispatch={dispatch} />
       )}
 
+      {/* Bank Auction variant (s.opts.bankAuction) — pooled shares bid out at Market Open */}
+      {s.auction && <AuctionPanel s={s} dispatch={dispatch} />}
+
       {/* Margin call — forced sell-to-cover, blocks the turn until resolved */}
       {s.marginCall && s.marginCall.player === s.cur && (
         <MarginCallPanel s={s} dispatch={dispatch} />
       )}
+
+      {/* Payout Claim shortfall — debtor chooses force-sale or a negotiated loan */}
+      {s.payoutShortfallChoice && !s.landingNotice && <PayoutShortfallChoicePanel s={s} dispatch={dispatch} />}
+
+      {/* Creditor picks the 1-5%/turn rate for a newly-negotiated loan */}
+      {s.loanRatePrompt && <LoanRatePanel s={s} dispatch={dispatch} />}
 
       {/* Payout Claim shortfall — forced sale to pay the other player */}
       {s.insolvency && !s.landingNotice && <InsolvencyPanel s={s} dispatch={dispatch} />}
@@ -189,12 +130,90 @@ export default function ActionPanel() {
 
       {s.pick?.source === 'investor' && <InvestorDayPanel s={s} dispatch={dispatch} />}
 
-      {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
     </div>
   );
 }
 
-function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+function CyberattackPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const prompt = s.cyberattackPrompt!;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(239,68,68,0.20), rgba(239,68,68,0.06))',
+      border: '2px solid rgba(239,68,68,0.70)',
+      boxShadow: '0 3px 18px rgba(239,68,68,0.14)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#fca5a5' }}>⚠ CYBERATTACK · CHOOSE ONE</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        Your portfolio security system has been breached. Protect your cash by dropping one owned holding one price step, or pay <span className="mono" style={{ color: '#fca5a5', fontWeight: 800 }}>${prompt.fee.toLocaleString()}</span>.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {prompt.codes.map((code) => (
+          <button key={code} className="danger" style={{ fontSize: 11, padding: '6px 9px' }} onClick={() => dispatch({ t: 'chooseCyberattackStock', code })}>
+            {code} ↓1 · ${priceOf(s, code).toLocaleString()}
+          </button>
+        ))}
+        <button style={{ fontSize: 11, padding: '6px 10px', marginLeft: 'auto' }} onClick={() => dispatch({ t: 'payCyberattackFee' })}>
+          Pay ${prompt.fee.toLocaleString()}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OpeningBellCardPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const offer = s.openingBellPrompt!;
+  const stock = STOCK_BY_CODE[offer.code];
+  const canBuy = s.players[s.cur].cash >= offer.price;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '12px 14px', borderRadius: 10,
+      background: 'rgba(61,213,152,0.12)', border: '2px solid rgba(61,213,152,0.55)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--green)' }}>🔔 OPENING BELL · CARD OPPORTUNITY</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        The card reveals an untouched company: <strong>{stock?.name ?? offer.code} ({offer.code})</strong>. Buy the entire 11-share company at its normal tier price of <span className="mono" style={{ fontWeight: 800 }}>${offer.price.toLocaleString()}</span>, or pass.
+      </div>
+      <div style={{ display: 'flex', gap: 7 }}>
+        <button className="primary" disabled={!canBuy} style={{ fontSize: 11, padding: '6px 10px' }} onClick={() => dispatch({ t: 'buyOpeningBell' })}>
+          {canBuy ? `Buy ${offer.code}` : 'Not enough cash'}
+        </button>
+        <button style={{ fontSize: 11, padding: '6px 10px' }} onClick={() => dispatch({ t: 'passOpeningBell' })}>Pass</button>
+      </div>
+    </div>
+  );
+}
+
+function RegulatoryInvestigationPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const prompt = s.regulatoryInvestigationPrompt!;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '12px 14px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(239,68,68,0.18), rgba(245,158,11,0.08))',
+      border: '2px solid rgba(245,158,11,0.70)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#fbbf24' }}>⚖ REGULATORY INVESTIGATION · CHOOSE ONE</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        Choose a holding to drop 1 price step and lose 50% of its next dividend, or pay <span className="mono" style={{ fontWeight: 800, color: '#fbbf24' }}>${prompt.fee.toLocaleString()}</span> to settle the investigation.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {prompt.codes.map((code) => (
+          <button key={code} className="danger" style={{ fontSize: 11, padding: '6px 9px' }} onClick={() => dispatch({ t: 'chooseRegulatoryInvestigationStock', code })}>
+            {code} ↓1 · −50% next dividend
+          </button>
+        ))}
+        <button style={{ fontSize: 11, padding: '6px 10px', marginLeft: 'auto' }} onClick={() => dispatch({ t: 'payRegulatoryInvestigation' })}>
+          Pay ${prompt.fee.toLocaleString()}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   const notice = s.landingNotice!;
   const needsMore = notice.remaining > 0;
   const canPayNow = s.players[s.cur].cash >= notice.amount;
@@ -206,7 +225,7 @@ function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (a: Acti
       border: '2px solid #ef4444',
       boxShadow: '0 3px 20px rgba(239,68,68,0.2)',
     }}>
-      <div style={{ fontSize: 28, lineHeight: 1 }}>{notice.kind === 'audit' ? '⚑' : notice.kind === 'tax' ? '$' : '↗'}</div>
+      <div style={{ fontSize: 28, lineHeight: 1 }}>{notice.kind === 'audit' ? '⚑' : notice.kind === 'tax' ? '$' : notice.kind === 'fund' ? '◆' : '↗'}</div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: '#fca5a5', letterSpacing: 1, textTransform: 'uppercase' }}>
           Landing Result · {notice.title}
@@ -419,6 +438,74 @@ function MarginCallPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
   );
 }
 
+function PayoutShortfallChoicePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const choice = s.payoutShortfallChoice!;
+  const debtor = s.players[choice.player];
+  const creditor = s.players[choice.creditor];
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(240,180,41,0.18), rgba(240,180,41,0.06))',
+      border: '2px solid rgba(240,180,41,0.65)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--yellow)' }}>⚠ CAN'T COVER {choice.label.toUpperCase()}</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        {debtor.name} still owes {creditor.name} <span className="mono" style={{ color: 'var(--yellow)', fontWeight: 800 }}>${choice.owed.toLocaleString()}</span>.
+        {choice.canForceSell
+          ? ' Force-sell regular stock to cover it now, or ask for a loan instead.'
+          : ' No regular stock left to force-sell — negotiate a loan instead.'}
+      </div>
+      <div style={{ display: 'flex', gap: 7 }}>
+        {choice.canForceSell && (
+          <button className="danger" style={{ fontSize: 11, padding: '7px 11px' }}
+            onClick={() => dispatch({ t: 'choosePayoutForceSell' })}>
+            Force-Sell Stock
+          </button>
+        )}
+        <button className="primary" style={{ fontSize: 11, padding: '7px 11px' }}
+          onClick={() => dispatch({ t: 'choosePayoutLoan' })}>
+          Ask {creditor.name} for a Loan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const prompt = s.loanRatePrompt!;
+  const debtor = s.players[prompt.debtor];
+  const creditor = s.players[prompt.creditor];
+  const [rate, setRate] = useState(3);
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(96,165,250,0.18), rgba(96,165,250,0.06))',
+      border: '2px solid rgba(96,165,250,0.65)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#93c5fd' }}>💰 {creditor.name} — SET LOAN RATE</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: '#93c5fd' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against {debtor.name}'s score and adds to yours.
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {[1, 2, 3, 4, 5].map((r) => (
+          <button key={r}
+            className={rate === r ? 'primary' : undefined}
+            style={{ fontSize: 12, padding: '6px 12px', fontWeight: 800 }}
+            onClick={() => setRate(r)}>
+            {r}%
+          </button>
+        ))}
+        <button className="primary" style={{ fontSize: 11, padding: '7px 12px', marginLeft: 'auto' }}
+          onClick={() => dispatch({ t: 'setLoanRate', rate })}>
+          Extend Loan at {rate}%
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function InsolvencyPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   const iv = s.insolvency!;
   const p = s.players[iv.player];
@@ -484,7 +571,7 @@ function InsolvencyPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
   );
 }
 
-function MarketOpenWindowPanel({ dispatch }: { dispatch: (a: Action) => void }) {
+function MarketOpenWindowPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 8,
@@ -496,8 +583,9 @@ function MarketOpenWindowPanel({ dispatch }: { dispatch: (a: Action) => void }) 
         <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--green)' }}>MARKET OPEN — TRADING WINDOW</span>
       </div>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
-        Any player may propose a private trade. Outstanding bank shares stay with
-        their company and can only be bought by landing on that stock space.
+        {s.opts.bankAuction
+          ? 'Any player may propose a private trade. Pooled bank shares are being auctioned below.'
+          : 'Any player may propose a private trade. Outstanding bank shares stay with their company and can only be bought by landing on that stock space.'}
       </div>
       <button
         className="primary"
@@ -573,7 +661,76 @@ function OutstandingSharesPanel({ s, dispatch }: { s: GameState; dispatch: (a: A
   );
 }
 
-function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; dispatch: (a: Action) => void }) {
+function AuctionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const a = s.auction!;
+  const stock = STOCK_BY_CODE[a.code];
+  const actor = s.players[a.actor];
+  const min = minNextBid(s);
+  const [bid, setBid] = useState(min);
+  useEffect(() => { setBid(min); }, [min, a.code, a.highBid]);
+  const canAfford = actor.cash >= min;
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '10px 12px', borderRadius: 8,
+      background: 'rgba(212,165,53,0.10)',
+      border: '1px solid rgba(212,165,53,0.5)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--gold)' }}>⚖ BANK AUCTION</span>
+        <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: stock?.color ?? 'var(--text)', marginLeft: 2 }}>{a.code}</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>{a.poolLeft} share{a.poolLeft === 1 ? '' : 's'} left</span>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
+        {a.highBidder === null
+          ? <>Opening bid on {stock?.name ?? a.code} is <span className="mono" style={{ color: 'var(--gold)', fontWeight: 800 }}>${a.startPrice.toLocaleString()}</span> (one step below market).</>
+          : <>High bid <span className="mono" style={{ color: 'var(--gold)', fontWeight: 800 }}>${a.highBid.toLocaleString()}</span> by <strong style={{ color: s.players[a.highBidder].color }}>{s.players[a.highBidder].name}</strong>.</>}
+      </div>
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '5px 8px', borderRadius: 6,
+        background: `${actor.color}14`, border: `1px solid ${actor.color}55`,
+      }}>
+        <span style={{
+          width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+          background: `radial-gradient(circle at 35% 35%, ${actor.color}, ${actor.color}88)`,
+        }} />
+        <span style={{ fontSize: 12, fontWeight: 700, color: actor.color }}>{actor.name}</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>to bid or pass</span>
+        <span className="mono" style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>${actor.cash.toLocaleString()}</span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <input
+          type="number"
+          className="mono"
+          min={min}
+          step={100}
+          value={bid}
+          onChange={(e) => setBid(Math.max(min, Number(e.target.value) || min))}
+          style={{ width: 96, fontSize: 12, padding: '6px 8px', borderRadius: 6 }}
+        />
+        <button className="primary" style={{ fontSize: 12, padding: '6px 14px' }}
+          disabled={!canAfford || bid < min}
+          onClick={() => dispatch({ t: 'auctionBid', amount: bid })}>
+          Bid ${bid.toLocaleString()}
+        </button>
+        <button style={{ fontSize: 12, padding: '6px 14px' }}
+          onClick={() => dispatch({ t: 'auctionPass' })}>
+          Pass
+        </button>
+      </div>
+      {!canAfford && (
+        <div style={{ fontSize: 10, color: 'var(--red)' }}>{actor.name} can't meet ${min.toLocaleString()} — pass to continue.</div>
+      )}
+    </div>
+  );
+}
+
+export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; dispatch: (a: Action) => void }) {
   const etf = ETF_BY_CODE[code];
   if (!etf) return null;
   const p = s.players[s.cur];
@@ -631,80 +788,4 @@ function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; dispatch
     </div>
   );
 }
-
-
-function DiceRollOverlay({ phase, animDice, realDice }: {
-  phase: OverlayPhase;
-  animDice: [number, number];
-  realDice: [number, number];
-}) {
-  const shown: [number, number] = phase === 'rolling' ? animDice : realDice;
-  return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 300,
-      pointerEvents: 'none',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      animation: phase === 'fadeout' ? 'diceOverlayOut 0.3s ease-in forwards' : 'none',
-    }}>
-      <div style={{ display: 'flex', gap: 28, position: 'relative' }}>
-        <OverlayDie value={shown[0]} phase={phase} delay={0} />
-        <OverlayDie value={shown[1]} phase={phase} delay={80} />
-      </div>
-    </div>
-  );
-}
-
-function OverlayDie({ value, phase, delay }: { value: number; phase: OverlayPhase; delay: number }) {
-  // Fold delay + fill-mode into the shorthand so we never mix `animation`
-  // shorthand with longhand props (which triggers React style-merge warnings).
-  const anim = phase === 'rolling'
-    ? `diceDropIn ${ROLL_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94) ${delay}ms both`
-    : phase === 'settled'
-    ? `diceSettlePop ${SETTLE_MS}ms ease-out ${delay}ms both`
-    : 'none';
-
-  return (
-    <div style={{
-      width: 76, height: 76, borderRadius: 14,
-      background: 'linear-gradient(145deg, #d8b25a, #a5813a)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 800, fontSize: 34,
-      fontFamily: 'IBM Plex Mono, monospace',
-      color: '#fff',
-      boxShadow: '0 6px 40px rgba(201,162,79,0.75), 0 2px 8px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.3)',
-      border: '2px solid rgba(255,255,255,0.35)',
-      animation: anim,
-    }}>
-      {value}
-    </div>
-  );
-}
-
-function Die({ value, rolling }: { value: number | null; rolling?: boolean }) {
-  const active = value != null;
-  return (
-    <div style={{
-      width: 42, height: 42, borderRadius: 9,
-      background: active
-        ? 'linear-gradient(145deg, #d4a94f, #a07f38)'
-        : 'linear-gradient(145deg, #141926, #0d1120)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 700, fontSize: 22,
-      fontFamily: 'IBM Plex Mono, monospace',
-      color: active ? '#fff' : '#252d45',
-      boxShadow: active
-        ? '0 2px 16px rgba(201,162,79,0.45), inset 0 1px 0 rgba(255,255,255,0.2)'
-        : '0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(74,48,25,0.06)',
-      border: active ? '1px solid rgba(201,162,79,0.5)' : '1px solid var(--border)',
-      transition: rolling ? 'none' : 'all 0.2s',
-      flexShrink: 0,
-      animation: rolling ? 'dieShake 0.12s infinite alternate' : 'none',
-    }}>
-      {value ?? '·'}
-    </div>
-  );
-}
+import { useEffect, useState } from 'react';
