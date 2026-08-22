@@ -22,7 +22,8 @@ describe('Dividend Payment card', () => {
     s = reduce(s, { t: 'draw', deck: 'ME' }, r);
 
     expect(s.card?.title).toBe('Dividend Payment');
-    expect(s.players[0].cash).toBe(1_250); // 5 MEDI shares × $50
+    // 2026-08-21 Market Overhaul: MEDI (Med risk) is now $30/share, was $50.
+    expect(s.players[0].cash).toBe(1_150); // 1,000 + 5 MEDI shares × $30
     expect(s.players[0].salaryCollected).toBe(0);
     expect(s.log.some((entry) => /Dividend Payment/.test(entry.text))).toBe(true);
   });

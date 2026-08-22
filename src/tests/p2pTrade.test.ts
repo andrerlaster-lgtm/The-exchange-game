@@ -30,8 +30,10 @@ describe('P2P trade — affordability guard', () => {
     const buyerBefore = s.players[1].cash;
     payMarketOpen(s, 0);
     payMarketOpen(s, 1);
-    expect(s.players[0].cash - sellerBefore).toBe(750); // $500 salary + 5 × $50 dividend
-    expect(s.players[1].cash - buyerBefore).toBe(1_100); // $500 salary + 6 × $50 × control bonus
+    // 2026-08-21 Market Overhaul: MEDI (Med risk) is now $30/share at a 1.5x
+    // control multiplier, was $50/share at 2x.
+    expect(s.players[0].cash - sellerBefore).toBe(650); // $500 salary + 5 × $30 dividend
+    expect(s.players[1].cash - buyerBefore).toBe(770); // $500 salary + round(6 × $30 × 1.5) control bonus
   });
 
   it('accepting an offer the buyer cannot afford does nothing (no cash/shares move)', () => {
