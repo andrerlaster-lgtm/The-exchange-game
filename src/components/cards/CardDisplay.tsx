@@ -174,8 +174,8 @@ export default function CardDisplay() {
         <CircuitBreakerDecision s={s} dispatch={dispatch} />
       )}
 
-      {/* Pick target */}
-      {s.pick && s.pick.source !== 'investor' && !isStrategyOnly && (
+      {/* Pick target — hidden once a target is locked in for a Circuit Breaker decision */}
+      {s.pick && s.pick.source !== 'investor' && !isStrategyOnly && !s.circuitBreakerPrompt && (
         <div style={{ padding: '0 10px 10px' }}>
           <PickTarget
             label={s.pick.label}
@@ -273,11 +273,6 @@ function PickTarget({ label, codes, d, s, dispatch }: {
           );
         })}
       </div>
-      <button
-        style={{ alignSelf: 'flex-start', fontSize: 11 }}
-        onClick={() => dispatch({ t: 'skipPick' })}>
-        Skip
-      </button>
     </div>
   );
 }

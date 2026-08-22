@@ -203,7 +203,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
-  if (s.pick) {
+  if (s.pick && !s.circuitBreakerPrompt) {
     const codes = s.pick.codes ?? STOCKS.map((stock) => stock.code);
     required.push({
       id: 'pick-target', title: s.pick.source === 'investor' ? 'Investor Day' : 'Choose Card Target',
@@ -213,7 +213,6 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
         key: code, title: `${code} · ${codeName(code)}`, value: s.pick!.d === 0 ? undefined : money(priceOf(s, code)),
         buttons: [button('Choose', { t: 'pickTarget', code }, 'primary')],
       })),
-      buttons: s.pick.source === 'investor' ? undefined : [button('Skip', { t: 'skipPick' })],
     });
   }
 

@@ -12,7 +12,7 @@ import { ME_CARDS } from './marketEventDeck';
 import { FED_CARDS } from './fedRateDeck';
 
 export { ME_CARDS, FED_CARDS };
-export { CIRCUIT_BREAKER_INDEX } from './marketEventDeck';
+export { CIRCUIT_BREAKER_INDEX, MARKET_CLOSE_INDEX, CORE_ME_CARDS } from './marketEventDeck';
 
 export const CARDS: Record<DeckId, Card[]> = {
   ME:  ME_CARDS,

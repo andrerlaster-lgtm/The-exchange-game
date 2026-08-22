@@ -43,6 +43,23 @@ function sectorParticipants(s: GameState, sec: SectorId): string[] {
   return [...SECTOR_CODES[sec], ...revealedIpos];
 }
 
+/**
+ * Apply a card's one-time meter sentiment. Additive and clamped, same bounds
+ * as roll-driven movement — a card nudges the needle toward a mood; it never
+ * invokes the round-boundary repricing routine itself (that stays exclusively
+ * round-triggered, per the approved Market Overhaul contract).
+ */
+export function applyMeterSentiment(s: GameState, delta: number): void {
+  if (!delta) return;
+  s.meter = Math.max(METER_MIN, Math.min(METER_MAX, s.meter + delta));
+}
+
+/** Move the needle toward 0 by `amount`, never overshooting past neutral. */
+export function moveMeterTowardNeutral(s: GameState, amount: number): void {
+  if (amount <= 0 || s.meter === 0) return;
+  s.meter = s.meter > 0 ? Math.max(0, s.meter - amount) : Math.min(0, s.meter + amount);
+}
+
 /** Zone read off the needle's current position. */
 export function meterZone(pos: number): MeterZone {
   if (pos <= -2) return 'bear';

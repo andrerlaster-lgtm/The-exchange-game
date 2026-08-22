@@ -12,13 +12,13 @@ import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
-import { bankSellRemaining, canTradeNow, canMarketSell, blocked, ipoOf, priceOf, sellBackPrice } from './rules';
+import { bankSellRemaining, canTradeNow, canMarketSell, blocked, ipoOf, priceOf, sellBackPrice, stepOf } from './rules';
 import { freshDecks, freshIpos, resetPlayers } from './gameState';
 import { payMarketOpen } from './playerState';
 import { moveTradePrice, moveEventPrice, settleShorts } from './stockState';
 import { advanceMeterOnRoll, repriceRoundBoundary } from './marketMeter';
 import { startLap, clearTurnState } from './turnState';
-import { applyEffect, beginMarketEventEffect, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
+import { applyEffect, beginMarketEventEffect, finalizeCard, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
 import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from './soldOut';
@@ -387,7 +387,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       }
       s.skips = {}; s.soldOut = {}; s.bankPool = {}; s.lap = 1; s.log = []; s.tradeLog = []; s.feeLog = [];
       s.marketSignals = []; s.marketSignalSeq = 0; s.portfolioMilestones = {};
-      s.decks = freshDecks(rng); s.discard = { ME: [], FED: [] };
+      s.decks = freshDecks(rng, s.opts.closeMode); s.discard = { ME: [], FED: [] };
       s.ipos = freshIpos();
       s.shorts = []; s.closing = false; s.closeDrawer = null; s.etfPick = null;
       s.extendedHoursAvailable = false; s.extendedRoundsLeft = 0;
@@ -1040,32 +1040,61 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // landing on The Fed / Market Event) while also holding a trade
       // interaction; clearing trade would silently strip their landing trade.
       addLog(s, `Drew ${DECK_META[deck].label}: ${c.title}`, deck === 'ME' ? 'r' : deck === 'FED' ? 'y' : 'b');
-      recordCardSignal(s, c);
-      if (deck === 'ME') beginMarketEventEffect(s, c.eff, rng);
-      else applyEffect(s, c.eff);
+      if (deck === 'ME') {
+        // Real, post-clamp/post-protection impacts only. A 'pick' effect or a
+        // Circuit Breaker pause returns null here — finalizeCard runs later,
+        // once pickTarget or resolveCircuitBreaker knows the true outcome.
+        const impacts = beginMarketEventEffect(s, c.eff, rng);
+        if (impacts !== null) finalizeCard(s, c, impacts);
+      } else {
+        // FED cards are immediate and unprotectable — predicted == actual.
+        applyEffect(s, c.eff);
+        recordCardSignal(s, c);
+      }
       break;
     }
     case 'pickTarget': {
       if (!s.pick) break;
       if (s.pick.codes && !s.pick.codes.includes(action.code)) break;
-      if (s.pick.d < 0 && s.pick.protectedCodes?.includes(action.code)) {
-        addLog(s, `Circuit Breaker shields ${action.code} from this card's price drop.`, 'g');
-      } else {
-        if (s.pick.source === 'investor') moveTradePrice(s, action.code, s.pick.d);
-        else moveEventPrice(s, action.code, s.pick.d);
+      if (s.pick.source === 'investor') {
+        moveTradePrice(s, action.code, s.pick.d);
         addLog(s, `${action.code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
+        s.pick = null;
+        break;
       }
+      // Market Event 'pick' card: the target must be chosen BEFORE any
+      // Circuit Breaker offer — the holder cannot protect a company that
+      // hasn't been targeted yet.
+      const code = action.code;
+      const holder = s.circuitBreakerHolder;
+      if (s.pick.d < 0 && holder != null && (s.players[holder].shares[code] ?? 0) > 0) {
+        s.pick = { ...s.pick, codes: [code] };
+        s.circuitBreakerPrompt = { player: holder, effect: { k: 'pick', d: s.pick.d, label: s.pick.label }, targetCode: code };
+        addLog(s, `${s.players[holder].name} may play Circuit Breaker on ${code} before it moves.`, 'y');
+        break;
+      }
+      const before = stepOf(s, code);
+      moveEventPrice(s, code, s.pick.d);
+      const after = stepOf(s, code);
+      const impacts = after !== before ? [{ code, d: after - before }] : [];
+      addLog(s, `${code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
       s.pick = null;
+      if (s.card) finalizeCard(s, s.card, impacts);
       break;
     }
     case 'skipPick':
+      // Card-effect picks are never presented with an ineligible target, so
+      // the UI no longer offers this for them (see CardDisplay.tsx /
+      // buildBoard3DActionCenter.ts) — kept as a harmless no-op for the
+      // pre-existing Investor Day pick and for test harnesses that drain any
+      // pending pick between actions.
       s.pick = null;
       break;
     case 'playCircuitBreaker':
-      resolveCircuitBreaker(s, action.code);
+      resolveCircuitBreaker(s, action.code, s.card ?? undefined);
       break;
     case 'passCircuitBreaker':
-      resolveCircuitBreaker(s, null);
+      resolveCircuitBreaker(s, null, s.card ?? undefined);
       break;
 
     // ---- ETF ----

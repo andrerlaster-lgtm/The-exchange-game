@@ -36,7 +36,7 @@ describe('Circuit Breaker hold card', () => {
       d.players[1].shares.CCAI = 11;
     });
     const before = s.prices.CCAI;
-    s = drawCard(s, 'ME', 'Tech Earnings Low');
+    s = drawCard(s, 'ME', 'Flash Crash');
 
     expect(s.prices.CCAI).toBe(before);
     expect(s.circuitBreakerPrompt?.player).toBe(1);
@@ -51,7 +51,7 @@ describe('Circuit Breaker hold card', () => {
     });
     const protectedBefore = s.prices.CCAI;
     const unprotectedBefore = s.prices.CYBS;
-    s = drawCard(s, 'ME', 'Tech Earnings Low');
+    s = drawCard(s, 'ME', 'Flash Crash');
     s = dispatch(s, { t: 'playCircuitBreaker', code: 'CCAI' }, rng());
 
     expect(s.circuitBreakerPrompt).toBeNull();
@@ -67,7 +67,7 @@ describe('Circuit Breaker hold card', () => {
       d.players[0].shares.CCAI = 11;
     });
     const before = s.prices.CCAI;
-    s = drawCard(s, 'ME', 'Tech Earnings Low');
+    s = drawCard(s, 'ME', 'Flash Crash');
     s = dispatch(s, { t: 'passCircuitBreaker' }, rng());
 
     expect(s.circuitBreakerPrompt).toBeNull();
@@ -75,18 +75,30 @@ describe('Circuit Breaker hold card', () => {
     expect(s.prices.CCAI).toBe(before - 1);
   });
 
-  it('also shields a chosen company from a targeted negative Market Event', () => {
+  it('also shields a chosen company from a targeted negative Market Event, once a target is locked in', () => {
+    // 2026-08-21 Deck Rebuild: the target must be chosen BEFORE Circuit
+    // Breaker is offered — the holder can't protect a company that hasn't
+    // been targeted yet. Drawing a 'pick' card only opens the picker; the CB
+    // prompt appears after pickTarget locks in a company the holder owns.
     let s = patch(started(2), (d) => {
       d.circuitBreakerHolder = 0;
       d.players[0].shares.MEDI = 11;
     });
     const before = s.prices.MEDI;
     s = drawCard(s, 'ME', 'Earnings Miss');
-    s = dispatch(s, { t: 'playCircuitBreaker', code: 'MEDI' }, rng());
-    expect(s.pick?.protectedCodes).toContain('MEDI');
+    expect(s.pick).not.toBeNull();
+    expect(s.circuitBreakerPrompt).toBeNull();
 
     s = dispatch(s, { t: 'pickTarget', code: 'MEDI' }, rng());
+    expect(s.circuitBreakerPrompt?.player).toBe(0);
+    expect(circuitBreakerOptions(s)).toEqual(['MEDI']);
     expect(s.prices.MEDI).toBe(before);
+
+    s = dispatch(s, { t: 'playCircuitBreaker', code: 'MEDI' }, rng());
+    expect(s.prices.MEDI).toBe(before);
+    expect(s.pick).toBeNull();
+    expect(s.circuitBreakerPrompt).toBeNull();
+    expect(s.circuitBreakerHolder).toBeNull();
   });
 
   it('does not spend or prompt the card for a positive Market Event', () => {
@@ -95,7 +107,7 @@ describe('Circuit Breaker hold card', () => {
       d.players[0].shares.CCAI = 11;
     });
     const before = s.prices.CCAI;
-    s = drawCard(s, 'ME', 'Tech Earnings High');
+    s = drawCard(s, 'ME', 'Melt-Up Rally');
 
     expect(s.circuitBreakerPrompt).toBeNull();
     expect(s.circuitBreakerHolder).toBe(0);

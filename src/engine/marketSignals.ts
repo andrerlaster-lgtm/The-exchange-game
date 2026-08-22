@@ -134,14 +134,22 @@ export function effectImpacts(s: GameState, effect: Effect): MarketSignalImpact[
     .map(([code, d]) => ({ code, d }));
 }
 
-export function recordCardSignal(s: GameState, card: Card): void {
+/**
+ * Records a card's market signal. Pass `impacts` when the caller already
+ * knows the REAL, post-clamp, post-protection deltas (Market Event, 2026-08-21
+ * deck rebuild) — the signal must report what actually happened, not what the
+ * card's definition alone would predict. Omit it to fall back to the
+ * predicted `effectImpacts` computation, which is still correct for FED cards
+ * (untouched by this rebuild) and any other immediate, unprotectable effect.
+ */
+export function recordCardSignal(s: GameState, card: Card, impacts?: MarketSignalImpact[]): void {
   recordMarketSignal(s, {
     kind: card.deck === 'FED' ? 'fed' : 'market',
     title: card.title,
     summary: `${card.story} ${card.effect}`,
     stance: card.signal?.stance,
     insight: card.signal?.insight,
-    impacts: effectImpacts(s, card.eff),
+    impacts: impacts ?? effectImpacts(s, card.eff),
   });
 }
 

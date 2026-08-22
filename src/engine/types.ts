@@ -89,7 +89,6 @@ export interface PickContext {
   d: number;
   label: string;
   codes?: string[];   // optional restrict to these codes (UI hint)
-  protectedCodes?: string[]; // Circuit Breaker choices that ignore negative movement from this card
   source?: 'card' | 'investor';
 }
 
@@ -100,10 +99,17 @@ export interface InvestorDayPrompt {
 }
 
 /** A negative market effect paused before its price movement so the holder can
-    play or retain the single Circuit Breaker card. */
+    play or retain the single Circuit Breaker card. `targetCode` is set once a
+    single company is already locked in — for a 'pick' card once the drawing
+    player has chosen, or for an automatic 'lowest'/'highest' card once fair
+    seeded tie-breaking has already selected it — so Circuit Breaker options
+    are exactly that one code, never a stale predicted set. Omitted for
+    batch effects (sector/all/risk/multi/regime), whose eligible codes are
+    computed fresh from the effect itself. */
 export interface CircuitBreakerPrompt {
   player: number;
   effect: Effect;
+  targetCode?: string;
 }
 
 export interface LogEntry {

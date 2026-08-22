@@ -27,4 +27,15 @@ describe('buildMarketEventDeck', () => {
       Array.from({ length: CARDS.ME.length }, (_, i) => i),
     );
   });
+
+  // 2026-08-21 Deck Rebuild: Fixed Rounds owns its own ending (s.lap >=
+  // closeRounds) — a randomly-drawn Market Close card must never also end
+  // that kind of game early, so it's excluded from the deck entirely.
+  it('excludes Market Close entirely in Fixed Rounds mode', () => {
+    for (const seed of ['a', 'b', 'c', 'd']) {
+      const deck = buildMarketEventDeck(makeRng(seed), 'rounds');
+      expect(deck).not.toContain(closeIdx);
+      expect(deck).toHaveLength(CARDS.ME.length - 1);
+    }
+  });
 });

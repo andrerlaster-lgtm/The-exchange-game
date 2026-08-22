@@ -65,7 +65,10 @@ describe('Rule 9 — Diversified Portfolio status', () => {
     });
     s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());
     expect(s.pick).toBeNull();
-    expect(s.prices.SAFE).toBe(STOCK_BY_CODE.SAFE.step - 2);
+    // 2026-08-21 Deck Rebuild: Flash Crash is now -1 (the meter already adds
+    // ambient movement every round; stacking a -2 broad-market card on top
+    // was not validated as safe — see marketEventDeck.ts's Broad Market note).
+    expect(s.prices.SAFE).toBe(STOCK_BY_CODE.SAFE.step - 1);
   });
 });
 

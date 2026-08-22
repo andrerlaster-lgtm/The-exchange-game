@@ -5,10 +5,18 @@ import type { Rng } from '../utils/rng';
 import type { GameState } from './types';
 import { DEFAULT_OPTIONS } from './types';
 
-export function buildMarketEventDeck(rng: Rng): number[] {
+/**
+ * Fixed Rounds mode has its own closing mechanism (s.lap >= closeRounds) —
+ * a random Market Close card drawn from the event deck must never also end
+ * that kind of game early (2026-08-21 deck rebuild). Card mode keeps the
+ * pre-existing bottom-quarter insertion unchanged: no bounded "Card Close"
+ * redesign was approved, so its timing is untouched by this rebuild.
+ */
+export function buildMarketEventDeck(rng: Rng, closeMode: GameState['opts']['closeMode'] = 'card'): number[] {
   const closeIdx = CARDS.ME.findIndex(c => c.eff.k === 'close');
   const rest = Array.from({ length: CARDS.ME.length }, (_, i) => i).filter(i => i !== closeIdx);
   const shuffled = rng.shuffle(rest);
+  if (closeMode === 'rounds') return shuffled; // Market Close excluded entirely — Fixed Rounds owns the ending
   // Insert Market Close into a random position in the bottom 25%
   const bottom25Start = Math.floor(shuffled.length * 0.75);
   const insertAt = rng.int(bottom25Start, shuffled.length);
@@ -16,9 +24,9 @@ export function buildMarketEventDeck(rng: Rng): number[] {
   return shuffled;
 }
 
-export function freshDecks(rng: Rng): GameState['decks'] {
+export function freshDecks(rng: Rng, closeMode: GameState['opts']['closeMode'] = 'card'): GameState['decks'] {
   const seq = (n: number) => rng.shuffle(Array.from({ length: n }, (_, i) => i));
-  return { ME: buildMarketEventDeck(rng), FED: seq(CARDS.FED.length) };
+  return { ME: buildMarketEventDeck(rng, closeMode), FED: seq(CARDS.FED.length) };
 }
 
 export function freshIpos(): GameState['ipos'] {
