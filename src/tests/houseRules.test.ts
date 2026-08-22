@@ -39,22 +39,26 @@ describe('Max bank-sale quantity (half the 11-share company)', () => {
 
 describe('Controlling Stake dividend boost', () => {
   it('shows the full-company dividend paid each lap', () => {
-    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.FTRB)).toBe(2_200);
-    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.MEDI)).toBe(1_100);
-    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.CCAI)).toBe(0);
+    // 2026-08-21 Market Overhaul: Low/Med/High are now $50/$30/$15 per share
+    // at a 1.5x control multiplier (was $100/$50/$0 at 2x) — High risk now
+    // earns a small but nonzero dividend so the tier isn't strictly
+    // dominated on income (Stage A finding).
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.FTRB)).toBe(825);  // Low: round(50*11*1.5)
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.MEDI)).toBe(495); // Med: round(30*11*1.5)
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.CCAI)).toBe(248); // High: round(15*11*1.5) = round(247.5)
   });
 
   // Place player 0 at space 34 and roll [2,2] (sum 4) to wrap past Market
   // Open onto space 2 — same pattern used by scoring.test.ts's Rule 8 suite.
   it('doubles dividend for a regular stock at 6+ shares', () => {
-    // FTRB is Low-risk -> $100/share dividend.
+    // FTRB is Low-risk -> $50/share dividend.
     let s = started(2);
     s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { FTRB: CONTROL_THRESHOLD_REGULAR }; });
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    // salary ($500) + 6 * $100 * 2 (controlling) = 500 + 1200 = 1700
-    expect(gained).toBe(500 + STOCK_BY_CODE.FTRB.div * CONTROL_THRESHOLD_REGULAR * CONTROL_DIVIDEND_MULTIPLIER);
+    // salary ($500) + round(6 * $50 * 1.5 controlling) = 500 + 450 = 950
+    expect(gained).toBe(500 + Math.round(STOCK_BY_CODE.FTRB.div * CONTROL_THRESHOLD_REGULAR * CONTROL_DIVIDEND_MULTIPLIER));
   });
 
   it('does not double dividend below the threshold', () => {
@@ -67,34 +71,38 @@ describe('Controlling Stake dividend boost', () => {
   });
 
   it('IPO controlling threshold is 3 shares', () => {
-    // RNST is the only IPO with a nonzero dividend ($50/share).
+    // RNST is the only IPO with a nonzero dividend ($50/share) — IPO dividend
+    // rates are their own fixed data, untouched by the regular-stock rebalance.
     let s = started(2);
     s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { RNST: CONTROL_THRESHOLD_IPO }; });
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    expect(gained).toBe(500 + 50 * CONTROL_THRESHOLD_IPO * CONTROL_DIVIDEND_MULTIPLIER);
+    expect(gained).toBe(500 + Math.round(50 * CONTROL_THRESHOLD_IPO * CONTROL_DIVIDEND_MULTIPLIER));
   });
 });
 
 describe('Risk-specific stock card benefits', () => {
-  it('explains high-risk growth upside and no dividend', () => {
+  it('explains high-risk growth upside and a small dividend', () => {
+    // 2026-08-21 Market Overhaul: High risk earns a small but nonzero
+    // dividend now (was $0) so it isn't a strictly dominated strategy —
+    // its case is still made mostly on price movement, not income.
     expect(stockOpportunityFor(STOCK_BY_CODE.CCAI)).toMatchObject({
-      title: 'GROWTH POTENTIAL', tone: 'growth', dividendPerLap: 0,
+      title: 'GROWTH POTENTIAL', tone: 'growth', dividendPerLap: 248,
       bullMove: 2, bearMove: -2, landingPayout: 2_000, sectorPayout: 3_000,
     });
   });
 
   it('explains medium-risk income and balanced movement', () => {
     expect(stockOpportunityFor(STOCK_BY_CODE.MEDI)).toMatchObject({
-      title: 'BALANCED OPPORTUNITY', tone: 'balanced', dividendPerLap: 1_100,
+      title: 'BALANCED OPPORTUNITY', tone: 'balanced', dividendPerLap: 495,
       bullMove: 1, bearMove: -1,
     });
   });
 
   it('explains low-risk income and Bear Run strength', () => {
     expect(stockOpportunityFor(STOCK_BY_CODE.SAFE)).toMatchObject({
-      title: 'INCOME & STABILITY', tone: 'income', dividendPerLap: 2_200,
+      title: 'INCOME & STABILITY', tone: 'income', dividendPerLap: 825,
       bullMove: 0, bearMove: 1,
     });
   });

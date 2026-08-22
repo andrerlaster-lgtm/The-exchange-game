@@ -69,6 +69,7 @@ export function initialState(rng: Rng): GameState {
     lastDraw: null,
     p2pOffers: [],
     p2pSeq: 0,
+    meter: 0,
     testMode: false,
     opts: { ...DEFAULT_OPTIONS },
   };

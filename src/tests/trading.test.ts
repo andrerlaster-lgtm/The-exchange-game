@@ -44,10 +44,16 @@ describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-n
     expect(s.soldOut.MEDI.claimHolder).toBe(0);
   });
 
-  it('assigns $5k / $7.5k / $10k buyouts from the company starting-price tiers', () => {
-    expect(STOCK_BY_CODE.FRSH).toMatchObject({ tier: 'Starter', buyout: 5_000, base: COMPANY_SHARE_PRICE_BY_TIER.Starter });
-    expect(STOCK_BY_CODE.MEDI).toMatchObject({ tier: 'Growth', buyout: 7_500, base: COMPANY_SHARE_PRICE_BY_TIER.Growth });
-    expect(STOCK_BY_CODE.APEX).toMatchObject({ tier: 'Premium', buyout: 10_000, base: COMPANY_SHARE_PRICE_BY_TIER.Premium });
+  it('assigns $5.5k / $8.25k / $11k buyouts (11 shares x tier price) from the company starting-price tiers', () => {
+    // 2026-08-21 Market Overhaul: buyout is REGULAR_SUPPLY (11) x the tier's
+    // per-share price, not 10x — the old constants handed out a free share
+    // (Stage A finding: buying instantly showed a phantom unrealized gain).
+    expect(STOCK_BY_CODE.FRSH).toMatchObject({ tier: 'Starter', buyout: 5_500, base: COMPANY_SHARE_PRICE_BY_TIER.Starter });
+    expect(STOCK_BY_CODE.MEDI).toMatchObject({ tier: 'Growth', buyout: 8_250, base: COMPANY_SHARE_PRICE_BY_TIER.Growth });
+    expect(STOCK_BY_CODE.APEX).toMatchObject({ tier: 'Premium', buyout: 11_000, base: COMPANY_SHARE_PRICE_BY_TIER.Premium });
+    for (const stock of Object.values(STOCK_BY_CODE)) {
+      expect(stock.buyout).toBe(REGULAR_SUPPLY * COMPANY_SHARE_PRICE_BY_TIER[stock.tier]);
+    }
   });
 
   it('cannot buy without enough cash for the full payout', () => {

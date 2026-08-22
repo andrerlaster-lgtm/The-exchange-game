@@ -39,6 +39,24 @@ export function moveEventPrice(s: GameState, code: string, d: number): void {
   }
 }
 
+/**
+ * Market Meter move: guaranteed once-per-round ambient repricing (2026-08-21
+ * Market Overhaul). Deliberately mirrors {@link moveEventPrice}, not
+ * {@link moveTradePrice} — it never queues a Market Event on hitting the
+ * ceiling. The meter reprices every non-final round by design, so treating
+ * it like a trade would inflate Market Event frequency far beyond what the
+ * deck was tuned for; card-driven moves already skip this too.
+ */
+export function moveMeterPrice(s: GameState, code: string, d: number): void {
+  if (isIpoCode(code)) {
+    const ip = s.ipos[IPO_INDEX[code]];
+    if (!ip.revealed) return;
+    ip.step = clampStep(ip.step + d);
+  } else {
+    s.prices[code] = clampStep(s.prices[code] + d);
+  }
+}
+
 /** Settle the current player's open short at the start of their next turn (Rule 6). */
 export function settleShorts(s: GameState): void {
   const keep: GameState['shorts'] = [];

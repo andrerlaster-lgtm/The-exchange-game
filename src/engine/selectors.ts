@@ -26,7 +26,10 @@ export function projectedDividend(_s: GameState, p: Player): number {
     const printed = isIpo ? (IPO_BY_CODE[code]?.div ?? 0) : (STOCK_BY_CODE[code]?.div ?? 0);
     if (printed <= 0) continue;
     const threshold = isIpo ? CONTROL_THRESHOLD_IPO : CONTROL_THRESHOLD_REGULAR;
-    div += printed * qty * (qty >= threshold ? CONTROL_DIVIDEND_MULTIPLIER : 1);
+    const controlling = qty >= threshold;
+    // Mirror payMarketOpen's own rounding exactly, so this projection never
+    // promises a fractional-cent amount the real payout wouldn't produce.
+    div += controlling ? Math.round(printed * qty * CONTROL_DIVIDEND_MULTIPLIER) : printed * qty;
   }
   return div;
 }

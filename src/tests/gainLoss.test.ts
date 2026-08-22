@@ -6,7 +6,14 @@ import {
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 describe('stock cost basis and gain/loss', () => {
-  it('records the fixed company price as basis and shows immediate unrealized G/L', () => {
+  // 2026-08-21 Market Overhaul: buyout is now REGULAR_SUPPLY (11) x the
+  // tier's per-share price, so a buy-out is value-neutral at the moment of
+  // purchase — acquiring an asset must never, by itself, create a gain or
+  // loss. This replaces the old assertion that a buy-out showed an
+  // immediate +$750 phantom gain, which was the reported bug (Stage A
+  // finding: the old buyout constants were priced at 10 shares but granted
+  // 11, handing out a free share every time).
+  it('a company buy-out produces no unrealized gain — the corrected accounting invariant', () => {
     let s = rollTo(started(2), 5); // MEDI · Growth company
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
 
@@ -14,10 +21,16 @@ describe('stock cost basis and gain/loss', () => {
     const gl = holdingGainLoss(s, player, 'MEDI');
     expect(player.shares.MEDI).toBe(REGULAR_SUPPLY);
     expect(player.stockCostBasis.MEDI).toBe(STOCK_BY_CODE.MEDI.buyout);
-    expect(gl.costBasis).toBe(7_500);
+    expect(gl.costBasis).toBe(8_250);
     expect(gl.marketValue).toBe(11 * 750);
-    expect(gl.unrealized).toBe(750);
-    expect(marketGain(s, player)).toBe(750);
+    expect(gl.unrealized).toBe(0);
+    expect(marketGain(s, player)).toBe(0);
+  });
+
+  it('buy-out price equals supply times base price for every tier', () => {
+    for (const stock of Object.values(STOCK_BY_CODE)) {
+      expect(stock.buyout).toBe(REGULAR_SUPPLY * stock.base);
+    }
   });
 
   it('turns price movement into unrealized G/L and a sale into proportional realized G/L', () => {
@@ -31,20 +44,22 @@ describe('stock cost basis and gain/loss', () => {
 
     expect(holdingGainLoss(s, s.players[0], 'MEDI')).toMatchObject({
       marketValue: 11_000,
-      costBasis: 7_500,
-      unrealized: 3_500,
+      costBasis: 8_250,
+      unrealized: 2_750,
     });
 
-    // Sell 2 back one step below market: 2 × $750 = $1,500 proceeds.
+    // Sell 2 back one step below market: 2 × $750 = $1,500 proceeds. Basis
+    // removed proportionally: 8,250 × 2/11 = 1,500 exactly — proceeds equal
+    // removed basis, so this particular sale is itself gain-neutral.
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 2 }, rng());
     const holding = holdingGainLoss(s, s.players[0], 'MEDI');
     const total = stockGainLoss(s, s.players[0]);
     expect(s.players[0].shares.MEDI).toBe(9);
-    expect(s.players[0].realizedStockGain).toBeCloseTo(136.36, 1);
-    expect(holding.costBasis).toBeCloseTo(6_136.36, 1);
-    expect(holding.unrealized).toBeCloseTo(2_863.64, 1);
-    expect(total.total).toBeCloseTo(3_000, 5);
-    expect(marketGain(s, s.players[0])).toBeCloseTo(3_000, 5);
+    expect(s.players[0].realizedStockGain).toBe(0);
+    expect(holding.costBasis).toBe(6_750);
+    expect(holding.unrealized).toBe(2_250);
+    expect(total.total).toBe(2_250);
+    expect(marketGain(s, s.players[0])).toBe(2_250);
   });
 
   it('shows an unrealized loss when the share price falls below the purchase basis', () => {
@@ -54,9 +69,9 @@ describe('stock cost basis and gain/loss', () => {
 
     const gl = holdingGainLoss(s, s.players[0], 'MEDI');
     expect(gl.marketValue).toBe(5_500);
-    expect(gl.costBasis).toBe(7_500);
-    expect(gl.unrealized).toBe(-2_000);
-    expect(stockGainLoss(s, s.players[0]).total).toBe(-2_000);
+    expect(gl.costBasis).toBe(8_250);
+    expect(gl.unrealized).toBe(-2_750);
+    expect(stockGainLoss(s, s.players[0]).total).toBe(-2_750);
   });
 
   it('tracks negotiated P2P basis for the buyer and realized G/L for the seller', () => {

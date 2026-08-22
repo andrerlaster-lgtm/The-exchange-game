@@ -18,11 +18,15 @@ export const FEE_DEBT_INSTALLMENT = 500;
 export const REGULAR_SUPPLY = 11;
 // ── Fixed whole-company acquisition tiers ──────────────────────────────────
 // The acquisition price is intentionally separate from the live per-share
-// market price. Buying still grants the entire 11-share supply.
+// market price, but it must still equal REGULAR_SUPPLY × the tier's base
+// share price. Anything less books a gain at the moment of purchase, because
+// the granted 11-share block marks to market immediately (Stage A finding,
+// 2026-08-21 Market Overhaul report — the previous 10x-priced constants
+// handed out a free share on every acquisition).
 export const COMPANY_BUYOUT_BY_TIER: Record<CompanyTier, number> = {
-  Starter: 5_000,
-  Growth: 7_500,
-  Premium: 10_000,
+  Starter: 5_500,   // 11 × 500
+  Growth: 8_250,    // 11 × 750
+  Premium: 11_000,  // 11 × 1_000
 };
 export const COMPANY_SHARE_PRICE_BY_TIER: Record<CompanyTier, number> = {
   Starter: 500,
@@ -39,11 +43,13 @@ export const IPO_SUPPLY = 5;
 // ── Controlling Stake ───────────────────────────────────────────────────────
 export const CONTROL_THRESHOLD_REGULAR = 6;  // shares of one regular stock for control
 export const CONTROL_THRESHOLD_IPO = 3;      // shares of one IPO for control
-export const CONTROL_DIVIDEND_MULTIPLIER = 2; // dividend multiplier while controlling
+export const CONTROL_DIVIDEND_MULTIPLIER = 1.5; // dividend multiplier while controlling
 
-/** Dividend paid each Market Open immediately after acquiring a full company. */
+/** Dividend paid each Market Open immediately after acquiring a full company.
+    Rounded to the nearest whole dollar — the 1.5x multiplier does not always
+    land on an integer (e.g. a single High-risk share: 15 × 1 × 1.5 = 22.5). */
 export function fullCompanyDividendPerMarketOpen(stock: Pick<Stock, 'div'>): number {
-  return stock.div * REGULAR_SUPPLY * CONTROL_DIVIDEND_MULTIPLIER;
+  return Math.round(stock.div * REGULAR_SUPPLY * CONTROL_DIVIDEND_MULTIPLIER);
 }
 // ── Sold-Out Payout Claim (rent paid to the claim holder by tier) ────────────
 export const PAYOUT_TIER_LOW = 500;       // holder owns 1-2 shares
@@ -108,7 +114,11 @@ export const SECTORS: Record<SectorId, Sector> = {
   comm:        { id: 'comm',        name: 'Comms/Media',  color: '#F87171', glyph: '▶' },
 };
 
-const DIV_BY_RISK: Record<Risk, number> = { Low: 100, Med: 50, High: 0 };
+// High risk earns a small but nonzero dividend so the tier isn't strictly
+// dominated on income (Stage A finding: at Low:100/Med:50/High:0, buying a
+// High-risk company had no reason to ever be the better choice). The bulk
+// of High risk's return is meant to come from price movement instead.
+const DIV_BY_RISK: Record<Risk, number> = { Low: 50, Med: 30, High: 15 };
 
 // [space, name, sector, basePrice, risk, code]
 // 22 regular stocks — uneven sector distribution:

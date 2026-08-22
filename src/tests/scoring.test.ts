@@ -21,8 +21,10 @@ describe('Rule 8 — Market Open base income + dividends', () => {
     s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { SAFE: 2, CCAI: 3 }; });
     const cash = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
-    // SAFE has div, CCAI has div=0 (high-risk)
-    expect(s.players[0].cash).toBe(cash + SALARY + STOCK_BY_CODE.SAFE.div * 2);
+    // 2026-08-21 Market Overhaul: High risk (CCAI) now earns a small nonzero
+    // dividend too — both holdings contribute, neither is controlling (below
+    // the 6-share threshold), so no rounding is in play here.
+    expect(s.players[0].cash).toBe(cash + SALARY + STOCK_BY_CODE.SAFE.div * 2 + STOCK_BY_CODE.CCAI.div * 3);
   });
 });
 

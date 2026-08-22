@@ -15,6 +15,7 @@ import { bankSellRemaining, canTradeNow, canMarketSell, blocked, ipoOf, priceOf,
 import { freshDecks, freshIpos, resetPlayers } from './gameState';
 import { payMarketOpen } from './playerState';
 import { moveTradePrice, moveEventPrice, settleShorts } from './stockState';
+import { advanceMeterOnRoll, repriceRoundBoundary } from './marketMeter';
 import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
@@ -338,6 +339,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const a = rng.int(1, 6);
       const b = rng.int(1, 6);
       s.dice = [a, b];
+      // THE MARKET METER — the roll reads twice: once as movement, once as
+      // market. Advanced before applyMove so a landing trades at whatever
+      // price the needle already reflects this turn.
+      advanceMeterOnRoll(s, a, b);
       s.bonusRollPending = a === b && !s.bonusRollUsed;
       if (s.bonusRollPending) {
         s.bonusRollUsed = true;
@@ -869,7 +874,16 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         .sort((a, b) => b.score - a.score || b.nw - a.nw);
       ranked.forEach((entry, rank) => { s.players[entry.i].prevRank = rank; });
       s.cur = (s.cur + 1) % n;
-      if (s.cur === 0) startLap(s);
+      if (s.cur === 0) {
+        startLap(s);
+        // THE MARKET METER — guaranteed once-per-non-final-round reprice.
+        // Checked here, before closing is (possibly) triggered a few lines
+        // below: a round that completes not yet knowing it was the game's
+        // last one still gets its reprice. s.closing stays true for every
+        // Extended Hours round after that point, so this naturally excludes
+        // all of them without a separate "final round" flag.
+        if (!s.closing) repriceRoundBoundary(s, rng);
+      }
       const debtInterest = accrueFeeDebt(s.players[s.cur]);
       if (debtInterest > 0) {
         addLog(s, `${s.players[s.cur].name}'s Outstanding Fees add ${money(debtInterest)} interest (5%). Balance ${money(feeDebtBalance(s.players[s.cur]))}.`, 'r');

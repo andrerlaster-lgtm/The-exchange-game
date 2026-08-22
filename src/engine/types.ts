@@ -219,6 +219,7 @@ export interface GameOptions {
   ipos: boolean;              // IPO spaces active
   closeMode: 'card' | 'rounds';
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
+  marketMeter: boolean;       // ambient roll-driven market repricing (2026-08-21 Market Overhaul)
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
@@ -229,6 +230,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   ipos: true,
   closeMode: 'card',
   closeRounds: 5,
+  marketMeter: false, // off by default until existing price-assertion fixtures are updated
 };
 
 export interface GameState {
@@ -289,6 +291,7 @@ export interface GameState {
   lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
   p2pSeq: number;                    // monotonically increasing id source for p2pOffers
+  meter: number;                     // Market Meter needle, METER_MIN..METER_MAX, starts at 0
 }
 
 // Actions the reducer accepts. Kept explicit for testability.

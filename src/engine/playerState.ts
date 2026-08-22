@@ -41,7 +41,11 @@ export function payMarketOpen(s: GameState, pi: number): void {
     const threshold = isIpo ? CONTROL_THRESHOLD_IPO : CONTROL_THRESHOLD_REGULAR;
     const controlling = qty >= threshold;
     if (controlling) controllingCodes.push(code);
-    div += printed * qty * (controlling ? CONTROL_DIVIDEND_MULTIPLIER : 1);
+    // The 1.5x control multiplier does not always land on a whole dollar
+    // (e.g. 15/share x 1 share x 1.5 = 22.5) — round each holding's own
+    // payment rather than the summed total, so a fractional cent never
+    // hides inside an otherwise-whole-looking sum.
+    div += controlling ? Math.round(printed * qty * CONTROL_DIVIDEND_MULTIPLIER) : printed * qty;
   }
 
   // ETF payout (tiered by total funds owned) + Full-Diversification bonus
