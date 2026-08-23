@@ -15,13 +15,22 @@ function withMeter(s: ReturnType<typeof started>) {
 
 describe('marketRegimeInfo — single source of truth for all three surfaces', () => {
   it('exact zone labels for all seven meter values', () => {
-    expect(marketRegimeInfo(-3).label).toBe('BEAR RUN');
-    expect(marketRegimeInfo(-2).label).toBe('BEAR RUN');
+    expect(marketRegimeInfo(-3).label).toBe('BEARISH');
+    expect(marketRegimeInfo(-2).label).toBe('BEARISH');
     expect(marketRegimeInfo(-1).label).toBe('NEUTRAL');
     expect(marketRegimeInfo(0).label).toBe('NEUTRAL');
     expect(marketRegimeInfo(1).label).toBe('NEUTRAL');
-    expect(marketRegimeInfo(2).label).toBe('BULL RUN');
-    expect(marketRegimeInfo(3).label).toBe('BULL RUN');
+    expect(marketRegimeInfo(2).label).toBe('BULLISH');
+    expect(marketRegimeInfo(3).label).toBe('BULLISH');
+  });
+
+  it('never reuses the Bull Run / Bear Run board-space names for a meter zone', () => {
+    // Those name spaces 16 and 26, a different mechanic (risk-tier price
+    // moves + stance cash). Sharing the words made the banner read
+    // "BEAR RUN" while a player landed on the "BULL RUN" space.
+    for (const meter of [-3, -2, -1, 0, 1, 2, 3]) {
+      expect(marketRegimeInfo(meter).label).not.toMatch(/RUN/i);
+    }
   });
 
   it('formats the signed meter value with a true minus sign, never a bare hyphen', () => {

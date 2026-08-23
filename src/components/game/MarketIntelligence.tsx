@@ -12,6 +12,7 @@ const STANCE = {
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   fed: 'FED',
   market: 'MARKET EVENT',
+  regime: 'MARKET RUN',
   soldout: 'SOLD OUT',
   claim: 'PAYOUT CLAIM',
   weakDemand: 'WEAK DEMAND',

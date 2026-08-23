@@ -9,7 +9,13 @@ import { meterZone, METER_MAX, METER_MIN, type MeterZone } from '../engine/marke
 
 export interface MarketRegimeInfo {
   zone: MeterZone;
-  label: 'BULL RUN' | 'NEUTRAL' | 'BEAR RUN';
+  // Deliberately NOT "BULL RUN"/"BEAR RUN" — those are the names of the
+  // board spaces at 16/26, which are a different mechanic entirely (risk-tier
+  // price moves + stance cash on landing). Using the same words for the
+  // meter's zone made the banner read "BEAR RUN" while a player was landing
+  // on the "BULL RUN" space. The meter is a market *mood*, so it reads as an
+  // adjective; a "Run" is always the board space.
+  label: 'BULLISH' | 'NEUTRAL' | 'BEARISH';
   meter: number;
   meterText: string;   // e.g. '+2', '0', '−3' (real minus sign, not a hyphen)
   color: string;        // primary accent color for the current zone
@@ -20,9 +26,9 @@ export interface MarketRegimeInfo {
 }
 
 const ZONE_META: Record<MeterZone, { label: MarketRegimeInfo['label']; color: string; glyph: string }> = {
-  bull: { label: 'BULL RUN', color: '#3ed598', glyph: '▲' },
+  bull: { label: 'BULLISH', color: '#3ed598', glyph: '▲' },
   neutral: { label: 'NEUTRAL', color: '#d4a535', glyph: '●' },
-  bear: { label: 'BEAR RUN', color: '#ef4444', glyph: '▼' },
+  bear: { label: 'BEARISH', color: '#ef4444', glyph: '▼' },
 };
 
 /** Format a signed meter value with a true minus sign, matching the rest of

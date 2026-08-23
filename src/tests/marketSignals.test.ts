@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fedSignalForStock, importantMarketSignals, recordMarketSignal } from '../engine';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
-import { dispatch, patch, rng, scriptedRng, started } from './helpers';
+import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 describe('Market Intelligence signals', () => {
   it('records a Fed decision with exact company impacts and plain-language guidance', () => {
@@ -68,16 +68,8 @@ describe('Market Intelligence signals', () => {
     expect(importantMarketSignals(s)).toEqual([]);
   });
 
-  it('shows real player-to-player takeovers as important, but excludes Bull/Bear Run landing signals', () => {
-    // 2026-08-21 Market Regime Display: Bull Run / Bear Run board-space
-    // landings no longer occupy the curated Important Events feed — they
-    // already have a dedicated board space, landing presentation, and
-    // activity-log record, and the persistent Market Condition display now
-    // covers the same information continuously.
+  it('shows real player-to-player takeovers as important', () => {
     let s = patch(started(2), (draft) => {
-      recordMarketSignal(draft, {
-        kind: 'market', title: 'Bull Run', summary: 'The entire market moved.', impacts: [{ code: 'CCAI', d: 2 }],
-      });
       recordMarketSignal(draft, {
         kind: 'market', title: 'No Fill', summary: 'Nothing happens.', impacts: [],
       });
@@ -92,11 +84,32 @@ describe('Market Intelligence signals', () => {
 
     expect(importantMarketSignals(s).map((signal) => signal.title)).toEqual(['MEDI Taken Over']);
     expect(importantMarketSignals(s)[0].summary).toContain('Riley took control of MEDI from Morgan');
-    // The Bull Run landing itself is untouched in the full chronological log.
-    expect(s.marketSignals.some((signal) => signal.title === 'Bull Run')).toBe(true);
   });
 
-  it('exposes the same Fed Watch in the 3D Action Center, without a Bear Run row', () => {
+  it('keeps a REAL Bull/Bear Run board landing in Important Events — it has no landing banner of its own', () => {
+    // Regression guard (2026-08-22). A landing on space 16/26 moves every
+    // company by risk tier AND pays/charges every player stance cash, but
+    // sets no s.landingNotice, so this feed is its only prominent surfacing.
+    // Deliberately drives a real landing rather than hand-recording a signal:
+    // an earlier version of this test hand-built one with the wrong `kind`
+    // and so kept passing while real landings were silently dropped.
+    for (const [space, title] of [[16, 'Bull Run'], [26, 'Bear Run']] as const) {
+      const s = rollTo(started(2), space);
+      expect(s.landingNotice).toBeNull(); // still no banner — hence the feed matters
+      expect(importantMarketSignals(s).map((signal) => signal.title)).toContain(title);
+    }
+  });
+
+  it('keeps the Market Meter ambient signals OUT — the persistent display covers those', () => {
+    const s = patch(started(2), (draft) => {
+      recordMarketSignal(draft, {
+        kind: 'market', title: 'Market Meter — Bullish', summary: 'Ambient move.', impacts: [{ code: 'CCAI', d: 1 }],
+      });
+    });
+    expect(importantMarketSignals(s)).toEqual([]);
+  });
+
+  it('exposes the same Fed Watch in the 3D Action Center, with the Bear Run landing as a row', () => {
     const s = patch(started(2), (draft) => {
       draft.players[0].shares.FTRB = 11;
       recordMarketSignal(draft, {
@@ -105,14 +118,14 @@ describe('Market Intelligence signals', () => {
         impacts: [{ code: 'FTRB', d: 1 }, { code: 'MTRO', d: -1 }],
       });
       recordMarketSignal(draft, {
-        kind: 'market', title: 'Bear Run', summary: 'The broad market fell.', impacts: [{ code: 'CCAI', d: -2 }],
+        kind: 'regime', title: 'Bear Run', summary: 'The broad market fell.', impacts: [{ code: 'CCAI', d: -2 }],
       });
     });
     const center = buildActionCenter(s);
 
     expect(center.marketIntel.title).toBe('Fed Watch · Rate Hike');
     expect(center.marketIntel.description).toContain('Tailwind: FTRB');
-    expect(center.marketIntel.rows).toEqual([]);
+    expect(center.marketIntel.rows?.[0]).toMatchObject({ title: 'Bear Run', value: 'MAJOR' });
   });
 
   it('records each $100k portfolio milestone once and promotes it as important', () => {

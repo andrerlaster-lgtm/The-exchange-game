@@ -144,7 +144,10 @@ export function repriceRoundBoundary(s: GameState, rng: Rng): void {
     // card draw, stance payout, RNG use, or Important Event; just the meter
     // snapping to 0 and an ordinary (non-curated) log line recording it.
     s.meter = 0;
-    addLog(s, `${zone === 'bull' ? 'Bull Run' : 'Bear Run'} resolved; Market Meter returned to Neutral.`, 'y');
+    // "Bullish/Bearish round", never "Bull Run"/"Bear Run" — those name the
+    // board spaces at 16/26, a separate mechanic. Keeping the words distinct
+    // stops the activity log from using one phrase for two different events.
+    addLog(s, `${zone === 'bull' ? 'Bullish' : 'Bearish'} round resolved — Market Meter returned to Neutral.`, 'y');
     return;
   }
 

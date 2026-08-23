@@ -335,7 +335,7 @@ function resolveLanding(s: GameState, pi: number): void {
         ? 'High Risk +2, Medium Risk +1, Low Risk unchanged, and revealed IPOs +1. Stance cash resolves for every player.'
         : 'High Risk −2, Medium Risk −1, Low Risk +1, and revealed IPOs −1. Stance cash resolves for every player.';
       addLog(s, `${p.name} lands on ${title} — the entire market reacts.`, regime === 'bull' ? 'g' : 'r');
-      recordMarketSignal(s, { kind: 'market', title, summary, impacts: effectImpacts(s, effect) });
+      recordMarketSignal(s, { kind: 'regime', title, summary, impacts: effectImpacts(s, effect) });
       beginMarketEventEffect(s, effect);
       break;
     }

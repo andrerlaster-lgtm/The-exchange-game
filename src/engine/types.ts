@@ -128,7 +128,14 @@ export interface LogEntry {
   t: number;          // lap number
 }
 
-export type MarketSignalKind = 'fed' | 'market' | 'soldout' | 'claim' | 'weakDemand' | 'ipo' | 'close' | 'milestone';
+/** `regime` is a Bull Run / Bear Run BOARD-SPACE landing (spaces 16/26) —
+    market-wide risk-tier price moves plus stance cash for every player. It is
+    deliberately its own kind, not `market`: it is the one signal the
+    persistent Market Condition display does NOT cover (that display tracks
+    the Market Meter, a separate mechanic), so it must stay in the curated
+    Important Events feed. The meter's own ambient signals stay `market` and
+    stay out of that feed, because the display does cover those. */
+export type MarketSignalKind = 'fed' | 'market' | 'regime' | 'soldout' | 'claim' | 'weakDemand' | 'ipo' | 'close' | 'milestone';
 
 export interface MarketSignalImpact {
   code: string;
