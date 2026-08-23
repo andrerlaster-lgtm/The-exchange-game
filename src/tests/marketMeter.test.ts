@@ -105,19 +105,48 @@ describe('repriceRoundBoundary', () => {
     expect(movedSectors2).toHaveLength(1);
   });
 
-  it('neutral zone moves a different sector up than the one it moves down, when more than one is eligible', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = 0; });
-    const before = { ...s.prices };
-    repriceRoundBoundary(s, rng('neutral-seed'));
+  it('moves exactly ONE sector per round in every zone — Neutral is never churnier than Bull/Bear', () => {
+    // 2026-08-22: Neutral used to move two sectors (one up, one down), so the
+    // supposedly calm state touched twice as many companies as an extreme
+    // one. The needle now sets only the direction, never the breadth.
+    for (const meter of [METER_MIN, -2, -1, 0, 1, 2, METER_MAX]) {
+      for (const seed of ['a', 'b', 'c', 'd', 'e']) {
+        let s = withMeter(started(2));
+        s = patch(s, (d) => { d.meter = meter; });
+        const before = { ...s.prices };
+        repriceRoundBoundary(s, rng(`one-sector-${meter}-${seed}`));
+        const movedSectors = SECTORS.filter((sec) =>
+          SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
+        expect(movedSectors).toHaveLength(1);
+      }
+    }
+  });
 
-    const upSectors = SECTORS.filter((sec) =>
-      SECTOR_CODES[sec].some((code) => s.prices[code] > before[code]));
-    const downSectors = SECTORS.filter((sec) =>
-      SECTOR_CODES[sec].some((code) => s.prices[code] < before[code]));
-    expect(upSectors).toHaveLength(1);
-    expect(downSectors).toHaveLength(1);
-    expect(upSectors[0]).not.toBe(downSectors[0]);
+  it('Neutral goes both ways across seeds, while Bull only ever moves up and Bear only ever down', () => {
+    const neutralDirections = new Set<number>();
+    for (let i = 0; i < 40; i++) {
+      let s = withMeter(started(2));
+      s = patch(s, (d) => { d.meter = 0; });
+      const before = { ...s.prices };
+      repriceRoundBoundary(s, rng(`neutral-dir-${i}`));
+      const changed = Object.keys(before).find((code) => s.prices[code] !== before[code])!;
+      neutralDirections.add(Math.sign(s.prices[changed] - before[changed]));
+    }
+    expect(neutralDirections).toEqual(new Set([1, -1])); // unbiased coin flip
+
+    for (const [meter, expectedDir] of [[METER_MAX, 1], [METER_MIN, -1]] as const) {
+      for (let i = 0; i < 20; i++) {
+        let s = withMeter(started(2));
+        s = patch(s, (d) => { d.meter = meter; });
+        const before = { ...s.prices };
+        repriceRoundBoundary(s, rng(`dir-${meter}-${i}`));
+        for (const code of Object.keys(before)) {
+          if (s.prices[code] !== before[code]) {
+            expect(Math.sign(s.prices[code] - before[code])).toBe(expectedDir);
+          }
+        }
+      }
+    }
   });
 
   it('does nothing when the option is off', () => {

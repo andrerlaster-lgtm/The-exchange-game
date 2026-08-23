@@ -109,73 +109,62 @@ export function advanceMeterOnRoll(s: GameState, a: number, b: number): void {
 
 /**
  * Guaranteed once-per-non-final-round reprice, driven by the needle's zone
- * at the moment a round completes. A Bull or Bear zone captured here always
- * resets the meter to Neutral after its (best-effort) repricing attempt —
- * 2026-08-21 Add Persistent Market Regime Display and Reset — so the market
- * can never stay trapped in one condition for the whole game, even when
- * every eligible company was already clamped and nothing actually moved.
- * Neutral rounds keep their pre-existing behavior unchanged: no reset,
- * because there is nothing to reset away from.
+ * at the moment a round completes.
+ *
+ * EXACTLY ONE sector moves, in every zone. The needle decides only the
+ * DIRECTION of that move, never how much of the market gets touched
+ * (2026-08-22). Neutral previously moved two sectors — one up and one down —
+ * which made the supposedly calm state churn twice as many companies as a
+ * Bull or Bear round, the opposite of what the labels imply.
+ *
+ * A Bull or Bear zone captured here also resets the meter to Neutral after
+ * its (best-effort) repricing attempt — 2026-08-21 Add Persistent Market
+ * Regime Display and Reset — so the market can never stay trapped in one
+ * condition for the whole game, even when every eligible company was already
+ * clamped and nothing actually moved. Neutral does not reset: there is
+ * nothing to reset away from.
  */
 export function repriceRoundBoundary(s: GameState, rng: Rng): void {
   if (!s.opts.marketMeter) return;
   const zone = meterZone(s.meter); // captured before any repricing or reset
-  const parts: string[] = [];
-  const impacts: Array<{ code: string; d: number }> = [];
+
+  // Neutral has no directional bias, so it flips a coin. Bull and Bear are
+  // fixed: a Bull round must never push a sector down, nor a Bear round up.
+  let dir: 1 | -1 = zone === 'bull' ? 1 : zone === 'bear' ? -1 : (rng.int(0, 1) === 0 ? 1 : -1);
+
+  let elig = eligibleSectors(s, dir);
+  // Only Neutral may flip: its direction was arbitrary to begin with, so if
+  // that side of the market is fully clamped it should still deliver the
+  // round's guaranteed move rather than silently no-op. Bull/Bear keep their
+  // direction and simply do nothing if it is exhausted.
+  if (elig.length === 0 && zone === 'neutral') {
+    dir = dir === 1 ? -1 : 1;
+    elig = eligibleSectors(s, dir);
+  }
+
+  if (elig.length > 0) {
+    const sec = pick(rng, elig);
+    const impacts: Array<{ code: string; d: number }> = [];
+    for (const code of moveSector(s, sec, dir)) impacts.push({ code, d: dir });
+    if (impacts.length > 0) {
+      recordMarketSignal(s, {
+        kind: 'market',
+        title: `Market Meter — ${zone === 'bull' ? 'Bullish' : zone === 'bear' ? 'Bearish' : 'Neutral'}`,
+        summary: `Ambient market move — ${sec} ${dir === 1 ? 'up' : 'down'}.`,
+        impacts,
+      });
+    }
+  }
 
   if (zone === 'bull' || zone === 'bear') {
-    const dir: 1 | -1 = zone === 'bull' ? 1 : -1;
-    const elig = eligibleSectors(s, dir);
-    if (elig.length > 0) {
-      const sec = pick(rng, elig);
-      for (const code of moveSector(s, sec, dir)) impacts.push({ code, d: dir });
-      if (impacts.length > 0) {
-        parts.push(`${sec} ${dir === 1 ? 'up' : 'down'}`);
-        recordMarketSignal(s, {
-          kind: 'market',
-          title: `Market Meter — ${zone === 'bull' ? 'Bullish' : 'Bearish'}`,
-          summary: `Ambient market move — ${parts.join(', ')}.`,
-          impacts,
-        });
-      }
-    }
     // Reset regardless of whether the attempted repricing above actually
-    // moved anything — see the function comment. No additional price move,
-    // card draw, stance payout, RNG use, or Important Event; just the meter
-    // snapping to 0 and an ordinary (non-curated) log line recording it.
+    // moved anything. No additional price move, card draw, stance payout,
+    // RNG use, or Important Event; just the meter snapping to 0 and an
+    // ordinary (non-curated) log line recording it.
     s.meter = 0;
     // "Bullish/Bearish round", never "Bull Run"/"Bear Run" — those name the
     // board spaces at 16/26, a separate mechanic. Keeping the words distinct
     // stops the activity log from using one phrase for two different events.
     addLog(s, `${zone === 'bull' ? 'Bullish' : 'Bearish'} round resolved — Market Meter returned to Neutral.`, 'y');
-    return;
   }
-
-  // Neutral: one eligible sector rises, a different eligible sector falls.
-  const up = eligibleSectors(s, 1);
-  const down = eligibleSectors(s, -1);
-  if (up.length === 0 && down.length === 0) return;
-
-  if (up.length > 0) {
-    const upSec = pick(rng, up);
-    const moved = moveSector(s, upSec, 1);
-    if (moved.length > 0) { parts.push(`${upSec} up`); for (const code of moved) impacts.push({ code, d: 1 }); }
-  }
-  if (down.length > 0) {
-    // Prefer a different sector than the one that just rose, per the design;
-    // if it's the only sector eligible for a fall at all, allow the overlap
-    // rather than silently skip a promised half of the neutral event.
-    const upSecPicked = parts[0]?.split(' ')[0] as SectorId | undefined;
-    const downCandidates = upSecPicked ? down.filter((sec) => sec !== upSecPicked) : down;
-    const downSec = pick(rng, downCandidates.length > 0 ? downCandidates : down);
-    const moved = moveSector(s, downSec, -1);
-    if (moved.length > 0) { parts.push(`${downSec} down`); for (const code of moved) impacts.push({ code, d: -1 }); }
-  }
-  if (impacts.length === 0) return;
-  recordMarketSignal(s, {
-    kind: 'market',
-    title: 'Market Meter — Neutral',
-    summary: `Ambient market move — ${parts.join(', ')}.`,
-    impacts,
-  });
 }
