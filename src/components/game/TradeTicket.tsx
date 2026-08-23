@@ -7,7 +7,7 @@
 
 import { REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, stockOpportunityFor, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { StockOpportunity } from '../../data';
-import { priceOf } from '../../engine';
+import { companyBuyoutCost, priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import FedSignalBadge from './FedSignalBadge';
 
@@ -47,7 +47,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
     ? 'NO CHANGE'
     : `${stepDiff > 0 ? '+' : ''}${stepDiff} STEP${Math.abs(stepDiff) !== 1 ? 'S' : ''}`;
 
-  const buyoutCost = stock.buyout;
+  const buyoutCost = companyBuyoutCost(s, code);
   const opportunity = stockOpportunityFor(stock);
   const canBuy = canAct && supply === REGULAR_SUPPLY && p.cash >= buyoutCost;
 

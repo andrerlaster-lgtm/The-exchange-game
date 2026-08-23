@@ -1,6 +1,6 @@
 // Rule-checking functions: pure reads used to gate actions and compute payouts.
 
-import { IPO_BY_CODE, IPO_INDEX, LADDER, STOCK_BY_CODE, isIpoCode } from '../data';
+import { IPO_BY_CODE, IPO_INDEX, LADDER, REGULAR_SUPPLY, STOCK_BY_CODE, isIpoCode } from '../data';
 import type { GameState, IpoState } from './types';
 
 export function clampStep(x: number): number {
@@ -26,6 +26,22 @@ export function priceOf(s: GameState, code: string): number {
     below the current market price — or the $100 floor when already there. */
 export function sellBackPrice(s: GameState, code: string): number {
   return LADDER[Math.max(0, stepOf(s, code) - 1)];
+}
+
+/**
+ * Whole-company acquisition cost (landing buy-out, Opening Bell): the full
+ * REGULAR_SUPPLY block priced at the company's CURRENT ladder price, not its
+ * fixed starting tier price. 2026-08-23 fix — the tier price used to be
+ * static regardless of price movement, so buying a company whose price had
+ * fallen since it opened booked an immediate unrealized loss the instant you
+ * bought it (cost basis = static tier price > market value = current price ×
+ * 11), even though nothing had happened yet while actually holding it. Tying
+ * the cost to the live price keeps every acquisition path in the game
+ * consistent: cost basis always equals market value at the moment of
+ * purchase, and Gain/Loss only moves from price changes while you hold.
+ */
+export function companyBuyoutCost(s: GameState, code: string): number {
+  return REGULAR_SUPPLY * priceOf(s, code);
 }
 
 /** Candidate codes affected by market events: all regular stocks + revealed IPOs. */

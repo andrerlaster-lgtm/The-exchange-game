@@ -4,7 +4,7 @@ import {
 } from '../data';
 import type { GameState } from '../engine';
 import {
-  bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, getRankedPlayers,
+  bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, companyBuyoutCost, getRankedPlayers,
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss,
 } from '../engine';
@@ -285,10 +285,11 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
       rows: stocks.filter(Boolean).map((stock) => {
         const owned = current.shares[stock.code] ?? 0;
         const untouched = (s.supply[stock.code] ?? 0) === REGULAR_SUPPLY;
+        const buyoutCost = companyBuyoutCost(s, stock.code);
         const actions = s.trade?.scope === 'stock'
-          ? [button(`Buy Company · ${money(stock.buyout)}`, { t: 'buy', code: stock.code }, 'primary', !untouched || current.cash < stock.buyout)]
+          ? [button(`Buy Company · ${money(buyoutCost)}`, { t: 'buy', code: stock.code }, 'primary', !untouched || current.cash < buyoutCost)]
           : [
-              button(`Buy · ${money(stock.buyout)}`, { t: 'buy', code: stock.code }, 'primary', !untouched || current.cash < stock.buyout),
+              button(`Buy · ${money(buyoutCost)}`, { t: 'buy', code: stock.code }, 'primary', !untouched || current.cash < buyoutCost),
               button(`Sell 1 · ${money(sellBackPrice(s, stock.code))}`, { t: 'sell', code: stock.code }, 'danger', bankSellRemaining(s, stock.code) <= 0),
             ];
         const fed = fedSignalForStock(s, stock.code);

@@ -20,7 +20,12 @@ function withTrade(s: ReturnType<typeof started>, code = CODE) {
 describe('Price ceiling and fixed-tier buyouts', () => {
   it('a buy-out from one step below the ceiling leaves the price unchanged and triggers no event', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.prices[CODE] = CEIL - 1; });
+    // 2026-08-23: the whole-company buy-out now costs REGULAR_SUPPLY × the
+    // LIVE price (previously a fixed tier price), so a near-ceiling buyout
+    // costs far more than the default starting cash — top up cash so this
+    // test still exercises the ceiling behavior it's actually about, not an
+    // affordability check.
+    s = patch(s, (d) => { d.prices[CODE] = CEIL - 1; d.players[0].cash = 1_000_000; });
     s = withTrade(s);
     s = dispatch(s, { t: 'buy', code: CODE }, rng());
     expect(s.prices[CODE]).toBe(CEIL - 1);
@@ -30,9 +35,10 @@ describe('Price ceiling and fixed-tier buyouts', () => {
 
   it('does not re-trigger buying out a company that starts already at the ceiling', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.prices[CODE] = CEIL; });
+    s = patch(s, (d) => { d.prices[CODE] = CEIL; d.players[0].cash = 1_000_000; });
     s = withTrade(s);
     s = dispatch(s, { t: 'buy', code: CODE }, rng());
+    expect(s.soldOut[CODE]).toBeDefined(); // confirms the buy actually went through
     expect(s.prices[CODE]).toBe(CEIL); // clamped, no further movement
     expect(s.pendingDraws).not.toContain('ME'); // no before<ceiling -> at-ceiling transition
   });

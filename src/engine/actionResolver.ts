@@ -12,7 +12,7 @@ import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
-import { bankSellRemaining, canTradeNow, canMarketSell, blocked, ipoOf, priceOf, sellBackPrice, stepOf } from './rules';
+import { bankSellRemaining, canTradeNow, canMarketSell, blocked, companyBuyoutCost, ipoOf, priceOf, sellBackPrice, stepOf } from './rules';
 import { freshDecks, freshIpos, resetPlayers } from './gameState';
 import { payMarketOpen } from './playerState';
 import { moveTradePrice, moveEventPrice, settleShorts } from './stockState';
@@ -638,7 +638,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         break;
       }
       const stock = STOCK_BY_CODE[code];
-      const cost = stock.buyout;
+      const cost = companyBuyoutCost(s, code);
       if (p.cash < cost) break;
       p.cash -= cost;
       p.shares[code] = REGULAR_SUPPLY;
@@ -646,7 +646,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       setMarketStance(p, 'bullish');
       s.supply[code] = 0;
       t.actionsLeft -= 1;
-      addLog(s, `${p.name} buys the ${stock.name} company at its ${stock.tier} tier price for ${money(cost)}!`, 'g');
+      addLog(s, `${p.name} buys the ${stock.name} company (${REGULAR_SUPPLY} shares @ ${money(priceOf(s, code))}) for ${money(cost)}!`, 'g');
       addTradeLog(s, 'buy', `Bought ${code} company (${stock.tier}) @ ${money(cost)}`, -cost, p.name);
       if (s.skips[code]) s.skips[code] = 0;
       // The buy-out claims the stock permanently. The buyer is trivially the

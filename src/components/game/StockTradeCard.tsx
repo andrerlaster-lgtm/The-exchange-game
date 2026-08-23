@@ -6,7 +6,7 @@
 
 import { MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { Stock } from '../../data/types';
-import { bankSellRemaining, canTradeNow, priceOf, sellBackPrice } from '../../engine';
+import { bankSellRemaining, canTradeNow, companyBuyoutCost, priceOf, sellBackPrice } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 import TradeTicket from './TradeTicket';
 import FedSignalBadge from './FedSignalBadge';
@@ -89,7 +89,7 @@ export default function StockTradeCard() {
             const sellRemaining = bankSellRemaining(s, st.code);
             const supply = s.supply[st.code] ?? 0;
             const untouched = supply === REGULAR_SUPPLY; // whole company still available to buy out
-            const buyoutCost = st.buyout;
+            const buyoutCost = companyBuyoutCost(s, st.code);
             return (
               <div key={st.code} style={{
                 display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,

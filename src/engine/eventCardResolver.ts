@@ -4,7 +4,7 @@ import { CARDS, CIRCUIT_BREAKER_INDEX, LADDER, MARKET_RUN_MOVE_BY_RISK, REGULAR_
 import { money } from '../utils/formatMoney';
 import type { Card, Effect } from '../data/types';
 import type { GameState, LogKind, MarketSignalImpact } from './types';
-import { eventPool, stepOf } from './rules';
+import { companyBuyoutCost, eventPool, stepOf } from './rules';
 import { moveEventPrice } from './stockState';
 import { pushFeeEvent } from './feeLog';
 import { recordCardSignal, recordMarketSignal } from './marketSignals';
@@ -361,8 +361,14 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
         break;
       }
       const stock = candidates[rng ? rng.int(0, candidates.length - 1) : 0];
-      s.openingBellPrompt = { player: s.cur, code: stock.code, price: stock.buyout };
-      addLog(s, `${s.players[s.cur].name} gets an Opening Bell opportunity: buy untouched ${stock.code} for ${money(stock.buyout)}, or pass.`, 'b');
+      // Live price, not the fixed starting tier price — an "untouched"
+      // company (never bought/sold) can still have had its price moved by a
+      // market event or Bull/Bear Run. Charging the stale tier price here
+      // would book the same instant unrealized loss/gain the landing buy-out
+      // fix (2026-08-23) addressed for the other acquisition path.
+      const cost = companyBuyoutCost(s, stock.code);
+      s.openingBellPrompt = { player: s.cur, code: stock.code, price: cost };
+      addLog(s, `${s.players[s.cur].name} gets an Opening Bell opportunity: buy untouched ${stock.code} for ${money(cost)}, or pass.`, 'b');
       break;
     }
     case 'regulatoryInvestigation': {

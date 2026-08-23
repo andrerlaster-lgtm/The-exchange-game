@@ -18,7 +18,7 @@ describe('Opening Bell Market Event card', () => {
     return { s: reduce(s, { t: 'draw', deck: 'ME' }, r), r };
   }
 
-  it('reveals an untouched company and buys the full company at tier price', () => {
+  it('reveals an untouched company and buys the full company at its live price', () => {
     let { s, r } = drawCard();
     expect(s.card?.title).toBe('Opening Bell');
     expect(s.openingBellPrompt).not.toBeNull();

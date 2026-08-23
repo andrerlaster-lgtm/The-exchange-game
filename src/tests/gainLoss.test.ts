@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { REGULAR_SUPPLY, SALARY, STOCK_BY_CODE } from '../data';
+import { ME_CARDS, REGULAR_SUPPLY, SALARY, STOCK_BY_CODE } from '../data';
 import {
-  getRankedPlayers, holdingGainLoss, marketGain, marketReturnPct, stockGainLoss,
+  getRankedPlayers, holdingGainLoss, marketGain, marketReturnPct, reduce, stockGainLoss,
 } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -85,6 +85,63 @@ describe('stock cost basis and gain/loss', () => {
     expect(s.players[0].stockCostBasis.MEDI).toBe(500);
     expect(s.players[0].realizedStockGain).toBe(200);
     expect(s.players[1].stockCostBasis.MEDI).toBe(700);
+  });
+
+  it('a company buy-out is still value-neutral even when the price already fell before the purchase (2026-08-23)', () => {
+    // The whole-company acquisition price used to be fixed to the tier's
+    // STARTING price regardless of where the ladder actually sat. Buying a
+    // company whose price had already dropped before you bought it out
+    // still charged the stale, higher starting price — booking an immediate
+    // unrealized LOSS the instant you bought, before you'd held it for even
+    // one turn. This was the reported bug: "buying at a discount" should
+    // never itself hurt Gain/Loss. The buy-out cost is now tied to the live
+    // price, so cost basis always equals market value at the moment of
+    // purchase, no matter what the price did beforehand.
+    let s = rollTo(started(2), 5); // MEDI · Growth, opens at $750
+    s = patch(s, (draft) => { draft.prices.MEDI -= 1; }); // price already fell to $500 BEFORE buying
+    s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
+
+    const gl = holdingGainLoss(s, s.players[0], 'MEDI');
+    expect(gl.marketValue).toBe(5_500); // 11 x $500
+    expect(gl.costBasis).toBe(5_500);   // charged the live price, not the stale $8,250
+    expect(gl.unrealized).toBe(0);
+    expect(marketGain(s, s.players[0])).toBe(0);
+  });
+
+  it('a company buy-out is also value-neutral when the price had already risen before the purchase', () => {
+    let s = rollTo(started(2), 5);
+    s = patch(s, (draft) => { draft.prices.MEDI += 1; }); // price already rose to $1,000
+    s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
+
+    const gl = holdingGainLoss(s, s.players[0], 'MEDI');
+    expect(gl.marketValue).toBe(11_000); // 11 x $1,000
+    expect(gl.costBasis).toBe(11_000);   // no free windfall gain either
+    expect(gl.unrealized).toBe(0);
+  });
+
+  it('an Opening Bell company purchase is also priced live, not at the stale starting tier price', () => {
+    const cardIndex = ME_CARDS.findIndex((card) => card.title === 'Opening Bell');
+    const r = rng('opening-bell-discount');
+    let s = started(2, r);
+    s = patch(s, (draft) => {
+      draft.pendingDraws = ['ME'];
+      draft.decks.ME = [cardIndex];
+      draft.discard.ME = [];
+      draft.cur = 0;
+      draft.prices.MEDI -= 1; // MEDI already at a discount before the card is even drawn
+      // Make MEDI the only untouched company so the card's random pick is
+      // forced onto it, instead of leaving this test's outcome to seed luck.
+      for (const code of Object.keys(draft.supply)) {
+        if (code !== 'MEDI') draft.players[0].shares[code] = 1;
+      }
+    });
+    s = reduce(s, { t: 'draw', deck: 'ME' }, r);
+    expect(s.openingBellPrompt?.code).toBe('MEDI');
+    s = reduce(s, { t: 'buyOpeningBell' }, r);
+
+    const gl = holdingGainLoss(s, s.players[0], 'MEDI');
+    expect(gl.costBasis).toBe(5_500); // live discounted price, not the stale $8,250
+    expect(gl.unrealized).toBe(0);
   });
 
   it('records IPO purchase price as cost basis', () => {
