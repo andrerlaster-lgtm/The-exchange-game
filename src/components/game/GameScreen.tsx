@@ -33,12 +33,16 @@ export default function GameScreen() {
         <MarketTicker />
       </div>
 
+      {/* Drawn-card overlay floats above everything else in the grid so it's
+          always visible the instant a card is drawn, regardless of scroll
+          position in any column. */}
+      <CardDisplay />
+
       {/* Left column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, overflowY: 'auto' }}>
           <PlayerCards />
           <DeckStatus />
-          <CardDisplay />
           <ActionPanel />
           <StockTradeCard />
           {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}

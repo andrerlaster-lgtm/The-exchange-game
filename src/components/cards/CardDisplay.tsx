@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { IPO_BY_CODE, STOCK_BY_CODE, STOCKS, isIpoCode } from '../../data';
 import { circuitBreakerOptions, priceOf } from '../../engine';
@@ -82,117 +83,137 @@ export default function CardDisplay() {
   const deckIcon   = isInsiderPreview ? '👁️' : deckId === 'ME' ? '📈' : '🏛️';
   const deckSymbol = deckId === 'ME' ? '📊' : '🏦';
 
+  // Floats above the board (like the dice-roll overlay) instead of living
+  // inline in the left column, so a drawn card is visible the instant it
+  // appears regardless of how tall the reference panels below it get —
+  // no scrolling required to see or act on it.
+  const overlayStyle: CSSProperties = {
+    position: 'fixed',
+    top: 54,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 320,
+    maxHeight: 'calc(100vh - 74px)',
+    overflowY: 'auto',
+    zIndex: 260,
+    pointerEvents: 'auto',
+  };
+
   if (phase === 'back') {
     // Face-down back — mirrors the 3D .card3d-back
     return (
-      <div className="card-box" style={{
-        borderColor: `${deckColorHex}33`,
-        borderWidth: 2, borderRadius: 12,
-        animation: 'cardBackOut 320ms ease-in forwards',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', gap: 6, minHeight: 80,
-        padding: '16px 14px',
-        background: 'rgba(14,11,8,0.97)',
-        position: 'relative', overflow: 'hidden', flexShrink: 0,
-        boxShadow: `0 6px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,165,53,0.1)`,
-      }}>
-        <span style={{ fontSize: 28, opacity: 0.5 }}>🃏</span>
-        <span style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: 2,
-          color: `${deckColorHex}99`, textTransform: 'uppercase',
-        }}>{deckLabel}</span>
+      <div style={overlayStyle}>
+        <div className="card-box" style={{
+          borderColor: `${deckColorHex}33`,
+          borderWidth: 2, borderRadius: 12,
+          animation: 'cardBackOut 320ms ease-in forwards',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: 6, minHeight: 80,
+          padding: '16px 14px',
+          background: 'rgba(14,11,8,0.97)',
+          position: 'relative', overflow: 'hidden', flexShrink: 0,
+          boxShadow: `0 6px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,165,53,0.1)`,
+        }}>
+          <span style={{ fontSize: 28, opacity: 0.5 }}>🃏</span>
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: 2,
+            color: `${deckColorHex}99`, textTransform: 'uppercase',
+          }}>{deckLabel}</span>
+        </div>
       </div>
     );
   }
 
   // Reveal face — mirrors the 3D .card3d-reveal (flat dark, deck-colored frame)
   return (
-    <div ref={holoRef} className="card-box holo-card" style={{
-      borderColor: `${deckColorHex}55`,
-      borderWidth: 2, borderRadius: 12,
-      animation: phase === 'reveal' ? 'cardFlipReveal 640ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
-      padding: 0, overflow: 'hidden', flexShrink: 0, position: 'relative', cursor: 'pointer',
-      background: 'rgba(12,9,6,0.97)',
-      boxShadow: `0 8px 36px rgba(0,0,0,0.75), 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
-    }}>
-      <div className="holo-card__sheen" />
-      <div className="holo-card__grain" />
-      {/* Bold top banner */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '7px 12px 6px',
-        background: `linear-gradient(135deg, ${deckColorHex}ee, ${deckColorHex}bb)`,
+    <div style={overlayStyle}>
+      <div ref={holoRef} className="card-box holo-card" style={{
+        borderColor: `${deckColorHex}55`,
+        borderWidth: 2, borderRadius: 12,
+        animation: phase === 'reveal' ? 'cardFlipReveal 640ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
+        padding: 0, overflow: 'hidden', flexShrink: 0, position: 'relative', cursor: 'pointer',
+        background: 'rgba(12,9,6,0.97)',
+        boxShadow: `0 8px 36px rgba(0,0,0,0.75), 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
       }}>
-        <span style={{
-          fontSize: 9, fontWeight: 800, letterSpacing: 2.5,
-          color: 'rgba(0,0,0,0.85)', textTransform: 'uppercase',
-        }}>
-          {deckLabel}
-        </span>
-        <span style={{ fontSize: 15, lineHeight: 1 }}>{deckIcon}</span>
-      </div>
-
-      {/* Title area */}
-      <div style={{
-        padding: '10px 12px 8px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}>
+        <div className="holo-card__sheen" />
+        <div className="holo-card__grain" />
+        {/* Bold top banner */}
         <div style={{
-          fontSize: 14, fontWeight: 800, color: 'rgba(240,230,210,0.97)',
-          letterSpacing: 0.5, lineHeight: 1.25, textTransform: 'uppercase',
-        }}>{s.card.title}</div>
-      </div>
-
-      {/* Center icon area */}
-      <div style={{
-        padding: '10px 12px 8px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-      }}>
-        <span style={{ fontSize: 30, lineHeight: 1, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))' }}>
-          {isStrategyOnly ? '⚙️' : deckSymbol}
-        </span>
-      </div>
-
-      {/* Effect text box */}
-      <div style={{ margin: '8px 10px', padding: '8px 10px', borderRadius: 7,
-        background: 'rgba(255,255,255,0.04)', border: `1px solid ${deckColorHex}22`,
-      }}>
-        <p style={{
-          fontSize: 11,
-          color: 'rgba(200,188,168,0.92)',
-          lineHeight: 1.55, margin: 0,
-        }}>{s.card.effect}</p>
-        {isStrategyOnly && (
-          <p style={{ fontSize: 9, color: 'rgba(100,90,78,0.8)', marginTop: 4, marginBottom: 0, fontStyle: 'italic' }}>
-            Strategy Mode — no effect
-          </p>
-        )}
-      </div>
-
-      {s.circuitBreakerPrompt && (
-        <CircuitBreakerDecision s={s} dispatch={dispatch} />
-      )}
-
-      {/* Pick target — hidden once a target is locked in for a Circuit Breaker decision */}
-      {s.pick && s.pick.source !== 'investor' && !isStrategyOnly && !s.circuitBreakerPrompt && (
-        <div style={{ padding: '0 10px 10px' }}>
-          <PickTarget
-            label={s.pick.label}
-            codes={s.pick.codes}
-            d={s.pick.d}
-            s={s}
-            dispatch={dispatch}
-          />
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '7px 12px 6px',
+          background: `linear-gradient(135deg, ${deckColorHex}ee, ${deckColorHex}bb)`,
+        }}>
+          <span style={{
+            fontSize: 9, fontWeight: 800, letterSpacing: 2.5,
+            color: 'rgba(0,0,0,0.85)', textTransform: 'uppercase',
+          }}>
+            {deckLabel}
+          </span>
+          <span style={{ fontSize: 15, lineHeight: 1 }}>{deckIcon}</span>
         </div>
-      )}
 
-      {/* Footer */}
-      <div style={{
-        padding: '5px 12px 8px', textAlign: 'center',
-        fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase',
-        color: `${deckColorHex}55`,
-      }}>{isInsiderPreview ? 'Preview only · Card remains on top of the deck' : 'Latest Drawn Card'}</div>
+        {/* Title area */}
+        <div style={{
+          padding: '10px 12px 8px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <div style={{
+            fontSize: 14, fontWeight: 800, color: 'rgba(240,230,210,0.97)',
+            letterSpacing: 0.5, lineHeight: 1.25, textTransform: 'uppercase',
+          }}>{s.card.title}</div>
+        </div>
+
+        {/* Center icon area */}
+        <div style={{
+          padding: '10px 12px 8px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+        }}>
+          <span style={{ fontSize: 30, lineHeight: 1, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))' }}>
+            {isStrategyOnly ? '⚙️' : deckSymbol}
+          </span>
+        </div>
+
+        {/* Effect text box */}
+        <div style={{ margin: '8px 10px', padding: '8px 10px', borderRadius: 7,
+          background: 'rgba(255,255,255,0.04)', border: `1px solid ${deckColorHex}22`,
+        }}>
+          <p style={{
+            fontSize: 11,
+            color: 'rgba(200,188,168,0.92)',
+            lineHeight: 1.55, margin: 0,
+          }}>{s.card.effect}</p>
+          {isStrategyOnly && (
+            <p style={{ fontSize: 9, color: 'rgba(100,90,78,0.8)', marginTop: 4, marginBottom: 0, fontStyle: 'italic' }}>
+              Strategy Mode — no effect
+            </p>
+          )}
+        </div>
+
+        {s.circuitBreakerPrompt && (
+          <CircuitBreakerDecision s={s} dispatch={dispatch} />
+        )}
+
+        {/* Pick target — hidden once a target is locked in for a Circuit Breaker decision */}
+        {s.pick && s.pick.source !== 'investor' && !isStrategyOnly && !s.circuitBreakerPrompt && (
+          <div style={{ padding: '0 10px 10px' }}>
+            <PickTarget
+              label={s.pick.label}
+              codes={s.pick.codes}
+              d={s.pick.d}
+              s={s}
+              dispatch={dispatch}
+            />
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{
+          padding: '5px 12px 8px', textAlign: 'center',
+          fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase',
+          color: `${deckColorHex}55`,
+        }}>{isInsiderPreview ? 'Preview only · Card remains on top of the deck' : 'Latest Drawn Card'}</div>
+      </div>
     </div>
   );
 }
