@@ -26,6 +26,27 @@ export interface Sector {
   glyph: string;
 }
 
+// Sector Control: an independent 2-company pairing layered on top of the
+// broad 8-category Sector map above. Deliberately a separate id space —
+// the broad SectorId groups (3-4 companies each) drive Market Event/Fed
+// card targeting and Diversified/Broad Market bonuses, and reshuffling
+// those to make every group exactly 2 companies would silently change what
+// "all Finance stocks" etc. means on existing cards. Sector Control pairs
+// instead cut across those groups purely for the landing-rent mechanic.
+export type SectorPairId =
+  | 'techSentinels' | 'consumerStaples' | 'healthEssentials' | 'healthInnovation'
+  | 'energyComplex' | 'realEstateHoldings' | 'heavyIndustry' | 'mediaGames'
+  | 'blueChipAlliance' | 'capitalGrowth' | 'speculativePlays';
+
+export interface SectorPair {
+  id: SectorPairId;
+  name: string;
+  tier: Risk;
+  rent: number;
+  codes: [string, string];
+  color: string;
+}
+
 export interface Stock {
   code: string;        // ticker, e.g. 'CCAI'
   name: string;

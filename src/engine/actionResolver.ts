@@ -6,7 +6,7 @@ import {
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, LADDER,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
-  PLAYER_LOAN_MAX_RATE,
+  PLAYER_LOAN_MAX_RATE, SECTOR_PAIR_BY_CODE, SECTOR_PAIRS,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
@@ -23,6 +23,7 @@ import { netWorth } from './scoringEngine';
 import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from './soldOut';
 import { hasSectorPortfolio } from './sector';
+import { sectorPairOwner } from './sectorControl';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
 import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
@@ -158,23 +159,40 @@ function resolveLanding(s: GameState, pi: number): void {
           const stock = STOCK_BY_CODE[code];
           const multiplier = landingValueMultiplier(LADDER[s.prices[code]], LADDER[stock.step]);
           const discount = shareholderLandingDiscount(landingShares);
-          const owed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
+          const claimOwed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
+          // Sector Control: if the claim holder also exclusively owns BOTH
+          // companies in this stock's Sector Control pair, a flat Sector
+          // Rent stacks on top of the normal Payout Claim — a genuine
+          // "color-set" bonus. (Owning a whole company requires the
+          // all-or-nothing 11-share buyout, which always sells it out, so
+          // by the time both pair members can be owned they're both
+          // sold-out — this is the only landing path where Sector Rent can
+          // actually fire, unlike an untouched-stock landing.)
+          const pairId = SECTOR_PAIR_BY_CODE[code];
+          const pairDef = pairId ? SECTOR_PAIRS[pairId] : null;
+          const controlsPair = !!pairDef && sectorPairOwner(s, pairId!) === rec.claimHolder;
+          const sectorRent = controlsPair ? pairDef!.rent : 0;
+          const owed = claimOwed + sectorRent;
           // Landing no longer force-pays from cash automatically — the debtor
           // gets a real choice (pay cash now, force-sell stock, or negotiate a
           // loan with the creditor at a rate the creditor picks, 1-5%/turn)
           // even when they could afford the full amount outright.
-          addLog(s, `${p.name} owes ${holder.name} ${money(owed)} Payout Claim on ${code}` +
-            (sectorComplete ? ' (Sector Portfolio boost)' : '') +
-            (multiplier > 1 ? ` (space value ${multiplier}×)` : '') +
-            (discount > 0 ? ` (${Math.round(discount * 100)}% shareholder discount)` : ''), 'r');
+          addLog(s, `${p.name} owes ${holder.name} ${money(owed)}` +
+            ` (${money(claimOwed)} Payout Claim on ${code}` +
+            (sectorComplete ? ' · Sector Portfolio boost' : '') +
+            (multiplier > 1 ? ` · space value ${multiplier}×` : '') +
+            (discount > 0 ? ` · ${Math.round(discount * 100)}% shareholder discount` : '') +
+            (sectorRent > 0 ? ` + ${money(sectorRent)} Sector Rent · ${pairDef!.name}` : '') +
+            ')', 'r');
           s.landingNotice = {
             kind: 'payout',
-            title: `Payout Claim · ${code}`,
+            title: sectorRent > 0 ? `Payout Claim + Sector Rent · ${code}` : `Payout Claim · ${code}`,
             player: p.name,
             amount: owed,
             paidFromCash: 0,
             remaining: owed,
-            detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}.`,
+            detail: `${money(claimOwed)} Payout Claim is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}` +
+              (sectorRent > 0 ? `, plus ${money(sectorRent)} Sector Rent for controlling ${pairDef!.name} (${pairDef!.codes.join(' + ')})` : '') + '.',
             canDefer: false,
           };
           const hasSellable = Object.keys(p.shares).some((c) => !isIpoCode(c) && (p.shares[c] ?? 0) > 0);
@@ -183,7 +201,7 @@ function resolveLanding(s: GameState, pi: number): void {
             creditor: rec.claimHolder,
             code,
             owed,
-            label: `Payout Claim on ${code} to ${holder.name}`,
+            label: sectorRent > 0 ? `Payout Claim + Sector Rent on ${code} to ${holder.name}` : `Payout Claim on ${code} to ${holder.name}`,
             canForceSell: hasSellable,
           };
         } else if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap === false) {
@@ -206,7 +224,10 @@ function resolveLanding(s: GameState, pi: number): void {
         }
         break;
       }
-      // Untouched company — offer to buy it outright, or skip.
+      // Untouched company — offer to buy it outright, or skip. (Sector Rent
+      // never applies here: it can only fire once a pair is fully owned,
+      // which requires both companies sold out — see the sold-out branch
+      // above, where it stacks on the normal Payout Claim instead.)
       s.trade = { scope: 'stock', code, actionsLeft: 1 };
       addLog(s, `Landed on ${STOCK_BY_CODE[code].name} — buy the company or skip.`);
       break;

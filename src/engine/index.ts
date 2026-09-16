@@ -15,4 +15,5 @@ export * from './feeDebt';
 export * from './playerLoans';
 export * from './companyMode';
 export * from './sessionDebrief';
+export * from './sectorControl';
 export { minNextBid } from './auction';

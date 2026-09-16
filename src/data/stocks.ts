@@ -1,4 +1,4 @@
-import type { CompanyTier, Risk, Sector, SectorId, Stock } from './types';
+import type { CompanyTier, Risk, Sector, SectorId, SectorPair, SectorPairId, Stock } from './types';
 import { ladderStep } from './priceTrack';
 
 export const START_CASH = 30_000;
@@ -189,6 +189,34 @@ export const SECTOR_CODES: Record<SectorId, string[]> = STOCKS.reduce((acc, s) =
   (acc[s.sector] ??= []).push(s.code);
   return acc;
 }, {} as Record<SectorId, string[]>);
+
+// ── Sector Control (landing rent for owning both companies in a pair) ──────
+// Flat toll by tier — paid straight to the owner, no forced-sale/loan
+// complexity like Payout Claims have. Kept modest since this fires on every
+// landing (not just sold-out ones), so it needs to stay in the background
+// rather than dominate the economy.
+export const SECTOR_PAIR_RENT: Record<Risk, number> = { Low: 200, Med: 350, High: 550 };
+
+export const SECTOR_PAIRS: Record<SectorPairId, SectorPair> = {
+  techSentinels:      { id: 'techSentinels',      name: 'Tech Sentinels',      tier: 'High', rent: SECTOR_PAIR_RENT.High, codes: ['CCAI', 'CYBS'], color: '#38BDF8' },
+  consumerStaples:    { id: 'consumerStaples',    name: 'Consumer Staples',    tier: 'Low',  rent: SECTOR_PAIR_RENT.Low,  codes: ['SAFE', 'FRSH'], color: '#FBBF24' },
+  healthEssentials:   { id: 'healthEssentials',   name: 'Health Essentials',   tier: 'Low',  rent: SECTOR_PAIR_RENT.Low,  codes: ['CARE', 'VSGN'], color: '#34D399' },
+  healthInnovation:   { id: 'healthInnovation',   name: 'Health Innovation',   tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['MEDI', 'BIOQ'], color: '#A78BFA' },
+  energyComplex:      { id: 'energyComplex',      name: 'Energy Complex',      tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['OILW', 'SOLR'], color: '#FB923C' },
+  realEstateHoldings: { id: 'realEstateHoldings', name: 'Real Estate Holdings', tier: 'Low', rent: SECTOR_PAIR_RENT.Low,  codes: ['MTRO', 'RENT'], color: '#60A5FA' },
+  heavyIndustry:      { id: 'heavyIndustry',      name: 'Heavy Industry',      tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['BLDM', 'AERO'], color: '#94A3B8' },
+  mediaGames:         { id: 'mediaGames',         name: 'Media & Games',       tier: 'High', rent: SECTOR_PAIR_RENT.High, codes: ['STRM', 'GMBX'], color: '#F472B6' },
+  blueChipAlliance:   { id: 'blueChipAlliance',   name: 'Blue Chip Alliance',  tier: 'Low',  rent: SECTOR_PAIR_RENT.Low,  codes: ['FTRB', 'IRON'], color: '#2DD4BF' },
+  capitalGrowth:      { id: 'capitalGrowth',      name: 'Capital Growth',      tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['PAYW', 'TWPT'], color: '#FACC15' },
+  speculativePlays:   { id: 'speculativePlays',   name: 'Speculative Plays',   tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['SNKR', 'APEX'], color: '#F87171' },
+};
+
+/** Reverse lookup: regular stock code -> the Sector Control pair it belongs
+    to. Every regular stock is in exactly one pair; IPO/ETF codes never
+    appear here (Sector Control ownership never counts those). */
+export const SECTOR_PAIR_BY_CODE: Record<string, SectorPairId> = Object.fromEntries(
+  (Object.values(SECTOR_PAIRS) as SectorPair[]).flatMap((pair) => pair.codes.map((code) => [code, pair.id])),
+);
 
 export const PLAYER_COLORS = [
   '#3ED598', '#4DA3FF', '#F0C53D', '#FF5C5C', '#A78BFA', '#2DD4BF',

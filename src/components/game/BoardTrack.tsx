@@ -1,5 +1,5 @@
-import { LADDER, PLAYER_COLORS, SECTORS, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
-import { getStockMovementStatus } from '../../engine';
+import { LADDER, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { getStockMovementStatus, sectorPairOwner } from '../../engine';
 import { useGameState, useDispatch } from '../../store';
 import { LandingResultBanner } from './ActionPanel';
 import investabearImg from '../../assets/investabear.png';
@@ -199,6 +199,16 @@ export default function BoardTrack() {
             const mvGlyph = mv.direction === 'up' ? '▲' : mv.direction === 'down' ? '▼' : '';
             const sc = stock ? SECTORS[stock.sector].color : '#c9a24f';
             const secGlyph = stock ? SECTORS[stock.sector].glyph : '';
+            // Sector Control: a small ring around the sector glyph in the
+            // controlling player's color. Owning a whole company requires
+            // the all-or-nothing buyout (always sold out), so a controlled
+            // pair's tiles are themselves always sold out too — this ring
+            // is an extra cue on top of the claim-holder band below, not a
+            // replacement for it (both companies could be sold out to
+            // *different* players without either controlling the pair).
+            const pairId = sp.code ? SECTOR_PAIR_BY_CODE[sp.code] : undefined;
+            const pairOwnerIdx = pairId ? sectorPairOwner(s, pairId) : null;
+            const pairOwnerColor = pairOwnerIdx !== null ? PLAYER_COLORS[pairOwnerIdx] : null;
 
             // Parchment certificate tile — mirrors makeStockLabel in the 3D board:
             // sector glyph upper-left, letterpress ticker, centered price + arrow,
@@ -218,10 +228,15 @@ export default function BoardTrack() {
               }}>
                 <Keyline />
 
-                {/* Sector glyph — upper-left, sector color */}
-                <span style={{
+                {/* Sector glyph — upper-left, sector color. A colored ring
+                    appears around it when a player controls this stock's
+                    Sector Control pair (owns both companies exclusively). */}
+                <span title={pairOwnerColor ? `Sector Control: ${SECTOR_PAIRS[pairId!].name} — rent applies` : undefined} style={{
                   position: 'absolute', left: '10%', top: '13%',
                   fontSize: 8, color: sc, lineHeight: 1, fontFamily: 'IBM Plex Mono, monospace',
+                  boxShadow: pairOwnerColor ? `0 0 0 1.5px ${pairOwnerColor}` : undefined,
+                  borderRadius: pairOwnerColor ? '50%' : undefined,
+                  padding: pairOwnerColor ? 1.5 : undefined,
                 }}>{secGlyph}</span>
 
                 {outstanding > 0 && (

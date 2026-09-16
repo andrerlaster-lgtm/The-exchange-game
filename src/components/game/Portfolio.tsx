@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, SECTORS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode } from '../../data';
+import { ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode } from '../../data';
 import {
-  completedSectors, diversificationBonus, diversificationTier,
+  completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
   feeDebtBalance, holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
   projectedDividend, stockGainLoss,
@@ -36,6 +36,7 @@ export default function Portfolio() {
   const nextEtfPayout = calcEtfPayout(p.etfShares);
   const fullyDiversifiedEtf = hasFullEtfDiversification(p.etfShares);
   const sectors = completedSectors(p);
+  const controlledPairs = controlledSectorPairs(s, viewIdx);
   const divTier = diversificationTier(p);
   const divBonus = diversificationBonus(p);
   const feeDebt = feeDebtBalance(p);
@@ -382,6 +383,31 @@ export default function Portfolio() {
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}>
                   <span>{def.glyph}</span>{def.name}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Sector Control badges — exclusive 2-company pairs collecting landing rent */}
+      {controlledPairs.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span className="slabel">Sector Control</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {controlledPairs.map((pairId) => {
+              const def = SECTOR_PAIRS[pairId];
+              return (
+                <span key={pairId} title={`${def.codes.join(' + ')} · $${def.rent.toLocaleString()} rent per landing`} style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                  padding: '3px 8px', borderRadius: 5,
+                  color: def.color,
+                  background: `${def.color}18`,
+                  border: `1px solid ${def.color}55`,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  {def.name}
+                  <span style={{ opacity: 0.75 }}>${def.rent.toLocaleString()}</span>
                 </span>
               );
             })}
