@@ -97,9 +97,6 @@ export default function ActionPanel() {
         <RegulatoryInvestigationPanel s={s} dispatch={dispatch} />
       )}
 
-      {/* Market Open Trading Window — private trades only, no bank sell-back */}
-      {s.marketOpenWindow && <MarketOpenWindowPanel s={s} dispatch={dispatch} />}
-
       {/* Sold-back shares can only be bought by landing on that company. */}
       {s.outstandingBuy && !s.landingNotice && !s.insolvency && (
         <OutstandingSharesPanel s={s} dispatch={dispatch} />
@@ -442,6 +439,7 @@ function PayoutShortfallChoicePanel({ s, dispatch }: { s: GameState; dispatch: (
   const choice = s.payoutShortfallChoice!;
   const debtor = s.players[choice.player];
   const creditor = s.players[choice.creditor];
+  const canPayCash = debtor.cash >= choice.owed;
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 9,
@@ -449,21 +447,23 @@ function PayoutShortfallChoicePanel({ s, dispatch }: { s: GameState; dispatch: (
       background: 'linear-gradient(105deg, rgba(240,180,41,0.18), rgba(240,180,41,0.06))',
       border: '2px solid rgba(240,180,41,0.65)',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--yellow)' }}>⚠ CAN'T COVER {choice.label.toUpperCase()}</div>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--yellow)' }}>⚠ {choice.label.toUpperCase()}</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        {debtor.name} still owes {creditor.name} <span className="mono" style={{ color: 'var(--yellow)', fontWeight: 800 }}>${choice.owed.toLocaleString()}</span>.
-        {choice.canForceSell
-          ? ' Force-sell regular stock to cover it now, or ask for a loan instead.'
-          : ' No regular stock left to force-sell — negotiate a loan instead.'}
+        {debtor.name} owes {creditor.name} <span className="mono" style={{ color: 'var(--yellow)', fontWeight: 800 }}>${choice.owed.toLocaleString()}</span>.
+        Pay it now, force-sell regular stock to cover it, or carry it as a loan from {creditor.name} instead.
       </div>
-      <div style={{ display: 'flex', gap: 7 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+        <button className="primary" disabled={!canPayCash} style={{ fontSize: 11, padding: '7px 11px' }}
+          onClick={() => dispatch({ t: 'choosePayoutPayCash' })}>
+          {canPayCash ? `Pay Now · $${choice.owed.toLocaleString()}` : `Need $${(choice.owed - Math.max(debtor.cash, 0)).toLocaleString()} More`}
+        </button>
         {choice.canForceSell && (
           <button className="danger" style={{ fontSize: 11, padding: '7px 11px' }}
             onClick={() => dispatch({ t: 'choosePayoutForceSell' })}>
             Force-Sell Stock
           </button>
         )}
-        <button className="primary" style={{ fontSize: 11, padding: '7px 11px' }}
+        <button style={{ fontSize: 11, padding: '7px 11px' }}
           onClick={() => dispatch({ t: 'choosePayoutLoan' })}>
           Ask {creditor.name} for a Loan
         </button>
@@ -571,31 +571,6 @@ function InsolvencyPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
   );
 }
 
-function MarketOpenWindowPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', gap: 8,
-      padding: '10px 12px', borderRadius: 8,
-      background: 'rgba(61,213,152,0.08)',
-      border: '1px solid rgba(61,213,152,0.35)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--green)' }}>MARKET OPEN — TRADING WINDOW</span>
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
-        {s.opts.bankAuction
-          ? 'Any player may propose a private trade. Pooled bank shares are being auctioned below.'
-          : 'Any player may propose a private trade. Outstanding bank shares stay with their company and can only be bought by landing on that stock space.'}
-      </div>
-      <button
-        className="primary"
-        style={{ fontSize: 12, padding: '7px 0', fontWeight: 700 }}
-        onClick={() => dispatch({ t: 'closeMarketOpenWindow' })}>
-        Close Trading Window →
-      </button>
-    </div>
-  );
-}
 
 function OutstandingSharesPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   const offer = s.outstandingBuy!;

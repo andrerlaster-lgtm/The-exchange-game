@@ -111,7 +111,10 @@ describe('Landing rent on a sold-out stock', () => {
       d.players[1].shares[CODE] = holderShares;
       d.cur = 0;
     });
-    return rollTo(s, SPACE); // player 0 lands on MEDI
+    s = rollTo(s, SPACE); // player 0 lands on MEDI
+    // Landing only presents the Payout Claim choice now — pay cash immediately
+    // to match this suite's assertions, which check cash right after landing.
+    return dispatch(s, { t: 'choosePayoutPayCash' }, rng());
   }
 
   it('grants the landing player a first-lap grace period', () => {
@@ -191,20 +194,22 @@ describe('Landing rent on a sold-out stock', () => {
     expect(s.players[0].cash).toBe(before);
   });
 
-  it('floors an unaffordable payout at $0 and offers a loan when there is no stock to force-sell (cash never negative)', () => {
+  it('offers a loan for the full amount when the debtor cannot afford it and has no stock to force-sell', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.supply[CODE] = 0;
       d.soldOut[CODE] = { code: CODE, claimHolder: 1 };
-      d.players[1].shares[CODE] = 6;   // owes $800
-      d.players[0].cash = 300;         // can only pay 300
+      d.players[1].shares[CODE] = 6;   // owes PAYOUT_TIER_CONTROL ($2,000)
+      d.players[0].cash = 300;         // can only afford $300 of it
       d.cur = 0;
     });
     const holderBefore = s.players[1].cash;
     s = rollTo(s, SPACE);
-    expect(s.players[0].cash).toBe(0);
-    expect(s.players[1].cash).toBe(holderBefore + 300);
-    expect(s.payoutShortfallChoice).toMatchObject({ player: 0, creditor: 1, owed: 1700, canForceSell: false });
+    // Landing presents the choice — nothing is auto-deducted, even though the
+    // debtor can't fully cover it.
+    expect(s.players[0].cash).toBe(300);
+    expect(s.players[1].cash).toBe(holderBefore);
+    expect(s.payoutShortfallChoice).toMatchObject({ player: 0, creditor: 1, owed: PAYOUT_TIER_CONTROL, canForceSell: false });
   });
 
   it('landing on a sold-out stock never opens a Trade Step — buying it is simply unavailable', () => {

@@ -68,14 +68,9 @@ export function canTradeNow(s: GameState): boolean {
  * Trading Market right now — i.e. it's their turn, they've rolled, and nothing
  * else demands attention. Unlike {@link canTradeNow} this does NOT require having
  * landed on a stock space. The per-company half-holding allowance is enforced by
- * the sell action. Bank sell-back is still closed during the Market Open window
- * (that reopens on the Trade Step).
+ * the sell action.
  */
 export function canMarketSell(s: GameState): boolean {
-  // Bank sell-back pauses during the Market Open Trading Window (private
-  // P2P trades only, no bank sell-back) even though the window itself no
-  // longer force-blocks End Turn.
-  if (s.marketOpenWindow) return false;
   return s.turnPhase === 'acted' && !blocked(s);
 }
 

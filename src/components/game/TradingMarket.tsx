@@ -128,7 +128,6 @@ function MarketRow({ code, owned, s, dispatch, sellable }: {
 /** Why the market is temporarily unavailable, for a small inline hint. */
 function sellHint(s: GameState): string {
   if (s.turnPhase === 'preRoll') return 'Roll to start your turn, then sell up to half of each holding.';
-  if (s.marketOpenWindow) return 'Bank sell-back reopens after the Market Open window closes.';
   if (s.marginCall || s.insolvency) return 'Settle the forced sale first.';
   return 'Resolve the current action to sell.';
 }

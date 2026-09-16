@@ -210,7 +210,7 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
     case 'payInsolvency': case 'skipShort': case 'ipoBuyShare': case 'ipoBuyDone':
     case 'outstandingBuyDone':
     case 'skipIpo': case 'skipPick': case 'passCircuitBreaker': case 'callClose':
-    case 'skipEtf': case 'auctionPass': case 'closeMarketOpenWindow': case 'endTurn':
+    case 'skipEtf': case 'auctionPass': case 'endTurn':
     case 'chooseInvestorGrowth': case 'chooseInvestorTip': case 'ackLandingNotice':
     case 'payLandingFee': case 'deferLandingFee':
       return true;

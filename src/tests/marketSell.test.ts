@@ -114,15 +114,4 @@ describe('Trading Market — sell without landing', () => {
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     expect(s.players[0].cash).toBe(beforeMarketOpen + SALARY + STOCK_BY_CODE.SAFE.div * 3);
   });
-
-  it('market sell is blocked during the Market Open window', () => {
-    let s = started();
-    s = rollTo(s, 5);
-    s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
-    s = patch(s, (d) => { d.trade = null; d.turnPhase = 'acted'; d.marketOpenWindow = true; });
-    expect(canMarketSell(s)).toBe(false);
-    const owned = s.players[0].shares.MEDI;
-    s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 1 }, rng());
-    expect(s.players[0].shares.MEDI).toBe(owned); // unchanged
-  });
 });

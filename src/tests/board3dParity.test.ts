@@ -96,7 +96,6 @@ describe('3D Action Center parity', () => {
   it('exposes every blocking flow through actionable 3D panels', () => {
     const s = patch(started(2), (draft) => {
       draft.turnPhase = 'acted';
-      draft.marketOpenWindow = true;
       draft.soldOut.MEDI = { code: 'MEDI', claimHolder: 0 };
       draft.bankPool.MEDI = 2;
       draft.outstandingBuy = { code: 'MEDI', actor: 0, price: 750, available: 2, bought: 0 };
@@ -108,7 +107,7 @@ describe('3D Action Center parity', () => {
     const center = buildActionCenter(s);
     const ids = center.required.map((entry) => entry.id);
 
-    expect(ids).toEqual(expect.arrayContaining(['market-open', 'outstanding-shares', 'margin-call', 'draw', 'etf']));
+    expect(ids).toEqual(expect.arrayContaining(['outstanding-shares', 'margin-call', 'draw', 'etf']));
     expect(center.required.find((entry) => entry.id === 'outstanding-shares')?.buttons?.map((entry) => entry.action.t))
       .toEqual(['buyOutstandingShares', 'buyOutstandingShares', 'outstandingBuyDone']);
     expect(center.required.find((entry) => entry.id === 'margin-call')?.rows?.[0].buttons?.[0].action.t).toBe('marginSell');

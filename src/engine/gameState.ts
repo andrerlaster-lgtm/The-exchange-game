@@ -57,7 +57,7 @@ export function initialState(rng: Rng): GameState {
     bonusRollPending: false,
     bonusRollUsed: false,
     prices, supply,
-    skips: {}, soldOut: {}, bankPool: {}, bankSoldThisTurn: {}, auction: null, auctionQueue: [], marketOpenWindow: false, lap: 1,
+    skips: {}, soldOut: {}, bankPool: {}, bankSoldThisTurn: {}, auction: null, auctionQueue: [], lap: 1,
     log: [],
     marketSignals: [],
     marketSignalSeq: 0,

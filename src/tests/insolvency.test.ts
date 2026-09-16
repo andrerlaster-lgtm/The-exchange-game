@@ -60,23 +60,25 @@ describe('Insolvency — Payout Claim landing payment', () => {
     });
   }
 
-  it('presents a shortfall choice because another player is owed', () => {
+  it('presents a payout choice for the full amount, even though cash falls short', () => {
     let s = payoutState();
     const holderBefore = s.players[1].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
 
+    // Landing never auto-deducts cash — the debtor gets to choose how to
+    // cover it, whether or not they could afford it outright.
     expect(s.players[0].pos).toBe(SPACE);
-    expect(s.players[0].cash).toBe(0);
-    expect(s.players[1].cash).toBe(holderBefore + 100);
+    expect(s.players[0].cash).toBe(100);
+    expect(s.players[1].cash).toBe(holderBefore);
     expect(s.payoutShortfallChoice).toMatchObject({
-      player: 0, creditor: 1, owed: PAYOUT_TIER_CONTROL - 100, canForceSell: true,
+      player: 0, creditor: 1, owed: PAYOUT_TIER_CONTROL, canForceSell: true,
     });
     expect(s.landingNotice?.canDefer).toBe(false);
 
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutForceSell' }, rng());
     expect(s.insolvency).toMatchObject({
-      reason: 'payout', payTo: 1, owed: PAYOUT_TIER_CONTROL - 100,
+      reason: 'payout', payTo: 1, owed: PAYOUT_TIER_CONTROL,
     });
   });
 

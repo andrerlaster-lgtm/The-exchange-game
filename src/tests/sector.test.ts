@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { SECTOR_CODES, DIVERSIFIED_BONUS, BROAD_MARKET_BONUS, PAYOUT_TIER_LOW, PAYOUT_TIER_LOW_SECTOR } from '../data';
 import { completedSectors, distinctSectors, diversificationBonus, diversificationTier, hasSectorPortfolio } from '../engine';
-import { dispatch, patch, rollTo, scriptedRng, started } from './helpers';
+import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 describe('Sector Portfolio completion', () => {
   it('completes a sector when the player owns every regular stock in it', () => {
@@ -41,9 +41,12 @@ describe('Sector Portfolio boosts Payout Claim rent', () => {
     const payerBefore = s.players[0].cash;
     const holderBefore = s.players[1].cash;
     s = rollTo(s, 8); // FTRB is at space 8
+    expect(s.log.some((l) => /Sector Portfolio boost/i.test(l.text))).toBe(true);
+    // Landing only presents the Payout Claim choice now — pay cash to match
+    // the old auto-deducted-on-landing behavior these assertions check.
+    s = dispatch(s, { t: 'choosePayoutPayCash' }, rng());
     expect(s.players[0].cash).toBe(payerBefore - PAYOUT_TIER_LOW_SECTOR);
     expect(s.players[1].cash).toBe(holderBefore + PAYOUT_TIER_LOW_SECTOR);
-    expect(s.log.some((l) => /Sector Portfolio boost/i.test(l.text))).toBe(true);
   });
 
   it('pays the normal tier when the sector is not complete', () => {
@@ -56,6 +59,7 @@ describe('Sector Portfolio boosts Payout Claim rent', () => {
     });
     const payerBefore = s.players[0].cash;
     s = rollTo(s, 8);
+    s = dispatch(s, { t: 'choosePayoutPayCash' }, rng());
     expect(s.players[0].cash).toBe(payerBefore - PAYOUT_TIER_LOW);
   });
 });

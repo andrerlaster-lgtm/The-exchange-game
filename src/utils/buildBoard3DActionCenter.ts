@@ -82,14 +82,6 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
-  if (s.marketOpenWindow) {
-    required.push({
-      id: 'market-open', title: 'Market Open — Trading Window', accent: '#3ed598', urgent: true,
-      description: 'Private trades are open. Outstanding bank shares can only be bought by landing on their company space.',
-      buttons: [button('Close Trading Window →', { t: 'closeMarketOpenWindow' }, 'primary')],
-    });
-  }
-
   if (s.outstandingBuy && !s.landingNotice && !s.insolvency) {
     const offer = s.outstandingBuy;
     const actor = s.players[offer.actor];
@@ -130,12 +122,14 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     const choice = s.payoutShortfallChoice;
     const debtor = s.players[choice.player];
     const creditor = s.players[choice.creditor];
+    const canPayCash = debtor.cash >= choice.owed;
     required.push({
-      id: 'payout-shortfall-choice', title: `Can't Cover ${choice.label}`, accent: '#f0b429', urgent: true,
-      description: `${debtor.name} still owes ${creditor.name} ${money(choice.owed)}. ${choice.canForceSell ? 'Force-sell regular stock to cover it now, or ask for a loan instead.' : 'No regular stock left to force-sell — negotiate a loan instead.'}`,
+      id: 'payout-shortfall-choice', title: choice.label, accent: '#f0b429', urgent: true,
+      description: `${debtor.name} owes ${creditor.name} ${money(choice.owed)}. Pay it now, force-sell regular stock to cover it, or carry it as a loan from ${creditor.name} instead.`,
       buttons: [
+        button(canPayCash ? `Pay Now · ${money(choice.owed)}` : `Need ${money(choice.owed - Math.max(debtor.cash, 0))} More`, { t: 'choosePayoutPayCash' }, 'primary', !canPayCash),
         ...(choice.canForceSell ? [button('Force-Sell Stock', { t: 'choosePayoutForceSell' }, 'danger')] : []),
-        button(`Ask ${creditor.name} for a Loan`, { t: 'choosePayoutLoan' }, 'primary'),
+        button(`Ask ${creditor.name} for a Loan`, { t: 'choosePayoutLoan' }, 'neutral'),
       ],
     });
   }

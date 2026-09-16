@@ -152,40 +152,33 @@ function resolveLanding(s: GameState, pi: number): void {
           const multiplier = landingValueMultiplier(LADDER[s.prices[code]], LADDER[stock.step]);
           const discount = shareholderLandingDiscount(landingShares);
           const owed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
-          const paid = Math.min(owed, Math.max(0, p.cash)); // pay what cash covers now
-          p.cash -= paid;
-          holder.cash += paid;
-          const short = owed - paid;
-          addLog(s, `${p.name} pays ${holder.name} ${money(paid)} Payout Claim on ${code}` +
+          // Landing no longer force-pays from cash automatically — the debtor
+          // gets a real choice (pay cash now, force-sell stock, or negotiate a
+          // loan with the creditor at a rate the creditor picks, 1-5%/turn)
+          // even when they could afford the full amount outright.
+          addLog(s, `${p.name} owes ${holder.name} ${money(owed)} Payout Claim on ${code}` +
             (sectorComplete ? ' (Sector Portfolio boost)' : '') +
             (multiplier > 1 ? ` (space value ${multiplier}×)` : '') +
             (discount > 0 ? ` (${Math.round(discount * 100)}% shareholder discount)` : ''), 'r');
-          addTradeLog(s, 'payout', `Payout Claim ${code} → ${holder.name}`, -paid, p.name);
-          addTradeLog(s, 'payout', `Payout Claim ${code} from ${p.name}`, paid, holder.name);
           s.landingNotice = {
             kind: 'payout',
             title: `Payout Claim · ${code}`,
             player: p.name,
             amount: owed,
-            paidFromCash: paid,
-            remaining: short,
+            paidFromCash: 0,
+            remaining: owed,
             detail: `${money(owed)} is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}.`,
             canDefer: false,
           };
-          if (short > 0) {
-            // Give the debtor a real choice instead of forcing a sale: force-sell
-            // stock now (the old automatic behavior), or negotiate a loan with
-            // the creditor at a rate the creditor picks (1-5%/turn).
-            const hasSellable = Object.keys(p.shares).some((c) => !isIpoCode(c) && (p.shares[c] ?? 0) > 0);
-            s.payoutShortfallChoice = {
-              player: pi,
-              creditor: rec.claimHolder,
-              code,
-              owed: short,
-              label: `Payout Claim on ${code} to ${holder.name}`,
-              canForceSell: hasSellable,
-            };
-          }
+          const hasSellable = Object.keys(p.shares).some((c) => !isIpoCode(c) && (p.shares[c] ?? 0) > 0);
+          s.payoutShortfallChoice = {
+            player: pi,
+            creditor: rec.claimHolder,
+            code,
+            owed,
+            label: `Payout Claim on ${code} to ${holder.name}`,
+            canForceSell: hasSellable,
+          };
         } else if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap === false) {
           addLog(s, `${p.name} lands on ${code} during the first lap — no Payout Claim is owed yet.`, 'y');
         } else if (rec.claimHolder === pi) {
@@ -355,8 +348,6 @@ function applyMove(s: GameState, steps: number): void {
   if (passed || p.pos === 1) {
     p.hasCompletedLap = true;
     payMarketOpen(s, s.cur);
-    s.marketOpenWindow = true;
-    addLog(s, 'Market Open Trading Window is open — trade freely, or just end your turn to move on.', 'b');
     if (s.opts.bankAuction) queueMarketOpenAuctions(s);
   }
   s.turnPhase = 'acted';
@@ -394,7 +385,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.circuitBreakerHolder = null; s.circuitBreakerPrompt = null;
       s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
       s.p2pOffers = []; s.p2pSeq = 0;
-      s.auction = null; s.auctionQueue = []; s.marketOpenWindow = false;
+      s.auction = null; s.auctionQueue = [];
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       s.playerDebts = []; s.playerDebtSeq = 0;
       clearTurnState(s);
@@ -838,6 +829,20 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     }
 
     // ---- Payout Claim shortfall: force-sell stock, or negotiate a loan ----
+    case 'choosePayoutPayCash': {
+      const choice = s.payoutShortfallChoice;
+      if (!choice || choice.player !== s.cur) break;
+      const debtor = s.players[choice.player];
+      const creditor = s.players[choice.creditor];
+      if (debtor.cash < choice.owed) break;
+      s.payoutShortfallChoice = null;
+      debtor.cash -= choice.owed;
+      creditor.cash += choice.owed;
+      addLog(s, `${debtor.name} pays ${creditor.name} ${money(choice.owed)} to settle ${choice.label}.`, 'g');
+      addTradeLog(s, 'payout', `${choice.label} → ${creditor.name}`, -choice.owed, debtor.name);
+      addTradeLog(s, 'payout', `${choice.label} from ${debtor.name}`, choice.owed, creditor.name);
+      break;
+    }
     case 'choosePayoutForceSell': {
       const choice = s.payoutShortfallChoice;
       if (!choice || choice.player !== s.cur) break;
@@ -850,7 +855,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (!choice || choice.player !== s.cur) break;
       s.payoutShortfallChoice = null;
       s.loanRatePrompt = { debtor: choice.player, creditor: choice.creditor, code: choice.code, amount: choice.owed, label: choice.label };
-      addLog(s, `${s.players[choice.player].name} asks ${s.players[choice.creditor].name} for a loan on the remaining ${money(choice.owed)}.`, 'y');
+      addLog(s, `${s.players[choice.player].name} asks ${s.players[choice.creditor].name} for a loan on ${money(choice.owed)}.`, 'y');
       break;
     }
     case 'setLoanRate': {
@@ -1154,14 +1159,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       handlePass(s);
       break;
 
-    // ---- Market Open Trading Window (private trades only; no bank sell-back) ----
-    case 'closeMarketOpenWindow': {
-      if (!s.marketOpenWindow) break;
-      s.marketOpenWindow = false;
-      addLog(s, 'Market Open Trading Window closed.');
-      break;
-    }
-
     // ---- player-to-player trading (negotiated price, never moves the market) ----
     case 'proposeP2POffer': {
       const { from, to, code, qty, direction, price, counterCode, counterQty } = action;
@@ -1223,14 +1220,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     case 'endTurn': {
       if (blocked(s)) break;
-      // Market Open Trading Window no longer force-blocks End Turn (players
-      // found having to explicitly close it every single lap tedious) — but
-      // it still needs to actually close here so bank sell-back reopens for
-      // the next turn, exactly as if the player had clicked Close themselves.
-      if (s.marketOpenWindow) {
-        s.marketOpenWindow = false;
-        addLog(s, 'Market Open Trading Window closed.');
-      }
       if (s.bonusRollPending) {
         s.bonusRollPending = false;
         s.turnPhase = 'preRoll';
