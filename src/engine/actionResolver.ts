@@ -6,7 +6,7 @@ import {
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, LADDER,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
-  PLAYER_LOAN_MAX_RATE, PLAYER_LOAN_MIN_RATE,
+  PLAYER_LOAN_MAX_RATE,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
@@ -858,17 +858,21 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       addLog(s, `${s.players[choice.player].name} asks ${s.players[choice.creditor].name} for a loan on ${money(choice.owed)}.`, 'y');
       break;
     }
-    case 'setLoanRate': {
+    case 'rollLoanRate': {
       const prompt = s.loanRatePrompt;
       if (!prompt) break;
-      const rate = Math.max(PLAYER_LOAN_MIN_RATE, Math.min(PLAYER_LOAN_MAX_RATE, Math.round(action.rate)));
+      // The creditor rolls a d6 for the rate instead of picking one — 6 is
+      // capped down to PLAYER_LOAN_MAX_RATE (5%) since the die has one more
+      // face than the 1-5% range allows.
+      const roll = rng.int(1, 6);
+      const rate = Math.min(roll, PLAYER_LOAN_MAX_RATE);
       s.loanRatePrompt = null;
       s.playerDebtSeq += 1;
       s.playerDebts.push({
         id: s.playerDebtSeq, debtor: prompt.debtor, creditor: prompt.creditor,
         code: prompt.code, principal: prompt.amount, interest: 0, rate,
       });
-      addLog(s, `${s.players[prompt.creditor].name} extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
+      addLog(s, `${s.players[prompt.creditor].name} rolls ${roll}${roll > PLAYER_LOAN_MAX_RATE ? ` (capped at ${PLAYER_LOAN_MAX_RATE}%)` : ''} for the rate — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
       break;
     }
     case 'payPlayerDebt': {

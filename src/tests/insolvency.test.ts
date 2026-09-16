@@ -122,7 +122,7 @@ describe('Insolvency — Payout Claim landing payment', () => {
     expect(s.payoutShortfallChoice).toBeNull();
     expect(s.loanRatePrompt).toMatchObject({ debtor: 0, creditor: 1, amount: owed });
 
-    s = dispatch(s, { t: 'setLoanRate', rate: 3 }, rng());
+    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([3]));
     expect(s.loanRatePrompt).toBeNull();
     expect(s.playerDebts).toMatchObject([{ debtor: 0, creditor: 1, principal: owed, interest: 0, rate: 3 }]);
     expect(s.insolvency).toBeNull();

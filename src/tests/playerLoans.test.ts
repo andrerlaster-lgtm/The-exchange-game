@@ -29,18 +29,18 @@ describe('Player-to-player Payout Claim loans', () => {
     expect(s.loanRatePrompt).not.toBeNull();
     expect(blocked(s)).toBe(true);
 
-    s = dispatch(s, { t: 'setLoanRate', rate: 4 }, rng());
+    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([4]));
     expect(s.loanRatePrompt).toBeNull();
     expect(s.payoutShortfallChoice).toBeNull();
     expect(blocked(s)).toBe(false);
   });
 
-  it('clamps the creditor-chosen rate to the 1-5 range', () => {
+  it('caps a rolled 6 at the 5% max rate', () => {
     let s = payoutState();
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
-    s = dispatch(s, { t: 'setLoanRate', rate: 99 }, rng());
+    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([6]));
 
     expect(s.playerDebts[0].rate).toBe(5);
   });
@@ -52,7 +52,7 @@ describe('Player-to-player Payout Claim loans', () => {
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 2]));
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
-    s = dispatch(s, { t: 'setLoanRate', rate: 5 }, rng());
+    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([5]));
     const debt = s.playerDebts[0];
     const principal = debt.principal;
 
@@ -73,7 +73,7 @@ describe('Player-to-player Payout Claim loans', () => {
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
-    s = dispatch(s, { t: 'setLoanRate', rate: 2 }, rng());
+    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([2]));
     const debtId = s.playerDebts[0].id;
     const owed = playerDebtBalance(s.playerDebts[0]);
 
@@ -90,7 +90,7 @@ describe('Player-to-player Payout Claim loans', () => {
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
-    s = dispatch(s, { t: 'setLoanRate', rate: 3 }, rng());
+    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([3]));
     const debt = s.playerDebts[0];
     const balance = playerDebtBalance(debt);
 

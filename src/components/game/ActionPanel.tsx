@@ -476,7 +476,6 @@ function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) =>
   const prompt = s.loanRatePrompt!;
   const debtor = s.players[prompt.debtor];
   const creditor = s.players[prompt.creditor];
-  const [rate, setRate] = useState(3);
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 9,
@@ -484,24 +483,14 @@ function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) =>
       background: 'linear-gradient(105deg, rgba(96,165,250,0.18), rgba(96,165,250,0.06))',
       border: '2px solid rgba(96,165,250,0.65)',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--blue)' }}>💰 {creditor.name} — SET LOAN RATE</div>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--blue)' }}>💰 {creditor.name} — ROLL FOR LOAN RATE</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: 'var(--blue)' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against {debtor.name}'s score and adds to yours.
+        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: 'var(--blue)' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. Roll a d6 for the interest rate charged per turn — a 6 is capped at 5%. Unpaid at game end counts against {debtor.name}'s score and adds to yours.
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {[1, 2, 3, 4, 5].map((r) => (
-          <button key={r}
-            className={rate === r ? 'primary' : undefined}
-            style={{ fontSize: 12, padding: '6px 12px', fontWeight: 800 }}
-            onClick={() => setRate(r)}>
-            {r}%
-          </button>
-        ))}
-        <button className="primary" style={{ fontSize: 11, padding: '7px 12px', marginLeft: 'auto' }}
-          onClick={() => dispatch({ t: 'setLoanRate', rate })}>
-          Extend Loan at {rate}%
-        </button>
-      </div>
+      <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800, alignSelf: 'flex-start' }}
+        onClick={() => dispatch({ t: 'rollLoanRate' })}>
+        🎲 Roll for Rate
+      </button>
     </div>
   );
 }

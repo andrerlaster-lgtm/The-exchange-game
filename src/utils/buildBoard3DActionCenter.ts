@@ -139,9 +139,9 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     const debtor = s.players[prompt.debtor];
     const creditor = s.players[prompt.creditor];
     required.push({
-      id: 'loan-rate', title: `${creditor.name} — Set Loan Rate`, accent: '#4da3ff', urgent: true,
-      description: `${debtor.name} is asking to borrow ${money(prompt.amount)} on their ${prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against ${debtor.name}'s score and adds to yours.`,
-      buttons: [1, 2, 3, 4, 5].map((rate) => button(`${rate}%`, { t: 'setLoanRate', rate }, 'primary')),
+      id: 'loan-rate', title: `${creditor.name} — Roll for Loan Rate`, accent: '#4da3ff', urgent: true,
+      description: `${debtor.name} is asking to borrow ${money(prompt.amount)} on their ${prompt.label}. Roll a d6 for the interest rate charged per turn (6 is capped at 5%). Unpaid at game end counts against ${debtor.name}'s score and adds to yours.`,
+      buttons: [button('Roll for Rate', { t: 'rollLoanRate' }, 'primary')],
     });
   }
 

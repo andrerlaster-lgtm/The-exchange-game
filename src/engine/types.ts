@@ -454,7 +454,7 @@ export type Action =
   | { t: 'choosePayoutPayCash' }
   | { t: 'choosePayoutForceSell' }
   | { t: 'choosePayoutLoan' }
-  | { t: 'setLoanRate'; rate: number }
+  | { t: 'rollLoanRate' }
   | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
   | { t: 'doShort'; code: string }
