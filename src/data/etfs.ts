@@ -10,24 +10,25 @@ export interface EtfDef {
 export const ETF_PRICE = 3_000;
 
 // Payout per Market Open pass/land, indexed by total ETF shares owned (capped at 4).
-// Rebalanced for the $3,000 entry price (was tuned for $5,000): same escalating-yield
-// shape as before — each additional fund pays a better rate, flattening at 4 —
-// so ETFs stay a lower-risk, lower-effort income route relative to stock dividends.
-//   1 fund  → $200  on $3,000 invested  (6.7%/lap)
-//   2 funds → $500  on $6,000 invested  (8.3%/lap)
-//   3 funds → $900  on $9,000 invested  (10%/lap)
-//   4 funds → $1,200 on $12,000 invested (10%/lap)
-export const ETF_PAYOUT = [0, 200, 500, 900, 1_200];
+// Boosted so Funds compete with a Controlling Stake stock position instead of
+// trailing it — each additional fund pays a better rate, flattening at 4.
+//   1 fund  → $300   on $3,000 invested  (10%/lap)
+//   2 funds → $700   on $6,000 invested  (11.7%/lap)
+//   3 funds → $1,200 on $9,000 invested  (13.3%/lap)
+//   4 funds → $1,800 on $12,000 invested (15%/lap)
+export const ETF_PAYOUT = [0, 300, 700, 1_200, 1_800];
 
 // Full-Diversification bonus: paid on top of the table above only when a player
 // holds at least 1 share in EVERY one of the 4 distinct funds — not just 4 shares
 // of a single fund. Mirrors the stock world's Sector Portfolio bonus and is what
 // actually makes ETFs a "diversification route" per the rulebook, rather than
-// just a flat income ladder that rewards raw share count.
-export const ETF_DIVERSIFICATION_BONUS = 300;
+// just a flat income ladder that rewards raw share count. Doubled alongside the
+// payout table so full diversification ($1,800 + $600 = $2,400/lap on $12,000,
+// 20%/lap) reads as a prize worth racing for, not a rounding bonus.
+export const ETF_DIVERSIFICATION_BONUS = 600;
 
 // Railroad-style landing fee paid to the player who controls a fund space.
-export const ETF_LANDING_FEES = [0, 500, 1_000, 1_500, 2_500];
+export const ETF_LANDING_FEES = [0, 750, 1_500, 2_500, 4_000];
 
 export function etfLandingFee(distinctFunds: number): number {
   return ETF_LANDING_FEES[Math.max(0, Math.min(4, distinctFunds))];

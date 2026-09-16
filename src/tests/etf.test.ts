@@ -11,7 +11,7 @@ describe('ETF pricing', () => {
   });
 
   it('rebalanced payout table (0–4 total shares owned)', () => {
-    expect(ETF_PAYOUT).toEqual([0, 200, 500, 900, 1_200]);
+    expect(ETF_PAYOUT).toEqual([0, 300, 700, 1_200, 1_800]);
   });
 });
 

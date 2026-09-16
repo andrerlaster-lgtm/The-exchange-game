@@ -16,18 +16,18 @@ describe('railroad-style ETF landing fees', () => {
     });
     s = reduce(s, { t: 'roll' }, scriptedRng([1, 2])); // 1 + 3 = fund space 4
     expect(s.etfPick).toBeNull();
-    expect(s.landingNotice?.amount).toBe(1_500);
+    expect(s.landingNotice?.amount).toBe(2_500);
     s = reduce(s, { t: 'payLandingFee' }, scriptedRng([]));
-    expect(s.players[0].cash).toBe(8_500);
-    expect(s.players[1].cash).toBe(11_500);
+    expect(s.players[0].cash).toBe(7_500);
+    expect(s.players[1].cash).toBe(12_500);
     expect(s.log.some((entry) => /lands on .* owes/.test(entry.text))).toBe(true);
   });
 
   it('uses the agreed fee ladder', () => {
-    expect(etfLandingFee(1)).toBe(500);
-    expect(etfLandingFee(2)).toBe(1_000);
-    expect(etfLandingFee(3)).toBe(1_500);
-    expect(etfLandingFee(4)).toBe(2_500);
+    expect(etfLandingFee(1)).toBe(750);
+    expect(etfLandingFee(2)).toBe(1_500);
+    expect(etfLandingFee(3)).toBe(2_500);
+    expect(etfLandingFee(4)).toBe(4_000);
     expect(ETF_DEFS).toHaveLength(4);
   });
 });
