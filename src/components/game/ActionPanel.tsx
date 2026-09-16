@@ -218,31 +218,32 @@ function MarketOpenReportPanel({ s, dispatch }: { s: GameState; dispatch: (a: Ac
   const report = s.marketOpenReport!;
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', gap: 8,
-      padding: '10px 12px', borderRadius: 8,
-      background: 'rgba(61,213,152,0.08)',
-      border: '1px solid rgba(61,213,152,0.35)',
+      display: 'flex', flexDirection: 'column', gap: 10,
+      padding: '14px 16px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(61,213,152,0.16), rgba(61,213,152,0.05))',
+      border: '2px solid rgba(61,213,152,0.55)',
+      boxShadow: '0 3px 18px rgba(61,213,152,0.16)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--green)' }}>MARKET OPEN REPORT · {report.player}</span>
-        <button style={{ fontSize: 10, padding: '2px 8px', marginLeft: 'auto' }}
+        <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.3, color: 'var(--green)' }}>{report.player}'s Report</span>
+        <button style={{ fontSize: 11, padding: '3px 10px', marginLeft: 'auto' }}
           onClick={() => dispatch({ t: 'dismissMarketOpenReport' })}>
           Dismiss
         </button>
       </div>
 
       <div>
-        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 3 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
           This Lap's Trades
         </div>
         {report.trades.length === 0 ? (
-          <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>No buys or sells this lap.</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>No buys or sells this lap.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {report.trades.map((t, i) => (
-              <div key={i} style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              <div key={i} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <span style={{ color: 'var(--text)' }}>{t.text}</span>
-                <span className="mono" style={{ color: t.amount >= 0 ? 'var(--green)' : 'var(--red)', flexShrink: 0 }}>
+                <span className="mono" style={{ fontWeight: 700, color: t.amount >= 0 ? 'var(--green)' : 'var(--red)', flexShrink: 0 }}>
                   {t.amount >= 0 ? '+' : '−'}${Math.abs(t.amount).toLocaleString()}
                 </span>
               </div>
@@ -252,22 +253,22 @@ function MarketOpenReportPanel({ s, dispatch }: { s: GameState; dispatch: (a: Ac
       </div>
 
       <div>
-        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 3 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
           Holdings Gain / Loss
         </div>
         {report.holdings.length === 0 ? (
-          <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>No stock holdings.</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>No stock holdings.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {report.holdings.map((h) => (
-              <div key={h.code} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="mono" style={{ color: 'var(--accent)', width: 44 }}>{h.code}</span>
+              <div key={h.code} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="mono" style={{ color: 'var(--accent)', width: 46, fontWeight: 700 }}>{h.code}</span>
                 <span style={{ color: 'var(--muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</span>
-                <span style={{ color: 'var(--muted)', width: 22 }}>×{h.qty}</span>
-                <span className="mono" style={{ color: h.unrealized >= 0 ? 'var(--green)' : 'var(--red)', width: 66, textAlign: 'right' }}>
+                <span style={{ color: 'var(--muted)', width: 24 }}>×{h.qty}</span>
+                <span className="mono" style={{ fontWeight: 700, color: h.unrealized >= 0 ? 'var(--green)' : 'var(--red)', width: 70, textAlign: 'right' }}>
                   {h.unrealized >= 0 ? '+' : '−'}${Math.abs(h.unrealized).toLocaleString()}
                 </span>
-                <span className="mono" style={{ color: h.unrealized >= 0 ? 'var(--green)' : 'var(--red)', width: 50, textAlign: 'right' }}>
+                <span className="mono" style={{ color: h.unrealized >= 0 ? 'var(--green)' : 'var(--red)', width: 54, textAlign: 'right' }}>
                   ({h.returnPct >= 0 ? '+' : ''}{h.returnPct.toFixed(0)}%)
                 </span>
               </div>
