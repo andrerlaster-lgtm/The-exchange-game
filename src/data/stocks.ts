@@ -127,7 +127,12 @@ export const SECTORS: Record<SectorId, Sector> = {
 // dominated on income (Stage A finding: at Low:100/Med:50/High:0, buying a
 // High-risk company had no reason to ever be the better choice). The bulk
 // of High risk's return is meant to come from price movement instead.
-const DIV_BY_RISK: Record<Risk, number> = { Low: 50, Med: 30, High: 15 };
+// Raised from Low:50/Med:30/High:15 (2026-09-15 balance pass) — full-company
+// payback at the old rates ran 7-17 laps for Low/Med risk, so buying even a
+// couple of companies left a player cash-starved for laps at a time. These
+// values put full-company payback around 4-10 laps for Low, 7-17 for Med;
+// High stays slow by design (price movement carries its return instead).
+const DIV_BY_RISK: Record<Risk, number> = { Low: 80, Med: 50, High: 20 };
 
 // [space, name, sector, basePrice, risk, code]
 // 22 regular stocks — uneven sector distribution:

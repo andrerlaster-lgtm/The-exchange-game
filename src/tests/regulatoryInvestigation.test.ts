@@ -32,8 +32,8 @@ describe('Regulatory Investigation card', () => {
 
     const beforeCash = s.players[0].cash;
     s = patch(s, (d) => payMarketOpen(d, 0));
-    // 2026-08-21 Market Overhaul: MEDI (Med risk) is now $30/share, was $50.
-    expect(s.players[0].cash - beforeCash).toBe(500 + 75); // salary + half of 5×$30 dividend
+    // 2026-09-15 balance pass: MEDI (Med risk) is now $50/share, was $30.
+    expect(s.players[0].cash - beforeCash).toBe(500 + 125); // salary + half of 5×$50 dividend
     expect(s.players[0].dividendCuts.MEDI).toBeUndefined();
   });
 

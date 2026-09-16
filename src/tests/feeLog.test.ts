@@ -20,16 +20,16 @@ describe('Taxes & Fees — feeLog', () => {
   it('projects next-pass dividends from holdings and logs income including them', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].shares = { SAFE: 2 }; // Low-risk, $50 div/share (2026-08-21 Market Overhaul)
+      d.players[0].shares = { SAFE: 2 }; // Low-risk, $80 div/share (2026-09-15 balance pass)
       d.players[0].pos = 34;
     });
 
     // Forward-looking projection reflects current holdings before the pass.
-    expect(projectedDividend(s, s.players[0])).toBe(100);
+    expect(projectedDividend(s, s.players[0])).toBe(160);
 
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const income = s.feeLog.find((f) => f.kind === 'income');
-    expect(income!.amount).toBe(500 + 100);
+    expect(income!.amount).toBe(500 + 160);
   });
 
   it('logs a marginCall entry when the call is fully paid from cash', () => {
