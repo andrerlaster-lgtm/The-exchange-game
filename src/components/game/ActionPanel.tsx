@@ -144,9 +144,9 @@ function CyberattackPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action)
       border: '2px solid rgba(239,68,68,0.70)',
       boxShadow: '0 3px 18px rgba(239,68,68,0.14)',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#fca5a5' }}>⚠ CYBERATTACK · CHOOSE ONE</div>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--red)' }}>⚠ CYBERATTACK · CHOOSE ONE</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        Your portfolio security system has been breached. Protect your cash by dropping one owned holding one price step, or pay <span className="mono" style={{ color: '#fca5a5', fontWeight: 800 }}>${prompt.fee.toLocaleString()}</span>.
+        Your portfolio security system has been breached. Protect your cash by dropping one owned holding one price step, or pay <span className="mono" style={{ color: 'var(--red)', fontWeight: 800 }}>${prompt.fee.toLocaleString()}</span>.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {prompt.codes.map((code) => (
@@ -195,9 +195,9 @@ function RegulatoryInvestigationPanel({ s, dispatch }: { s: GameState; dispatch:
       background: 'linear-gradient(105deg, rgba(239,68,68,0.18), rgba(245,158,11,0.08))',
       border: '2px solid rgba(245,158,11,0.70)',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#fbbf24' }}>⚖ REGULATORY INVESTIGATION · CHOOSE ONE</div>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--yellow)' }}>⚖ REGULATORY INVESTIGATION · CHOOSE ONE</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        Choose a holding to drop 1 price step and lose 50% of its next dividend, or pay <span className="mono" style={{ fontWeight: 800, color: '#fbbf24' }}>${prompt.fee.toLocaleString()}</span> to settle the investigation.
+        Choose a holding to drop 1 price step and lose 50% of its next dividend, or pay <span className="mono" style={{ fontWeight: 800, color: 'var(--yellow)' }}>${prompt.fee.toLocaleString()}</span> to settle the investigation.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {prompt.codes.map((code) => (
@@ -227,21 +227,21 @@ export function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (
     }}>
       <div style={{ fontSize: 28, lineHeight: 1 }}>{notice.kind === 'audit' ? '⚑' : notice.kind === 'tax' ? '$' : notice.kind === 'fund' ? '◆' : '↗'}</div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#fca5a5', letterSpacing: 1, textTransform: 'uppercase' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--red)', letterSpacing: 1, textTransform: 'uppercase' }}>
           Landing Result · {notice.title}
         </div>
-        <div className="mono" style={{ fontSize: 24, fontWeight: 900, color: '#ef4444', marginTop: 3 }}>
+        <div className="mono" style={{ fontSize: 24, fontWeight: 900, color: 'var(--red)', marginTop: 3 }}>
           −${notice.amount.toLocaleString()}
         </div>
         <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45, marginTop: 3 }}>
           {notice.player}: {notice.detail}
         </div>
         {notice.canDefer ? (
-          <div style={{ fontSize: 11, color: '#f0b429', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--yellow)', marginTop: 4 }}>
             Choose now: pay from cash or carry the full amount as debt. Unpaid debt adds 5% each turn and lowers final score.
           </div>
         ) : (
-          <div style={{ fontSize: 11, color: needsMore ? '#f0b429' : 'var(--muted)', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: needsMore ? 'var(--yellow)' : 'var(--muted)', marginTop: 4 }}>
             ${notice.paidFromCash.toLocaleString()} taken from cash
             {needsMore ? ` · $${notice.remaining.toLocaleString()} still due — sell regular stock if available` : ' · paid in full'}
           </div>
@@ -397,7 +397,7 @@ function MarginCallPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
           Cash <span className="mono" style={{ color: p.cash < 0 ? 'var(--red)' : 'var(--text)' }}>${p.cash.toLocaleString()}</span>
         </span>
       </div>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
         Sell stock to raise <span className="mono" style={{ color: 'var(--red)', fontWeight: 700 }}>${mc.owed.toLocaleString()}</span>,
         then pay the call. A flat <span className="mono">${MARGIN_DEFAULT_PENALTY.toLocaleString()}</span> penalty applies.
       </div>
@@ -484,9 +484,9 @@ function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) =>
       background: 'linear-gradient(105deg, rgba(96,165,250,0.18), rgba(96,165,250,0.06))',
       border: '2px solid rgba(96,165,250,0.65)',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#93c5fd' }}>💰 {creditor.name} — SET LOAN RATE</div>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--blue)' }}>💰 {creditor.name} — SET LOAN RATE</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: '#93c5fd' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against {debtor.name}'s score and adds to yours.
+        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: 'var(--blue)' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. Pick the interest rate charged per turn (1–5%). Unpaid at game end counts against {debtor.name}'s score and adds to yours.
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {[1, 2, 3, 4, 5].map((r) => (
@@ -528,7 +528,7 @@ function InsolvencyPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
           Cash <span className="mono" style={{ color: 'var(--text)' }}>${p.cash.toLocaleString()}</span>
         </span>
       </div>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
         {p.name} still owes <span className="mono" style={{ color: 'var(--yellow)', fontWeight: 700 }}>${iv.owed.toLocaleString()}</span> toward {iv.label}.
         Sell regular stock (IPO/ETF holdings can't be force-sold) until it's covered, or run out and the rest is waived.
       </div>
@@ -582,7 +582,7 @@ function MarketOpenWindowPanel({ s, dispatch }: { s: GameState; dispatch: (a: Ac
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--green)' }}>MARKET OPEN — TRADING WINDOW</span>
       </div>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
         {s.opts.bankAuction
           ? 'Any player may propose a private trade. Pooled bank shares are being auctioned below.'
           : 'Any player may propose a private trade. Outstanding bank shares stay with their company and can only be bought by landing on that stock space.'}
