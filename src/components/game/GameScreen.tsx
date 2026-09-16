@@ -33,10 +33,11 @@ export default function GameScreen() {
         <MarketTicker />
       </div>
 
-      {/* Drawn-card overlay floats above everything else in the grid so it's
-          always visible the instant a card is drawn, regardless of scroll
-          position in any column. */}
+      {/* Drawn-card and stock-trade overlays float above everything else in
+          the grid so they're always visible the instant they appear,
+          regardless of scroll position in any column. */}
       <CardDisplay />
+      <StockTradeCard />
 
       {/* Left column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
@@ -52,7 +53,6 @@ export default function GameScreen() {
 
       {/* Center column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0 }}>
-        <StockTradeCard />
         <MarketIntelligence />
         <BoardTrack />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
