@@ -1,8 +1,8 @@
 // The landed-stock / Free-Trading-Day trade panel — "the card" that appears when
-// a player lands on a stock. Lives at the top of the left column so it's visible
-// without scrolling. Buying the landed stock (or the Free Trading Day list)
-// happens here; selling any owned stock is handled separately by the Trading
-// Market on the board.
+// a player lands on a stock. Lives at the top of the center column (above the
+// board) rather than the narrow 252px left sidebar, so it has room to breathe.
+// Buying the landed stock (or the Free Trading Day list) happens here; selling
+// any owned stock is handled separately by the Trading Market on the board.
 
 import { MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { Stock } from '../../data/types';

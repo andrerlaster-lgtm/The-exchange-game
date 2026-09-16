@@ -44,7 +44,6 @@ export default function GameScreen() {
           <PlayerCards />
           <DeckStatus />
           <ActionPanel />
-          <StockTradeCard />
           {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
           <IpoPanel />
           <ShortPanel />
@@ -53,6 +52,7 @@ export default function GameScreen() {
 
       {/* Center column */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0 }}>
+        <StockTradeCard />
         <MarketIntelligence />
         <BoardTrack />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
