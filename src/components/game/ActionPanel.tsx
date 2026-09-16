@@ -97,6 +97,10 @@ export default function ActionPanel() {
         <RegulatoryInvestigationPanel s={s} dispatch={dispatch} />
       )}
 
+      {/* Market Open Report — recap of this lap's trades + current holdings'
+          gain/loss, shown where the old Market Open Trading Window was. */}
+      {s.marketOpenReport && <MarketOpenReportPanel s={s} dispatch={dispatch} />}
+
       {/* Sold-back shares can only be bought by landing on that company. */}
       {s.outstandingBuy && !s.landingNotice && !s.insolvency && (
         <OutstandingSharesPanel s={s} dispatch={dispatch} />
@@ -205,6 +209,71 @@ function RegulatoryInvestigationPanel({ s, dispatch }: { s: GameState; dispatch:
         <button style={{ fontSize: 11, padding: '6px 10px', marginLeft: 'auto' }} onClick={() => dispatch({ t: 'payRegulatoryInvestigation' })}>
           Pay ${prompt.fee.toLocaleString()}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function MarketOpenReportPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const report = s.marketOpenReport!;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: '10px 12px', borderRadius: 8,
+      background: 'rgba(61,213,152,0.08)',
+      border: '1px solid rgba(61,213,152,0.35)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, color: 'var(--green)' }}>MARKET OPEN REPORT · {report.player}</span>
+        <button style={{ fontSize: 10, padding: '2px 8px', marginLeft: 'auto' }}
+          onClick={() => dispatch({ t: 'dismissMarketOpenReport' })}>
+          Dismiss
+        </button>
+      </div>
+
+      <div>
+        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 3 }}>
+          This Lap's Trades
+        </div>
+        {report.trades.length === 0 ? (
+          <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>No buys or sells this lap.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {report.trades.map((t, i) => (
+              <div key={i} style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ color: 'var(--text)' }}>{t.text}</span>
+                <span className="mono" style={{ color: t.amount >= 0 ? 'var(--green)' : 'var(--red)', flexShrink: 0 }}>
+                  {t.amount >= 0 ? '+' : '−'}${Math.abs(t.amount).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 3 }}>
+          Holdings Gain / Loss
+        </div>
+        {report.holdings.length === 0 ? (
+          <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>No stock holdings.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {report.holdings.map((h) => (
+              <div key={h.code} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="mono" style={{ color: 'var(--accent)', width: 44 }}>{h.code}</span>
+                <span style={{ color: 'var(--muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</span>
+                <span style={{ color: 'var(--muted)', width: 22 }}>×{h.qty}</span>
+                <span className="mono" style={{ color: h.unrealized >= 0 ? 'var(--green)' : 'var(--red)', width: 66, textAlign: 'right' }}>
+                  {h.unrealized >= 0 ? '+' : '−'}${Math.abs(h.unrealized).toLocaleString()}
+                </span>
+                <span className="mono" style={{ color: h.unrealized >= 0 ? 'var(--green)' : 'var(--red)', width: 50, textAlign: 'right' }}>
+                  ({h.returnPct >= 0 ? '+' : ''}{h.returnPct.toFixed(0)}%)
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

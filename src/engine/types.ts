@@ -39,6 +39,16 @@ export interface Player {
   companyHoldings: Record<number, number>; // public shares held in other player companies
   companyLoanPrincipal: number;      // one emergency loan principal (Companies Mode)
   companyLoanInterest: number;       // accrued 5% emergency-loan interest (Companies Mode)
+  lapTrades: TradeEntry[];           // this player's trade activity since their last Market Open report
+}
+
+/** Small recap shown where the Market Open Trading Window used to appear:
+    what the player bought/sold since their last lap, and how their current
+    holdings are doing. */
+export interface MarketOpenReport {
+  player: string;
+  trades: TradeEntry[];
+  holdings: { code: string; name: string; qty: number; unrealized: number; returnPct: number }[];
 }
 
 export interface CompanyLoanOffer {
@@ -366,6 +376,7 @@ export interface GameState {
   bankSoldThisTurn: Record<string, number>; // regular shares sold to the bank by the current player this turn
   auction: Auction | null;             // legacy inactive auction state retained for old-session compatibility
   auctionQueue: string[];              // legacy inactive queue retained for old-session compatibility
+  marketOpenReport: MarketOpenReport | null; // recap shown after a player completes a lap; clears on their next turn
   lap: number;
   log: LogEntry[];
   marketSignals: MarketSignal[];
@@ -455,6 +466,7 @@ export type Action =
   | { t: 'choosePayoutForceSell' }
   | { t: 'choosePayoutLoan' }
   | { t: 'rollLoanRate' }
+  | { t: 'dismissMarketOpenReport' }
   | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
   | { t: 'doShort'; code: string }

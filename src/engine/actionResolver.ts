@@ -26,7 +26,7 @@ import { hasSectorPortfolio } from './sector';
 import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
 import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
-import { addStockCostBasis, rankingScore, recordStockSale } from './gainLoss';
+import { addStockCostBasis, holdingGainLoss, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
 import { accruePlayerDebt, payPlayerDebt, playerDebtBalance, playerDebtInstallment } from './playerLoans';
 import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
@@ -37,8 +37,15 @@ function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
 }
 
 function addTradeLog(s: GameState, kind: TradeKind, text: string, amount: number, player: string): void {
-  s.tradeLog.unshift({ kind, text, amount, player, t: s.lap });
+  const entry = { kind, text, amount, player, t: s.lap };
+  s.tradeLog.unshift(entry);
   if (s.tradeLog.length > 60) s.tradeLog.pop();
+  // Feed the Market Open Report: only buy/sell/ipo activity counts as
+  // trading, not dividends, margin calls, payouts, etc.
+  if (kind === 'buy' || kind === 'sell' || kind === 'ipo') {
+    const p = s.players.find((pl) => pl.name === player);
+    p?.lapTrades.push(entry);
+  }
 }
 
 function offerCompanyLoanIfNeeded(s: GameState, rng: Rng, player: number): void {
@@ -348,6 +355,18 @@ function applyMove(s: GameState, steps: number): void {
   if (passed || p.pos === 1) {
     p.hasCompletedLap = true;
     payMarketOpen(s, s.cur);
+    s.marketOpenReport = {
+      player: p.name,
+      trades: p.lapTrades,
+      holdings: Object.keys(p.shares)
+        .filter((code) => (p.shares[code] ?? 0) > 0)
+        .map((code) => {
+          const gl = holdingGainLoss(s, p, code);
+          const name = isIpoCode(code) ? (IPO_BY_CODE[code]?.name ?? code) : (STOCK_BY_CODE[code]?.name ?? code);
+          return { code, name, qty: p.shares[code], unrealized: gl.unrealized, returnPct: gl.returnPct };
+        }),
+    };
+    p.lapTrades = [];
     if (s.opts.bankAuction) queueMarketOpenAuctions(s);
   }
   s.turnPhase = 'acted';
@@ -385,7 +404,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.circuitBreakerHolder = null; s.circuitBreakerPrompt = null;
       s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
       s.p2pOffers = []; s.p2pSeq = 0;
-      s.auction = null; s.auctionQueue = [];
+      s.auction = null; s.auctionQueue = []; s.marketOpenReport = null;
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       s.playerDebts = []; s.playerDebtSeq = 0;
       clearTurnState(s);
@@ -875,6 +894,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       addLog(s, `${s.players[prompt.creditor].name} rolls ${roll}${roll > PLAYER_LOAN_MAX_RATE ? ` (capped at ${PLAYER_LOAN_MAX_RATE}%)` : ''} for the rate — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
       break;
     }
+    case 'dismissMarketOpenReport':
+      s.marketOpenReport = null;
+      break;
     case 'payPlayerDebt': {
       const debt = s.playerDebts.find((d) => d.id === action.debtId);
       if (!debt) break;
@@ -1296,6 +1318,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.dice = [null, null];
       s.bonusRollPending = false;
       s.bonusRollUsed = false;
+      s.marketOpenReport = null;
       clearTurnState(s);
       settleShorts(s);
       addLog(s, `— ${s.players[s.cur].name}'s turn —`);

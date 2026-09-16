@@ -57,7 +57,7 @@ export function initialState(rng: Rng): GameState {
     bonusRollPending: false,
     bonusRollUsed: false,
     prices, supply,
-    skips: {}, soldOut: {}, bankPool: {}, bankSoldThisTurn: {}, auction: null, auctionQueue: [], lap: 1,
+    skips: {}, soldOut: {}, bankPool: {}, bankSoldThisTurn: {}, auction: null, auctionQueue: [], marketOpenReport: null, lap: 1,
     log: [],
     marketSignals: [],
     marketSignalSeq: 0,
@@ -104,7 +104,7 @@ export function resetPlayers(s: GameState): void {
       cash: s.opts.startCash, pos: 1, hasCompletedLap: false, shares: {}, stockCostBasis: {}, realizedStockGain: 0, dividendCuts: {},
       etfShares: {}, salaryCollected: 0, margin: 0, feeDebtPrincipal: 0, feeDebtInterest: 0,
       marketStance: 'balanced', prevRank: null, companyShares: 60, companyHoldings: {},
-      companyLoanPrincipal: 0, companyLoanInterest: 0,
+      companyLoanPrincipal: 0, companyLoanInterest: 0, lapTrades: [],
     });
   }
 }
