@@ -10,9 +10,10 @@ describe('getStockMovementStatus', () => {
     const status = getStockMovementStatus(code, s);
     expect(status.direction).toBe('flat');
     expect(status.stepDifference).toBe(0);
+    expect(status.pctFromOpen).toBe(0);
   });
 
-  it('returns up when price is above starting step', () => {
+  it('returns up when price is above starting step, with the real % change from opening', () => {
     const s = started();
     const code = 'SAFE';
     const startStep = STOCK_BY_CODE[code].step;
@@ -21,9 +22,11 @@ describe('getStockMovementStatus', () => {
     expect(status.direction).toBe('up');
     expect(status.label).toBe('Up');
     expect(status.stepDifference).toBe(2);
+    // SAFE opens at $500 (Starter tier); startStep+2 lands on $1,000 — +100%.
+    expect(status.pctFromOpen).toBeCloseTo(100, 5);
   });
 
-  it('returns down when price is below starting step', () => {
+  it('returns down when price is below starting step, with the real % change from opening', () => {
     const s = started();
     const code = 'CCAI';
     const startStep = STOCK_BY_CODE[code].step;
@@ -32,6 +35,8 @@ describe('getStockMovementStatus', () => {
     expect(status.direction).toBe('down');
     expect(status.label).toBe('Down');
     expect(status.stepDifference).toBe(-1);
+    // CCAI opens at $750 (Growth tier); startStep-1 lands on $500 — -33.33%.
+    expect(status.pctFromOpen).toBeCloseTo(-33.333, 2);
   });
 });
 

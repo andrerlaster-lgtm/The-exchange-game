@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode } from '../../data';
+import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, ETF_PRICE, FEE_DEBT_INSTALLMENT, FEE_DEBT_INTEREST_RATE, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode, totalEtfShares } from '../../data';
 import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
-  feeDebtBalance, holdingDividendInfo, holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
+  feeDebtBalance, holdingDividendInfo, holdingGainLoss, lapReturnPct, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
   projectedDividend, sharesValue, stockGainLoss,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
   playerDebtBalance, playerDebtInstallment,
 } from '../../engine';
+import { toBps } from '../../utils/formatRate';
 import { useDispatch, useGameState } from '../../store';
 
 export default function Portfolio() {
@@ -29,6 +30,11 @@ export default function Portfolio() {
   const nw = netWorth(s, p);
   const gameGain = marketGain(s, p);
   const gameReturn = marketReturnPct(s, p);
+  // CAGR analog: laps are this game's only real recurring period, so a
+  // per-lap geometric return sits alongside the cumulative Market Gain %
+  // rather than replacing it — both are legitimate, answering different
+  // questions ("total so far" vs. "rate per lap").
+  const perLapReturn = lapReturnPct(s, p);
   const stockGl = stockGainLoss(s, p);
   const bp = getBuyingPower(viewIdx, s);
   const risk = getPortfolioRisk(viewIdx, s);
@@ -38,6 +44,12 @@ export default function Portfolio() {
   const nwGlyph = nwMv.direction === 'up' ? '▲' : nwMv.direction === 'down' ? '▼' : '—';
   const nextDividend = projectedDividend(s, p);
   const nextEtfPayout = calcEtfPayout(p.etfShares);
+  // ETF_PAYOUT is a shared table keyed by TOTAL shares across all 4 funds, not
+  // an amount attributable to any one fund — so yield is computed once at the
+  // portfolio level (matching how the $ figure is already shown), never
+  // per-holding, which would misattribute a tiered/pooled payout to one fund.
+  const totalEtfCostBasis = totalEtfShares(p.etfShares) * ETF_PRICE;
+  const etfYieldPct = totalEtfCostBasis > 0 ? (nextEtfPayout / totalEtfCostBasis) * 100 : 0;
   const fullyDiversifiedEtf = hasFullEtfDiversification(p.etfShares);
   const sectors = completedSectors(p);
   const controlledPairs = controlledSectorPairs(s, viewIdx);
@@ -151,6 +163,12 @@ export default function Portfolio() {
           color={gainColor(gameGain)}
           bold={s.opts.scoringMode === 'gainLoss'}
         />
+        <FinRow
+          label={`Per-Lap Return · lap ${s.lap}`}
+          value={signedPercent(perLapReturn)}
+          color={gainColor(perLapReturn)}
+          title="Geometric mean return per lap (CAGR-style, using laps as the period) — (1 + Market Gain %)^(1/laps) − 1. Whole-portfolio only: a true per-holding CAGR would need each lot's purchase lap, which isn't tracked."
+        />
         <FinRow label="Salary Collected · excluded" value={`+$${p.salaryCollected.toLocaleString()}`} color="var(--muted)" />
         <FinRow label="Stock G/L · total" value={signedMoney(stockGl.total)} color={gainColor(stockGl.total)} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, fontSize: 9, color: 'var(--muted)' }}>
@@ -242,7 +260,7 @@ export default function Portfolio() {
             <span>Interest ${p.feeDebtInterest.toLocaleString()}</span>
           </div>
           <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
-            Adds 5% at the beginning of this player’s turn, rounded to $100 with a $100 minimum. Already deducted from score.
+            Adds {FEE_DEBT_INTEREST_RATE * 100}% ({toBps(FEE_DEBT_INTEREST_RATE * 100)} bps) at the beginning of this player’s turn, rounded to $100 with a $100 minimum. Already deducted from score.
           </div>
           {isOwnTurn && s.phase === 'play' && (
             <div style={{ display: 'flex', gap: 6 }}>
@@ -275,7 +293,7 @@ export default function Portfolio() {
             return (
               <div key={d.id} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                  <span style={{ color: 'var(--muted)' }}>{d.code} · to {creditorName} · {d.rate}%/turn</span>
+                  <span title={`${toBps(d.rate)} bps per turn`} style={{ color: 'var(--muted)' }}>{d.code} · to {creditorName} · {d.rate}%/turn ({toBps(d.rate)}bps)</span>
                   <span className="mono" style={{ fontWeight: 800, color: 'var(--red)' }}>−${balance.toLocaleString()}</span>
                 </div>
                 {isOwnTurn && s.phase === 'play' && (
@@ -313,7 +331,7 @@ export default function Portfolio() {
             const debtorName = s.players[d.debtor].name;
             return (
               <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                <span style={{ color: 'var(--muted)' }}>{d.code} · from {debtorName} · {d.rate}%/turn</span>
+                <span title={`${toBps(d.rate)} bps per turn`} style={{ color: 'var(--muted)' }}>{d.code} · from {debtorName} · {d.rate}%/turn ({toBps(d.rate)}bps)</span>
                 <span className="mono" style={{ fontWeight: 800, color: 'var(--green)' }}>+${balance.toLocaleString()}</span>
               </div>
             );
@@ -344,8 +362,9 @@ export default function Portfolio() {
             ETF Income / Market Open
             <span style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.7, marginLeft: 5 }}>next pass</span>
           </span>
-          <span className="mono" style={{ color: nextEtfPayout > 0 ? 'var(--green)' : 'var(--muted)', fontWeight: 700 }}>
+          <span className="mono" title="Yield on total ETF cost basis — the payout table is shared across all funds by total shares held, so this is a portfolio-level yield, not per-fund" style={{ color: nextEtfPayout > 0 ? 'var(--green)' : 'var(--muted)', fontWeight: 700 }}>
             {nextEtfPayout > 0 ? '+' : ''}${nextEtfPayout.toLocaleString()}
+            {totalEtfCostBasis > 0 && <span style={{ fontWeight: 400, opacity: 0.8 }}> · {etfYieldPct.toFixed(1)}%/lap</span>}
           </span>
         </div>
       )}
@@ -451,7 +470,9 @@ export default function Portfolio() {
                       }}>★ CONTROLLER</span>
                     )}
                   </span>
-                  <span style={{ fontSize: 10, color: mvColor, fontWeight: 700 }}>{mvGlyph} {mv?.label ?? ''}</span>
+                  <span style={{ fontSize: 10, color: mvColor, fontWeight: 700 }}>
+                    {mvGlyph} {mv?.label ?? ''}{mv && mv.pctFromOpen !== 0 ? ` ${signedPercent(mv.pctFromOpen)}` : ''}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                   <span style={{ color: 'var(--muted)' }}>{qty}× ${price >= 1000 ? `${price / 1000}k` : price}</span>
@@ -466,13 +487,20 @@ export default function Portfolio() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 2 }}>
                   <span style={{ color: 'var(--muted)' }}>{concentrationPct.toFixed(1)}% of portfolio</span>
                   {div.printed > 0 ? (
-                    <span className="mono" style={{ color: 'var(--muted)' }}>
-                      Yield {div.yieldPct.toFixed(1)}%/lap
+                    <span className="mono" title={`${toBps(div.yieldPct)} bps/lap on current price`} style={{ color: 'var(--muted)' }}>
+                      Yield (mkt) {div.yieldPct.toFixed(1)}%/lap
                     </span>
                   ) : (
                     <span style={{ color: 'var(--muted)', opacity: 0.7, fontStyle: 'italic' }}>No dividend</span>
                   )}
                 </div>
+                {div.printed > 0 && gl.costBasis > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 9.5, marginTop: 1 }}>
+                    <span className="mono" title={`${toBps(div.yieldOnCostPct)} bps/lap on what you actually paid`} style={{ color: 'var(--muted)', opacity: 0.85 }}>
+                      Yield (cost) {div.yieldOnCostPct.toFixed(1)}%/lap
+                    </span>
+                  </div>
+                )}
                 {!div.isController && (
                   <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.75, fontStyle: 'italic', marginTop: 1 }}>
                     {div.sharesToControl} more share{div.sharesToControl === 1 ? '' : 's'} → Controller ({CONTROL_DIVIDEND_MULTIPLIER}× dividend)
@@ -610,9 +638,9 @@ function gainColor(value: number): string {
   return value > 0 ? 'var(--green)' : value < 0 ? 'var(--red)' : 'var(--muted)';
 }
 
-function FinRow({ label, value, color, bold }: { label: string; value: string; color: string; bold?: boolean }) {
+function FinRow({ label, value, color, bold, title }: { label: string; value: string; color: string; bold?: boolean; title?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+    <div title={title} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
       <span style={{ color: 'var(--muted)' }}>{label}</span>
       <span className="mono" style={{ color, fontWeight: bold ? 700 : 400 }}>{value}</span>
     </div>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ME_CARDS, REGULAR_SUPPLY, SALARY, STOCK_BY_CODE } from '../data';
 import {
-  getRankedPlayers, holdingGainLoss, marketGain, marketReturnPct, reduce, stockGainLoss,
+  getRankedPlayers, holdingDividendInfo, holdingGainLoss, lapReturnPct, marketGain, marketReturnPct, reduce, stockGainLoss,
 } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -152,6 +152,66 @@ describe('stock cost basis and gain/loss', () => {
 
     expect(s.players[0].shares[code]).toBe(1);
     expect(s.players[0].stockCostBasis[code]).toBe(price);
+  });
+});
+
+describe('holdingDividendInfo', () => {
+  it('reports both yield-to-price and yield-to-cost, and they diverge when price has moved since purchase', () => {
+    const s = patch(started(2), (draft) => {
+      draft.players[0].shares.MEDI = 4;              // MEDI div=$50/share, control threshold 6
+      draft.players[0].stockCostBasis.MEDI = 4_000;   // bought at an average $1,000/share
+      // current price stays at MEDI's $750 opening step, so yield-to-price and
+      // yield-to-cost are computed against two different denominators.
+    });
+    const info = holdingDividendInfo(s, s.players[0], 'MEDI');
+    expect(info.printed).toBe(50);
+    expect(info.isController).toBe(false);
+    expect(info.sharesToControl).toBe(2);
+    expect(info.perLap).toBe(200); // 50 x 4, no Controller multiplier
+    expect(info.yieldPct).toBeCloseTo((200 / 3_000) * 100, 6);      // to current price ($750 x 4)
+    expect(info.yieldOnCostPct).toBeCloseTo((200 / 4_000) * 100, 6); // to cost ($1,000 x 4)
+    expect(info.yieldPct).not.toBeCloseTo(info.yieldOnCostPct, 1);
+  });
+
+  it('applies the Controller multiplier once the threshold is reached', () => {
+    const s = patch(started(2), (draft) => {
+      draft.players[0].shares.MEDI = 6;
+      draft.players[0].stockCostBasis.MEDI = 4_500;
+    });
+    const info = holdingDividendInfo(s, s.players[0], 'MEDI');
+    expect(info.isController).toBe(true);
+    expect(info.sharesToControl).toBe(0);
+    expect(info.perLap).toBe(Math.round(50 * 6 * 1.5)); // 450
+  });
+
+  it('reports no dividend (not 0%-that-looks-computed) for a zero-div IPO', () => {
+    const s = patch(started(2), (draft) => {
+      draft.players[0].shares.NDRV = 2; // NDRV prints $0/share
+    });
+    const info = holdingDividendInfo(s, s.players[0], 'NDRV');
+    expect(info.printed).toBe(0);
+    expect(info.perLap).toBe(0);
+    expect(info.yieldPct).toBe(0);
+  });
+});
+
+describe('lapReturnPct', () => {
+  it('is 0 at game start alongside a 0 marketReturnPct', () => {
+    const s = started();
+    expect(marketReturnPct(s, s.players[0])).toBe(0);
+    expect(lapReturnPct(s, s.players[0])).toBe(0);
+  });
+
+  it('is the geometric (CAGR-style) per-lap rate, not the flat cumulative % divided by laps', () => {
+    const s = patch(started(2), (draft) => {
+      draft.players[0].cash += 3_000; // +$3,000 on a $30,000 start = +10% cumulative
+      draft.lap = 4;
+    });
+    expect(marketReturnPct(s, s.players[0])).toBeCloseTo(10, 6);
+    // (1.10)^(1/4) - 1, in percent — NOT 10/4 = 2.5.
+    const expected = (Math.pow(1.10, 1 / 4) - 1) * 100;
+    expect(lapReturnPct(s, s.players[0])).toBeCloseTo(expected, 9);
+    expect(lapReturnPct(s, s.players[0])).toBeCloseTo(2.4114, 3);
   });
 });
 

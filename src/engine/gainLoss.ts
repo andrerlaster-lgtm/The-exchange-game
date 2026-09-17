@@ -76,6 +76,19 @@ export function marketReturnPct(s: GameState, player: Player): number {
   return s.opts.startCash > 0 ? (marketGain(s, player) / s.opts.startCash) * 100 : 0;
 }
 
+/**
+ * Per-lap geometric return — a CAGR analog using laps (the game's only
+ * real recurring period) in place of years: (1 + cumulative return)^(1/laps) - 1.
+ * This is portfolio-level only: a true per-holding CAGR would need each
+ * lot's purchase lap, which stockCostBasis does not track (it only keeps a
+ * running total, not dated lots), so this stays a whole-portfolio metric.
+ */
+export function lapReturnPct(s: GameState, player: Player): number {
+  const laps = Math.max(1, s.lap);
+  const cumulativeMultiple = Math.max(0, 1 + marketReturnPct(s, player) / 100);
+  return (Math.pow(cumulativeMultiple, 1 / laps) - 1) * 100;
+}
+
 /** Active ranking score: net worth in Standard Mode, Market Gain otherwise. */
 export function rankingScore(s: GameState, player: Player): number {
   return s.opts.scoringMode === 'gainLoss' ? marketGain(s, player) : netWorth(s, player);

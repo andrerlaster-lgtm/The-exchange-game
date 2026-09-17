@@ -3,12 +3,12 @@
 
 export { clampStep, ipoOf, stepOf, priceOf, sellBackPrice, companyBuyoutCost, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked, shortPayout } from './rules';
 export { sharesValue, netWorth, isDiversified } from './scoringEngine';
-export { holdingGainLoss, stockGainLoss, marketGain, marketReturnPct, rankingScore } from './gainLoss';
+export { holdingGainLoss, stockGainLoss, marketGain, marketReturnPct, lapReturnPct, rankingScore } from './gainLoss';
 export { topOwner, recomputeClaim, claimPayout } from './soldOut';
 export { completedSectors, hasSectorPortfolio, distinctSectors, diversificationTier, diversificationBonus } from './sector';
 export type { DiversificationTier } from './sector';
 
-import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR, STOCK_BY_CODE, IPO_BY_CODE, etfValue, isIpoCode } from '../data';
+import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR, LADDER, STOCK_BY_CODE, IPO_BY_CODE, etfValue, isIpoCode } from '../data';
 import type { GameState, Player } from './types';
 
 /**
@@ -37,7 +37,8 @@ export function projectedDividend(_s: GameState, p: Player): number {
 export interface HoldingDividendInfo {
   printed: number;          // per-share dividend as printed on the card
   perLap: number;           // this holding's actual contribution to the next Market Open payout
-  yieldPct: number;         // perLap ÷ current market value × 100 (0 if no market value or no dividend)
+  yieldPct: number;         // yield-to-current-price: perLap ÷ current market value × 100
+  yieldOnCostPct: number;   // yield-to-cost: perLap ÷ original cost basis × 100 (0 if no basis tracked)
   controlThreshold: number; // 6 for a regular stock, 3 for an IPO
   isController: boolean;    // at/above the Controller threshold (rulebook: "6+ shares = Controller")
   sharesToControl: number;  // additional shares needed to reach Controller (0 once there)
@@ -48,6 +49,11 @@ export interface HoldingDividendInfo {
  * across the whole portfolio — read-only, does not change what gets paid.
  * Reuses payMarketOpen's exact rounding (via the same Controller-multiplier
  * formula as projectedDividend) so the number shown always matches reality.
+ *
+ * Returns BOTH yield conventions since they answer different questions:
+ * yieldPct (yield-to-current-price) is "what would I earn buying in today",
+ * yieldOnCostPct (yield-to-cost) is "what am I actually earning on what I
+ * paid" — the two diverge whenever the price has moved since purchase.
  */
 export function holdingDividendInfo(s: GameState, p: Player, code: string): HoldingDividendInfo {
   const qty = p.shares[code] ?? 0;
@@ -57,10 +63,12 @@ export function holdingDividendInfo(s: GameState, p: Player, code: string): Hold
   const isController = qty >= controlThreshold;
   const perLap = printed <= 0 ? 0 : (isController ? Math.round(printed * qty * CONTROL_DIVIDEND_MULTIPLIER) : printed * qty);
   const marketValue = qty * priceOf(s, code);
+  const costBasis = p.stockCostBasis[code] ?? 0;
   return {
     printed,
     perLap,
     yieldPct: marketValue > 0 ? (perLap / marketValue) * 100 : 0,
+    yieldOnCostPct: costBasis > 0 ? (perLap / costBasis) * 100 : 0,
     controlThreshold,
     isController,
     sharesToControl: Math.max(0, controlThreshold - qty),
@@ -73,13 +81,23 @@ export interface StockMovementStatus {
   stepDifference: number;
 }
 
-export function getStockMovementStatus(code: string, s: GameState): StockMovementStatus {
+// Extends the shared StockMovementStatus (also used by getPlayerNetWorthMovement
+// for the unrelated net-worth up/down badge) with a real price % — stock price
+// specific, since "opening price" only means something for a stock/IPO code.
+export interface StockPriceMovement extends StockMovementStatus {
+  pctFromOpen: number; // (current price - opening price) ÷ opening price × 100
+}
+
+export function getStockMovementStatus(code: string, s: GameState): StockPriceMovement {
   const startStep = STOCK_BY_CODE[code]?.step ?? 0;
   const currentStep = s.prices[code] ?? startStep;
   const diff = currentStep - startStep;
-  if (diff > 0) return { direction: 'up', label: 'Up', stepDifference: diff };
-  if (diff < 0) return { direction: 'down', label: 'Down', stepDifference: diff };
-  return { direction: 'flat', label: 'Flat', stepDifference: 0 };
+  const openingPrice = LADDER[startStep];
+  const currentPrice = LADDER[currentStep];
+  const pctFromOpen = openingPrice > 0 ? ((currentPrice - openingPrice) / openingPrice) * 100 : 0;
+  if (diff > 0) return { direction: 'up', label: 'Up', stepDifference: diff, pctFromOpen };
+  if (diff < 0) return { direction: 'down', label: 'Down', stepDifference: diff, pctFromOpen };
+  return { direction: 'flat', label: 'Flat', stepDifference: 0, pctFromOpen: 0 };
 }
 
 import { MARGIN_INCREMENT, MARGIN_MAX } from '../data';

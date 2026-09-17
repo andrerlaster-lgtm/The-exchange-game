@@ -10,6 +10,7 @@ import {
 } from '../data';
 import type { Effect } from '../data/types';
 import { money } from '../utils/formatMoney';
+import { toBps } from '../utils/formatRate';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
 import { bankSellRemaining, canTradeNow, canMarketSell, blocked, companyBuyoutCost, ipoOf, priceOf, sellBackPrice, stepOf } from './rules';
@@ -304,7 +305,10 @@ function resolveLanding(s: GameState, pi: number): void {
       const minimum = carriesMargin ? AUDIT_MARGIN_MINIMUM : AUDIT_MINIMUM;
       const percentageCharge = Math.max(0, Math.round(nw * rate / 100) * 100);
       const penalty = Math.max(minimum, percentageCharge);
-      addLog(s, `${p.name} owes Audit Notice: ${money(penalty)} (${rate * 100}% of net worth ${money(nw)}; ${money(minimum)} minimum) — pay now or carry the debt.`, 'r');
+      // The margin surcharge is a genuine rate CHANGE (5.00% -> 7.50%), so it's
+      // the one spot in Audit Notice worth a bps delta alongside the plain %.
+      const rateDeltaBps = carriesMargin ? toBps((AUDIT_MARGIN_RATE - AUDIT_RATE) * 100) : 0;
+      addLog(s, `${p.name} owes Audit Notice: ${money(penalty)} (${rate * 100}% of net worth ${money(nw)}${carriesMargin ? ` — Audit rate is +${rateDeltaBps}bps for carrying margin` : ''}; ${money(minimum)} minimum) — pay now or carry the debt.`, 'r');
       s.landingNotice = {
         kind: 'audit',
         title: 'Audit Notice',
@@ -312,7 +316,7 @@ function resolveLanding(s: GameState, pi: number): void {
         amount: penalty,
         paidFromCash: 0,
         remaining: penalty,
-        detail: `${rate * 100}% of net worth ${money(nw)}, rounded to the nearest $100, with a ${money(minimum)} minimum${carriesMargin ? ' because an outstanding margin balance raises the Audit rate' : ''}.`,
+        detail: `${rate * 100}% of net worth ${money(nw)}, rounded to the nearest $100, with a ${money(minimum)} minimum${carriesMargin ? ` — the Audit rate is elevated by ${rateDeltaBps} bps (${AUDIT_RATE * 100}% → ${AUDIT_MARGIN_RATE * 100}%) because of an outstanding margin balance` : ''}.`,
         canDefer: true,
       };
       break;
