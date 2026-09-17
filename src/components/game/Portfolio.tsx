@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode } from '../../data';
+import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode } from '../../data';
 import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
-  feeDebtBalance, holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
-  projectedDividend, stockGainLoss,
+  feeDebtBalance, holdingDividendInfo, holdingGainLoss, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
+  projectedDividend, sharesValue, stockGainLoss,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
   playerDebtBalance, playerDebtInstallment,
 } from '../../engine';
@@ -22,6 +22,10 @@ export default function Portfolio() {
   const p = s.players[viewIdx];
   const entries = Object.entries(p.shares).filter(([, n]) => n > 0);
   const etfEntries = Object.entries(p.etfShares).filter(([, n]) => n > 0);
+  // Concentration denominator — stock + IPO market value only (matches the
+  // OVERCONCENTRATED risk-badge check in getPortfolioRisk), so cash on hand
+  // doesn't dilute what "% of portfolio" means for a single position.
+  const totalStockValue = sharesValue(s, p);
   const nw = netWorth(s, p);
   const gameGain = marketGain(s, p);
   const gameReturn = marketReturnPct(s, p);
@@ -423,6 +427,8 @@ export default function Portfolio() {
             const price = priceOf(s, code);
             const total = qty * price;
             const gl = holdingGainLoss(s, p, code);
+            const div = holdingDividendInfo(s, p, code);
+            const concentrationPct = totalStockValue > 0 ? (total / totalStockValue) * 100 : 0;
             const mv = isIpoCode(code) ? null : getStockMovementStatus(code, s);
             const mvColor = mv?.direction === 'up' ? 'var(--green)' : mv?.direction === 'down' ? 'var(--red)' : 'var(--muted)';
             const mvGlyph = mv?.direction === 'up' ? '▲' : mv?.direction === 'down' ? '▼' : '—';
@@ -435,7 +441,16 @@ export default function Portfolio() {
                 borderLeft: `3px solid ${sc}`,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                  <span className="mono" style={{ fontSize: 11, fontWeight: 700, color: sc }}>{code}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span className="mono" style={{ fontSize: 11, fontWeight: 700, color: sc }}>{code}</span>
+                    {div.isController && (
+                      <span title={`Controller · ${div.controlThreshold}+ shares · ${CONTROL_DIVIDEND_MULTIPLIER}× dividend`} style={{
+                        fontSize: 8, fontWeight: 800, letterSpacing: 0.3,
+                        color: 'var(--gold)', background: 'rgba(212,165,53,0.16)',
+                        border: '1px solid rgba(212,165,53,0.4)', borderRadius: 4, padding: '1px 5px',
+                      }}>★ CONTROLLER</span>
+                    )}
+                  </span>
                   <span style={{ fontSize: 10, color: mvColor, fontWeight: 700 }}>{mvGlyph} {mv?.label ?? ''}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
@@ -448,6 +463,21 @@ export default function Portfolio() {
                     G/L {signedMoney(gl.unrealized)} · {signedPercent(gl.returnPct)}
                   </span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 2 }}>
+                  <span style={{ color: 'var(--muted)' }}>{concentrationPct.toFixed(1)}% of portfolio</span>
+                  {div.printed > 0 ? (
+                    <span className="mono" style={{ color: 'var(--muted)' }}>
+                      Yield {div.yieldPct.toFixed(1)}%/lap
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--muted)', opacity: 0.7, fontStyle: 'italic' }}>No dividend</span>
+                  )}
+                </div>
+                {!div.isController && (
+                  <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.75, fontStyle: 'italic', marginTop: 1 }}>
+                    {div.sharesToControl} more share{div.sharesToControl === 1 ? '' : 's'} → Controller ({CONTROL_DIVIDEND_MULTIPLIER}× dividend)
+                  </div>
+                )}
               </div>
             );
           })}

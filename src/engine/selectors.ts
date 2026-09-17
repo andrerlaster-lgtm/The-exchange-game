@@ -34,6 +34,39 @@ export function projectedDividend(_s: GameState, p: Player): number {
   return div;
 }
 
+export interface HoldingDividendInfo {
+  printed: number;          // per-share dividend as printed on the card
+  perLap: number;           // this holding's actual contribution to the next Market Open payout
+  yieldPct: number;         // perLap ÷ current market value × 100 (0 if no market value or no dividend)
+  controlThreshold: number; // 6 for a regular stock, 3 for an IPO
+  isController: boolean;    // at/above the Controller threshold (rulebook: "6+ shares = Controller")
+  sharesToControl: number;  // additional shares needed to reach Controller (0 once there)
+}
+
+/**
+ * Per-holding breakdown of the same dividend math projectedDividend sums
+ * across the whole portfolio — read-only, does not change what gets paid.
+ * Reuses payMarketOpen's exact rounding (via the same Controller-multiplier
+ * formula as projectedDividend) so the number shown always matches reality.
+ */
+export function holdingDividendInfo(s: GameState, p: Player, code: string): HoldingDividendInfo {
+  const qty = p.shares[code] ?? 0;
+  const isIpo = isIpoCode(code);
+  const printed = isIpo ? (IPO_BY_CODE[code]?.div ?? 0) : (STOCK_BY_CODE[code]?.div ?? 0);
+  const controlThreshold = isIpo ? CONTROL_THRESHOLD_IPO : CONTROL_THRESHOLD_REGULAR;
+  const isController = qty >= controlThreshold;
+  const perLap = printed <= 0 ? 0 : (isController ? Math.round(printed * qty * CONTROL_DIVIDEND_MULTIPLIER) : printed * qty);
+  const marketValue = qty * priceOf(s, code);
+  return {
+    printed,
+    perLap,
+    yieldPct: marketValue > 0 ? (perLap / marketValue) * 100 : 0,
+    controlThreshold,
+    isController,
+    sharesToControl: Math.max(0, controlThreshold - qty),
+  };
+}
+
 export interface StockMovementStatus {
   direction: 'up' | 'down' | 'flat';
   label: 'Up' | 'Down' | 'Flat';
