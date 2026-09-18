@@ -5,11 +5,23 @@
 // bank), so there is nothing to "own" or sell yet — landing here is strictly a
 // buy-the-whole-company-or-skip decision.
 
-import { REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, stockOpportunityFor, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { LADDER, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, stockOpportunityFor, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { StockOpportunity } from '../../data';
-import { companyBuyoutCost, priceOf } from '../../engine';
+import { clampStep, companyBuyoutCost, priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import FedSignalBadge from './FedSignalBadge';
+
+/** Signed dollar amount — "+$500" / "−$250" / "$0". */
+function signedMoney(value: number): string {
+  if (value === 0) return '$0';
+  return `${value > 0 ? '+' : '−'}$${Math.abs(value).toLocaleString()}`;
+}
+
+/** Signed percent, parenthesized and ready to append — "" for exactly 0. */
+function signedPercentSuffix(value: number): string {
+  if (value === 0) return '';
+  return ` (${value > 0 ? '+' : ''}${value.toFixed(1)}%)`;
+}
 
 interface Props {
   code: string;
@@ -38,18 +50,38 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
   const p = s.players[s.cur];
   const price = priceOf(s, code);
   const supply = s.supply[code] ?? 0;
-  const stepDiff = (s.prices[code] ?? stock.step) - stock.step;
+  const currentStep = s.prices[code] ?? stock.step;
   const [riskLabel, riskColor] = RISK_MAP[stock.risk] ?? ['—', '#555'];
 
-  const dirColor = stepDiff > 0 ? '#1f7a44' : stepDiff < 0 ? '#c0392b' : '#8a7a68';
-  const arrow = stepDiff > 0 ? '▲' : stepDiff < 0 ? '▼' : '—';
-  const stepText = stepDiff === 0
-    ? 'NO CHANGE'
-    : `${stepDiff > 0 ? '+' : ''}${stepDiff} STEP${Math.abs(stepDiff) !== 1 ? 'S' : ''}`;
+  // Real dollar/percent move since this company's opening price — not a step
+  // count. `stock.base` is the fixed opening per-share price for its tier
+  // (Starter $500 / Growth $750 / Premium $1,000), so this is the actual
+  // return an early buyer would be sitting on right now, the same number a
+  // real ticker would show.
+  const openPrice = stock.base;
+  const priceDiff = price - openPrice;
+  const pctDiff = openPrice > 0 ? (priceDiff / openPrice) * 100 : 0;
+  const dirColor = priceDiff > 0 ? '#1f7a44' : priceDiff < 0 ? '#c0392b' : '#8a7a68';
+  const arrow = priceDiff > 0 ? '▲' : priceDiff < 0 ? '▼' : '—';
+  const moveText = priceDiff === 0 ? 'NO CHANGE' : `${signedMoney(priceDiff)}${signedPercentSuffix(pctDiff)}`;
 
   const buyoutCost = companyBuyoutCost(s, code);
   const opportunity = stockOpportunityFor(stock);
   const canBuy = canAct && supply === REGULAR_SUPPLY && p.cash >= buyoutCost;
+
+  // What a Bull/Bear Run would actually pay from HERE, in dollars — not the
+  // step count `opportunity.bullMove/bearMove` describe. The ladder is not
+  // evenly spaced ($100 steps near the floor, $1,000 near the ceiling), so
+  // "+2 steps" is worth a very different amount depending on where a stock
+  // already sits; this projects the real post-clamp price the same way the
+  // engine itself would move it (clampStep — never past the floor/ceiling).
+  const bullDelta = LADDER[clampStep(currentStep + opportunity.bullMove)] - price;
+  const bearDelta = LADDER[clampStep(currentStep + opportunity.bearMove)] - price;
+
+  // Real price Weak Demand would actually drop this stock to on the next
+  // skip — the engine moves it exactly one ladder step down, clamped at the
+  // $100 floor (moveTradePrice), so this mirrors that precisely.
+  const weakDropPrice = LADDER[clampStep(currentStep - 1)];
 
   return (
     <div key={code} style={{
@@ -110,7 +142,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
               </span>
               <span style={{ fontSize: 24, lineHeight: 1, color: dirColor }}>{arrow}</span>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, color: dirColor }}>{stepText}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, color: dirColor }}>{moveText}</div>
           </div>
         </div>
 
@@ -131,7 +163,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
         </div>
       </div>
 
-      <OpportunityPanel opportunity={opportunity} />
+      <OpportunityPanel opportunity={opportunity} bullDelta={bullDelta} bearDelta={bearDelta} />
 
       {/* Meta line */}
       <div style={{ position: 'relative', fontSize: 9.5, color: 'rgba(200,188,168,0.65)', letterSpacing: 0.3, textAlign: 'center' }}>
@@ -156,7 +188,7 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
           color: 'rgba(200,188,168,0.7)', cursor: 'pointer',
         }}
         onClick={() => dispatch({ t: 'skipStock', code })}>
-        Skip {weakCount > 0 ? `(${weakCount + 1}/${WEAK_DEMAND_THRESHOLD} — price drops next skip)` : ''}
+        Skip {weakCount > 0 ? `(${weakCount + 1}/${WEAK_DEMAND_THRESHOLD} — drops to $${weakDropPrice.toLocaleString()} next skip)` : ''}
       </button>
     </div>
   );
@@ -177,15 +209,18 @@ const OPPORTUNITY_THEME: Record<StockOpportunity['tone'], { bg: string; border: 
   },
 };
 
-function signedStep(value: number): string {
-  return `${value > 0 ? '+' : ''}${value}`;
-}
-
-function OpportunityPanel({ opportunity }: { opportunity: StockOpportunity }) {
+function OpportunityPanel({ opportunity, bullDelta, bearDelta }: {
+  opportunity: StockOpportunity;
+  bullDelta: number;
+  bearDelta: number;
+}) {
   const theme = OPPORTUNITY_THEME[opportunity.tone];
+  // Real dollar outcome from the CURRENT price, not the fixed step count the
+  // card type carries (Low risk is always 0 steps on a Bull Run, which is why
+  // 'income' tone shows only the Bear Run row here).
   const runRow = opportunity.tone === 'income'
-    ? { label: 'BEAR RUN', value: `${signedStep(opportunity.bearMove)} PRICE STEP` }
-    : { label: 'BULL / BEAR RUN', value: `${signedStep(opportunity.bullMove)} / ${signedStep(opportunity.bearMove)} STEPS` };
+    ? { label: 'BEAR RUN', value: signedMoney(bearDelta) }
+    : { label: 'BULL / BEAR RUN', value: `${signedMoney(bullDelta)} / ${signedMoney(bearDelta)}` };
   const firstRow = opportunity.tone === 'growth'
     ? runRow
     : { label: 'DIVIDEND EACH LAP', value: `+$${opportunity.dividendPerLap.toLocaleString()}` };
