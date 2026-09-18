@@ -79,11 +79,13 @@ describe('Margin — Market Open call', () => {
     let s = started(2);
     s = patch(s, (d) => {
       // A real game caps Margin at $4,000, but this patches state directly
-      // to force a shortfall even after the Recovery Bonus (2026-09-18
-      // cash-flow pass): starting at $0 cash still nets $750 salary + $2,000
-      // Recovery Bonus = $2,750 before the call is deducted, which alone
-      // covers half of a real $4,000 balance ($2,000).
-      d.players[0].margin = 10_000;
+      // to force a shortfall even after Market Open income: starting at $0
+      // cash still nets salary (doubled for landing exactly on space 1) plus
+      // the Recovery Bonus before the call is deducted, which alone covers
+      // half of a real $4,000 balance. Margin bumped past what that income
+      // covers, but still low enough that selling the 3 owned MEDI shares
+      // (~$500 each) closes the remaining gap.
+      d.players[0].margin = 14_000;
       d.players[0].cash = 0;            // cannot cover the call
       d.players[0].shares = { MEDI: 3 }; // owns stock to liquidate
       d.players[0].pos = 33;
@@ -131,10 +133,10 @@ describe('Margin — Market Open call', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.opts.margin = true;
-      // See the comment in the previous test — margin bumped to $10,000
-      // (beyond the real $4,000 cap) so this still produces a shortfall
-      // after the Recovery Bonus.
-      d.players[0].margin = 10_000;
+      // See the comment in the previous test — margin bumped well beyond
+      // the real $4,000 cap so this still produces a shortfall after Market
+      // Open income.
+      d.players[0].margin = 40_000;
       d.players[0].cash = 0;
       d.players[0].shares = {};
       d.players[0].etfShares = { GRW: 1, INC: 1 };

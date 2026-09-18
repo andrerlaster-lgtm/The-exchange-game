@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR,
-  fullCompanyDividendPerMarketOpen, MAX_TRADE_QTY, REGULAR_SUPPLY, STOCK_BY_CODE, stockOpportunityFor,
+  fullCompanyDividendPerMarketOpen, MAX_TRADE_QTY, REGULAR_SUPPLY, SALARY, STOCK_BY_CODE, stockOpportunityFor,
 } from '../data';
 import { priceOf } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
@@ -57,8 +57,8 @@ describe('Controlling Stake dividend boost', () => {
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    // salary ($750) + round(6 * $110 * 1.5 controlling) = 750 + 990 = 1740
-    expect(gained).toBe(750 + Math.round(STOCK_BY_CODE.FTRB.div * CONTROL_THRESHOLD_REGULAR * CONTROL_DIVIDEND_MULTIPLIER));
+    // salary + round(6 * $110 * 1.5 controlling)
+    expect(gained).toBe(SALARY + Math.round(STOCK_BY_CODE.FTRB.div * CONTROL_THRESHOLD_REGULAR * CONTROL_DIVIDEND_MULTIPLIER));
   });
 
   it('does not double dividend below the threshold', () => {
@@ -67,7 +67,7 @@ describe('Controlling Stake dividend boost', () => {
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    expect(gained).toBe(750 + STOCK_BY_CODE.FTRB.div * (CONTROL_THRESHOLD_REGULAR - 1));
+    expect(gained).toBe(SALARY + STOCK_BY_CODE.FTRB.div * (CONTROL_THRESHOLD_REGULAR - 1));
   });
 
   it('IPO controlling threshold is 3 shares', () => {
@@ -78,7 +78,7 @@ describe('Controlling Stake dividend boost', () => {
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    expect(gained).toBe(750 + Math.round(50 * CONTROL_THRESHOLD_IPO * CONTROL_DIVIDEND_MULTIPLIER));
+    expect(gained).toBe(SALARY + Math.round(50 * CONTROL_THRESHOLD_IPO * CONTROL_DIVIDEND_MULTIPLIER));
   });
 });
 

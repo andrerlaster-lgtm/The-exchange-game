@@ -2,6 +2,7 @@
 // cash than they have, or a seller hand over more shares than they hold.
 
 import { describe, expect, it } from 'vitest';
+import { SALARY } from '../data';
 import { dispatch, patch, rng, started } from './helpers';
 import { payMarketOpen } from '../engine/playerState';
 
@@ -30,9 +31,9 @@ describe('P2P trade — affordability guard', () => {
     const buyerBefore = s.players[1].cash;
     payMarketOpen(s, 0);
     payMarketOpen(s, 1);
-    // 2026-09-18 cash-flow pass: MEDI (Med risk) is now $70/share, salary is $750.
-    expect(s.players[0].cash - sellerBefore).toBe(1_100); // $750 salary + 5 × $70 dividend
-    expect(s.players[1].cash - buyerBefore).toBe(1_380); // $750 salary + round(6 × $70 × 1.5) control bonus
+    // 2026-09-18 cash-flow pass: MEDI (Med risk) is now $70/share.
+    expect(s.players[0].cash - sellerBefore).toBe(SALARY + 350); // salary + 5 × $70 dividend
+    expect(s.players[1].cash - buyerBefore).toBe(SALARY + 630); // salary + round(6 × $70 × 1.5) control bonus
   });
 
   it('accepting an offer the buyer cannot afford does nothing (no cash/shares move)', () => {
