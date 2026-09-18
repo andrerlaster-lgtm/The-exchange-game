@@ -2,7 +2,7 @@ import type { CompanyTier, Risk, Sector, SectorId, SectorPair, SectorPairId, Sto
 import { ladderStep } from './priceTrack';
 
 export const START_CASH = 35_000; // default starting cash — must match DEFAULT_OPTIONS.startCash (engine/types.ts)
-export const SALARY = 750; // 2026-09-18 cash-flow pass: was $500 — see recoveryBonus in playerState.ts for the other half of this pass
+export const SALARY = 2_000; // Market Open salary; landing exactly on Market Open pays double
 // ── Recovery Bonus (2026-09-18 cash-flow pass) ──────────────────────────────
 // A live 200-turn trace found average Payout Claim hits of $4,000-4,300 —
 // roughly 8x a single salary payment — with players landing at literal $0

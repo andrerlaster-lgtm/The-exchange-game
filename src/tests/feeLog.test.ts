@@ -2,6 +2,7 @@
 // payments are logged to s.feeLog. projectedDividend reports the next-pass payout.
 
 import { describe, expect, it } from 'vitest';
+import { SALARY } from '../data';
 import { blocked, projectedDividend } from '../engine';
 import { dispatch, patch, rollTo, scriptedRng, started } from './helpers';
 
@@ -14,7 +15,7 @@ describe('Taxes & Fees — feeLog', () => {
     const income = s.feeLog.find((f) => f.kind === 'income');
     expect(income).toBeDefined();
     expect(income!.player).toBe(s.players[0].name);
-    expect(income!.amount).toBe(750); // SALARY only, no holdings
+    expect(income!.amount).toBe(SALARY); // SALARY only, no holdings
   });
 
   it('projects next-pass dividends from holdings and logs income including them', () => {
@@ -29,7 +30,7 @@ describe('Taxes & Fees — feeLog', () => {
 
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const income = s.feeLog.find((f) => f.kind === 'income');
-    expect(income!.amount).toBe(750 + 220);
+    expect(income!.amount).toBe(SALARY + 220);
   });
 
   it('logs a marginCall entry when the call is fully paid from cash', () => {
