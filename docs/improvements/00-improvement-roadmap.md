@@ -1,5 +1,7 @@
 # THE EXCHANGE — Improvement Roadmap
 
+> **Current working checklist:** see [15-current-game-todo.md](15-current-game-todo.md) for the reconciled Deep Audit follow-up list.
+
 ## Development Order
 
 | # | Improvement | Phase | Priority | Status |
