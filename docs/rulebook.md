@@ -154,6 +154,20 @@ Market Open is the payday space. It is not a Market Event trigger.
 4. Pay ETF payouts.
 5. Pay Diversified Portfolio or Broad Market Portfolio bonus, if earned.
 6. Resolve Margin repayment: any player with an outstanding Margin balance repays half of it (see Section 17).
+7. Start a random Market Condition. It is separate from both card decks and replaces the prior condition; it stays active until another player reaches Market Open.
+
+**Market Conditions**
+
+Market Conditions are temporary, market-wide rules. Only one is active at a time. A new one begins after a player completes Market Open payouts and replaces the previous condition when the next player reaches Market Open. They never stack and do not consume or discard a Market Event or Fed card.
+
+| Condition | Active effect |
+|---|---|
+| Sector Spotlight | One random sector's Payout Claims pay an extra $250. |
+| Dividend Windfall | Dividend-paying shares earn an extra $25 per share at Market Open. |
+| ETF Inflows | A player holding at least one ETF receives an extra $300 at Market Open. |
+| Credit Tightening | No player may take new Margin. Existing Margin can still be repaid. |
+| Weak Demand Bargains | An untouched company carrying a Weak Demand marker costs 10% less to acquire. |
+| Risk-Off | High-risk Payout Claims are reduced by $250, to a minimum of $50. |
 
 **Market Open Trading Window**
 

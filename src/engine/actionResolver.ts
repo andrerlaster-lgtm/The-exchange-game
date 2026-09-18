@@ -31,6 +31,7 @@ import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, holdingGainLoss, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
 import { accruePlayerDebt, payPlayerDebt, playerDebtBalance, playerDebtInstallment } from './playerLoans';
+import { beginMarketCondition, marketConditionBlocksMargin, marketConditionClaimAdjustment } from './marketConditions';
 import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
@@ -186,7 +187,9 @@ function resolveLanding(s: GameState, pi: number): void {
           const stock = STOCK_BY_CODE[code];
           const multiplier = landingValueMultiplier(LADDER[s.prices[code]], LADDER[stock.step]);
           const discount = shareholderLandingDiscount(landingShares);
-          const claimOwed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
+          const baseClaimOwed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
+          const conditionAdjustment = marketConditionClaimAdjustment(s, code);
+          const claimOwed = Math.max(50, baseClaimOwed + conditionAdjustment);
           // Sector Control: if the claim holder also exclusively owns BOTH
           // companies in this stock's Sector Control pair, a flat Sector
           // Rent stacks on top of the normal Payout Claim — a genuine
@@ -218,7 +221,7 @@ function resolveLanding(s: GameState, pi: number): void {
             amount: owed,
             paidFromCash: 0,
             remaining: owed,
-            detail: `${money(claimOwed)} Payout Claim is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}` +
+            detail: `${money(claimOwed)} Payout Claim is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}${conditionAdjustment !== 0 ? `; ${s.marketCondition?.title} ${conditionAdjustment > 0 ? 'adds' : 'reduces it by'} ${money(Math.abs(conditionAdjustment))}` : ''}` +
               (sectorRent > 0 ? `, plus ${money(sectorRent)} Sector Rent for controlling ${pairDef!.name} (${pairDef!.codes.join(' + ')})` : '') + '.',
             canDefer: false,
           };
@@ -405,7 +408,7 @@ function resolveLanding(s: GameState, pi: number): void {
   }
 }
 
-function applyMove(s: GameState, steps: number): void {
+function applyMove(s: GameState, steps: number, rng: Rng): void {
   s.rolling = false;
   const p = s.players[s.cur];
   const from = p.pos;
@@ -415,6 +418,7 @@ function applyMove(s: GameState, steps: number): void {
   if (passed || p.pos === 1) {
     p.hasCompletedLap = true;
     payMarketOpen(s, s.cur);
+    beginMarketCondition(s, rng, p.name);
     s.marketOpenReport = {
       player: p.name,
       trades: p.lapTrades,
@@ -465,6 +469,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
       s.p2pOffers = []; s.p2pSeq = 0;
       s.auction = null; s.auctionQueue = []; s.marketOpenReport = null;
+      s.marketCondition = null;
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       s.playerDebts = []; s.playerDebtSeq = 0;
       clearTurnState(s);
@@ -684,7 +689,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         s.bonusRollUsed = true;
         addLog(s, `${s.players[s.cur].name} rolled doubles (${a}/${b}) — one bonus roll earned.`, 'y');
       }
-      applyMove(s, a + b);
+      applyMove(s, a + b, rng);
       break;
     }
 
@@ -792,6 +797,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     // ---- margin ----
     case 'takeMargin': {
       if (!s.opts.margin) break;
+      if (marketConditionBlocksMargin(s)) {
+        addLog(s, `Credit Tightening is active — ${s.players[s.cur].name} cannot take new Margin.`, 'r');
+        break;
+      }
       // Margin may only be taken while buying stock (a purchase context).
       if (!s.trade && !s.ipoListPick && !s.ipoBuy && !s.outstandingBuy) break;
       const p = s.players[s.cur];

@@ -84,6 +84,8 @@ export default function ActionPanel() {
         </button>
       </div>
 
+      {s.marketCondition && <MarketConditionPanel s={s} />}
+
       {/* Cardless financial spaces still need a loud, explicit result. */}
       {s.cyberattackPrompt && s.cyberattackPrompt.player === s.cur && (
         <CyberattackPanel s={s} dispatch={dispatch} />
@@ -131,6 +133,28 @@ export default function ActionPanel() {
 
       {s.pick?.source === 'investor' && <InvestorDayPanel s={s} dispatch={dispatch} />}
 
+    </div>
+  );
+}
+
+function MarketConditionPanel({ s }: { s: GameState }) {
+  const condition = s.marketCondition;
+  if (!condition) return null;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 9,
+      padding: '10px 12px', borderRadius: 9,
+      background: `${condition.color}16`, border: `1px solid ${condition.color}77`,
+      boxShadow: `inset 3px 0 0 ${condition.color}`,
+    }}>
+      <span style={{ fontSize: 18, lineHeight: 1, color: condition.color }}>{condition.icon}</span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 9, color: condition.color, fontWeight: 900, letterSpacing: 1 }}>ACTIVE MARKET CONDITION</div>
+        <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 800, marginTop: 2 }}>{condition.title}</div>
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.4, marginTop: 2 }}>
+          {condition.detail} Replaced when the next player reaches Market Open.
+        </div>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ const QUICK_RULES = [
   'Weak Demand has no ownership protection: 2 explicit skips on an untouched company drop its price 1 step. Markers stay on the company between laps until they reach 2 or someone buys it out.',
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own regular companies across 3+ different sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
   'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window for private player-to-player trades.',
+  'Every Market Open also starts a random Market Condition outside the card decks. It stays active for every player until the next player reaches Market Open, when it is replaced; Conditions never stack.',
   'IPOs: 4 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',
   'Audit Notice charges 5% of net worth, rounded to the nearest $100, with a $500 minimum. Carrying Margin raises it to 7.5% with a $750 minimum.',
   'Portfolio Tax and Audit Notice can be paid now or carried as Outstanding Fees. Debt adds 5% at the start of your turn and lowers your score until paid. A Payout Claim owed to another player still uses forced sale.',

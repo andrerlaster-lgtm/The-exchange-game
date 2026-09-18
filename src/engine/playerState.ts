@@ -8,6 +8,7 @@ import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
 import { pushFeeEvent } from './feeLog';
 import { diversificationBonus, diversificationTier } from './sector';
+import { marketConditionIncome } from './marketConditions';
 
 function addLog(s: GameState, text: string, kind: 'g' | 'r' | 'y' | 'b' | 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -65,12 +66,13 @@ export function payMarketOpen(s: GameState, pi: number): void {
   // of one — this is what actually rewards ETF diversification).
   const etfPay = calcEtfPayout(p.etfShares);
   const etfDiverBonus = etfDiversificationBonus(p.etfShares);
+  const conditionIncome = marketConditionIncome(s, p);
 
   // Diversification bonus: only the highest tier qualifying is paid (rulebook §14).
   const divTier = diversificationTier(p);
   const diverBonus = diversificationBonus(p);
 
-  const total = SALARY + div + etfPay + etfDiverBonus + diverBonus;
+  const total = SALARY + div + etfPay + etfDiverBonus + diverBonus + conditionIncome.dividend + conditionIncome.etf;
   p.cash += total;
   p.salaryCollected += SALARY;
 
@@ -78,6 +80,8 @@ export function payMarketOpen(s: GameState, pi: number): void {
   if (div) parts.push(`+${money(div)} dividends`);
   if (etfPay) parts.push(`+${money(etfPay)} ETF payout`);
   if (etfDiverBonus) parts.push(`+${money(etfDiverBonus)} ETF diversification bonus (all 4 funds)`);
+  if (conditionIncome.dividend) parts.push(`+${money(conditionIncome.dividend)} Dividend Windfall`);
+  if (conditionIncome.etf) parts.push(`+${money(conditionIncome.etf)} ETF Inflows`);
   if (diverBonus) parts.push(`+${money(diverBonus)} ${divTier === 'broad' ? 'Broad Market' : 'Diversified'} bonus`);
   if (controllingCodes.length > 0) parts.push(`(control bonus: ${controllingCodes.join(', ')})`);
   addLog(s, `${p.name} Market Open: ${parts.join(' ')}`, 'g');

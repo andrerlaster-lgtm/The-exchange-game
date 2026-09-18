@@ -2,6 +2,7 @@
 
 import { IPO_BY_CODE, IPO_INDEX, LADDER, REGULAR_SUPPLY, STOCK_BY_CODE, isIpoCode } from '../data';
 import type { GameState, IpoState } from './types';
+import { marketConditionBuyoutDiscount } from './marketConditions';
 
 export function clampStep(x: number): number {
   return Math.max(0, Math.min(LADDER.length - 1, x));
@@ -41,7 +42,7 @@ export function sellBackPrice(s: GameState, code: string): number {
  * purchase, and Gain/Loss only moves from price changes while you hold.
  */
 export function companyBuyoutCost(s: GameState, code: string): number {
-  return REGULAR_SUPPLY * priceOf(s, code);
+  return marketConditionBuyoutDiscount(s, code, REGULAR_SUPPLY * priceOf(s, code));
 }
 
 /** Candidate codes affected by market events: all regular stocks + revealed IPOs. */

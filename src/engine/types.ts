@@ -8,6 +8,20 @@ export type TurnPhase = 'preRoll' | 'acted';
 export type LogKind = 'g' | 'r' | 'y' | 'b' | 'n';
 export type TradeKind = 'buy' | 'sell' | 'ipo' | 'short' | 'settle' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
 export type MarketStance = 'bullish' | 'balanced' | 'bearish';
+export type MarketConditionId = 'sectorSpotlight' | 'dividendWindfall' | 'etfInflows' | 'creditTightening' | 'weakDemandBargains' | 'riskOff';
+
+/** A temporary market-wide rule. It begins when somebody reaches Market Open
+    and is replaced, rather than stacked, when the next player reaches it. */
+export interface MarketCondition {
+  id: MarketConditionId;
+  title: string;
+  detail: string;
+  icon: string;
+  color: string;
+  startedBy: string;
+  lap: number;
+  sector?: string;
+}
 
 export interface TradeEntry {
   kind: TradeKind;
@@ -377,6 +391,7 @@ export interface GameState {
   auction: Auction | null;             // legacy inactive auction state retained for old-session compatibility
   auctionQueue: string[];              // legacy inactive queue retained for old-session compatibility
   marketOpenReport: MarketOpenReport | null; // recap shown after a player completes a lap; clears on their next turn
+  marketCondition: MarketCondition | null; // temporary rule until another player reaches Market Open
   lap: number;
   log: LogEntry[];
   marketSignals: MarketSignal[];
