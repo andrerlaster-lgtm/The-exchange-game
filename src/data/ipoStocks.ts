@@ -1,6 +1,6 @@
 import type { IpoDef, SectorId } from './types';
 import { ladderStep } from './priceTrack';
-import { SECTORS } from './stocks';
+import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, SECTORS } from './stocks';
 
 // A single shared reveal queue of 4 IPOs, all entering the game at the same
 // fixed $3,000 price (rulebook §16) — no tiered starting prices.
@@ -34,7 +34,10 @@ export const IPO_PRESENTATION: Record<string, IpoPresentation> = {
     icon: '⌂',
     volatilityLabel: 'MODERATE',
     opportunityTitle: 'INCOME + GROWTH',
-    opportunityText: '$50 per-share dividend. Control at 3+ shares doubles it.',
+    // Multiplier and threshold are interpolated from the constants the engine
+    // actually pays on, so this copy can't drift from them again (it claimed
+    // control "doubles" the dividend while the engine paid 1.5×).
+    opportunityText: `$50 per-share dividend. Control at ${CONTROL_THRESHOLD_IPO}+ shares pays ${CONTROL_DIVIDEND_MULTIPLIER}× that.`,
     flavor: 'Finally, a landlord that pays you.',
   },
   BBPY: {

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { MARGIN_DEFAULT_PENALTY, MARGIN_MAX, SPACES } from '../data';
 import { blocked } from '../engine';
+import { feeDebtBalance } from '../engine/feeDebt';
 import { marginCallDue } from '../engine/playerState';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -103,12 +104,52 @@ describe('Margin — Market Open call', () => {
 
     const cashBefore = s.players[0].cash;
     const marginBefore = s.players[0].margin;
+    const debtBefore = feeDebtBalance(s.players[0]);
     s = dispatch(s, { t: 'payMarginCall' }, rng());
 
     expect(s.marginCall).toBeNull();
     expect(s.players[0].margin).toBe(marginBefore - owed);
-    // Paid the owed amount plus the flat penalty.
-    expect(s.players[0].cash).toBe(cashBefore - owed - MARGIN_DEFAULT_PENALTY);
+    // The call plus the flat penalty are settled from cash as far as it goes.
+    // Cash never goes negative (rulebook §17) — any remainder of the penalty
+    // is carried as Outstanding Fees rather than driving the balance below $0.
+    const due = owed + MARGIN_DEFAULT_PENALTY;
+    const paidFromCash = Math.min(cashBefore, due);
+    expect(s.players[0].cash).toBe(cashBefore - paidFromCash);
+    expect(s.players[0].cash).toBeGreaterThanOrEqual(0);
+    expect(feeDebtBalance(s.players[0])).toBe(debtBefore + (due - paidFromCash));
+  });
+
+  it('settles a margin call with no sellable shares instead of deadlocking the turn', () => {
+    // Reachable by spending a margin draw entirely on ETFs, which can never be
+    // sold: marginSell has nothing to sell, repayMargin is blocked during a
+    // call, and blocked() keeps endTurn shut — previously forever.
+    let s = started(2);
+    s = patch(s, (d) => {
+      d.opts.margin = true;
+      d.players[0].margin = 4000;
+      d.players[0].cash = 0;
+      d.players[0].shares = {};
+      d.players[0].etfShares = { GRW: 1, INC: 1 };
+      d.players[0].pos = 33;
+      d.turnPhase = 'preRoll';
+    });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // → space 1, margin call
+    expect(s.marginCall).not.toBeNull();
+    expect(blocked(s)).toBe(true);
+
+    const owed = s.marginCall!.owed;
+    const cashBefore = s.players[0].cash;
+    const marginBefore = s.players[0].margin;
+    s = dispatch(s, { t: 'payMarginCall' }, rng());
+
+    expect(s.marginCall).toBeNull();
+    expect(blocked(s)).toBe(false); // the turn can end again
+    expect(s.players[0].cash).toBeGreaterThanOrEqual(0);
+    // The margin balance is cleared of the call; nothing is forgiven — the
+    // unpayable remainder moves to Outstanding Fees, so total liability holds.
+    expect(s.players[0].margin).toBe(marginBefore - owed);
+    const due = owed + MARGIN_DEFAULT_PENALTY;
+    expect(feeDebtBalance(s.players[0])).toBe(due - Math.min(cashBefore, due));
   });
 
   it('blocks voluntary repayMargin while an active margin call is unresolved', () => {

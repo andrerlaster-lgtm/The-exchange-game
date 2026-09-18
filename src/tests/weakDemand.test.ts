@@ -44,13 +44,29 @@ describe('Weak Demand markers — 2-marker threshold', () => {
     expect(s.skips.MEDI ?? 0).toBe(0);
   });
 
-  it('markers reset to 0 at the start of each new lap', () => {
+  // Rulebook §9/§19: a marker sits on the company until the 2-marker threshold
+  // drops its price, or the company is bought outright. It is NOT a per-lap
+  // counter — clearing it every lap made the second skip have to land on the
+  // same company within the same lap, so the mechanic effectively never fired.
+  it('markers persist across a lap rollover', () => {
     let s = started(2);
     s = patch(s, (d) => { d.skips.MEDI = 1; });
     // Advance through both players to trigger startLap (cur wraps to 0).
     s = patch(s, (d) => { d.cur = 1; d.turnPhase = 'acted'; });
     s = dispatch(s, { t: 'endTurn' }, rng());
-    expect(s.skips.MEDI ?? 0).toBe(0);
+    expect(s.lap).toBe(2);
+    expect(s.skips.MEDI).toBe(1);
+  });
+
+  it('a marker carried over from an earlier lap still completes the threshold', () => {
+    let s = started(2);
+    s = patch(s, (d) => { d.skips.MEDI = 1; d.cur = 1; d.turnPhase = 'acted'; });
+    s = dispatch(s, { t: 'endTurn' }, rng()); // lap 2 — the marker survives
+    const stepBefore = s.prices.MEDI;
+    s = patch(s, (d) => { d.turnPhase = 'acted'; d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
+    s = dispatch(s, { t: 'skipStock', code: 'MEDI' }, rng());
+    expect(s.prices.MEDI).toBe(stepBefore - 1);
+    expect(s.skips.MEDI).toBe(0);
   });
 });
 

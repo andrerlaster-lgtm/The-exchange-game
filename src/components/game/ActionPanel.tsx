@@ -175,7 +175,7 @@ function OpeningBellCardPanel({ s, dispatch }: { s: GameState; dispatch: (a: Act
     }}>
       <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--green)' }}>🔔 OPENING BELL · CARD OPPORTUNITY</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        The card reveals an untouched company: <strong>{stock?.name ?? offer.code} ({offer.code})</strong>. Buy the entire 11-share company at its normal tier price of <span className="mono" style={{ fontWeight: 800 }}>${offer.price.toLocaleString()}</span>, or pass.
+        The card reveals an untouched company: <strong>{stock?.name ?? offer.code} ({offer.code})</strong>. Buy the entire 11-share company at its current market price of <span className="mono" style={{ fontWeight: 800 }}>${offer.price.toLocaleString()}</span>, or pass.
       </div>
       <div style={{ display: 'flex', gap: 7 }}>
         <button className="primary" disabled={!canBuy} style={{ fontSize: 11, padding: '6px 10px' }} onClick={() => dispatch({ t: 'buyOpeningBell' })}>
@@ -288,9 +288,14 @@ export function LandingResultBanner({ s, dispatch }: { s: GameState; dispatch: (
     <div style={{
       display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14,
       padding: '14px 16px', borderRadius: 10,
-      background: 'linear-gradient(105deg, rgba(239,68,68,0.22), rgba(239,68,68,0.07))',
+      // OPAQUE parchment base. This banner is absolutely positioned over the
+      // board art (BoardTrack renders it at top: 38%, right on the mascot), and
+      // its body copy is dark ink — a 22%→7% alpha red wash left the detail
+      // text painted straight onto the illustration and unreadable. The red
+      // tint now sits on top of a solid surface instead of replacing one.
+      background: `linear-gradient(105deg, rgba(239,68,68,0.22), rgba(239,68,68,0.07)), var(--surface)`,
       border: '2px solid #ef4444',
-      boxShadow: '0 3px 20px rgba(239,68,68,0.2)',
+      boxShadow: '0 10px 34px rgba(0,0,0,0.5), 0 3px 20px rgba(239,68,68,0.28)',
     }}>
       <div style={{ fontSize: 28, lineHeight: 1 }}>{notice.kind === 'audit' ? '⚑' : notice.kind === 'tax' ? '$' : notice.kind === 'fund' ? '◆' : '↗'}</div>
       <div style={{ minWidth: 0 }}>
@@ -449,7 +454,13 @@ function MarginCallPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
       // IPO shares sell at market; regular stock sells one step below (rulebook §11).
       price: isIpoCode(code) ? priceOf(s, code) : sellBackPrice(s, code),
     }));
-  const canPay = p.cash >= mc.owed;
+  // With stock still on hand the player must raise the full amount first. Once
+  // nothing is sellable the engine settles the call from whatever cash exists
+  // and carries the remainder as Outstanding Fees — so the button has to stay
+  // live there, or the turn can never end (see payMarginCall).
+  const nothingLeftToSell = holdings.length === 0;
+  const canPay = p.cash >= mc.owed || nothingLeftToSell;
+  const carried = Math.max(0, mc.owed + MARGIN_DEFAULT_PENALTY - Math.max(p.cash, 0));
 
   return (
     <div style={{
@@ -488,7 +499,8 @@ function MarginCallPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
         </div>
       ) : (
         <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>
-          No stock left to sell — pay with available cash.
+          No stock left to sell — settle with available cash
+          {carried > 0 && <> · <span className="mono" style={{ color: 'var(--red)' }}>${carried.toLocaleString()}</span> moves to Outstanding Fees</>}.
         </div>
       )}
 
@@ -497,9 +509,11 @@ function MarginCallPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) 
         style={{ fontSize: 12, padding: '7px 0', fontWeight: 700 }}
         disabled={!canPay}
         onClick={() => dispatch({ t: 'payMarginCall' })}>
-        {canPay
-          ? `Pay Margin Call — $${(mc.owed + MARGIN_DEFAULT_PENALTY).toLocaleString()}`
-          : `Need $${(mc.owed - Math.max(p.cash, 0)).toLocaleString()} more`}
+        {nothingLeftToSell && carried > 0
+          ? `Settle — $${Math.max(p.cash, 0).toLocaleString()} cash + $${carried.toLocaleString()} debt`
+          : canPay
+            ? `Pay Margin Call — $${(mc.owed + MARGIN_DEFAULT_PENALTY).toLocaleString()}`
+            : `Need $${(mc.owed - Math.max(p.cash, 0)).toLocaleString()} more`}
       </button>
     </div>
   );
@@ -771,6 +785,9 @@ export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; d
   const currentTotal = totalEtfShares(p.etfShares);
   const nextTotal = Math.min(currentTotal + 1, ETF_PAYOUT.length - 1);
   const canAfford = p.cash >= ETF_PRICE;
+  // Landing on a fund someone else controls charges a fee AND still offers the
+  // share — but the fee is settled first, matching the engine's buyEtf guard.
+  const feeFirst = !!s.landingNotice || !!s.insolvency;
   const distinctOwned = ETF_DEFS.filter((e) => (p.etfShares[e.code] ?? 0) > 0).length;
   const fullyDiversified = hasFullEtfDiversification(p.etfShares);
   return (
@@ -812,9 +829,10 @@ export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; d
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           style={{ fontSize: 12, padding: '5px 14px', color: etf.color, borderColor: `${etf.color}66` }}
-          disabled={!canAfford}
+          disabled={!canAfford || feeFirst}
           onClick={() => dispatch({ t: 'buyEtf', code })}>
-          {canAfford ? `Buy 1 Share — $${ETF_PRICE.toLocaleString()}` : 'Not enough cash'}
+          {feeFirst ? 'Settle the landing fee first'
+            : canAfford ? `Buy 1 Share — $${ETF_PRICE.toLocaleString()}` : 'Not enough cash'}
         </button>
         <button style={{ fontSize: 12, padding: '5px 12px' }}
           onClick={() => dispatch({ t: 'skipEtf' })}>Skip</button>

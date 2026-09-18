@@ -105,7 +105,7 @@ export const MARKET_CLOSE_CARD: Card =
 const PRESERVED_CARDS: Card[] = [
   mk('Dividend Payment',         'Your portfolio had a profitable quarter.',                    'Receive the stock and IPO dividends currently due on your holdings.',      { k: 'dividend' }),
   mk('Cyberattack',              'Your portfolio security system has been breached.',           'Choose: one holding drops 1 step, or pay 3% of net worth (minimum $500).', { k: 'cyberattack' }),
-  mk('Opening Bell',             'A new trading session begins with a rare first-mover opportunity.', 'Randomly reveal an untouched company. Buy the entire company at its normal tier price, or pass.', { k: 'openingBell' }),
+  mk('Opening Bell',             'A new trading session begins with a rare first-mover opportunity.', 'Randomly reveal an untouched company. Buy the entire 11-share company at its current market price, or pass.', { k: 'openingBell' }),
   mk('Regulatory Investigation', 'Government regulators open an investigation into one company in your portfolio.', 'Choose: one holding drops 1 step and its next dividend is reduced 50%, or pay $5,000.', { k: 'regulatoryInvestigation' }),
 ];
 

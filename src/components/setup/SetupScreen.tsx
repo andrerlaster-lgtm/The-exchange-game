@@ -8,9 +8,9 @@ const ROUND_OPTIONS = [5, 7, 10];
 
 const QUICK_RULES = [
   'Roll dice, move your token, and resolve the space you land on. Doubles earn exactly 1 bonus roll after the landing is fully resolved; doubles on the bonus roll do not chain.',
-  'Land on an untouched company: buy all 11 shares at its fixed tier price — Starter $5,000, Growth $7,500, or Premium $10,000 — or skip. Tier opening share prices are $500, $750, and $1,000, and the buyout adds no price increase.',
+  'Land on an untouched company: buy all 11 shares at 11× its current share price, or skip. Tier opening prices are Starter $500, Growth $750, Premium $1,000 — so at the open a company costs $5,500, $8,250, or $11,000, and less or more once the market has moved it. Your cost basis always equals market value at the moment you buy, and the buyout itself moves no price.',
   'A company bought in full becomes Sold Out for good, and its buyer holds the Payout Claim. Everyone else who lands there pays the claim instead of opening a normal buy step; landing on your own company costs nothing.',
-  'Weak Demand has no ownership protection: 2 explicit skips on an untouched company drop its price 1 step. Buying the company clears its markers.',
+  'Weak Demand has no ownership protection: 2 explicit skips on an untouched company drop its price 1 step. Markers stay on the company between laps until they reach 2 or someone buys it out.',
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own regular companies across 3+ different sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
   'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window for private player-to-player trades.',
   'IPOs: 4 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',

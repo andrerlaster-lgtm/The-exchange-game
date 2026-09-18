@@ -75,22 +75,28 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   if (owned < offer.qty || buyer.cash < offer.price) return false;
   if (hasCounter && counterOwned < offer.counterQty!) return false;
 
-  const realized = recordStockSale(seller, offer.code, offer.qty, offer.price, owned);
+  // The counter leg (shares paid back the other way) has no negotiated cash
+  // figure to value it by, so it's booked at current market price. It must be
+  // valued BEFORE either leg is booked: the shares handed back are part of what
+  // each side paid, and rulebook §11 books private trades at "the actual amount
+  // paid". Pricing the primary leg on cash alone gave the buyer a $0 basis on a
+  // pure share-for-share swap — inventing unrealized gain — while charging the
+  // seller a realized loss on an even exchange.
+  const counterValue = hasCounter ? priceOf(s, offer.counterCode!) * offer.counterQty! : 0;
+  const totalConsideration = offer.price + counterValue;
+
+  const realized = recordStockSale(seller, offer.code, offer.qty, totalConsideration, owned);
   seller.shares[offer.code] = owned - offer.qty;
   if (seller.shares[offer.code] === 0) delete seller.shares[offer.code];
   buyer.shares[offer.code] = (buyer.shares[offer.code] || 0) + offer.qty;
-  addStockCostBasis(buyer, offer.code, offer.price);
+  addStockCostBasis(buyer, offer.code, totalConsideration);
   buyer.cash -= offer.price;
   seller.cash += offer.price;
   if (offer.qty >= 3) setMarketStance(seller, 'bearish');
 
-  // The counter leg (shares paid back the other way) has no negotiated cash
-  // figure to value it by, so it's booked at current market price.
-  let counterValue = 0;
   if (hasCounter) {
     const counterCode = offer.counterCode!;
     const counterQty = offer.counterQty!;
-    counterValue = priceOf(s, counterCode) * counterQty;
     recordStockSale(buyer, counterCode, counterQty, counterValue, counterOwned);
     buyer.shares[counterCode] = counterOwned - counterQty;
     if (buyer.shares[counterCode] === 0) delete buyer.shares[counterCode];
@@ -103,7 +109,6 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   if (offer.price > 0) considerationParts.push(money(offer.price));
   if (hasCounter) considerationParts.push(`${offer.counterQty}× ${offer.counterCode}`);
   const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
-  const totalConsideration = offer.price + counterValue;
 
   addLog(s, `${seller.name} trades ${offer.qty}× ${offer.code} to ${buyer.name} for ${considerationLabel} (private trade · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)})`, 'b');
   addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, totalConsideration, seller.name);
@@ -111,6 +116,27 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   recomputeAndLogClaim(s, offer.code);
   if (hasCounter) recomputeAndLogClaim(s, offer.counterCode!);
   return true;
+}
+
+/**
+ * Sole largest holder of one fund among players other than `exclude`, or null
+ * when nobody holds it or the top is tied (Contested — nobody collects). Mirrors
+ * {@link topOwner} for stock Payout Claims; funds previously paid whichever
+ * owner sat earliest in turn order, which handed every landing fee on a shared
+ * fund to the same player regardless of how much of it anyone held.
+ */
+function etfTopOwner(s: GameState, code: string, exclude: number): number | null {
+  let best = -1;
+  let bestQty = 0;
+  let tie = false;
+  s.players.forEach((player, i) => {
+    if (i === exclude) return;
+    const qty = player.etfShares[code] ?? 0;
+    if (qty <= 0) return;
+    if (qty > bestQty) { best = i; bestQty = qty; tie = false; }
+    else if (qty === bestQty) tie = true;
+  });
+  return best < 0 || tie ? null : best;
 }
 
 /** Log a Payout Claim handover after ownership shifts (fires only on real changes). */
@@ -324,8 +350,11 @@ function resolveLanding(s: GameState, pi: number): void {
     case 'etf': {
       const etf = ETF_BY_SPACE[p.pos];
       if (etf) {
-        const owner = s.players.findIndex((player, i) => i !== s.cur && (player.etfShares[etf.code] ?? 0) > 0);
-        if (owner >= 0 && p.hasCompletedLap !== false) {
+        // Fee goes to the SOLE largest holder of this fund, not to whoever
+        // happens to sit earliest in turn order — a tie is Contested and pays
+        // nobody, same rule topOwner applies to stock Payout Claims.
+        const owner = etfTopOwner(s, etf.code, pi);
+        if (owner !== null && p.hasCompletedLap !== false) {
           const distinctFunds = ETF_DEFS.filter((fund) => (s.players[owner].etfShares[fund.code] ?? 0) > 0).length;
           const fee = etfLandingFee(distinctFunds);
           s.landingNotice = {
@@ -334,12 +363,18 @@ function resolveLanding(s: GameState, pi: number): void {
             detail: `${s.players[owner].name} controls ${distinctFunds} distinct fund${distinctFunds === 1 ? '' : 's'} — pay the ${money(fee)} landing fee now or carry it as Outstanding Fees debt.`,
           };
           addLog(s, `${p.name} lands on ${etf.name} and owes ${money(fee)} to ${s.players[owner].name}. Pay now or carry it as debt.`, 'r');
-        } else if (owner >= 0 && p.hasCompletedLap === false) {
+        } else if (owner !== null && p.hasCompletedLap === false) {
           addLog(s, `${p.name} lands on ${etf.name} during the first lap — no landing fee is owed yet.`, 'y');
-        } else {
-          s.etfPick = etf.code;
-          addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
         }
+        // Funds are always on sale to whoever lands here. Gating the offer on
+        // "no other player owns a share" let the first buyer of each fund lock
+        // everyone else out of it permanently, which made the 2/3/4-share rows
+        // of ETF_PAYOUT unreachable for most players and the all-4-funds bonus
+        // unobtainable for everyone the moment two players split the funds.
+        // Paying the landing fee comes first — buyEtf refuses while a notice
+        // is still open — so the fee can't be dodged by spending the cash.
+        s.etfPick = etf.code;
+        addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
       }
       break;
     }
@@ -816,13 +851,34 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const mc = s.marginCall;
       if (!mc || mc.player !== s.cur) break;
       const p = s.players[s.cur];
-      if (p.cash < mc.owed) break;   // must raise enough cash first (sell stock)
-      p.cash -= mc.owed; p.margin -= mc.owed;
-      p.cash -= MARGIN_DEFAULT_PENALTY;
-      addLog(s, `${p.name} covers margin call ${money(mc.owed)} + ${money(MARGIN_DEFAULT_PENALTY)} penalty (balance ${money(p.margin)})`, 'r');
-      addTradeLog(s, 'repay', `Margin call −${money(mc.owed)}`, -mc.owed, p.name);
-      addTradeLog(s, 'penalty', `Margin penalty −${money(MARGIN_DEFAULT_PENALTY)}`, -MARGIN_DEFAULT_PENALTY, p.name);
-      pushFeeEvent(s, 'marginCall', p, -(mc.owed + MARGIN_DEFAULT_PENALTY));
+      // Keep selling while stock remains. Once nothing is left to sell, the
+      // call MUST still be settleable or the turn can never end: with no
+      // shares, marginSell is a no-op, repayMargin is blocked during a call,
+      // and blocked() keeps endTurn shut — a permanent deadlock (reachable by
+      // spending a margin draw entirely on ETFs, which can never be sold).
+      // Same escape shape as openInsolvency's "nothing left to sell" branch,
+      // except the balance is not waived: the unpayable remainder (plus any
+      // unpaid penalty) moves to Outstanding Fees, so the liability — and its
+      // effect on net worth and final score — survives intact.
+      const hasSellable = Object.keys(p.shares).some((c) => (p.shares[c] ?? 0) > 0);
+      if (p.cash < mc.owed && hasSellable) break;
+      const paidFromCash = Math.min(Math.max(p.cash, 0), mc.owed);
+      p.cash -= paidFromCash;
+      p.margin -= paidFromCash;
+      const shortfall = mc.owed - paidFromCash;
+      // Cash never goes negative (rulebook §17) — an unaffordable penalty is
+      // carried too, rather than pushing the balance below zero.
+      const penaltyFromCash = Math.min(Math.max(p.cash, 0), MARGIN_DEFAULT_PENALTY);
+      p.cash -= penaltyFromCash;
+      const carried = shortfall + (MARGIN_DEFAULT_PENALTY - penaltyFromCash);
+      if (shortfall > 0) p.margin -= shortfall; // the call is settled; the debt moves, it does not vanish
+      if (carried > 0) addFeeDebt(p, carried);
+      addLog(s, carried > 0
+        ? `${p.name} settles margin call ${money(mc.owed)} + ${money(MARGIN_DEFAULT_PENALTY)} penalty with ${money(paidFromCash + penaltyFromCash)} cash — ${money(carried)} carried as Outstanding Fees (nothing left to sell). Margin balance ${money(p.margin)}.`
+        : `${p.name} covers margin call ${money(mc.owed)} + ${money(MARGIN_DEFAULT_PENALTY)} penalty (balance ${money(p.margin)})`, 'r');
+      addTradeLog(s, 'repay', `Margin call −${money(paidFromCash)}`, -paidFromCash, p.name);
+      addTradeLog(s, 'penalty', `Margin penalty −${money(penaltyFromCash)}`, -penaltyFromCash, p.name);
+      pushFeeEvent(s, 'marginCall', p, -(paidFromCash + penaltyFromCash));
       s.marginCall = null;
       break;
     }
@@ -966,6 +1022,18 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const p = s.players[s.cur];
       if (p.name !== notice.player) break;
       addFeeDebt(p, notice.amount);
+      // Audit Notice and Portfolio Tax are owed to the bank, so carrying them
+      // is the whole transaction. A fund landing fee is owed to ANOTHER PLAYER
+      // — deferring must not quietly turn their income into bank debt and pay
+      // them nothing (money simply left the game before this). The creditor is
+      // made whole now; the debtor owes the same amount to the bank instead.
+      if (notice.kind === 'fund' && notice.payTo != null) {
+        const creditor = s.players[notice.payTo];
+        creditor.cash += notice.amount;
+        addLog(s, `${creditor.name} is paid ${money(notice.amount)} for ${notice.title}; ${p.name} carries it as Outstanding Fees debt instead.`, 'y');
+        addTradeLog(s, 'payout', `${notice.title} from ${p.name} (carried as debt)`, notice.amount, creditor.name);
+        pushFeeEvent(s, 'payout', creditor, notice.amount);
+      }
       addLog(s, `${p.name} carries ${money(notice.amount)} of ${notice.title} as Outstanding Fees debt. Balance ${money(feeDebtBalance(p))}.`, 'y');
       s.landingNotice = null;
       break;
@@ -1158,6 +1226,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'buyEtf': {
       const etf = ETF_BY_CODE[action.code];
       if (!etf || s.etfPick !== action.code) break;
+      // Settle the landing fee before spending on a new share, so landing on a
+      // fund someone else controls can't be turned into "buy in, then plead
+      // poverty". Same guard buyOutstandingShares already applies.
+      if (s.landingNotice || s.insolvency) break;
       const p = s.players[s.cur];
       if (p.cash < ETF_PRICE) break;
       p.cash -= ETF_PRICE;

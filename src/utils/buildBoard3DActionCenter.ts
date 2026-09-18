@@ -107,13 +107,24 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
       value: money(isIpoCode(code) ? priceOf(s, code) : sellBackPrice(s, code)),
       buttons: [button('Sell 1', { t: 'marginSell', code }, 'danger')],
     }));
+    // Parity with MarginCallPanel: once nothing is left to sell the engine
+    // settles the call from available cash and carries the rest as Outstanding
+    // Fees, so the button must stay enabled — otherwise the turn can never end
+    // (see payMarginCall).
+    const nothingLeftToSell = rows.length === 0;
+    const canPay = current.cash >= mc.owed || nothingLeftToSell;
+    const carried = Math.max(0, mc.owed + MARGIN_DEFAULT_PENALTY - Math.max(current.cash, 0));
     required.push({
       id: 'margin-call', title: 'Margin Call', accent: '#ef4444', urgent: true,
-      description: `Raise ${money(mc.owed)}, then pay the call plus the ${money(MARGIN_DEFAULT_PENALTY)} penalty. Cash: ${money(current.cash)}.`,
+      description: nothingLeftToSell && carried > 0
+        ? `Nothing left to sell — settle with ${money(Math.max(current.cash, 0))} cash; ${money(carried)} moves to Outstanding Fees.`
+        : `Raise ${money(mc.owed)}, then pay the call plus the ${money(MARGIN_DEFAULT_PENALTY)} penalty. Cash: ${money(current.cash)}.`,
       rows,
       buttons: [button(
-        current.cash >= mc.owed ? `Pay Call · ${money(mc.owed + MARGIN_DEFAULT_PENALTY)}` : `Need ${money(mc.owed - Math.max(current.cash, 0))} More`,
-        { t: 'payMarginCall' }, 'danger', current.cash < mc.owed,
+        nothingLeftToSell && carried > 0
+          ? `Settle · ${money(Math.max(current.cash, 0))} + ${money(carried)} debt`
+          : canPay ? `Pay Call · ${money(mc.owed + MARGIN_DEFAULT_PENALTY)}` : `Need ${money(mc.owed - Math.max(current.cash, 0))} More`,
+        { t: 'payMarginCall' }, 'danger', !canPay,
       )],
     });
   }

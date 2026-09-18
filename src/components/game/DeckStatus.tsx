@@ -12,10 +12,12 @@ interface DeckItem {
 export default function DeckStatus() {
   const s = useGameState();
 
-  // Total ETF shares owned across all players
-  const etfOwned = s.players.reduce((sum, p) => {
-    return sum + Object.values(p.etfShares).reduce((a, n) => a + n, 0);
-  }, 0);
+  // Funds have no share supply — buyEtf issues a new share every time, and any
+  // number of players may hold the same fund. Counting "4 − total shares owned"
+  // therefore went negative as soon as more than four shares existed anywhere;
+  // what is actually finite is the four DISTINCT funds, so show how many of
+  // those nobody has bought into yet.
+  const fundsClaimed = ETF_DEFS.filter((e) => s.players.some((p) => (p.etfShares[e.code] ?? 0) > 0)).length;
 
   const decks: DeckItem[] = [
     {
@@ -40,10 +42,10 @@ export default function DeckStatus() {
       total: s.ipos.length,
     },
     {
-      label: 'ETF Funds',
+      label: 'Unclaimed Funds',
       glyph: '◆',
       color: '#4DA3FF',
-      remaining: ETF_DEFS.length - etfOwned,
+      remaining: ETF_DEFS.length - fundsClaimed,
       total: ETF_DEFS.length,
     },
   ];
