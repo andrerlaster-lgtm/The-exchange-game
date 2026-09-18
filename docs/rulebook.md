@@ -5,7 +5,7 @@ Consolidated Rules — Reconciled September 18, 2026
 
 > **Purpose:** This rulebook incorporates every rule locked during the design audit — dividends, sector map, IPO reveal mechanics, margin system, price floor/ceiling, and all supporting decisions — before final code lock.
 >
-> **Status:** This rulebook is maintained alongside the playable prototype. The full-company landing rule and the $30,000 / $40,000 / $50,000 starting-cash choices are implemented. The 2026-09-18 pass reconciled every rulebook-vs-code contradiction and undocumented mechanic found in the full-game audit (margin system, Weak/Strong Demand, Sold-Out payouts, Sector Control, player loans, the Market Meter, ETFs, and the sector map now all match the app exactly). Items still explicitly marked TBD remain subject to balance testing.
+> **Status:** This rulebook is maintained alongside the playable prototype. The full-company landing rule and the $35,000 / $45,000 / $55,000 starting-cash choices are implemented. The 2026-09-18 reconciliation pass matched every rulebook-vs-code contradiction and undocumented mechanic found in the full-game audit (margin system, Weak/Strong Demand, Sold-Out payouts, Sector Control, player loans, the Market Meter, ETFs, and the sector map now all match the app exactly). A follow-up cash-flow pass the same day raised starting cash, salary, and dividend rates and added the Recovery Bonus (Section 8) after a live trace showed players being driven to $0 cash by Payout Claims. Items still explicitly marked TBD remain subject to balance testing.
 
 ## Contents
 
@@ -96,7 +96,7 @@ The setup screen offers two winning-score modes:
 
 ## 3. Setup
 
-- Each player chooses a token and receives the starting cash selected at setup: $30,000, $40,000, or $50,000. The default is $30,000.
+- Each player chooses a token and receives the starting cash selected at setup: $35,000, $45,000, or $55,000. The default is $35,000.
 - Place all player tokens on Market Open.
 - Set each regular stock to its starting market price using the app price ladder or printed stock card. No stock may start above the $5,000 ceiling or below the $100 floor.
 - Place 11 market shares in supply for each regular stock.
@@ -159,28 +159,34 @@ Each turn follows the same order unless a card or special rule changes it.
 Market Open is the payday space. It is not a Market Event trigger.
 
 **Market Open payout order**
-1. Pay salary / Market Open income using the current app default amount.
+1. Pay salary: $750 per pass, doubled to $1,500 for landing exactly on Market Open instead of passing over it (Section 5).
 2. Pay Dividends for all eligible regular stock and IPO holdings (see Section 8).
 3. Apply Controller dividend multipliers where applicable (1.5×).
 4. Pay ETF payouts and any ETF Full-Diversification bonus (see Section 18).
 5. Pay Diversified Portfolio or Broad Market Portfolio bonus, if earned.
-6. Resolve Margin repayment: any player with an outstanding Margin balance repays half of it (see Section 20).
-7. Start a random Market Condition. It is separate from both card decks and replaces the prior condition; it stays active until another player reaches Market Open.
+6. Pay the Recovery Bonus if the player's cash, before any of this Market Open's income, was under $3,000 (Section 8).
+7. Resolve Margin repayment: any player with an outstanding Margin balance repays half of it (see Section 20).
+8. If the player has no still-active Market Condition of their own, roll one, personal to them alone (see below).
 
 **Market Conditions**
 
-Market Conditions are temporary, market-wide rules. Only one is active at a time. A new one begins after a player completes Market Open payouts and replaces the previous condition when the next player reaches Market Open. They never stack and do not consume or discard a Market Event or Fed card.
+Each player has their own independent Market Condition slot — it is never shared. A condition belongs exclusively to the player who rolled it: only they get its effect, and it never touches or replaces another player's own still-active condition. More than one player can be running a different condition at the same time.
 
-| Condition | Active effect |
+Reaching Market Open does not automatically reroll a still-active condition — it just continues. A fresh one is only rolled once a player has none (either they've never had one, or their last one expired). Duration is explicit, not "until someone else reaches Market Open":
+- **Sector Spotlight, Weak Demand Bargains, Risk-Off, Toll Hike, Credit Tightening** last 5 of the owner's own turns, ticked down at the end of each one (a doubles bonus roll doesn't count as a separate turn).
+- **Dividend Windfall, ETF Inflows** last 2 of the owner's own Market Open passes — they still pay out on the pass that expires them.
+
+| Condition | Active effect (owner only) |
 |---|---|
-| Sector Spotlight | One random sector's Payout Claims pay an extra $250. |
-| Dividend Windfall | Dividend-paying shares earn an extra $25 per share at Market Open. |
-| ETF Inflows | A player holding at least one ETF receives an extra $300 at Market Open. |
-| Credit Tightening | No player may take new Margin. Existing Margin can still be repaid. |
-| Weak Demand Bargains | An untouched company carrying a Weak Demand marker costs 10% less to acquire. |
-| Risk-Off | High-risk Payout Claims are reduced by $250, to a minimum of $50. |
+| Sector Spotlight | One random sector: the owner's own Payout Claims there pay them an extra $250. |
+| Dividend Windfall | The owner's dividend-paying shares earn an extra $25 per share at their Market Open. |
+| ETF Inflows | If the owner holds at least one ETF, they receive an extra $300 at their Market Open. |
+| Credit Tightening | The owner personally cannot take new Margin. If they negotiate a Payout Claim loan as debtor, their rate is capped at 2% (Section 13). |
+| Weak Demand Bargains | The owner gets 10% off buying any untouched company carrying a Weak Demand marker. |
+| Risk-Off | The owner's own High-risk Payout Claims (when they're the holder) pay them $250 less, to a minimum of $50. |
+| Toll Hike | Sector Control rent the owner collects, if they control a pair, is doubled ($400/$700/$1,100). |
 
-The Sector Spotlight and Risk-Off adjustments apply directly to the Payout Claim amount, before Sector Rent (Section 12) is added on top.
+The Sector Spotlight and Risk-Off adjustments apply directly to the Payout Claim amount owed to the holder, before Sector Rent (Section 12) is added on top.
 
 **Market Open Trading Window**
 
@@ -244,13 +250,21 @@ Dividends are a passive Market Open income stream, separate from and stacking wi
 **Regular stock dividends**
 - Every regular stock pays a flat per-share dividend at every Market Open, to every player who holds shares of it — Always On, no Sold-Out requirement.
 - Controllers (6+ shares of that stock) earn 1.5× the per-share dividend rate on that stock, same multiplier structure as IPO Controllers.
-- Exact per-share dividend amount: TBD during balance testing (see Section 27, Open Balance Items).
+- Per-share dividend amount, by risk tier: Low $110, Medium $70, High $30 (2026-09-18 cash-flow pass — see the Recovery Bonus below for why).
 
 **IPO dividends**
 - IPO Controllers (3+ shares of that IPO) earn 1.5× dividend on that IPO, plus the Controller badge (already locked, see Section 19).
 - Base IPO per-share dividend amount: TBD during balance testing.
 
 **Note:** Dividends and Payout Claim are two separate, stacking income layers on the same stock: Dividends reward raw position size every Market Open; Payout Claim rewards being the top owner of a Sold-Out stock whenever anyone lands on it.
+
+**Recovery Bonus**
+
+A live 200-turn trace found average Payout Claim charges of $4,000-4,300 — roughly 8× a single salary payment — driving players to literal $0 cash in every run, worse in 5-6 player games where more sold-out companies exist to land on. Salary and dividend rates were raised at the same time (see above and Section 5), but neither responds to the specific moment a player has actually been wiped out. The Recovery Bonus does:
+
+- Checked at every Market Open pass, right after salary (Section 6's payout order, step 6): if the player's cash, *before* any of this Market Open's income, was under $3,000, pay them a flat $2,000 on top of everything else.
+- This is a one-time top-up per qualifying pass, not an ongoing rate — a player who stays above $3,000 never sees it.
+- It stacks with every other Market Open payment (salary, dividends, ETF payouts, diversification bonus, Market Condition income).
 
 ## 9. Weak Demand
 
@@ -697,7 +711,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 
 | Setting | Standard mode |
 |---|---|
-| Starting cash | $30,000 default; setup choices are $30,000, $40,000, or $50,000 |
+| Starting cash | $35,000 default; setup choices are $35,000, $45,000, or $55,000 |
 | Winning score | Net Worth by default; optional Gain/Loss Mode ranks salary-adjusted Market Gain |
 | Margin trading | Off by default |
 | Weak Demand | On; 2 affordable-but-declined skips drop an untouched company's price 1 step; a skip forced by insufficient cash doesn't count; no ownership protection; markers persist across laps |
@@ -726,7 +740,7 @@ Use this checklist when sending the rules to code.
 
 | Area | Implementation requirement |
 |---|---|
-| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares at 11× the current per-share price; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; price ceiling = $5,000; Margin cap = $4,000 |
+| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares at 11× the current per-share price; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; price ceiling = $5,000; Margin cap = $4,000; Salary = $750/pass ($1,500 landing exactly); starting cash = $35,000/$45,000/$55,000; regular dividend by risk = Low $110/Med $70/High $30; Recovery Bonus = $2,000 when cash is under $3,000 at Market Open |
 | Derived state | Ownership tier, Controller, Sector Portfolio, Sector Control pair ownership, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Strong/Weak Demand markers, Market Meter needle, active Market Condition, Margin balance, Player Loan balances, Outstanding Fees principal/interest, Circuit Breaker holder, remaining stock cost basis, realized/unrealized Stock G/L, salary-adjusted Market Gain |
 | Stock landing | If untouched, offer a full 11-share company buyout at 11× the current per-share price, or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment (base rate × landing value multiplier × shareholder discount, plus Sector Rent if applicable), with no payment and no Strong Demand marker when the owner lands on their own company, a Contested stock is landed on, or the landing player is still in their first-lap grace |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
@@ -743,7 +757,7 @@ Use this checklist when sending the rules to code.
 | Market Conditions | One random condition active at a time, independent of both card decks; rerolled every time a player reaches Market Open; never stacks |
 | Outstanding Fees | Audit Notice, Portfolio Tax, and ETF landing fees may be paid immediately or carried as debt; add 5% each debtor turn, rounded to $10 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
 | Insolvency | Payout Claim only: if the landing player can't pay another player, offer a Player Loan, or force-sell regular stock (not IPO/ETF) until covered or exhausted; waive any remaining shortfall, cash floors at $0, no elimination |
-| Market Open | Pay salary, dividends, ETF payouts and diversification bonus, Market Condition income, diversification bonuses, resolve Margin repayment, roll a new Market Condition, then open Market Open Trading Window |
+| Market Open | Pay salary, dividends, ETF payouts and diversification bonus, Market Condition income, Recovery Bonus (if pre-payout cash was under $3,000), resolve Margin repayment, continue or roll a personal Market Condition, then open Market Open Trading Window |
 | Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |
 | Investor Day | Space 31; choose Company Growth (+1 eligible owned regular company, or $500 if none) or Insider Information (preview the next Market Event; card stays on top) |
 | UI | Show Sold Out, Payout Claim holder, landing payout, Contested status, Strong/Weak Demand marker counts, Sector Control pair ownership, sector progress, diversification badge, Market Meter needle, active Market Condition, held Circuit Breaker, Outstanding Share count, dividend income per Market Open, Margin balance, Player Loan balances, Outstanding Fees principal/interest/payment controls, per-holding basis and unrealized G/L, total realized/unrealized Stock G/L, Market Gain and salary excluded. Cardless financial spaces must show the total charge and Pay Now / Carry as Debt choices. |
@@ -751,9 +765,7 @@ Use this checklist when sending the rules to code.
 
 ## 27. Open Balance Items
 
-- Salary / base Market Open income amount
 - Exact price ladder values
-- Regular stock per-share dividend amount
 - IPO per-share dividend amount
 - Margin default penalty fee amount
 - Exact Market Close trigger and deck placement (Card mode) and round count (Rounds mode)

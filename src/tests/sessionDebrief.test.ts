@@ -6,7 +6,7 @@ describe('Session Debrief', () => {
   it('builds the closing summary from live game state and corrected debt rules', () => {
     const s = patch(started(3), (draft) => {
       draft.lap = 4;
-      draft.players[0].cash = 34_000;
+      draft.players[0].cash = 39_000; // +$4,000 swing on the $35,000 default — bigger than player 1's -$3,200 debt swing
       draft.players[1].feeDebtPrincipal = 3_000;
       draft.players[1].feeDebtInterest = 200;
       draft.soldOut.CCAI = { code: 'CCAI', claimHolder: 0 };

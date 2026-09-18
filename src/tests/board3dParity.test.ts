@@ -119,12 +119,12 @@ describe('3D Action Center parity', () => {
     let s = rollTo(started(2), 34);
     const notice = buildActionCenter(s).required.find((entry) => entry.id === 'landing-notice-audit');
 
-    expect(notice?.title).toContain('−$1,500');
+    expect(notice?.title).toContain('−$1,800');
     expect(notice?.description).toContain('carry the full charge as debt');
     expect(notice?.buttons?.map((entry) => entry.action.t)).toEqual(['payLandingFee', 'deferLandingFee']);
 
     s = dispatch(s, notice!.buttons![1].action, rng());
-    expect(s.players[0].feeDebtPrincipal).toBe(1_500);
+    expect(s.players[0].feeDebtPrincipal).toBe(1_800);
     expect(buildActionCenter(s).required.some((entry) => entry.id === 'landing-notice-audit')).toBe(false);
   });
 

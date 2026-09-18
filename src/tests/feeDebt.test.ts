@@ -62,12 +62,12 @@ describe('Outstanding Fees debt', () => {
 
   it('subtracts unpaid fees from Net Worth, Gain/Loss, and final ranking', () => {
     const s = patch(started(2), (draft) => {
-      draft.players[0].cash = 31_000;
+      draft.players[0].cash = 36_000; // $35,000 start + $1,000
       draft.players[0].feeDebtPrincipal = 2_000;
-      draft.players[1].cash = 30_000;
+      draft.players[1].cash = 35_000;
     });
 
-    expect(netWorth(s, s.players[0])).toBe(29_000);
+    expect(netWorth(s, s.players[0])).toBe(34_000);
     expect(marketGain(s, s.players[0])).toBe(-1_000);
     expect(getRankedPlayers(s)[0].playerIdx).toBe(1);
   });

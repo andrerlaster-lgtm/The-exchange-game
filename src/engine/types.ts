@@ -351,7 +351,7 @@ export interface GameOptions {
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
-  startCash: 30_000,
+  startCash: 35_000,
   scoringMode: 'netWorth',
   margin: false, // advanced-mode toggle — off by default in standard mode (rulebook §21)
   shorts: false, // Short Sell is off / removed from standard game flow (rulebook §21)

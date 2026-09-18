@@ -32,8 +32,8 @@ describe('Regulatory Investigation card', () => {
 
     const beforeCash = s.players[0].cash;
     s = patch(s, (d) => payMarketOpen(d, 0));
-    // 2026-09-15 balance pass: MEDI (Med risk) is now $50/share, was $30.
-    expect(s.players[0].cash - beforeCash).toBe(500 + 125); // salary + half of 5×$50 dividend
+    // 2026-09-18 cash-flow pass: MEDI (Med risk) is now $70/share, was $50; salary is now $750.
+    expect(s.players[0].cash - beforeCash).toBe(750 + 175); // salary + half of 5×$70 dividend
     expect(s.players[0].dividendCuts.MEDI).toBeUndefined();
   });
 

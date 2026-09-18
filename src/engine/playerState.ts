@@ -2,7 +2,7 @@
 
 import {
   calcEtfPayout, etfDiversificationBonus, CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR,
-  IPO_BY_CODE, MARGIN_DEFAULT_PENALTY, SALARY, STOCK_BY_CODE, isIpoCode,
+  IPO_BY_CODE, MARGIN_DEFAULT_PENALTY, RECOVERY_BONUS, RECOVERY_BONUS_THRESHOLD, SALARY, STOCK_BY_CODE, isIpoCode,
 } from '../data';
 import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
@@ -76,7 +76,14 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   // doubles salary — the classic "land on Go" bonus.
   const salary = landedExactly ? SALARY * 2 : SALARY;
 
-  const total = salary + div + etfPay + etfDiverBonus + diverBonus + conditionIncome.dividend + conditionIncome.etf;
+  // Recovery Bonus: checked against cash BEFORE this payout, so it reads as
+  // "were you still down here walking in," not "would this payout alone
+  // have covered it" — a player already sitting at $2,900 qualifies even if
+  // salary would have carried them past the threshold on its own.
+  const qualifiesForRecovery = p.cash < RECOVERY_BONUS_THRESHOLD;
+  const recoveryBonus = qualifiesForRecovery ? RECOVERY_BONUS : 0;
+
+  const total = salary + div + etfPay + etfDiverBonus + diverBonus + conditionIncome.dividend + conditionIncome.etf + recoveryBonus;
   p.cash += total;
   p.salaryCollected += salary;
 
@@ -87,10 +94,11 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   if (conditionIncome.dividend) parts.push(`+${money(conditionIncome.dividend)} Dividend Windfall`);
   if (conditionIncome.etf) parts.push(`+${money(conditionIncome.etf)} ETF Inflows`);
   if (diverBonus) parts.push(`+${money(diverBonus)} ${divTier === 'broad' ? 'Broad Market' : 'Diversified'} bonus`);
+  if (recoveryBonus) parts.push(`+${money(recoveryBonus)} Recovery Bonus (cash was under ${money(RECOVERY_BONUS_THRESHOLD)})`);
   if (controllingCodes.length > 0) parts.push(`(control bonus: ${controllingCodes.join(', ')})`);
   addLog(s, `${p.name} Market Open: ${parts.join(' ')}`, 'g');
 
-  if (div + etfPay + etfDiverBonus + diverBonus > 0) {
+  if (div + etfPay + etfDiverBonus + diverBonus + recoveryBonus > 0) {
     s.tradeLog.unshift({ kind: 'dividend', text: `Income +${money(total)}`, amount: total, player: p.name, t: s.lap });
     if (s.tradeLog.length > 60) s.tradeLog.pop();
   }

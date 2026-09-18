@@ -14,22 +14,22 @@ describe('Taxes & Fees — feeLog', () => {
     const income = s.feeLog.find((f) => f.kind === 'income');
     expect(income).toBeDefined();
     expect(income!.player).toBe(s.players[0].name);
-    expect(income!.amount).toBe(500); // SALARY only, no holdings
+    expect(income!.amount).toBe(750); // SALARY only, no holdings
   });
 
   it('projects next-pass dividends from holdings and logs income including them', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].shares = { SAFE: 2 }; // Low-risk, $80 div/share (2026-09-15 balance pass)
+      d.players[0].shares = { SAFE: 2 }; // Low-risk, $110 div/share (2026-09-18 cash-flow pass)
       d.players[0].pos = 34;
     });
 
     // Forward-looking projection reflects current holdings before the pass.
-    expect(projectedDividend(s, s.players[0])).toBe(160);
+    expect(projectedDividend(s, s.players[0])).toBe(220);
 
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const income = s.feeLog.find((f) => f.kind === 'income');
-    expect(income!.amount).toBe(500 + 160);
+    expect(income!.amount).toBe(750 + 220);
   });
 
   it('logs a marginCall entry when the call is fully paid from cash', () => {
@@ -46,7 +46,12 @@ describe('Taxes & Fees — feeLog', () => {
   it('logs a marginCall entry when payMarginCall resolves a default', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].margin = 4000;
+      // A real game caps Margin at $4,000, but this patches state directly to
+      // force a shortfall even after the Recovery Bonus (2026-09-18 cash-flow
+      // pass) kicks in: starting at $0 cash still nets $750 salary + $2,000
+      // Recovery Bonus = $2,750 before the margin call is deducted, which
+      // alone covers half of a real $4,000 balance ($2,000).
+      d.players[0].margin = 10_000;
       d.players[0].cash = 0;
       d.players[0].shares = { MEDI: 3 };
       d.players[0].pos = 34;
@@ -73,13 +78,13 @@ describe('Taxes & Fees — feeLog', () => {
 
     expect(s.players[0].pos).toBe(34);
     expect(s.landingNotice).toMatchObject({
-      kind: 'audit', amount: 1_500, paidFromCash: 0, remaining: 1_500, canDefer: true,
+      kind: 'audit', amount: 1_800, paidFromCash: 0, remaining: 1_800, canDefer: true,
     });
     expect(blocked(s)).toBe(true);
 
     s = dispatch(s, { t: 'payLandingFee' }, scriptedRng([]));
     const audit = s.feeLog.find((f) => f.kind === 'audit');
-    expect(audit?.amount).toBe(-1_500);
+    expect(audit?.amount).toBe(-1_800);
     expect(s.landingNotice).toBeNull();
     expect(blocked(s)).toBe(false);
   });
@@ -93,9 +98,9 @@ describe('Taxes & Fees — feeLog', () => {
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
 
     expect(s.landingNotice).toMatchObject({
-      kind: 'audit', amount: 2_300, paidFromCash: 0, remaining: 2_300, canDefer: true,
+      kind: 'audit', amount: 2_600, paidFromCash: 0, remaining: 2_600, canDefer: true,
     });
-    expect(s.landingNotice?.detail).toContain('7.5% of net worth $30,000');
+    expect(s.landingNotice?.detail).toContain('7.5% of net worth $35,000');
   });
 
   it('explains the 10% Portfolio Tax and exact amount charged', () => {
@@ -103,8 +108,8 @@ describe('Taxes & Fees — feeLog', () => {
     s = rollTo(s, 25);
 
     expect(s.landingNotice).toMatchObject({
-      kind: 'tax', amount: 3_000, paidFromCash: 0, remaining: 3_000, canDefer: true,
+      kind: 'tax', amount: 3_500, paidFromCash: 0, remaining: 3_500, canDefer: true,
     });
-    expect(s.landingNotice?.detail).toContain('10% of net worth $30,000');
+    expect(s.landingNotice?.detail).toContain('10% of net worth $35,000');
   });
 });

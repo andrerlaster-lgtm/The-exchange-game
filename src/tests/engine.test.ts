@@ -27,11 +27,11 @@ describe('Initial state', () => {
     }
   });
 
-  it('all players start at position 1 with the default $30k cash', () => {
+  it('all players start at position 1 with the default $35k cash', () => {
     const s = started(4);
     for (const p of s.players) {
       expect(p.pos).toBe(1);
-      expect(p.cash).toBe(30_000);
+      expect(p.cash).toBe(35_000);
       expect(p.margin).toBe(0);
       expect(Object.keys(p.shares)).toHaveLength(0);
     }

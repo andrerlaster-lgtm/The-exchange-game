@@ -161,18 +161,18 @@ describe('stock cost basis and gain/loss', () => {
 describe('holdingDividendInfo', () => {
   it('reports both yield-to-price and yield-to-cost, and they diverge when price has moved since purchase', () => {
     const s = patch(started(2), (draft) => {
-      draft.players[0].shares.MEDI = 4;              // MEDI div=$50/share, control threshold 6
+      draft.players[0].shares.MEDI = 4;              // MEDI div=$70/share (2026-09-18 cash-flow pass), control threshold 6
       draft.players[0].stockCostBasis.MEDI = 4_000;   // bought at an average $1,000/share
       // current price stays at MEDI's $750 opening step, so yield-to-price and
       // yield-to-cost are computed against two different denominators.
     });
     const info = holdingDividendInfo(s, s.players[0], 'MEDI');
-    expect(info.printed).toBe(50);
+    expect(info.printed).toBe(70);
     expect(info.isController).toBe(false);
     expect(info.sharesToControl).toBe(2);
-    expect(info.perLap).toBe(200); // 50 x 4, no Controller multiplier
-    expect(info.yieldPct).toBeCloseTo((200 / 3_000) * 100, 6);      // to current price ($750 x 4)
-    expect(info.yieldOnCostPct).toBeCloseTo((200 / 4_000) * 100, 6); // to cost ($1,000 x 4)
+    expect(info.perLap).toBe(280); // 70 x 4, no Controller multiplier
+    expect(info.yieldPct).toBeCloseTo((280 / 3_000) * 100, 6);      // to current price ($750 x 4)
+    expect(info.yieldOnCostPct).toBeCloseTo((280 / 4_000) * 100, 6); // to cost ($1,000 x 4)
     expect(info.yieldPct).not.toBeCloseTo(info.yieldOnCostPct, 1);
   });
 
@@ -184,7 +184,7 @@ describe('holdingDividendInfo', () => {
     const info = holdingDividendInfo(s, s.players[0], 'MEDI');
     expect(info.isController).toBe(true);
     expect(info.sharesToControl).toBe(0);
-    expect(info.perLap).toBe(Math.round(50 * 6 * 1.5)); // 450
+    expect(info.perLap).toBe(Math.round(70 * 6 * 1.5)); // 630
   });
 
   it('reports no dividend (not 0%-that-looks-computed) for a zero-div IPO', () => {
@@ -207,7 +207,7 @@ describe('lapReturnPct', () => {
 
   it('is the geometric (CAGR-style) per-lap rate, not the flat cumulative % divided by laps', () => {
     const s = patch(started(2), (draft) => {
-      draft.players[0].cash += 3_000; // +$3,000 on a $30,000 start = +10% cumulative
+      draft.players[0].cash += 3_500; // +$3,500 on a $35,000 start = +10% cumulative
       draft.lap = 4;
     });
     expect(marketReturnPct(s, s.players[0])).toBeCloseTo(10, 6);
@@ -231,9 +231,9 @@ describe('Gain/Loss Mode', () => {
 
   it('changes the winner from highest net worth to highest salary-adjusted gain', () => {
     const base = patch(started(2), (draft) => {
-      draft.players[0].cash = 31_000;
-      draft.players[0].salaryCollected = 1_000; // Market Gain $0
-      draft.players[1].cash = 30_500;
+      draft.players[0].cash = 36_000;
+      draft.players[0].salaryCollected = 1_000; // Market Gain $0 (35,000 start + 1,000 salary)
+      draft.players[1].cash = 35_500;
       draft.players[1].salaryCollected = 0;     // Market Gain +$500
     });
 

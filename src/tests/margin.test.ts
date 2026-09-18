@@ -78,8 +78,13 @@ describe('Margin — Market Open call', () => {
   it('defaults into a forced sell-to-cover state when cash is short', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].margin = 4000;
-      d.players[0].cash = 0;            // cannot cover the $2,000 call
+      // A real game caps Margin at $4,000, but this patches state directly
+      // to force a shortfall even after the Recovery Bonus (2026-09-18
+      // cash-flow pass): starting at $0 cash still nets $750 salary + $2,000
+      // Recovery Bonus = $2,750 before the call is deducted, which alone
+      // covers half of a real $4,000 balance ($2,000).
+      d.players[0].margin = 10_000;
+      d.players[0].cash = 0;            // cannot cover the call
       d.players[0].shares = { MEDI: 3 }; // owns stock to liquidate
       d.players[0].pos = 33;
       d.turnPhase = 'preRoll';
@@ -126,7 +131,10 @@ describe('Margin — Market Open call', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.opts.margin = true;
-      d.players[0].margin = 4000;
+      // See the comment in the previous test — margin bumped to $10,000
+      // (beyond the real $4,000 cap) so this still produces a shortfall
+      // after the Recovery Bonus.
+      d.players[0].margin = 10_000;
       d.players[0].cash = 0;
       d.players[0].shares = {};
       d.players[0].etfShares = { GRW: 1, INC: 1 };

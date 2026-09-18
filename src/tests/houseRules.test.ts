@@ -43,22 +43,22 @@ describe('Controlling Stake dividend boost', () => {
     // (was $50/$30/$15) at a 1.5x control multiplier — the old rates left
     // full-company payback at 7-17 laps for Low/Med, cash-starving anyone
     // who bought more than one or two companies.
-    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.FTRB)).toBe(1320); // Low: round(80*11*1.5)
-    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.MEDI)).toBe(825);  // Med: round(50*11*1.5)
-    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.CCAI)).toBe(330);  // High: round(20*11*1.5)
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.FTRB)).toBe(1_815); // Low: round(110*11*1.5)
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.MEDI)).toBe(1_155); // Med: round(70*11*1.5)
+    expect(fullCompanyDividendPerMarketOpen(STOCK_BY_CODE.CCAI)).toBe(495);   // High: round(30*11*1.5)
   });
 
   // Place player 0 at space 34 and roll [2,2] (sum 4) to wrap past Market
   // Open onto space 2 — same pattern used by scoring.test.ts's Rule 8 suite.
   it('doubles dividend for a regular stock at 6+ shares', () => {
-    // FTRB is Low-risk -> $80/share dividend.
+    // FTRB is Low-risk -> $110/share dividend (2026-09-18 cash-flow pass).
     let s = started(2);
     s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { FTRB: CONTROL_THRESHOLD_REGULAR }; });
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    // salary ($500) + round(6 * $80 * 1.5 controlling) = 500 + 720 = 1220
-    expect(gained).toBe(500 + Math.round(STOCK_BY_CODE.FTRB.div * CONTROL_THRESHOLD_REGULAR * CONTROL_DIVIDEND_MULTIPLIER));
+    // salary ($750) + round(6 * $110 * 1.5 controlling) = 750 + 990 = 1740
+    expect(gained).toBe(750 + Math.round(STOCK_BY_CODE.FTRB.div * CONTROL_THRESHOLD_REGULAR * CONTROL_DIVIDEND_MULTIPLIER));
   });
 
   it('does not double dividend below the threshold', () => {
@@ -67,7 +67,7 @@ describe('Controlling Stake dividend boost', () => {
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    expect(gained).toBe(500 + STOCK_BY_CODE.FTRB.div * (CONTROL_THRESHOLD_REGULAR - 1));
+    expect(gained).toBe(750 + STOCK_BY_CODE.FTRB.div * (CONTROL_THRESHOLD_REGULAR - 1));
   });
 
   it('IPO controlling threshold is 3 shares', () => {
@@ -78,7 +78,7 @@ describe('Controlling Stake dividend boost', () => {
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
-    expect(gained).toBe(500 + Math.round(50 * CONTROL_THRESHOLD_IPO * CONTROL_DIVIDEND_MULTIPLIER));
+    expect(gained).toBe(750 + Math.round(50 * CONTROL_THRESHOLD_IPO * CONTROL_DIVIDEND_MULTIPLIER));
   });
 });
 
@@ -91,14 +91,14 @@ describe('Risk-specific stock card benefits', () => {
     // Payout Claim rent is now 4x/6x THAT price ($3,000/$4,500), not the old
     // flat $2,000/$3,000 (which was only ever accurate for a Starter company).
     expect(stockOpportunityFor(STOCK_BY_CODE.CCAI)).toMatchObject({
-      title: 'GROWTH POTENTIAL', tone: 'growth', dividendPerLap: 330,
+      title: 'GROWTH POTENTIAL', tone: 'growth', dividendPerLap: 495,
       bullMove: 2, bearMove: -2, landingPayout: 3_000, sectorPayout: 4_500,
     });
   });
 
   it('explains medium-risk income and balanced movement', () => {
     expect(stockOpportunityFor(STOCK_BY_CODE.MEDI)).toMatchObject({
-      title: 'BALANCED OPPORTUNITY', tone: 'balanced', dividendPerLap: 825,
+      title: 'BALANCED OPPORTUNITY', tone: 'balanced', dividendPerLap: 1_155,
       bullMove: 1, bearMove: -1,
     });
   });
@@ -109,7 +109,7 @@ describe('Risk-specific stock card benefits', () => {
     // made it risk-free rather than lower-risk. It now has zero Run exposure
     // in either direction — genuinely stable, not a one-way bet.
     expect(stockOpportunityFor(STOCK_BY_CODE.SAFE)).toMatchObject({
-      title: 'INCOME & STABILITY', tone: 'income', dividendPerLap: 1320,
+      title: 'INCOME & STABILITY', tone: 'income', dividendPerLap: 1_815,
       bullMove: 0, bearMove: 0,
     });
   });

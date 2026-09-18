@@ -1,8 +1,19 @@
 import type { CompanyTier, Risk, Sector, SectorId, SectorPair, SectorPairId, Stock } from './types';
 import { ladderStep } from './priceTrack';
 
-export const START_CASH = 30_000;
-export const SALARY = 500;
+export const START_CASH = 35_000; // default starting cash — must match DEFAULT_OPTIONS.startCash (engine/types.ts)
+export const SALARY = 750; // 2026-09-18 cash-flow pass: was $500 — see recoveryBonus in playerState.ts for the other half of this pass
+// ── Recovery Bonus (2026-09-18 cash-flow pass) ──────────────────────────────
+// A live 200-turn trace found average Payout Claim hits of $4,000-4,300 —
+// roughly 8x a single salary payment — with players landing at literal $0
+// cash in every run, most often in 6-player games (more sold-out companies
+// on the board means more spaces that can charge a claim). This is the
+// targeted half of the fix: whoever reaches their OWN Market Open still
+// sitting below the threshold (i.e. a recent big claim hasn't been made up
+// by salary/dividends yet) gets a one-time top-up on top of normal income,
+// right when it actually matters, instead of crawling back at $750/lap.
+export const RECOVERY_BONUS_THRESHOLD = 3_000; // cash below this at Market Open qualifies
+export const RECOVERY_BONUS = 2_000;           // flat top-up paid on top of normal income
 // ── Margin (replaces the old loan system) ──────────────────────────────────
 export const MARGIN_INCREMENT = 2_000;       // borrow in $2,000 steps
 export const MARGIN_MAX = 4_000;             // max outstanding margin at any time
@@ -153,10 +164,12 @@ export const SECTORS: Record<SectorId, Sector> = {
 // of High risk's return is meant to come from price movement instead.
 // Raised from Low:50/Med:30/High:15 (2026-09-15 balance pass) — full-company
 // payback at the old rates ran 7-17 laps for Low/Med risk, so buying even a
-// couple of companies left a player cash-starved for laps at a time. These
-// values put full-company payback around 4-10 laps for Low, 7-17 for Med;
-// High stays slow by design (price movement carries its return instead).
-const DIV_BY_RISK: Record<Risk, number> = { Low: 80, Med: 50, High: 20 };
+// couple of companies left a player cash-starved for laps at a time.
+// Raised again from Low:80/Med:50/High:20 (2026-09-18 cash-flow pass — a
+// live 200-turn trace showed average Payout Claim hits of $4,000-4,300
+// against $500/lap salary, driving players to literal $0 cash in every run;
+// see SALARY and recoveryBonus for the other two legs of that same pass).
+const DIV_BY_RISK: Record<Risk, number> = { Low: 110, Med: 70, High: 30 };
 
 // [space, name, sector, basePrice, risk, code]
 // 22 regular stocks — uneven sector distribution:

@@ -3,7 +3,7 @@ import { PLAYER_COLORS, PIECES } from '../../data';
 import { DEFAULT_OPTIONS } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
-const CASH_OPTIONS = [30_000, 40_000, 50_000];
+const CASH_OPTIONS = [35_000, 45_000, 55_000];
 const ROUND_OPTIONS = [5, 7, 10];
 
 const QUICK_RULES = [
