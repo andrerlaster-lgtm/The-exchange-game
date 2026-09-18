@@ -81,12 +81,12 @@ export default function StockTradeCard() {
             // (e.g. $2,300, reachable via a partial margin-call repayment) take a
             // full increment and breach it (e.g. $2,300 -> $4,300).
             const wouldExceedCap = p.margin + MARGIN_INCREMENT > MARGIN_MAX;
-            const creditTightening = s.marketCondition?.id === 'creditTightening';
+            const creditTightening = s.marketConditions[s.cur]?.id === 'creditTightening';
             return (
               <button style={{ fontSize: 11, padding: '3px 10px' }}
                 onClick={() => dispatch({ t: 'takeMargin' })}
                 disabled={wouldExceedCap || creditTightening}
-                title={creditTightening ? 'Credit Tightening blocks new Margin until the next Market Open' : wouldExceedCap ? `Margin capped at $${MARGIN_MAX.toLocaleString()}` : undefined}>
+                title={creditTightening ? 'Your Credit Tightening condition blocks new Margin' : wouldExceedCap ? `Margin capped at $${MARGIN_MAX.toLocaleString()}` : undefined}>
                 Margin +$2k
               </button>
             );

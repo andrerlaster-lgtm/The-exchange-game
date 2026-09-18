@@ -53,7 +53,7 @@ export function dividendPayment(s: GameState, pi: number): { amount: number; con
   return { amount, controllingCodes, cutCodes };
 }
 
-export function payMarketOpen(s: GameState, pi: number): void {
+export function payMarketOpen(s: GameState, pi: number, landedExactly = false): void {
   const p = s.players[pi];
 
   // Stock / IPO dividends — Controlling Stake (6+ regular shares or 3+ IPO
@@ -66,17 +66,21 @@ export function payMarketOpen(s: GameState, pi: number): void {
   // of one — this is what actually rewards ETF diversification).
   const etfPay = calcEtfPayout(p.etfShares);
   const etfDiverBonus = etfDiversificationBonus(p.etfShares);
-  const conditionIncome = marketConditionIncome(s, p);
+  const conditionIncome = marketConditionIncome(s, pi);
 
   // Diversification bonus: only the highest tier qualifying is paid (rulebook §14).
   const divTier = diversificationTier(p);
   const diverBonus = diversificationBonus(p);
 
-  const total = SALARY + div + etfPay + etfDiverBonus + diverBonus + conditionIncome.dividend + conditionIncome.etf;
-  p.cash += total;
-  p.salaryCollected += SALARY;
+  // Landing exactly on Market Open (rather than merely passing over it)
+  // doubles salary — the classic "land on Go" bonus.
+  const salary = landedExactly ? SALARY * 2 : SALARY;
 
-  const parts: string[] = [`+${money(SALARY)} income`];
+  const total = salary + div + etfPay + etfDiverBonus + diverBonus + conditionIncome.dividend + conditionIncome.etf;
+  p.cash += total;
+  p.salaryCollected += salary;
+
+  const parts: string[] = [`+${money(salary)} income${landedExactly ? ' (landed exactly — double salary)' : ''}`];
   if (div) parts.push(`+${money(div)} dividends`);
   if (etfPay) parts.push(`+${money(etfPay)} ETF payout`);
   if (etfDiverBonus) parts.push(`+${money(etfDiverBonus)} ETF diversification bonus (all 4 funds)`);

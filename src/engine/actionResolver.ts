@@ -31,7 +31,7 @@ import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, holdingGainLoss, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
 import { accruePlayerDebt, payPlayerDebt, playerDebtBalance, playerDebtInstallment } from './playerLoans';
-import { beginMarketCondition, marketConditionBlocksMargin, marketConditionClaimAdjustment } from './marketConditions';
+import { ensureMarketCondition, marketConditionBlocksMargin, marketConditionClaimAdjustment, marketConditionLoanRateCap, marketConditionSectorRentMultiplier, tickMarketConditionTurn } from './marketConditions';
 import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
@@ -188,7 +188,7 @@ function resolveLanding(s: GameState, pi: number): void {
           const multiplier = landingValueMultiplier(LADDER[s.prices[code]], LADDER[stock.step]);
           const discount = shareholderLandingDiscount(landingShares);
           const baseClaimOwed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
-          const conditionAdjustment = marketConditionClaimAdjustment(s, code);
+          const conditionAdjustment = marketConditionClaimAdjustment(s, rec.claimHolder, code);
           const claimOwed = Math.max(50, baseClaimOwed + conditionAdjustment);
           // Sector Control: if the claim holder also exclusively owns BOTH
           // companies in this stock's Sector Control pair, a flat Sector
@@ -201,7 +201,8 @@ function resolveLanding(s: GameState, pi: number): void {
           const pairId = SECTOR_PAIR_BY_CODE[code];
           const pairDef = pairId ? SECTOR_PAIRS[pairId] : null;
           const controlsPair = !!pairDef && sectorPairOwner(s, pairId!) === rec.claimHolder;
-          const sectorRent = controlsPair ? pairDef!.rent : 0;
+          const rentMultiplier = marketConditionSectorRentMultiplier(s, rec.claimHolder);
+          const sectorRent = controlsPair ? pairDef!.rent * rentMultiplier : 0;
           const owed = claimOwed + sectorRent;
           // Landing no longer force-pays from cash automatically — the debtor
           // gets a real choice (pay cash now, force-sell stock, or negotiate a
@@ -212,7 +213,7 @@ function resolveLanding(s: GameState, pi: number): void {
             (sectorComplete ? ' · Sector Portfolio boost' : '') +
             (multiplier > 1 ? ` · space value ${multiplier}×` : '') +
             (discount > 0 ? ` · ${Math.round(discount * 100)}% shareholder discount` : '') +
-            (sectorRent > 0 ? ` + ${money(sectorRent)} Sector Rent · ${pairDef!.name}` : '') +
+            (sectorRent > 0 ? ` + ${money(sectorRent)} Sector Rent · ${pairDef!.name}${rentMultiplier > 1 ? ' (Toll Hike ×2)' : ''}` : '') +
             ')', 'r');
           s.landingNotice = {
             kind: 'payout',
@@ -221,8 +222,8 @@ function resolveLanding(s: GameState, pi: number): void {
             amount: owed,
             paidFromCash: 0,
             remaining: owed,
-            detail: `${money(claimOwed)} Payout Claim is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}${conditionAdjustment !== 0 ? `; ${s.marketCondition?.title} ${conditionAdjustment > 0 ? 'adds' : 'reduces it by'} ${money(Math.abs(conditionAdjustment))}` : ''}` +
-              (sectorRent > 0 ? `, plus ${money(sectorRent)} Sector Rent for controlling ${pairDef!.name} (${pairDef!.codes.join(' + ')})` : '') + '.',
+            detail: `${money(claimOwed)} Payout Claim is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}${conditionAdjustment !== 0 ? `; ${holder.name}'s ${s.marketConditions[rec.claimHolder]?.title} ${conditionAdjustment > 0 ? 'adds' : 'reduces it by'} ${money(Math.abs(conditionAdjustment))}` : ''}` +
+              (sectorRent > 0 ? `, plus ${money(sectorRent)} Sector Rent for controlling ${pairDef!.name} (${pairDef!.codes.join(' + ')})${rentMultiplier > 1 ? ' — doubled by Toll Hike' : ''}` : '') + '.',
             canDefer: false,
           };
           const hasSellable = Object.keys(p.shares).some((c) => !isIpoCode(c) && (p.shares[c] ?? 0) > 0);
@@ -438,8 +439,13 @@ function applyMove(s: GameState, steps: number, rng: Rng): void {
   addLog(s, `${p.name} rolls ${steps} → space ${p.pos}`);
   if (passed || p.pos === 1) {
     p.hasCompletedLap = true;
-    payMarketOpen(s, s.cur);
-    beginMarketCondition(s, rng, p.name);
+    // Landing exactly on space 1 (as opposed to passing over it mid-move)
+    // pays double salary — the classic "land on Go" bonus. p.pos === 1 here
+    // is always a subset of `passed` (the board wraps 1-36, so the only way
+    // to land on 1 is by wrapping around), so this is a strictly narrower
+    // condition, not a separate case.
+    payMarketOpen(s, s.cur, p.pos === 1);
+    ensureMarketCondition(s, rng, s.cur);
     s.marketOpenReport = {
       player: p.name,
       trades: p.lapTrades,
@@ -490,7 +496,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
       s.p2pOffers = []; s.p2pSeq = 0;
       s.auction = null; s.auctionQueue = []; s.marketOpenReport = null;
-      s.marketCondition = null;
+      s.marketConditions = s.players.map(() => null);
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       s.playerDebts = []; s.playerDebtSeq = 0;
       clearTurnState(s);
@@ -818,7 +824,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     // ---- margin ----
     case 'takeMargin': {
       if (!s.opts.margin) break;
-      if (marketConditionBlocksMargin(s)) {
+      if (marketConditionBlocksMargin(s, s.cur)) {
         addLog(s, `Credit Tightening is active — ${s.players[s.cur].name} cannot take new Margin.`, 'r');
         break;
       }
@@ -993,16 +999,20 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (!prompt) break;
       // The creditor rolls a d6 for the rate instead of picking one — 6 is
       // capped down to PLAYER_LOAN_MAX_RATE (5%) since the die has one more
-      // face than the 1-5% range allows.
+      // face than the 1-5% range allows. Credit Tightening additionally caps
+      // it lower still, so that condition always does something even in
+      // games where Margin (its other effect) is off.
       const roll = rng.int(1, 6);
-      const rate = Math.min(roll, PLAYER_LOAN_MAX_RATE);
+      const loanRateCap = marketConditionLoanRateCap(s, prompt.debtor);
+      const rate = Math.min(roll, PLAYER_LOAN_MAX_RATE, loanRateCap ?? Infinity);
       s.loanRatePrompt = null;
       s.playerDebtSeq += 1;
       s.playerDebts.push({
         id: s.playerDebtSeq, debtor: prompt.debtor, creditor: prompt.creditor,
         code: prompt.code, principal: prompt.amount, interest: 0, rate,
       });
-      addLog(s, `${s.players[prompt.creditor].name} rolls ${roll}${roll > PLAYER_LOAN_MAX_RATE ? ` (capped at ${PLAYER_LOAN_MAX_RATE}%)` : ''} for the rate — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
+      const capNote = roll > rate ? ` (capped at ${rate}%${loanRateCap !== null && rate === loanRateCap ? ' — Credit Tightening' : ''})` : '';
+      addLog(s, `${s.players[prompt.creditor].name} rolls ${roll}${capNote} for the rate — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
       break;
     }
     case 'dismissMarketOpenReport':
@@ -1403,6 +1413,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         .map((p, i) => ({ i, score: rankingScore(s, p), nw: netWorth(s, p) }))
         .sort((a, b) => b.score - a.score || b.nw - a.nw);
       ranked.forEach((entry, rank) => { s.players[entry.i].prevRank = rank; });
+      tickMarketConditionTurn(s, s.cur); // the player whose turn is ending, before s.cur advances
       s.cur = (s.cur + 1) % n;
       if (s.cur === 0) {
         startLap(s);

@@ -8,19 +8,27 @@ export type TurnPhase = 'preRoll' | 'acted';
 export type LogKind = 'g' | 'r' | 'y' | 'b' | 'n';
 export type TradeKind = 'buy' | 'sell' | 'ipo' | 'short' | 'settle' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
 export type MarketStance = 'bullish' | 'balanced' | 'bearish';
-export type MarketConditionId = 'sectorSpotlight' | 'dividendWindfall' | 'etfInflows' | 'creditTightening' | 'weakDemandBargains' | 'riskOff';
+export type MarketConditionId = 'sectorSpotlight' | 'dividendWindfall' | 'etfInflows' | 'creditTightening' | 'weakDemandBargains' | 'riskOff' | 'tollHike';
 
-/** A temporary market-wide rule. It begins when somebody reaches Market Open
-    and is replaced, rather than stacked, when the next player reaches it. */
+/** A temporary rule personal to one player (`owner`) — it begins when THEY
+    reach Market Open and belongs to them alone; every other player may be
+    running their own independent MarketCondition at the same time (see
+    GameState.marketConditions, one slot per player, not a single shared
+    field). It expires after `remaining` more of the owner's own turns
+    (durationUnit 'turns') or the owner's own Market Open passes
+    (durationUnit 'rounds'), whichever the condition uses — see
+    CONDITION_DURATION in marketConditions.ts. */
 export interface MarketCondition {
   id: MarketConditionId;
   title: string;
   detail: string;
   icon: string;
   color: string;
-  startedBy: string;
+  owner: number;
   lap: number;
   sector?: string;
+  durationUnit: 'turns' | 'rounds';
+  remaining: number;
 }
 
 export interface TradeEntry {
@@ -392,7 +400,7 @@ export interface GameState {
   auction: Auction | null;             // legacy inactive auction state retained for old-session compatibility
   auctionQueue: string[];              // legacy inactive queue retained for old-session compatibility
   marketOpenReport: MarketOpenReport | null; // recap shown after a player completes a lap; clears on their next turn
-  marketCondition: MarketCondition | null; // temporary rule until another player reaches Market Open
+  marketConditions: (MarketCondition | null)[]; // per-player slot, indexed like players — personal, never shared
   lap: number;
   log: LogEntry[];
   marketSignals: MarketSignal[];

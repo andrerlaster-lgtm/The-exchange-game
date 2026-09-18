@@ -37,6 +37,37 @@ export default function MarketIntelligence() {
         }}>{latestFed ? stance.label : 'Waiting on Fed'}</span>
       </div>
 
+      {(() => {
+        // Each player can be running their own independent Market Condition
+        // at once — this list is the one place the whole table's personal
+        // conditions are all visible together, not just the active player's.
+        const active = s.players
+          .map((player, i) => ({ player, condition: s.marketConditions[i] }))
+          .filter((row): row is { player: typeof s.players[number]; condition: NonNullable<typeof row.condition> } => !!row.condition);
+        if (active.length === 0) return null;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
+            {active.map(({ player, condition }) => (
+              <div key={condition.owner} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 10px', borderRadius: 7,
+                background: `${condition.color}18`, border: `1px solid ${condition.color}55`,
+              }}>
+                <span style={{ fontSize: 14, lineHeight: 1, color: condition.color, flexShrink: 0 }}>{condition.icon}</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: 0.8, color: condition.color }}>{player.name.toUpperCase()} · </span>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--text)' }}>{condition.title}</span>
+                  <span style={{ fontSize: 9.5, color: 'var(--muted)' }}> — {condition.detail}</span>
+                </div>
+                <span style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 700, flexShrink: 0 }}>
+                  {condition.remaining} {condition.durationUnit === 'turns' ? 'turn' : 'pass'}{condition.remaining === 1 ? '' : 's'} left
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {!latestFed ? (
         <div style={{
           padding: '11px 12px', borderRadius: 7,

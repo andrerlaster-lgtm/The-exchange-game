@@ -84,7 +84,7 @@ export default function ActionPanel() {
         </button>
       </div>
 
-      {s.marketCondition && <MarketConditionPanel s={s} />}
+      {s.marketConditions[s.cur] && <MarketConditionPanel s={s} />}
 
       {/* Cardless financial spaces still need a loud, explicit result. */}
       {s.cyberattackPrompt && s.cyberattackPrompt.player === s.cur && (
@@ -138,21 +138,28 @@ export default function ActionPanel() {
 }
 
 function MarketConditionPanel({ s }: { s: GameState }) {
-  const condition = s.marketCondition;
+  const condition = s.marketConditions[s.cur];
   if (!condition) return null;
+  const remainingLabel = condition.durationUnit === 'turns'
+    ? `${condition.remaining} of your turn${condition.remaining === 1 ? '' : 's'} left`
+    : `${condition.remaining} of your Market Open pass${condition.remaining === 1 ? '' : 'es'} left`;
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: 9,
-      padding: '10px 12px', borderRadius: 9,
-      background: `${condition.color}16`, border: `1px solid ${condition.color}77`,
-      boxShadow: `inset 3px 0 0 ${condition.color}`,
+      display: 'flex', alignItems: 'flex-start', gap: 11,
+      padding: '12px 14px', borderRadius: 9,
+      background: `linear-gradient(100deg, ${condition.color}22, ${condition.color}0d)`,
+      border: `2px solid ${condition.color}99`,
+      boxShadow: `0 2px 14px ${condition.color}33`,
     }}>
-      <span style={{ fontSize: 18, lineHeight: 1, color: condition.color }}>{condition.icon}</span>
+      <span style={{ fontSize: 24, lineHeight: 1, color: condition.color, flexShrink: 0 }}>{condition.icon}</span>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 9, color: condition.color, fontWeight: 900, letterSpacing: 1 }}>ACTIVE MARKET CONDITION</div>
-        <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 800, marginTop: 2 }}>{condition.title}</div>
-        <div style={{ fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.4, marginTop: 2 }}>
-          {condition.detail} Replaced when the next player reaches Market Open.
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, color: condition.color, fontWeight: 900, letterSpacing: 1.2 }}>YOUR MARKET CONDITION</span>
+          <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>{remainingLabel}</span>
+        </div>
+        <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 800, marginTop: 2 }}>{condition.title}</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.4, marginTop: 3 }}>
+          {condition.detail}
         </div>
       </div>
     </div>

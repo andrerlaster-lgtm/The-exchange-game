@@ -42,7 +42,12 @@ export function sellBackPrice(s: GameState, code: string): number {
  * purchase, and Gain/Loss only moves from price changes while you hold.
  */
 export function companyBuyoutCost(s: GameState, code: string): number {
-  return marketConditionBuyoutDiscount(s, code, REGULAR_SUPPLY * priceOf(s, code));
+  // The buyer is always the currently active player (a landing, an Opening
+  // Bell resolution, or a UI price preview — every caller means "what would
+  // it cost ME, right now"), so the Weak Demand Bargains discount check is
+  // scoped to s.cur rather than threading a player index through every call
+  // site (several are display-only previews in the UI layer).
+  return marketConditionBuyoutDiscount(s, s.cur, code, REGULAR_SUPPLY * priceOf(s, code));
 }
 
 /** Candidate codes affected by market events: all regular stocks + revealed IPOs. */
