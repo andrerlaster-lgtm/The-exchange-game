@@ -20,11 +20,17 @@ export function totalOwedToPlayer(s: GameState, playerIdx: number): number {
 }
 
 /** Add one turn of compounding interest at this loan's own creditor-chosen
-    rate, rounded to $100 with a $100 minimum. Mirrors accrueFeeDebt. */
+    rate, rounded to $10 with a $20 minimum. At realistic Payout Claim loan
+    sizes ($2,000-$3,000), rounding to $100 with a $100 floor swallowed the
+    entire 1-5%/turn range the creditor's d6 roll is meant to pick from (e.g.
+    4% of $2,000 is $80, which floors to the same $100 as every other rate) —
+    the roll was pure theatre below a ~$3,000 balance. Finer rounding lets
+    each rate actually produce a different number at the sizes loans really
+    are. */
 export function accruePlayerDebt(debt: PlayerDebt): number {
   const balance = playerDebtBalance(debt);
   if (balance <= 0) return 0;
-  const rounded = Math.round((balance * debt.rate) / 100 / 100) * 100;
+  const rounded = Math.round((balance * debt.rate) / 100 / 10) * 10;
   const interest = Math.max(PLAYER_LOAN_MIN_INTEREST, rounded);
   debt.interest += interest;
   return interest;

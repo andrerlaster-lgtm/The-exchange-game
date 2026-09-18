@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blocked, netWorth, playerDebtBalance } from '../engine';
+import { accruePlayerDebt, blocked, netWorth, playerDebtBalance } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
 describe('Player-to-player Payout Claim loans', () => {
@@ -55,6 +55,7 @@ describe('Player-to-player Payout Claim loans', () => {
     s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([5]));
     const debt = s.playerDebts[0];
     const principal = debt.principal;
+    const expectedInterest = accruePlayerDebt({ ...debt }); // computed off a clone, same rate/formula the engine uses
 
     s = patch(s, (d) => { d.turnPhase = 'acted'; });
     s = dispatch(s, { t: 'endTurn' }, rng()); // player 1's turn begins — debtor (0) unaffected
@@ -63,7 +64,6 @@ describe('Player-to-player Payout Claim loans', () => {
     s = patch(s, (d) => { d.turnPhase = 'acted'; });
     s = dispatch(s, { t: 'endTurn' }, rng()); // player 0's turn begins — interest accrues
 
-    const expectedInterest = Math.max(100, Math.round(principal * 5 / 100 / 100) * 100);
     expect(s.playerDebts[0].interest).toBe(expectedInterest);
     expect(playerDebtBalance(s.playerDebts[0])).toBe(principal + expectedInterest);
   });

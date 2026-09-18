@@ -159,7 +159,7 @@ export interface LogEntry {
     the Market Meter, a separate mechanic), so it must stay in the curated
     Important Events feed. The meter's own ambient signals stay `market` and
     stay out of that feed, because the display does cover those. */
-export type MarketSignalKind = 'fed' | 'market' | 'regime' | 'soldout' | 'claim' | 'weakDemand' | 'ipo' | 'close' | 'milestone';
+export type MarketSignalKind = 'fed' | 'market' | 'regime' | 'soldout' | 'claim' | 'weakDemand' | 'strongDemand' | 'ipo' | 'close' | 'milestone';
 
 export interface MarketSignalImpact {
   code: string;
@@ -384,7 +384,8 @@ export interface GameState {
   bonusRollUsed: boolean;              // current player already used the turn's one allowed bonus roll
   prices: Record<string, number>;      // regular stock code -> ladder step
   supply: Record<string, number>;      // regular stock code -> shares remaining
-  skips: Record<string, number>;       // code -> weak-demand marker count (0-3)
+  skips: Record<string, number>;       // code -> weak-demand marker count (0-3), untouched companies only
+  demand: Record<string, number>;      // code -> strong-demand marker count (0-3), sold-out companies only
   soldOut: Record<string, SoldOutInfo>; // presence of key ⇔ stock is permanently sold out
   bankPool: Record<string, number>;    // outstanding sold-back shares, purchasable only by landing on that stock
   bankSoldThisTurn: Record<string, number>; // regular shares sold to the bank by the current player this turn

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ME_CARDS, REGULAR_SUPPLY, SALARY, STOCK_BY_CODE } from '../data';
 import {
-  getRankedPlayers, holdingDividendInfo, holdingGainLoss, lapReturnPct, marketGain, marketReturnPct, reduce, stockGainLoss,
+  companyBuyoutCost, getRankedPlayers, holdingDividendInfo, holdingGainLoss, lapReturnPct, marketGain, marketReturnPct, reduce, stockGainLoss,
 } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -14,22 +14,25 @@ describe('stock cost basis and gain/loss', () => {
   // finding: the old buyout constants were priced at 10 shares but granted
   // 11, handing out a free share every time).
   it('a company buy-out produces no unrealized gain — the corrected accounting invariant', () => {
-    let s = rollTo(started(2), 5); // MEDI · Growth company
+    const before = started(2);
+    const cost = companyBuyoutCost(before, 'MEDI'); // priced before rollTo/buy move anything
+    let s = rollTo(before, 5); // MEDI · Growth company
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
 
     const player = s.players[0];
     const gl = holdingGainLoss(s, player, 'MEDI');
     expect(player.shares.MEDI).toBe(REGULAR_SUPPLY);
-    expect(player.stockCostBasis.MEDI).toBe(STOCK_BY_CODE.MEDI.buyout);
+    expect(player.stockCostBasis.MEDI).toBe(cost);
     expect(gl.costBasis).toBe(8_250);
     expect(gl.marketValue).toBe(11 * 750);
     expect(gl.unrealized).toBe(0);
     expect(marketGain(s, player)).toBe(0);
   });
 
-  it('buy-out price equals supply times base price for every tier', () => {
+  it('buy-out price equals supply times opening base price for every tier', () => {
+    const s = started(2);
     for (const stock of Object.values(STOCK_BY_CODE)) {
-      expect(stock.buyout).toBe(REGULAR_SUPPLY * stock.base);
+      expect(companyBuyoutCost(s, stock.code)).toBe(REGULAR_SUPPLY * stock.base);
     }
   });
 

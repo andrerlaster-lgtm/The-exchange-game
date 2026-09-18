@@ -22,21 +22,16 @@ export const FEE_DEBT_INSTALLMENT = 500;
 // against the debtor's score and for the creditor's.
 export const PLAYER_LOAN_MIN_RATE = 1;
 export const PLAYER_LOAN_MAX_RATE = 5;
-export const PLAYER_LOAN_MIN_INTEREST = 100;
+export const PLAYER_LOAN_MIN_INTEREST = 20; // was $100 — floored out the 1-5% rate roll at realistic loan sizes (see accruePlayerDebt)
 export const PLAYER_LOAN_INSTALLMENT = 500;
 export const REGULAR_SUPPLY = 11;
 // ── Fixed whole-company acquisition tiers ──────────────────────────────────
-// The acquisition price is intentionally separate from the live per-share
-// market price, but it must still equal REGULAR_SUPPLY × the tier's base
-// share price. Anything less books a gain at the moment of purchase, because
-// the granted 11-share block marks to market immediately (Stage A finding,
-// 2026-08-21 Market Overhaul report — the previous 10x-priced constants
-// handed out a free share on every acquisition).
-export const COMPANY_BUYOUT_BY_TIER: Record<CompanyTier, number> = {
-  Starter: 5_500,   // 11 × 500
-  Growth: 8_250,    // 11 × 750
-  Premium: 11_000,  // 11 × 1_000
-};
+// The acquisition price itself is REGULAR_SUPPLY × the tier's opening share
+// price, computed live off the ladder (rules.ts:companyBuyoutCost) rather
+// than a separate fixed table — a standalone COMPANY_BUYOUT_BY_TIER constant
+// used to exist here but nothing in the engine ever read it (the live-price
+// formula superseded it), so it silently drifted from what the game actually
+// charges and only the test suite still asserted its stale numbers.
 export const COMPANY_SHARE_PRICE_BY_TIER: Record<CompanyTier, number> = {
   Starter: 500,
   Growth: 750,
@@ -130,6 +125,16 @@ export const BROAD_MARKET_BONUS = 600;   // paid instead for 6+ sectors
 export const MAX_TRADE_QTY = Math.floor(REGULAR_SUPPLY / 2); // largest possible half-holding bank sale from the 11-share supply
 // ── Weak Demand ──────────────────────────────────────────────────────────────
 export const WEAK_DEMAND_THRESHOLD = 2; // markers before the price drops 1 step
+// ── Strong Demand (2026-09-18 balance pass, Option C) ───────────────────────
+// The positive mirror of Weak Demand, for the OTHER half of a stock's life:
+// Weak Demand only ever applies BEFORE a company sells out (it tracks skips on
+// an untouched company); Strong Demand only ever applies AFTER — it tracks
+// Payout Claim landings on an already-sold-out one. The two never overlap on
+// the same company. Investigated first (see the price-drift trace): buying a
+// company never moved its own price up, so all organic upward pressure had to
+// come from the Market Meter/cards/Runs — this gives repeat landings on a
+// popular, already-sold-out company their own ongoing upward pull too.
+export const STRONG_DEMAND_THRESHOLD = 2; // Payout Claim landings before the price rises 1 step
 
 export const SECTORS: Record<SectorId, Sector> = {
   tech:        { id: 'tech',        name: 'Technology',   color: '#4DA3FF', glyph: '◆' },
@@ -191,7 +196,6 @@ export const STOCKS: Stock[] = RAW_STOCKS.map(([space, name, sector, base, risk,
     color: SECTORS[sector].color,
     div: DIV_BY_RISK[risk],
     tier,
-    buyout: COMPANY_BUYOUT_BY_TIER[tier],
   };
 });
 

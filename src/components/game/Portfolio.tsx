@@ -260,7 +260,7 @@ export default function Portfolio() {
             <span>Interest ${p.feeDebtInterest.toLocaleString()}</span>
           </div>
           <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
-            Adds {FEE_DEBT_INTEREST_RATE * 100}% ({toBps(FEE_DEBT_INTEREST_RATE * 100)} bps) at the beginning of this player’s turn, rounded to $100 with a $100 minimum. Already deducted from score.
+            Adds {FEE_DEBT_INTEREST_RATE * 100}% ({toBps(FEE_DEBT_INTEREST_RATE * 100)} bps) at the beginning of this player’s turn, rounded to $10 with a $100 minimum. Already deducted from score.
           </div>
           {isOwnTurn && s.phase === 'play' && (
             <div style={{ display: 'flex', gap: 6 }}>

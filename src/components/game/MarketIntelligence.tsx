@@ -10,6 +10,7 @@ const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   soldout: 'SOLD OUT',
   claim: 'PAYOUT CLAIM',
   weakDemand: 'WEAK DEMAND',
+  strongDemand: 'STRONG DEMAND',
   ipo: 'IPO',
   close: 'MARKET CLOSE',
   milestone: 'PORTFOLIO MILESTONE',

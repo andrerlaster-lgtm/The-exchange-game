@@ -58,7 +58,6 @@ export interface Stock {
   color: string;       // sector color (denormalized for convenience)
   div: number;         // printed dividend per share (placeholder: derived from risk)
   tier: CompanyTier;   // fixed acquisition-price tier while the company is untouched
-  buyout: number;      // fixed cost to acquire all 11 shares and the Payout Claim
 }
 
 export interface IpoDef {

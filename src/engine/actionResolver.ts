@@ -2,9 +2,9 @@
 // Called inside produce() in reducer.ts.
 
 import {
-  AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE,
+  AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE, TAX_RATE,
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, LADDER,
-  MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD,
+  MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
   PLAYER_LOAN_MAX_RATE, SECTOR_PAIR_BY_CODE, SECTOR_PAIRS,
 } from '../data';
@@ -234,6 +234,27 @@ function resolveLanding(s: GameState, pi: number): void {
             label: sectorRent > 0 ? `Payout Claim + Sector Rent on ${code} to ${holder.name}` : `Payout Claim on ${code} to ${holder.name}`,
             canForceSell: hasSellable,
           };
+          // Strong Demand (2026-09-18, Option C) — the positive mirror of Weak
+          // Demand: repeat Payout Claim landings on this sold-out company are a
+          // real demand signal, the same way repeated skips on an untouched one
+          // are a real disinterest signal. Counted after `owed` is already
+          // fixed above, so this landing's own charge is never affected by the
+          // bump it might itself trigger. Fires regardless of how the claim
+          // ends up settled (cash, forced sale, or loan) — the landing itself,
+          // not the payment method, is the signal.
+          s.demand[code] = (s.demand[code] ?? 0) + 1;
+          addLog(s, `Strong demand marker on ${code}: ${s.demand[code]}/${STRONG_DEMAND_THRESHOLD}.`, 'g');
+          if (s.demand[code] >= STRONG_DEMAND_THRESHOLD) {
+            moveTradePrice(s, code, 1);
+            s.demand[code] = 0;
+            addLog(s, `Strong demand: ${code} rises 1 step (${STRONG_DEMAND_THRESHOLD} landings).`, 'g');
+            recordMarketSignal(s, {
+              kind: 'strongDemand',
+              title: `Strong Demand · ${code}`,
+              summary: `${code} rose one price step after ${STRONG_DEMAND_THRESHOLD} consecutive Payout Claim landings.`,
+              impacts: [{ code, d: 1 }],
+            });
+          }
         } else if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap === false) {
           addLog(s, `${p.name} lands on ${code} during the first lap — no Payout Claim is owed yet.`, 'y');
         } else if (rec.claimHolder === pi) {
@@ -309,10 +330,10 @@ function resolveLanding(s: GameState, pi: number): void {
       addLog(s, 'Free Trading Day — make up to 2 trade actions.', 'g');
       break;
     case 'tax': {
-      // Portfolio Tax: 10% of net worth (cash + stocks + ETFs − margin)
+      // Portfolio Tax: TAX_RATE of net worth (cash + stocks + ETFs − margin)
       const nw = netWorth(s, p);
-      const tax = Math.max(0, Math.round(nw * 0.10 / 100) * 100);
-      addLog(s, `${p.name} owes Portfolio Tax: ${money(tax)} (10% of net worth ${money(nw)}) — pay now or carry the debt.`, 'r');
+      const tax = Math.max(0, Math.round(nw * TAX_RATE / 100) * 100);
+      addLog(s, `${p.name} owes Portfolio Tax: ${money(tax)} (${TAX_RATE * 100}% of net worth ${money(nw)}) — pay now or carry the debt.`, 'r');
       s.landingNotice = {
         kind: 'tax',
         title: 'Portfolio Tax',
@@ -320,7 +341,7 @@ function resolveLanding(s: GameState, pi: number): void {
         amount: tax,
         paidFromCash: 0,
         remaining: tax,
-        detail: `10% of net worth ${money(nw)}, rounded to the nearest $100.`,
+        detail: `${TAX_RATE * 100}% of net worth ${money(nw)}, rounded to the nearest $100.`,
         canDefer: true,
       };
       break;
@@ -459,7 +480,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         s.prices[st.code] = st.step;
         s.supply[st.code] = REGULAR_SUPPLY;
       }
-      s.skips = {}; s.soldOut = {}; s.bankPool = {}; s.lap = 1; s.log = []; s.tradeLog = []; s.feeLog = [];
+      s.skips = {}; s.demand = {}; s.soldOut = {}; s.bankPool = {}; s.lap = 1; s.log = []; s.tradeLog = []; s.feeLog = [];
       s.marketSignals = []; s.marketSignalSeq = 0; s.portfolioMilestones = {};
       s.decks = freshDecks(rng, s.opts.closeMode); s.discard = { ME: [], FED: [] };
       s.ipos = freshIpos();
