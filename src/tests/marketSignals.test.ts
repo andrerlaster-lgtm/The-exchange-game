@@ -11,13 +11,19 @@ describe('Market Intelligence signals', () => {
     });
     s = dispatch(s, { t: 'draw', deck: 'FED' }, rng());
 
-    expect(s.marketSignals[0]).toMatchObject({
+    // Found by kind rather than trusting index 0 — Option A (2026-09-18) can
+    // now ALSO record a "Market Ripple" signal right after this one (Rate
+    // Hike is a narrow 'multi' effect, so it qualifies), which would sit at
+    // index 0 instead. The Fed signal's own impacts snapshot is unaffected
+    // either way; only its position in the (unshift-ordered) list can move.
+    const fedSignal = s.marketSignals.find((sig) => sig.kind === 'fed')!;
+    expect(fedSignal).toMatchObject({
       kind: 'fed',
       title: 'Rate Hike',
       stance: 'hawkish',
     });
-    expect(s.marketSignals[0].insight).toContain('borrowing costs');
-    expect(s.marketSignals[0].impacts).toEqual(expect.arrayContaining([
+    expect(fedSignal.insight).toContain('borrowing costs');
+    expect(fedSignal.impacts).toEqual(expect.arrayContaining([
       { code: 'FTRB', d: 1 },
       { code: 'PAYW', d: 1 },
       { code: 'MTRO', d: -1 },

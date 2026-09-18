@@ -11,7 +11,7 @@ import type { SectorId } from '../data/types';
 import { blocked } from '../engine/rules';
 import { moveEventPrice } from '../engine/stockState';
 import {
-  advanceMeterOnRoll, eligibleSectors, meterZone, METER_MAX, METER_MIN, repriceRoundBoundary,
+  advanceMeterOnRoll, eligibleSectors, meterZone, METER_MAX, METER_MIN, repriceRoundBoundary, triggerCardRipple,
 } from '../engine/marketMeter';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -105,11 +105,14 @@ describe('repriceRoundBoundary', () => {
     expect(movedSectors2).toHaveLength(1);
   });
 
-  it('moves exactly ONE sector per round in every zone — Neutral is never churnier than Bull/Bear', () => {
+  it('moves exactly ONE sector per round at |meter|<=2 — Neutral is never churnier than a bare Bull/Bear', () => {
     // 2026-08-22: Neutral used to move two sectors (one up, one down), so the
     // supposedly calm state touched twice as many companies as an extreme
-    // one. The needle now sets only the direction, never the breadth.
-    for (const meter of [METER_MIN, -2, -1, 0, 1, 2, METER_MAX]) {
+    // one. The needle sets the direction always, and — since Option C
+    // (2026-09-18) — the breadth/depth too, but only at the pinned extreme
+    // (see the dedicated 'amplitude scales with |meter|' block below); a bare
+    // +/-2 still touches exactly one sector, just two steps deep instead of one.
+    for (const meter of [-2, -1, 0, 1, 2]) {
       for (const seed of ['a', 'b', 'c', 'd', 'e']) {
         let s = withMeter(started(2));
         s = patch(s, (d) => { d.meter = meter; });
@@ -281,11 +284,14 @@ describe('sector selection balance', () => {
   it('is deterministic for a fixed seed and reasonably balanced across many draws', () => {
     // Force a bull reprice repeatedly with a fixed seed suite and confirm no
     // single sector dominates — a crude but real balance check, not just an
-    // assertion that selection happens.
+    // assertion that selection happens. Uses meter=2 (AMPLIFIED, not
+    // METER_MAX/PINNED): |meter|==2 still touches exactly one sector under
+    // Option C, so this test's "is the RANDOM PICK balanced" question stays
+    // isolated from the breadth behavior the PINNED case gets its own test for.
     const counts: Record<string, number> = {};
     for (let seed = 0; seed < 400; seed++) {
       let s = withMeter(started(2));
-      s = patch(s, (d) => { d.meter = METER_MAX; });
+      s = patch(s, (d) => { d.meter = 2; });
       const before = { ...s.prices };
       repriceRoundBoundary(s, rng(`balance-${seed}`));
       for (const sec of Object.keys(SECTOR_CODES) as SectorId[]) {
@@ -312,5 +318,174 @@ describe('sector selection balance', () => {
       return s.prices;
     }
     expect(runOnce('repro-seed')).toEqual(runOnce('repro-seed'));
+  });
+});
+
+describe('Option C — amplitude scales with |meter| (2026-09-18)', () => {
+  it('|meter|==1 (or 0) moves exactly one sector one step — identical to the original rule', () => {
+    for (const meter of [0, 1, -1]) {
+      let s = withMeter(started(2));
+      s = patch(s, (d) => { d.meter = meter; });
+      const before = { ...s.prices };
+      repriceRoundBoundary(s, rng(`mag1-${meter}`));
+      const moved = SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
+      expect(moved).toHaveLength(1);
+      for (const code of SECTOR_CODES[moved[0]]) {
+        const stepDelta = s.prices[code] - before[code];
+        expect(Math.abs(stepDelta)).toBeLessThanOrEqual(1); // 1 step, or 0 if already clamped
+      }
+    }
+  });
+
+  it('|meter|==2 ("amplified") moves exactly one sector, up to two steps deep', () => {
+    let s = withMeter(started(2));
+    s = patch(s, (d) => { d.meter = 2; });
+    const before = { ...s.prices };
+    repriceRoundBoundary(s, rng('mag2'));
+    const moved = SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
+    expect(moved).toHaveLength(1);
+    const deltas = SECTOR_CODES[moved[0]].map((code) => s.prices[code] - before[code]);
+    expect(Math.max(...deltas.map(Math.abs))).toBe(2); // a fresh game has room for the full 2 steps
+  });
+
+  it('|meter|==3 ("pinned/broad") can move a second, different sector one step each', () => {
+    // Not guaranteed every single draw (the second pick can coincide with the
+    // first if nothing else is eligible), so sweep seeds and confirm it
+    // actually happens at least once — a real, reachable behavior, not just
+    // code that never executes.
+    let sawTwoSectors = false;
+    for (let seed = 0; seed < 30; seed++) {
+      let s = withMeter(started(2));
+      s = patch(s, (d) => { d.meter = METER_MAX; });
+      const before = { ...s.prices };
+      repriceRoundBoundary(s, rng(`mag3-${seed}`));
+      const moved = SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
+      if (moved.length === 2) { sawTwoSectors = true; break; }
+      expect(moved.length).toBeLessThanOrEqual(2);
+    }
+    expect(sawTwoSectors).toBe(true);
+  });
+
+  it('decays the needle by 1 toward neutral instead of hard-resetting to 0', () => {
+    let s = withMeter(started(2));
+    s = patch(s, (d) => { d.meter = METER_MAX; });
+    repriceRoundBoundary(s, rng('decay-bull'));
+    expect(s.meter).toBe(METER_MAX - 1); // was: hard reset to exactly 0
+
+    let s2 = withMeter(started(2));
+    s2 = patch(s2, (d) => { d.meter = METER_MIN; });
+    repriceRoundBoundary(s2, rng('decay-bear'));
+    expect(s2.meter).toBe(METER_MIN + 1);
+  });
+
+  it('a trend can persist across multiple laps instead of resetting the instant it peaks', () => {
+    // Pin the needle back to +3 before each boundary (simulating continued
+    // bullish rolls in between) and confirm several consecutive boundaries
+    // all still read as a strong/pinned zone, rather than the old behavior
+    // where the very first cash-in wiped it back to a blank slate.
+    let s = withMeter(started(2));
+    let laps = 0;
+    for (let i = 0; i < 3; i++) {
+      s = patch(s, (d) => { d.meter = METER_MAX; });
+      const before = s.meter;
+      repriceRoundBoundary(s, rng(`persist-${i}`));
+      expect(s.meter).toBeLessThan(before); // decayed...
+      expect(s.meter).toBeGreaterThanOrEqual(METER_MAX - 1); // ...but not wiped to 0
+      laps++;
+    }
+    expect(laps).toBe(3);
+  });
+
+  it('does not decay below METER_MIN..METER_MAX (Neutral has nothing to decay from at 0)', () => {
+    let s = withMeter(started(2));
+    s = patch(s, (d) => { d.meter = 0; });
+    repriceRoundBoundary(s, rng('decay-neutral-zero'));
+    expect(s.meter).toBe(0);
+  });
+});
+
+describe('Option A — card-triggered ripple (2026-09-18)', () => {
+  it('triggerCardRipple moves exactly one sector, one step, direction from the current zone', () => {
+    let s = withMeter(started(2));
+    s = patch(s, (d) => { d.meter = 2; }); // bull
+    const before = { ...s.prices };
+    triggerCardRipple(s, rng('ripple-bull'));
+    const moved = SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
+    expect(moved).toHaveLength(1);
+    for (const code of SECTOR_CODES[moved[0]]) {
+      expect(s.prices[code]).toBeGreaterThanOrEqual(before[code]); // up or already-clamped
+    }
+  });
+
+  it('does not touch the meter itself — only repriceRoundBoundary\'s lap-boundary cash-in does', () => {
+    let s = withMeter(started(2));
+    s = patch(s, (d) => { d.meter = 2; });
+    triggerCardRipple(s, rng('ripple-no-meter-change'));
+    expect(s.meter).toBe(2);
+  });
+
+  it('does nothing when the option is off', () => {
+    let s = started(2);
+    s = patch(s, (d) => { d.opts.marketMeter = false; d.meter = 2; });
+    const before = { ...s.prices };
+    triggerCardRipple(s, rng());
+    expect(s.prices).toEqual(before);
+  });
+
+  it('drawing a narrow Market Event card (sector/risk/multi/pick/lowest/highest) also fires a ripple', () => {
+    // "Tech Breakthrough" is the first SECTOR_ROTATION card (multi: tech +1,
+    // realestate -1) — a narrow, non-'all' effect, so it should qualify.
+    let s = withMeter(started(2));
+    s = patch(s, (d) => {
+      d.meter = 2; // bull, so the ripple has a real fixed direction to check
+      d.pendingDraws = ['ME'];
+      d.decks.ME = [0];
+      d.turnPhase = 'acted';
+    });
+    const before = { ...s.prices };
+    s = dispatch(s, { t: 'draw', deck: 'ME' }, rng('ripple-integration'));
+    // The card's own two named sectors (tech +1, realestate -1) moved as
+    // usual — the ripple must touch a THIRD sector on top of those, or move
+    // one of the same two an extra step, to prove it really fired.
+    const totalMovedCodes = Object.keys(before).filter((code) => s.prices[code] !== before[code]);
+    const cardOwnCodes = new Set([...SECTOR_CODES.tech, ...SECTOR_CODES.realestate]);
+    const extraMoveBeyondCard = totalMovedCodes.some((code) => !cardOwnCodes.has(code))
+      || totalMovedCodes.some((code) => Math.abs(s.prices[code] - before[code]) > 1);
+    expect(extraMoveBeyondCard).toBe(true);
+    // Exactly two market signals: the card's own, then the ripple's.
+    const marketSignals = s.marketSignals.filter((sig) => sig.kind === 'market');
+    expect(marketSignals.length).toBeGreaterThanOrEqual(2);
+    expect(marketSignals[0].title).toContain('Market Ripple');
+  });
+
+  it('does NOT fire a ripple for a whole-market ("all") card — already touches everything', () => {
+    // "Melt-Up Rally" is the first BROAD_MARKET card (k: 'all', d: 1) — 8
+    // sector-rotation + 4 risk + 4 company-specific = index 16 in CORE_ME_CARDS.
+    let s = withMeter(started(2));
+    s = patch(s, (d) => {
+      d.meter = 2;
+      d.pendingDraws = ['ME'];
+      d.decks.ME = [16];
+      d.turnPhase = 'acted';
+    });
+    s = dispatch(s, { t: 'draw', deck: 'ME' }, rng('no-ripple-all'));
+    expect(s.card?.title).toBe('Melt-Up Rally');
+    const marketSignals = s.marketSignals.filter((sig) => sig.kind === 'market');
+    expect(marketSignals.some((sig) => sig.title.includes('Market Ripple'))).toBe(false);
+  });
+
+  it('a narrow Fed card also fires a ripple, not just Market Event cards', () => {
+    let s = withMeter(started(2));
+    s = patch(s, (d) => {
+      d.meter = 2;
+      d.pendingDraws = ['FED'];
+      d.decks.FED = [0]; // "Rate Hike" — multi: finance +1, realestate -1
+      d.turnPhase = 'acted';
+    });
+    s = dispatch(s, { t: 'draw', deck: 'FED' }, rng('fed-ripple'));
+    const marketSignals = s.marketSignals.filter((sig) => sig.kind === 'market');
+    expect(marketSignals.some((sig) => sig.title.includes('Market Ripple'))).toBe(true);
+    // The Fed signal itself must still be recorded, unaffected by the ripple.
+    expect(s.marketSignals.some((sig) => sig.kind === 'fed' && sig.title === 'Rate Hike')).toBe(true);
   });
 });

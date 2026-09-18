@@ -25,7 +25,7 @@ import { pushFeeEvent } from './feeLog';
 import { topOwner, recomputeClaim, claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from './soldOut';
 import { hasSectorPortfolio } from './sector';
 import { sectorPairOwner } from './sectorControl';
-import { effectImpacts, recordCardSignal, recordClaimTakeover, recordMarketSignal } from './marketSignals';
+import { effectImpacts, recordClaimTakeover, recordMarketSignal } from './marketSignals';
 import { setMarketStance } from './marketRegime';
 import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, holdingGainLoss, rankingScore, recordStockSale } from './gainLoss';
@@ -1169,11 +1169,16 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // Circuit Breaker pause returns null here — finalizeCard runs later,
         // once pickTarget or resolveCircuitBreaker knows the true outcome.
         const impacts = beginMarketEventEffect(s, c.eff, rng, c);
-        if (impacts !== null) finalizeCard(s, c, impacts);
+        if (impacts !== null) finalizeCard(s, c, impacts, rng);
       } else {
         // FED cards are immediate and unprotectable — predicted == actual.
-        applyEffect(s, c.eff);
-        recordCardSignal(s, c);
+        // Routed through finalizeCard (rather than recordCardSignal directly)
+        // so a narrow Fed card also gets Option A's bonus ripple, same as a
+        // narrow Market Event card does — using the real impacts applyEffect
+        // returns, not the predicted fallback recordCardSignal would compute
+        // on its own.
+        const impacts = applyEffect(s, c.eff);
+        finalizeCard(s, c, impacts, rng);
       }
       break;
     }
@@ -1204,7 +1209,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       addLog(s, `${code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
       const pickedCard = s.pick.card;
       s.pick = null;
-      if (pickedCard) finalizeCard(s, pickedCard, impacts);
+      if (pickedCard) finalizeCard(s, pickedCard, impacts, rng);
       break;
     }
     case 'skipPick':
@@ -1216,10 +1221,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.pick = null;
       break;
     case 'playCircuitBreaker':
-      resolveCircuitBreaker(s, action.code);
+      resolveCircuitBreaker(s, action.code, rng);
       break;
     case 'passCircuitBreaker':
-      resolveCircuitBreaker(s, null);
+      resolveCircuitBreaker(s, null, rng);
       break;
 
     // ---- ETF ----

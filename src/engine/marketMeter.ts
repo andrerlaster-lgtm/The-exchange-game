@@ -6,6 +6,20 @@
 // design instead guarantees exactly one reprice at the end of every
 // non-final round, driven by the needle's current zone rather than a rare
 // boundary hit.
+//
+// 2026-09-18 Phase 2 (Options C + A, chosen after a 4-option Phase 1
+// investigation): the guaranteed lap-boundary reprice still fires on the
+// exact same trigger, but now reads the needle's actual MAGNITUDE, not just
+// its bull/neutral/bear zone bucket — a pinned +/-3 produces a visibly
+// different outcome than a bare +/-2, where before they were identical. The
+// needle also no longer hard-resets to 0 after a Bull/Bear cash-in; it decays
+// by 1 toward neutral instead, so a strong trend can persist and compound
+// across a few laps rather than vanishing the instant it peaks (see
+// moveMeterTowardNeutral). Layered on top: a narrow (non-market-wide) Market
+// Event or Fed card now also triggers one extra "ripple" reprice of its own
+// when it resolves (triggerCardRipple, called from eventCardResolver's
+// finalizeCard) — so the market can now move between laps too, tied to news
+// actually happening in the game, not only to a full round passing.
 
 import { IPO_BY_CODE, LADDER, SECTOR_CODES } from '../data';
 import type { SectorId } from '../data/types';
@@ -80,16 +94,21 @@ export function eligibleSectors(s: GameState, dir: 1 | -1): SectorId[] {
 }
 
 /** Move every participant in a sector (regular companies + revealed IPOs)
-    one step in the given direction, each individually clamped. Mirrors the
-    existing card-effect sector handler in marketSignals.ts's effectImpacts
-    for the regular-stock part, so "a sector moves" means the same thing
-    everywhere in this codebase. */
-function moveSector(s: GameState, sec: SectorId, dir: 1 | -1): string[] {
-  const moved: string[] = [];
+    `steps` steps in the given direction, each individually clamped, and
+    return the REAL post-clamp delta per code — not the requested `dir*steps`.
+    A code already one step from a bound moves less than the rest, and the
+    signal recorded from this must reflect what actually happened, the same
+    care CardDisplay's "What Actually Moved" confirmation takes for card
+    effects. Mirrors the existing card-effect sector handler in
+    marketSignals.ts's effectImpacts for the regular-stock part, so "a sector
+    moves" means the same thing everywhere in this codebase. */
+function moveSector(s: GameState, sec: SectorId, dir: 1 | -1, steps: number): Array<{ code: string; d: number }> {
+  const moved: Array<{ code: string; d: number }> = [];
   for (const code of sectorParticipants(s, sec)) {
     const before = stepOf(s, code);
-    moveMeterPrice(s, code, dir);
-    if (stepOf(s, code) !== before) moved.push(code);
+    moveMeterPrice(s, code, dir * steps);
+    const after = stepOf(s, code);
+    if (after !== before) moved.push({ code, d: after - before });
   }
   return moved;
 }
@@ -109,24 +128,24 @@ export function advanceMeterOnRoll(s: GameState, a: number, b: number): void {
 
 /**
  * Guaranteed once-per-non-final-round reprice, driven by the needle's zone
- * at the moment a round completes.
+ * AND magnitude at the moment a round completes (Option C, 2026-09-18).
  *
- * EXACTLY ONE sector moves, in every zone. The needle decides only the
- * DIRECTION of that move, never how much of the market gets touched
- * (2026-08-22). Neutral previously moved two sectors — one up and one down —
- * which made the supposedly calm state churn twice as many companies as a
- * Bull or Bear round, the opposite of what the labels imply.
- *
- * A Bull or Bear zone captured here also resets the meter to Neutral after
- * its (best-effort) repricing attempt — 2026-08-21 Add Persistent Market
- * Regime Display and Reset — so the market can never stay trapped in one
- * condition for the whole game, even when every eligible company was already
- * clamped and nothing actually moved. Neutral does not reset: there is
- * nothing to reset away from.
+ * The needle decides direction (as before, 2026-08-22 — Neutral flips a coin,
+ * Bull/Bear are fixed) and now ALSO decides how much of the market moves,
+ * via |s.meter|:
+ *   |1| (Neutral)        -> 1 sector,  1 step  (identical to the original rule)
+ *   |2| (Bull/Bear entry) -> 1 sector,  2 steps  ("amplified" — the same sector
+ *                            goes deeper, not more of the market)
+ *   |3| (pinned)          -> 2 sectors, 1 step each ("broad" — the reaction
+ *                            spreads instead of piling onto one sector)
+ * Before this, a needle pinned at the hard +/-3 ceiling produced an outcome
+ * indistinguishable from a bare +/-2 — the badge's actual number carried no
+ * weight beyond which zone it fell in.
  */
 export function repriceRoundBoundary(s: GameState, rng: Rng): void {
   if (!s.opts.marketMeter) return;
-  const zone = meterZone(s.meter); // captured before any repricing or reset
+  const zone = meterZone(s.meter); // captured before any repricing or decay
+  const magnitude = Math.abs(s.meter);
 
   // Neutral has no directional bias, so it flips a coin. Bull and Bear are
   // fixed: a Bull round must never push a sector down, nor a Bear round up.
@@ -144,27 +163,100 @@ export function repriceRoundBoundary(s: GameState, rng: Rng): void {
 
   if (elig.length > 0) {
     const sec = pick(rng, elig);
-    const impacts: Array<{ code: string; d: number }> = [];
-    for (const code of moveSector(s, sec, dir)) impacts.push({ code, d: dir });
+    const movedSectors = [sec];
+    const steps = magnitude === 2 ? 2 : 1;
+    const impacts = moveSector(s, sec, dir, steps);
+
+    // Pinned at the extreme: a second, DIFFERENT sector also reacts (one step),
+    // rather than piling a third step onto the first. Falls back to allowing
+    // the same sector again only if literally nothing else is eligible.
+    if (magnitude >= 3) {
+      const rest = eligibleSectors(s, dir).filter((candidate) => candidate !== sec);
+      const pool = rest.length > 0 ? rest : eligibleSectors(s, dir);
+      if (pool.length > 0) {
+        const sec2 = pick(rng, pool);
+        movedSectors.push(sec2);
+        impacts.push(...moveSector(s, sec2, dir, 1));
+      }
+    }
+
     if (impacts.length > 0) {
+      const magLabel = magnitude === 2 ? ' (amplified)' : magnitude >= 3 ? ' (broad)' : '';
       recordMarketSignal(s, {
         kind: 'market',
         title: `Market Meter — ${zone === 'bull' ? 'Bullish' : zone === 'bear' ? 'Bearish' : 'Neutral'}`,
-        summary: `Ambient market move — ${sec} ${dir === 1 ? 'up' : 'down'}.`,
+        summary: `Ambient market move — ${movedSectors.join(' & ')} ${dir === 1 ? 'up' : 'down'}${magLabel}.`,
         impacts,
       });
     }
   }
 
+  // Decays toward Neutral by 1 instead of hard-resetting to 0 (2026-09-18) —
+  // a strong trend can now persist and compound across a few laps instead of
+  // vanishing the instant it's cashed in once. Applied every lap regardless of
+  // zone or whether the repricing above actually moved anything, same as the
+  // original unconditional reset was — a lingering +/-1 in Neutral still eases
+  // back rather than drifting forever between reprices. Bull/Bear keep their
+  // own log line, since crossing back out of a zone (even partway) is the
+  // moment that matters to a player watching the badge; Neutral's minor ease
+  // isn't curated into the log, matching the original "nothing to reset away
+  // from" treatment.
   if (zone === 'bull' || zone === 'bear') {
-    // Reset regardless of whether the attempted repricing above actually
-    // moved anything. No additional price move, card draw, stance payout,
-    // RNG use, or Important Event; just the meter snapping to 0 and an
-    // ordinary (non-curated) log line recording it.
-    s.meter = 0;
+    moveMeterTowardNeutral(s, 1);
     // "Bullish/Bearish round", never "Bull Run"/"Bear Run" — those name the
     // board spaces at 16/26, a separate mechanic. Keeping the words distinct
     // stops the activity log from using one phrase for two different events.
-    addLog(s, `${zone === 'bull' ? 'Bullish' : 'Bearish'} round resolved — Market Meter returned to Neutral.`, 'y');
+    addLog(s, `${zone === 'bull' ? 'Bullish' : 'Bearish'} round resolved — Market Meter eases toward Neutral (now ${formatSignedMeterInternal(s.meter)}).`, 'y');
+  } else {
+    moveMeterTowardNeutral(s, 1);
+  }
+}
+
+/** Local mirror of utils/marketRegime.ts's formatSignedMeter — this file must
+    not import from src/utils (engine stays dependency-free of the UI layer),
+    so the one place a log line needs a signed meter string gets its own tiny
+    copy rather than a cross-layer import. */
+function formatSignedMeterInternal(meter: number): string {
+  if (meter > 0) return `+${meter}`;
+  if (meter < 0) return `−${Math.abs(meter)}`;
+  return '0';
+}
+
+/**
+ * Option A — Card-Triggered Ripple (2026-09-18, layered with Option C above).
+ * A narrow Market Event or Fed card — one that moves a sector, a risk tier, or
+ * a single company, never the whole market at once — also stirs ONE more
+ * sector when it resolves, using the exact same zone-driven direction and
+ * random-sector-pick logic as the guaranteed lap-boundary reprice above (1
+ * sector, 1 step — never amplified/broad; the extra move is about FREQUENCY,
+ * tied to news actually happening, not about adding more magnitude on top of
+ * Option C's).
+ *
+ * Deliberately its own trigger, independent of the lap boundary: the market
+ * can now move mid-lap, between any two players' turns, wherever a qualifying
+ * card happens to be drawn — which cards from eventCardResolver.ts's
+ * finalizeCard should call this is decided there (whole-market 'all' cards
+ * are excluded — they already touch everything, so a bonus ripple would be
+ * redundant, not additive).
+ */
+export function triggerCardRipple(s: GameState, rng: Rng): void {
+  if (!s.opts.marketMeter) return;
+  const zone = meterZone(s.meter);
+  let dir: 1 | -1 = zone === 'bull' ? 1 : zone === 'bear' ? -1 : (rng.int(0, 1) === 0 ? 1 : -1);
+  let elig = eligibleSectors(s, dir);
+  if (elig.length === 0 && zone === 'neutral') {
+    dir = dir === 1 ? -1 : 1;
+    elig = eligibleSectors(s, dir);
+  }
+  if (elig.length === 0) return;
+  const sec = pick(rng, elig);
+  const impacts = moveSector(s, sec, dir, 1);
+  if (impacts.length > 0) {
+    recordMarketSignal(s, {
+      kind: 'market',
+      title: `Market Ripple — ${zone === 'bull' ? 'Bullish' : zone === 'bear' ? 'Bearish' : 'Neutral'}`,
+      summary: `A drawn card also stirs the wider market — ${sec} ${dir === 1 ? 'up' : 'down'}.`,
+      impacts,
+    });
   }
 }

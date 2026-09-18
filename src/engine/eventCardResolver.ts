@@ -12,8 +12,16 @@ import { marketStanceMeta, regimeCashDelta } from './marketRegime';
 import { payDividendCard } from './playerState';
 import { netWorth } from './scoringEngine';
 import { addFeeDebt } from './feeDebt';
-import { applyMeterSentiment, moveMeterTowardNeutral } from './marketMeter';
+import { applyMeterSentiment, moveMeterTowardNeutral, triggerCardRipple } from './marketMeter';
 import type { Rng } from '../utils/rng';
+
+// Option A (2026-09-18): card effect kinds narrow enough that they leave most
+// of the market untouched, so they ALSO get a bonus ripple via
+// triggerCardRipple when they resolve. 'all' is deliberately excluded — it
+// already moves every eligible company, so an extra ripple would be
+// redundant, not additive. Non-price kinds (dividend, cyberattack, close,
+// meterDelta, etc.) were never in scope for a price ripple to begin with.
+const RIPPLE_EFFECT_KINDS: ReadonlySet<Effect['k']> = new Set(['sector', 'risk', 'multi', 'lowest', 'highest', 'pick']);
 
 const CEILING_STEP = LADDER.length - 1;
 
@@ -104,13 +112,16 @@ export function circuitBreakerOptions(s: GameState): string[] {
 /**
  * Resolve a fully-known card (its price effect is already settled — either
  * because it resolved immediately or a Circuit Breaker decision just
- * finished) into its market signal and one-time meter sentiment. This is the
- * single place both apply, so no path can record a "requested" signal or
- * skip the sentiment because it took a different route to resolution.
+ * finished) into its market signal, one-time meter sentiment, and — for a
+ * narrow enough card (Option A, 2026-09-18) — a bonus market ripple. This is
+ * the single place all three apply, so no path can record a "requested"
+ * signal, skip the sentiment, or skip the ripple because it took a different
+ * route to resolution.
  */
-export function finalizeCard(s: GameState, card: Card, impacts: MarketSignalImpact[]): void {
+export function finalizeCard(s: GameState, card: Card, impacts: MarketSignalImpact[], rng: Rng): void {
   recordCardSignal(s, card, impacts);
   if (card.meterSentiment) applyMeterSentiment(s, card.meterSentiment);
+  if (RIPPLE_EFFECT_KINDS.has(card.eff.k)) triggerCardRipple(s, rng);
 }
 
 /** Begin resolving a freshly-drawn Market Event effect. The target must be
@@ -178,7 +189,7 @@ export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng, 
     for the pre-existing board-space Bull/Bear Run effect, which is not a
     Card and records its own (pre-existing, unchanged) signal before this
     pause ever begins. */
-export function resolveCircuitBreaker(s: GameState, code: string | null): void {
+export function resolveCircuitBreaker(s: GameState, code: string | null, rng: Rng): void {
   const prompt = s.circuitBreakerPrompt;
   if (!prompt) return;
   const holder = prompt.player;
@@ -208,7 +219,7 @@ export function resolveCircuitBreaker(s: GameState, code: string | null): void {
       addLog(s, `${s.players[holder].name} plays Circuit Breaker on ${target}.`, 'g');
     }
     if (prompt.effect.k === 'pick') s.pick = null;
-    if (prompt.card) finalizeCard(s, prompt.card, impacts);
+    if (prompt.card) finalizeCard(s, prompt.card, impacts, rng);
     return;
   }
 
@@ -218,14 +229,14 @@ export function resolveCircuitBreaker(s: GameState, code: string | null): void {
   if (code == null) {
     addLog(s, `${s.players[holder].name} keeps Circuit Breaker for a future Market Event.`);
     const impacts = applyEffect(s, effect);
-    if (prompt.card) finalizeCard(s, prompt.card, impacts);
+    if (prompt.card) finalizeCard(s, prompt.card, impacts, rng);
     return;
   }
   s.circuitBreakerHolder = null;
   s.discard.ME.push(CIRCUIT_BREAKER_INDEX);
   addLog(s, `${s.players[holder].name} plays Circuit Breaker on ${code}.`, 'g');
   const impacts = applyEffect(s, effect, [code]);
-  if (prompt.card) finalizeCard(s, prompt.card, impacts);
+  if (prompt.card) finalizeCard(s, prompt.card, impacts, rng);
 }
 
 export function triggerClose(s: GameState): void {

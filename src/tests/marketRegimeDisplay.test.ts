@@ -81,43 +81,43 @@ describe('marketRegimeInfo — single source of truth for all three surfaces', (
   });
 });
 
-describe('End-of-round Bull/Bear reset', () => {
-  it('Bull at +2 reprices once, then resets to 0', () => {
+describe('End-of-round Bull/Bear decay (2026-09-18 — was a hard reset to 0)', () => {
+  it('Bull at +2 reprices once, then decays to +1', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => { d.meter = 2; });
     repriceRoundBoundary(s, rng('bull-2'));
-    expect(s.meter).toBe(0);
+    expect(s.meter).toBe(1);
   });
 
-  it('Bull at +3 reprices once, then resets to 0', () => {
+  it('Bull at +3 (pinned) reprices once, then decays to +2 — still bullish next lap, not wiped clean', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => { d.meter = METER_MAX; });
     repriceRoundBoundary(s, rng('bull-3'));
-    expect(s.meter).toBe(0);
+    expect(s.meter).toBe(METER_MAX - 1);
   });
 
-  it('Bear at −2 reprices once, then resets to 0', () => {
+  it('Bear at −2 reprices once, then decays to −1', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => { d.meter = -2; });
     repriceRoundBoundary(s, rng('bear-2'));
-    expect(s.meter).toBe(0);
+    expect(s.meter).toBe(-1);
   });
 
-  it('Bear at −3 reprices once, then resets to 0', () => {
+  it('Bear at −3 (pinned) reprices once, then decays to −2', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => { d.meter = METER_MIN; });
     repriceRoundBoundary(s, rng('bear-3'));
+    expect(s.meter).toBe(METER_MIN + 1);
+  });
+
+  it('Neutral at +1 also eases toward 0 now (every lap decays, not just Bull/Bear) — but never past it', () => {
+    let s = withMeter(started(2));
+    s = patch(s, (d) => { d.meter = 1; });
+    repriceRoundBoundary(s, rng('neutral-decay'));
     expect(s.meter).toBe(0);
   });
 
-  it('Neutral rounds keep existing behavior — no reset, because there is nothing to reset away from', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = 1; });
-    repriceRoundBoundary(s, rng('neutral-noreset'));
-    expect(s.meter).toBe(1); // untouched by the reset rule
-  });
-
-  it('resets even when every eligible company is already clamped and nothing actually moves', () => {
+  it('decays even when every eligible company is already clamped and nothing actually moves', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => {
       d.meter = 2; // bull
@@ -127,10 +127,10 @@ describe('End-of-round Bull/Bear reset', () => {
     const before = { ...s.prices };
     repriceRoundBoundary(s, rng('clamped'));
     expect(s.prices).toEqual(before); // genuinely nothing moved
-    expect(s.meter).toBe(0); // reset happens anyway
+    expect(s.meter).toBe(1); // decay happens anyway
   });
 
-  it('the reset creates no additional Important Event, price move, card draw, or stance payout', () => {
+  it('the decay creates no additional Important Event, price move, card draw, or stance payout', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => {
       d.meter = 2;
@@ -142,17 +142,17 @@ describe('End-of-round Bull/Bear reset', () => {
     repriceRoundBoundary(s, rng('no-dupe'));
     expect(s.marketSignals.length).toBe(signalsBefore); // no signal at all — nothing moved to report
     expect(s.players.map((p) => p.cash)).toEqual(cashBefore); // no stance payout
-    // The reset is represented in the ordinary log, not a curated signal.
-    expect(s.log[0]?.text).toContain('Market Meter returned to Neutral');
+    // The decay is represented in the ordinary log, not a curated signal.
+    expect(s.log[0]?.text).toContain('Market Meter eases toward Neutral');
   });
 
-  it('a Bull round that DID move something records exactly one signal, then still resets', () => {
+  it('a Bull round that DID move something records exactly one signal, then still decays', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => { d.meter = 2; });
     const signalsBefore = s.marketSignals.length;
     repriceRoundBoundary(s, rng('bull-signal'));
     expect(s.marketSignals.length).toBe(signalsBefore + 1);
-    expect(s.meter).toBe(0);
+    expect(s.meter).toBe(1);
   });
 
   it('does not reset (or reprice) once Market Close has already been triggered', () => {
