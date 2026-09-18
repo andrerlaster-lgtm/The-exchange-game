@@ -3,9 +3,14 @@
 // Built on the app's existing 8-sector map (no data migration).
 
 import { describe, expect, it } from 'vitest';
-import { SECTOR_CODES, DIVERSIFIED_BONUS, BROAD_MARKET_BONUS, PAYOUT_TIER_LOW, PAYOUT_TIER_LOW_SECTOR } from '../data';
+import { SECTOR_CODES, DIVERSIFIED_BONUS, BROAD_MARKET_BONUS, PAYOUT_MULT_LOW, PAYOUT_MULT_LOW_SECTOR } from '../data';
 import { completedSectors, distinctSectors, diversificationBonus, diversificationTier, hasSectorPortfolio } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
+
+// FTRB is Premium tier, $1,000/share opening price (2026-09-18: rent scales
+// with the specific company's own share price, not a flat table).
+const FTRB_RENT_LOW = PAYOUT_MULT_LOW * 1_000;               // $1,000
+const FTRB_RENT_LOW_SECTOR = PAYOUT_MULT_LOW_SECTOR * 1_000; // $1,500
 
 describe('Sector Portfolio completion', () => {
   it('completes a sector when the player owns every regular stock in it', () => {
@@ -45,8 +50,8 @@ describe('Sector Portfolio boosts Payout Claim rent', () => {
     // Landing only presents the Payout Claim choice now — pay cash to match
     // the old auto-deducted-on-landing behavior these assertions check.
     s = dispatch(s, { t: 'choosePayoutPayCash' }, rng());
-    expect(s.players[0].cash).toBe(payerBefore - PAYOUT_TIER_LOW_SECTOR);
-    expect(s.players[1].cash).toBe(holderBefore + PAYOUT_TIER_LOW_SECTOR);
+    expect(s.players[0].cash).toBe(payerBefore - FTRB_RENT_LOW_SECTOR);
+    expect(s.players[1].cash).toBe(holderBefore + FTRB_RENT_LOW_SECTOR);
   });
 
   it('pays the normal tier when the sector is not complete', () => {
@@ -60,7 +65,7 @@ describe('Sector Portfolio boosts Payout Claim rent', () => {
     const payerBefore = s.players[0].cash;
     s = rollTo(s, 8);
     s = dispatch(s, { t: 'choosePayoutPayCash' }, rng());
-    expect(s.players[0].cash).toBe(payerBefore - PAYOUT_TIER_LOW);
+    expect(s.players[0].cash).toBe(payerBefore - FTRB_RENT_LOW);
   });
 });
 

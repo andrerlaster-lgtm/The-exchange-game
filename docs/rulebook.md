@@ -196,11 +196,17 @@ Fresh shares can only be bought by landing on that stock space or resolving a ca
 
 **Sold-Out landing payout**
 
-| Ownership status | Shares owned | Base Sold-Out landing payout |
-|---|---|---|
-| Stock Owner | 1-2 | $500 |
-| Shareholder | 3-5 | $1,000 |
-| Controller | 6+ | $2,000 |
+Base payout is a multiple of the specific company's own opening per-share
+price, not a flat amount — a Premium company's landing rent scales with its
+higher price the same way a Starter company's does with its lower one (2026
+balance pass: a flat table paid Starter-tier companies roughly 2x the rent
+per dollar invested of Premium ones).
+
+| Ownership status | Shares owned | Base Sold-Out landing payout | Starter ($500/sh) | Growth ($750/sh) | Premium ($1,000/sh) |
+|---|---|---|---|---|---|
+| Stock Owner | 1-2 | 1× opening share price | $500 | $750 | $1,000 |
+| Shareholder | 3-5 | 2× opening share price | $1,000 | $1,500 | $2,000 |
+| Controller | 6+ | 4× opening share price | $2,000 | $3,000 | $4,000 |
 
 ## 8. Dividends
 
@@ -350,11 +356,15 @@ The 22 regular stocks are divided into 6 sectors across 3 value tiers. Low-Value
 
 **Payout Claim status**
 
+Figures below are for a Starter company ($500/share); every amount scales with
+the sold-out company's own opening share price — see §7's Sold-Out landing
+payout table for the Growth/Premium figures.
+
 | Ownership tier | Normal payout | Payout with Sector Portfolio |
 |---|---|---|
-| Stock Owner | $500 | $750 |
-| Shareholder | $1,000 | $1,500 |
-| Controller | $2,000 | $3,000 |
+| Stock Owner | 1× share price ($500) | 1.5× share price ($750) |
+| Shareholder | 2× share price ($1,000) | 3× share price ($1,500) |
+| Controller | 4× share price ($2,000) | 6× share price ($3,000) |
 
 The Sector Portfolio bonus only affects Sold-Out Payout Claim earnings in that sector. It does not change share count, control threshold, market price, or dividend multiplier unless a card specifically says so.
 
@@ -488,7 +498,7 @@ Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve st
 |---|---:|---:|
 | High-Risk regular stock | +2 price steps | −2 price steps |
 | Medium-Risk regular stock | +1 price step | −1 price step |
-| Low-Risk regular stock | No change | +1 price step |
+| Low-Risk regular stock | No change | No change |
 | Revealed IPO | +1 price step | −1 price step |
 | ETF | No change | No change |
 

@@ -32,7 +32,11 @@ describe('Bull and Bear Run market regimes', () => {
     expect(s.players.map((player) => player.marketStance)).toEqual(['balanced', 'balanced', 'balanced']);
   });
 
-  it('rewards bearish play, penalizes bullish play, and sends money toward low-risk stocks in a Bear Run', () => {
+  it('rewards bearish play, penalizes bullish play, and leaves low-risk stocks genuinely stable in a Bear Run', () => {
+    // 2026-09-18 balance pass (Option 1): Low risk used to GAIN a step on a
+    // Bear Run (+1) — strictly better than "no change," so it could never
+    // lose value to either Run while also earning the highest dividend yield
+    // in the game. It now has zero Run exposure in either direction.
     let s = patch(started(3), (draft) => {
       draft.players[0].marketStance = 'bullish';
       draft.players[1].marketStance = 'balanced';
@@ -49,7 +53,7 @@ describe('Bull and Bear Run market regimes', () => {
 
     expect(s.prices.CCAI).toBe(high - 2);
     expect(s.prices.MEDI).toBe(medium - 1);
-    expect(s.prices.SAFE).toBe(low + 1);
+    expect(s.prices.SAFE).toBe(low); // was low + 1
     expect(s.ipos[0].step).toBe(ipo - 1);
     expect(s.players.map((player) => player.cash)).toEqual([cash[0] - 1_500, cash[1] - 500, cash[2] + 1_500]);
   });

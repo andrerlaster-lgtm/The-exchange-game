@@ -2,9 +2,14 @@
 // Audit Notice and Portfolio Tax can instead be carried as Outstanding Fees.
 
 import { describe, expect, it } from 'vitest';
-import { PAYOUT_TIER_CONTROL } from '../data';
+import { PAYOUT_MULT_CONTROL } from '../data';
 import { blocked } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
+
+// FTRB is Premium tier ($1,000/share opening price), so its Controller rent
+// is 4x that — $4,000 (2026-09-18: rent scales with the specific company's
+// own opening share price, not a flat table — see data/stocks.ts).
+const FTRB_CONTROL_RENT = PAYOUT_MULT_CONTROL * 1_000;
 
 describe('Outstanding Fees replace bank-fee insolvency', () => {
   it('Portfolio Tax can be carried without force-selling stock or losing cash', () => {
@@ -53,7 +58,11 @@ describe('Insolvency — Payout Claim landing payment', () => {
       d.soldOut[CODE] = { code: CODE, claimHolder: 1 };
       d.players[1].shares[CODE] = 6;
       d.players[0].cash = 100;
-      d.players[0].shares = { MEDI: 5 };
+      // 10 (not 5): FTRB's Controller rent is now $4,000 (4x its $1,000
+      // Premium-tier share price, was a flat $2,000) — the debtor needs to be
+      // able to actually raise that much from force-sales for the "routes
+      // forced-sale cash to the holder" test below to reach full coverage.
+      d.players[0].shares = { MEDI: 10 };
       d.players[0].pos = 6;
       d.players[0].hasCompletedLap = true;
       d.turnPhase = 'preRoll';
@@ -71,14 +80,14 @@ describe('Insolvency — Payout Claim landing payment', () => {
     expect(s.players[0].cash).toBe(100);
     expect(s.players[1].cash).toBe(holderBefore);
     expect(s.payoutShortfallChoice).toMatchObject({
-      player: 0, creditor: 1, owed: PAYOUT_TIER_CONTROL, canForceSell: true,
+      player: 0, creditor: 1, owed: FTRB_CONTROL_RENT, canForceSell: true,
     });
     expect(s.landingNotice?.canDefer).toBe(false);
 
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutForceSell' }, rng());
     expect(s.insolvency).toMatchObject({
-      reason: 'payout', payTo: 1, owed: PAYOUT_TIER_CONTROL,
+      reason: 'payout', payTo: 1, owed: FTRB_CONTROL_RENT,
     });
   });
 

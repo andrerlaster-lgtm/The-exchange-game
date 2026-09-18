@@ -60,18 +60,34 @@ export const CONTROL_DIVIDEND_MULTIPLIER = 1.5; // dividend multiplier while con
 export function fullCompanyDividendPerMarketOpen(stock: Pick<Stock, 'div'>): number {
   return Math.round(stock.div * REGULAR_SUPPLY * CONTROL_DIVIDEND_MULTIPLIER);
 }
-// ── Sold-Out Payout Claim (rent paid to the claim holder by tier) ────────────
-export const PAYOUT_TIER_LOW = 500;       // holder owns 1-2 shares
-export const PAYOUT_TIER_MID = 1_000;     // holder owns 3-5 shares
-export const PAYOUT_TIER_CONTROL = 2_000; // holder owns 6+ shares (Controller)
-// Boosted payouts when the holder also owns the completed Sector Portfolio.
-export const PAYOUT_TIER_LOW_SECTOR = 750;
-export const PAYOUT_TIER_MID_SECTOR = 1_500;
-export const PAYOUT_TIER_CONTROL_SECTOR = 3_000;
+// ── Sold-Out Payout Claim (rent paid to the claim holder) ───────────────────
+// 2026-09-18 balance pass (Option 4): expressed as a MULTIPLE of the specific
+// company's own opening per-share price, not a flat dollar table. A flat
+// $2,000 Controller rent was 36.4% of a Starter company's $5,500 buyout but
+// only 18.2% of a Premium company's $11,000 — cheap companies returned 2x the
+// rent-per-dollar-invested of expensive ones, making Starter-tier strictly
+// dominant regardless of risk. Since buyout = REGULAR_SUPPLY x share price,
+// rent = multiplier x share price keeps the SAME ratio-to-buyout-cost across
+// every tier. Starter's own numbers are unchanged by this (4 x $500 = the
+// same $2,000 Controller rent it always paid) — only Growth ($3,000, was
+// $2,000 flat) and Premium ($4,000, was $2,000 flat) move, because they were
+// the tiers being shortchanged.
+export const PAYOUT_MULT_LOW = 1;          // holder owns 1-2 shares
+export const PAYOUT_MULT_MID = 2;          // holder owns 3-5 shares
+export const PAYOUT_MULT_CONTROL = 4;      // holder owns 6+ shares (Controller)
+// Boosted multipliers when the holder also owns the completed Sector Portfolio.
+export const PAYOUT_MULT_LOW_SECTOR = 1.5;
+export const PAYOUT_MULT_MID_SECTOR = 3;
+export const PAYOUT_MULT_CONTROL_SECTOR = 6;
 
 export const MARKET_RUN_MOVE_BY_RISK = {
   bull: { Low: 0, Med: 1, High: 2 },
-  bear: { Low: 1, Med: -1, High: -2 },
+  // 2026-09-18 balance pass (Option 1): Low risk's Bear Run move was +1 —
+  // strictly better than "no change," so a Low-risk holding could never lose
+  // value to either Run while simultaneously earning the highest dividend
+  // yield in the game (see DIV_BY_RISK below). "Low risk" is now genuinely
+  // stable — zero Run exposure in both directions — rather than risk-free.
+  bear: { Low: 0, Med: -1, High: -2 },
 } satisfies Record<'bull' | 'bear', Record<Risk, number>>;
 
 export interface StockOpportunity {
@@ -85,7 +101,7 @@ export interface StockOpportunity {
 }
 
 /** Player-facing reason to buy a company, derived from the same values used by the engine. */
-export function stockOpportunityFor(stock: Pick<Stock, 'div' | 'risk'>): StockOpportunity {
+export function stockOpportunityFor(stock: Pick<Stock, 'div' | 'risk' | 'base'>): StockOpportunity {
   const title = stock.risk === 'High'
     ? 'GROWTH POTENTIAL'
     : stock.risk === 'Low'
@@ -98,8 +114,11 @@ export function stockOpportunityFor(stock: Pick<Stock, 'div' | 'risk'>): StockOp
     dividendPerLap: fullCompanyDividendPerMarketOpen(stock),
     bullMove: MARKET_RUN_MOVE_BY_RISK.bull[stock.risk],
     bearMove: MARKET_RUN_MOVE_BY_RISK.bear[stock.risk],
-    landingPayout: PAYOUT_TIER_CONTROL,
-    sectorPayout: PAYOUT_TIER_CONTROL_SECTOR,
+    // This THIS company's own real Controller rent, not a flat number that
+    // was only ever accurate for a Starter-tier company (see the Payout
+    // Claim comment above) — stock.base is its opening per-share price.
+    landingPayout: PAYOUT_MULT_CONTROL * stock.base,
+    sectorPayout: PAYOUT_MULT_CONTROL_SECTOR * stock.base,
   };
 }
 // ── Diversification (Market Open income bonus) ───────────────────────────────

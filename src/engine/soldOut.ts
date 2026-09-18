@@ -2,8 +2,8 @@
 // (recomputeClaim), so they live here rather than in the pure selectors module.
 
 import {
-  PAYOUT_TIER_CONTROL, PAYOUT_TIER_LOW, PAYOUT_TIER_MID,
-  PAYOUT_TIER_CONTROL_SECTOR, PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID_SECTOR,
+  PAYOUT_MULT_CONTROL, PAYOUT_MULT_LOW, PAYOUT_MULT_MID,
+  PAYOUT_MULT_CONTROL_SECTOR, PAYOUT_MULT_LOW_SECTOR, PAYOUT_MULT_MID_SECTOR,
   CONTROL_THRESHOLD_REGULAR,
 } from '../data';
 import { LADDER } from '../data';
@@ -42,19 +42,23 @@ export function recomputeClaim(s: GameState, code: string): boolean {
 }
 
 /**
- * Landing rent owed to the claim holder, keyed off the HOLDER's ownership tier.
- * When the holder also owns the completed Sector Portfolio for that stock's
- * sector, the boosted tier table applies (rulebook §13).
+ * Landing rent owed to the claim holder, keyed off the HOLDER's ownership tier
+ * AND the sold-out company's own opening per-share price (2026-09-18 balance
+ * pass, Option 4 — see the PAYOUT_MULT_* comment in data/stocks.ts for why: a
+ * flat dollar table paid Starter-tier companies roughly 2x the rent-per-
+ * dollar-invested of Premium ones). When the holder also owns the completed
+ * Sector Portfolio for that stock's sector, the boosted multiplier table
+ * applies (rulebook §13).
  */
-export function claimPayout(holderShares: number, sectorComplete = false): number {
+export function claimPayout(holderShares: number, sharePrice: number, sectorComplete = false): number {
   if (sectorComplete) {
-    if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_TIER_CONTROL_SECTOR; // 6+  → 3000
-    if (holderShares >= 3) return PAYOUT_TIER_MID_SECTOR;                             // 3-5 → 1500
-    return PAYOUT_TIER_LOW_SECTOR;                                                    // 1-2 → 750
+    if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_MULT_CONTROL_SECTOR * sharePrice; // 6+  → 6x
+    if (holderShares >= 3) return PAYOUT_MULT_MID_SECTOR * sharePrice;                             // 3-5 → 3x
+    return PAYOUT_MULT_LOW_SECTOR * sharePrice;                                                    // 1-2 → 1.5x
   }
-  if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_TIER_CONTROL; // 6+  → 2000
-  if (holderShares >= 3) return PAYOUT_TIER_MID;                             // 3-5 → 1000
-  return PAYOUT_TIER_LOW;                                                    // 1-2 → 500
+  if (holderShares >= CONTROL_THRESHOLD_REGULAR) return PAYOUT_MULT_CONTROL * sharePrice; // 6+  → 4x
+  if (holderShares >= 3) return PAYOUT_MULT_MID * sharePrice;                             // 3-5 → 2x
+  return PAYOUT_MULT_LOW * sharePrice;                                                    // 1-2 → 1x
 }
 
 /**
@@ -75,8 +79,10 @@ export function shareholderLandingDiscount(sharesHeld: number): number {
 
 /**
  * Final Payout Claim after the stock's market-value multiplier and the
- * landing player's shareholder discount. Payments stay in $50 increments so
- * the existing sector payouts ($750/$1,500/$3,000) remain intact.
+ * landing player's shareholder discount. Payments stay in $50 increments.
+ * `openingPrice` (this specific company's own opening per-share price,
+ * already needed for the value multiplier below) now doubles as the base
+ * rent's per-share price too — see claimPayout's comment.
  */
 export function claimPayoutForLanding(
   holderShares: number,
@@ -85,9 +91,9 @@ export function claimPayoutForLanding(
   openingStep: number,
   landingShares: number,
 ): number {
-  const base = claimPayout(holderShares, sectorComplete);
   const currentPrice = LADDER[Math.max(0, Math.min(LADDER.length - 1, currentStep))];
   const openingPrice = LADDER[Math.max(0, Math.min(LADDER.length - 1, openingStep))];
+  const base = claimPayout(holderShares, openingPrice, sectorComplete);
   const multiplier = landingValueMultiplier(currentPrice, openingPrice);
   const discount = shareholderLandingDiscount(landingShares);
   return Math.max(50, Math.round((base * multiplier * (1 - discount)) / 50) * 50);

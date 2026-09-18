@@ -87,9 +87,12 @@ describe('Risk-specific stock card benefits', () => {
     // 2026-08-21 Market Overhaul: High risk earns a small but nonzero
     // dividend now (was $0) so it isn't a strictly dominated strategy —
     // its case is still made mostly on price movement, not income.
+    // 2026-09-18 balance pass: CCAI is Growth tier ($750/share), so its
+    // Payout Claim rent is now 4x/6x THAT price ($3,000/$4,500), not the old
+    // flat $2,000/$3,000 (which was only ever accurate for a Starter company).
     expect(stockOpportunityFor(STOCK_BY_CODE.CCAI)).toMatchObject({
       title: 'GROWTH POTENTIAL', tone: 'growth', dividendPerLap: 330,
-      bullMove: 2, bearMove: -2, landingPayout: 2_000, sectorPayout: 3_000,
+      bullMove: 2, bearMove: -2, landingPayout: 3_000, sectorPayout: 4_500,
     });
   });
 
@@ -100,10 +103,14 @@ describe('Risk-specific stock card benefits', () => {
     });
   });
 
-  it('explains low-risk income and Bear Run strength', () => {
+  it('explains low-risk income and Bear Run stability', () => {
+    // 2026-09-18 balance pass: Low risk used to GAIN on a Bear Run (+1),
+    // which combined with earning the highest dividend yield in the game
+    // made it risk-free rather than lower-risk. It now has zero Run exposure
+    // in either direction — genuinely stable, not a one-way bet.
     expect(stockOpportunityFor(STOCK_BY_CODE.SAFE)).toMatchObject({
       title: 'INCOME & STABILITY', tone: 'income', dividendPerLap: 1320,
-      bullMove: 0, bearMove: 1,
+      bullMove: 0, bearMove: 0,
     });
   });
 });

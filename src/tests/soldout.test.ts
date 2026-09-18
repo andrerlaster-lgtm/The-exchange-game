@@ -4,15 +4,21 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  PAYOUT_TIER_CONTROL, PAYOUT_TIER_CONTROL_SECTOR, PAYOUT_TIER_LOW,
-  PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID, PAYOUT_TIER_MID_SECTOR, REGULAR_SUPPLY,
+  PAYOUT_MULT_CONTROL, PAYOUT_MULT_CONTROL_SECTOR, PAYOUT_MULT_LOW,
+  PAYOUT_MULT_LOW_SECTOR, PAYOUT_MULT_MID, PAYOUT_MULT_MID_SECTOR, REGULAR_SUPPLY,
 } from '../data';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 import { claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from '../engine/soldOut';
 
-// MEDI is a regular stock at board space 5 (safe for rollTo, which needs space >= 4).
+// MEDI is a regular stock at board space 5 (safe for rollTo, which needs space >= 4),
+// Growth tier, opening $750/share (2026-09-18: rent is now a multiple of THIS price,
+// not a flat table — see the PAYOUT_MULT_* comment in data/stocks.ts).
 const CODE = 'MEDI';
 const SPACE = 5;
+const MEDI_SHARE_PRICE = 750;
+const RENT_LOW = PAYOUT_MULT_LOW * MEDI_SHARE_PRICE;           // $750
+const RENT_MID = PAYOUT_MULT_MID * MEDI_SHARE_PRICE;           // $1,500
+const RENT_CONTROL = PAYOUT_MULT_CONTROL * MEDI_SHARE_PRICE;   // $3,000
 
 /** Set up an open stock-trade context for the current player on `code`. */
 function withTrade(s: ReturnType<typeof started>, code = CODE) {
@@ -86,9 +92,13 @@ describe('Payout Claim assignment', () => {
 });
 
 describe('Landing rent on a sold-out stock', () => {
-  it('uses the approved higher-cash payout ladders', () => {
-    expect([PAYOUT_TIER_LOW, PAYOUT_TIER_MID, PAYOUT_TIER_CONTROL]).toEqual([500, 1_000, 2_000]);
-    expect([PAYOUT_TIER_LOW_SECTOR, PAYOUT_TIER_MID_SECTOR, PAYOUT_TIER_CONTROL_SECTOR]).toEqual([750, 1_500, 3_000]);
+  it('uses the approved rent multipliers (of the company\'s own opening share price)', () => {
+    expect([PAYOUT_MULT_LOW, PAYOUT_MULT_MID, PAYOUT_MULT_CONTROL]).toEqual([1, 2, 4]);
+    expect([PAYOUT_MULT_LOW_SECTOR, PAYOUT_MULT_MID_SECTOR, PAYOUT_MULT_CONTROL_SECTOR]).toEqual([1.5, 3, 6]);
+    // A Starter-tier ($500/share) company reproduces the original flat table
+    // exactly — only Growth/Premium (which were underpriced relative to their
+    // buyout cost) actually change.
+    expect([PAYOUT_MULT_LOW, PAYOUT_MULT_MID, PAYOUT_MULT_CONTROL].map((m) => m * 500)).toEqual([500, 1_000, 2_000]);
   });
 
   it('scales rent with market value and discounts shareholders', () => {
@@ -141,29 +151,29 @@ describe('Landing rent on a sold-out stock', () => {
     expect(s.landingNotice?.kind).toBe('payout');
   });
 
-  it('charges $500 when the holder owns 1-2 shares', () => {
+  it('charges $750 (1x MEDI\'s $750 share price) when the holder owns 1-2 shares', () => {
     const s0 = started(2);
     const payerCash = s0.players[0].cash;
     const holderCash = s0.players[1].cash;
     const s = landOn(2);
-    expect(s.players[0].cash).toBe(payerCash - PAYOUT_TIER_LOW);
-    expect(s.players[1].cash).toBe(holderCash + PAYOUT_TIER_LOW);
+    expect(s.players[0].cash).toBe(payerCash - RENT_LOW);
+    expect(s.players[1].cash).toBe(holderCash + RENT_LOW);
     const outs = s.tradeLog.filter((t) => t.kind === 'payout');
     expect(outs.length).toBe(2);
   });
 
-  it('charges $1,000 when the holder owns 3-5 shares', () => {
+  it('charges $1,500 (2x) when the holder owns 3-5 shares', () => {
     const s0 = started(2);
     const s = landOn(4);
-    expect(s.players[0].cash).toBe(s0.players[0].cash - PAYOUT_TIER_MID);
-    expect(s.players[1].cash).toBe(s0.players[1].cash + PAYOUT_TIER_MID);
+    expect(s.players[0].cash).toBe(s0.players[0].cash - RENT_MID);
+    expect(s.players[1].cash).toBe(s0.players[1].cash + RENT_MID);
   });
 
-  it('charges $2,000 when the holder owns 6+ shares (Controller)', () => {
+  it('charges $3,000 (4x) when the holder owns 6+ shares (Controller)', () => {
     const s0 = started(2);
     const s = landOn(6);
-    expect(s.players[0].cash).toBe(s0.players[0].cash - PAYOUT_TIER_CONTROL);
-    expect(s.players[1].cash).toBe(s0.players[1].cash + PAYOUT_TIER_CONTROL);
+    expect(s.players[0].cash).toBe(s0.players[0].cash - RENT_CONTROL);
+    expect(s.players[1].cash).toBe(s0.players[1].cash + RENT_CONTROL);
   });
 
   it('charges nothing when the landing player IS the claim holder, and no Trade Step opens', () => {
@@ -199,7 +209,7 @@ describe('Landing rent on a sold-out stock', () => {
     s = patch(s, (d) => {
       d.supply[CODE] = 0;
       d.soldOut[CODE] = { code: CODE, claimHolder: 1 };
-      d.players[1].shares[CODE] = 6;   // owes PAYOUT_TIER_CONTROL ($2,000)
+      d.players[1].shares[CODE] = 6;   // owes RENT_CONTROL ($3,000 — MEDI's 4x Controller rent)
       d.players[0].cash = 300;         // can only afford $300 of it
       d.cur = 0;
     });
@@ -209,7 +219,7 @@ describe('Landing rent on a sold-out stock', () => {
     // debtor can't fully cover it.
     expect(s.players[0].cash).toBe(300);
     expect(s.players[1].cash).toBe(holderBefore);
-    expect(s.payoutShortfallChoice).toMatchObject({ player: 0, creditor: 1, owed: PAYOUT_TIER_CONTROL, canForceSell: false });
+    expect(s.payoutShortfallChoice).toMatchObject({ player: 0, creditor: 1, owed: RENT_CONTROL, canForceSell: false });
   });
 
   it('landing on a sold-out stock never opens a Trade Step — buying it is simply unavailable', () => {
