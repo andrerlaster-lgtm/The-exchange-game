@@ -24,6 +24,17 @@ describe('Weak Demand markers — 2-marker threshold', () => {
     expect(s.skips.MEDI).toBe(1);
   });
 
+  it('a forced skip (not enough cash to buy) adds no marker — only an explicit skip counts as disinterest', () => {
+    let s = started(2);
+    s = patch(s, (d) => {
+      d.cur = 0; d.turnPhase = 'acted'; d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 };
+      d.players[0].cash = 100; // MEDI's buyout costs $8,250 at opening — nowhere close
+    });
+    s = dispatch(s, { t: 'skipStock', code: 'MEDI' }, rng());
+    expect(s.skips.MEDI ?? 0).toBe(0);
+    expect(s.log.some((l) => l.text.includes("can't afford MEDI"))).toBe(true);
+  });
+
   it('skipping on a sold-out stock adds no marker', () => {
     let s = started(2);
     s = patch(s, (d) => {

@@ -218,7 +218,7 @@ Fresh shares can only be bought by landing on that stock space or resolving a ca
 - A full-company purchase costs 11× the company's *current* per-share market price at the moment of purchase — not a one-time fixed tier price. At opening this is $5,500 (Starter), $8,250 (Growth), or $11,000 (Premium); it moves with the company's own price ladder from there.
 - The buyer receives all 11 shares, normal market supply becomes 0, the company becomes permanently Sold Out, and the buyer receives its Payout Claim.
 - The purchase does not move the live per-share market price — the buyer's cost basis for all 11 shares always equals their market value at the moment of purchase, by design: acquiring an asset must never, by itself, create a paper gain or loss.
-- If the player explicitly skips, add a Weak Demand marker.
+- If the player can afford the purchase and explicitly skips anyway, add a Weak Demand marker (Section 9). A skip forced by insufficient cash never adds one.
 - Once another player owns the company, landing there does not open a normal buy step. Resolve the Sold-Out Payout Claim instead (Section 11).
 
 **Sold-Out landing payout (base rate)**
@@ -258,7 +258,8 @@ Weak Demand makes ignored, untouched companies lose value. Ownership never grant
 
 **Weak Demand rule**
 - Each regular stock can hold up to 2 Weak Demand markers.
-- When a player lands on an untouched regular stock and explicitly skips the purchase, add 1 Weak Demand marker.
+- When a player lands on an untouched regular stock, can afford its full-company price, and explicitly chooses to skip anyway, add 1 Weak Demand marker.
+- A skip forced by insufficient cash is not disinterest and never adds a marker — the space still offers the normal skip, it simply doesn't count.
 - When a stock reaches 2 Weak Demand markers, move its market price down 1 step immediately and clear the markers, unless the stock is already at the $100 floor.
 - Buying the full company clears all Weak Demand markers on it.
 - Markers persist on a company across lap rollovers — they do not reset just because a new lap begins.
@@ -699,7 +700,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 | Starting cash | $30,000 default; setup choices are $30,000, $40,000, or $50,000 |
 | Winning score | Net Worth by default; optional Gain/Loss Mode ranks salary-adjusted Market Gain |
 | Margin trading | Off by default |
-| Weak Demand | On; 2 explicit skips drop an untouched company's price 1 step; no ownership protection; markers persist across laps |
+| Weak Demand | On; 2 affordable-but-declined skips drop an untouched company's price 1 step; a skip forced by insufficient cash doesn't count; no ownership protection; markers persist across laps |
 | Strong Demand | On; 2 Payout Claim landings raise a sold-out company's price 1 step; markers persist across laps |
 | Short Sell | Off / removed from standard game flow |
 | Direct rent before sellout | Off; landing payments start only after Sold-Out status |

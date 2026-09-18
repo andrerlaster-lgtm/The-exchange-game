@@ -801,18 +801,27 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const t = s.trade;
       if (!t || t.scope !== 'stock' || t.code !== code) break;
       if ((s.supply[code] || 0) > 0) {
-        s.skips[code] = (s.skips[code] || 0) + 1;
-        addLog(s, `${s.players[s.cur].name} skips ${code} — weak-demand marker ${s.skips[code]}/${WEAK_DEMAND_THRESHOLD}.`, 'r');
-        if (s.skips[code] >= WEAK_DEMAND_THRESHOLD) {
-          moveTradePrice(s, code, -1);
-          s.skips[code] = 0;
-          addLog(s, `Weak demand: ${code} drops 1 step (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
-          recordMarketSignal(s, {
-            kind: 'weakDemand',
-            title: `Weak Demand · ${code}`,
-            summary: `${code} fell one price step after ${WEAK_DEMAND_THRESHOLD} consecutive skips.`,
-            impacts: [{ code, d: -1 }],
-          });
+        const p = s.players[s.cur];
+        const cost = companyBuyoutCost(s, code);
+        // Weak Demand is a genuine disinterest signal — a player who skips
+        // because they simply can't afford the company yet isn't expressing
+        // disinterest, so a forced skip must never count toward it.
+        if (p.cash < cost) {
+          addLog(s, `${p.name} can't afford ${code} (${money(cost)}) — no weak-demand marker.`, 'y');
+        } else {
+          s.skips[code] = (s.skips[code] || 0) + 1;
+          addLog(s, `${p.name} skips ${code} — weak-demand marker ${s.skips[code]}/${WEAK_DEMAND_THRESHOLD}.`, 'r');
+          if (s.skips[code] >= WEAK_DEMAND_THRESHOLD) {
+            moveTradePrice(s, code, -1);
+            s.skips[code] = 0;
+            addLog(s, `Weak demand: ${code} drops 1 step (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
+            recordMarketSignal(s, {
+              kind: 'weakDemand',
+              title: `Weak Demand · ${code}`,
+              summary: `${code} fell one price step after ${WEAK_DEMAND_THRESHOLD} consecutive skips.`,
+              impacts: [{ code, d: -1 }],
+            });
+          }
         }
       } else {
         addLog(s, `${code} is sold out — no marker added.`);
