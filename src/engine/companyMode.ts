@@ -9,7 +9,7 @@ export const COMPANY_LOAN_RATE = 0.05;
 
 /** Company value deliberately excludes player-company holdings, so prices do not loop. */
 export function companyValue(s: GameState, owner: number): number {
-  return Math.max(0, operatingNetWorth(s, s.players[owner]));
+  return Math.max(0, operatingNetWorth(s, owner));
 }
 
 export function companySharePrice(s: GameState, owner: number): number {

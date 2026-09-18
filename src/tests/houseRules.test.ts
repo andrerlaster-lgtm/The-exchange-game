@@ -213,6 +213,15 @@ describe('Player-to-player trading', () => {
     expect(s.players[1].shares.OILW ?? 0).toBe(0);
     expect(s.players[0].cash).toBe(p0CashBefore); // no cash moved
     expect(s.players[1].cash).toBe(p1CashBefore);
+
+    // Cost basis on BOTH legs must reflect the real value exchanged, not just
+    // the cash (here, $0) — this is the fix for the audit finding where a
+    // pure share-for-share swap booked the buyer's leg at $0, fabricating
+    // unrealized gain. Each leg is valued at the OTHER side's current market
+    // price × quantity: OILW is $1,000/share, so 2 shares = $2,000.
+    const oilwValue = 2 * priceOf(s, 'OILW');
+    expect(s.players[1].stockCostBasis.MEDI).toBe(oilwValue); // buyer's MEDI leg = the OILW given up
+    expect(s.players[0].stockCostBasis.OILW).toBe(oilwValue); // seller's OILW leg = its own market value
   });
 
   it('supports a mixed offer — shares plus cash sweetener from the paying side', () => {
@@ -237,6 +246,14 @@ describe('Player-to-player trading', () => {
     expect(s.players[1].shares.OILW).toBe(2);
     expect(s.players[0].cash).toBe(p0CashBefore + 500);
     expect(s.players[1].cash).toBe(p1CashBefore - 500);
+
+    // Buyer's basis is the FULL amount paid — cash sweetener plus the market
+    // value of the OILW share handed over, not just the $500 cash. Seller's
+    // OILW leg is booked at its own market value only, same as the pure-swap
+    // case above; the cash sweetener belongs entirely to the MEDI leg.
+    const oilwValue = priceOf(s, 'OILW');
+    expect(s.players[1].stockCostBasis.MEDI).toBe(500 + oilwValue);
+    expect(s.players[0].stockCostBasis.OILW).toBe(oilwValue);
   });
 
   it('a share-for-share offer fails gracefully if the payer no longer holds enough of the counter shares', () => {

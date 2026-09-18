@@ -6,7 +6,6 @@ import type { Card, Effect } from '../data/types';
 import type { GameState, LogKind, MarketSignalImpact } from './types';
 import { companyBuyoutCost, eventPool, stepOf } from './rules';
 import { moveEventPrice } from './stockState';
-import { pushFeeEvent } from './feeLog';
 import { recordCardSignal, recordMarketSignal } from './marketSignals';
 import { marketStanceMeta, regimeCashDelta } from './marketRegime';
 import { payDividendCard } from './playerState';
@@ -339,10 +338,6 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
       s.pick = { d: e.d, label: e.label, codes: eligible, source: 'card' };
       break;
     }
-    case 'cash':
-      s.players[s.cur].cash += e.amt;
-      addLog(s, `${s.players[s.cur].name} collects ${money(e.amt)}`, 'g');
-      break;
     case 'dividend':
       payDividendCard(s, s.cur);
       break;
@@ -398,15 +393,6 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
       }
       break;
     }
-    case 'margin':
-      s.players.forEach((p) => {
-        if (p.margin > 0) {
-          p.cash -= e.amt;
-          addLog(s, `${p.name} margin call −${money(e.amt)}`, 'r');
-          pushFeeEvent(s, 'marginCall', p, -e.amt);
-        }
-      });
-      break;
     case 'regime': {
       const regularMove = MARKET_RUN_MOVE_BY_RISK[e.regime];
       Object.values(STOCK_BY_CODE).forEach((stock) => {

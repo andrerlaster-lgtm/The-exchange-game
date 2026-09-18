@@ -95,7 +95,13 @@ describe('Player-to-player Payout Claim loans', () => {
     const balance = playerDebtBalance(debt);
 
     const withoutDebt = patch(s, (d) => { d.playerDebts = []; });
-    expect(netWorth(s, s.players[0])).toBe(netWorth(withoutDebt, s.players[0]) - balance);
-    expect(netWorth(s, s.players[1])).toBe(netWorth(withoutDebt, s.players[1]) + balance);
+    // withoutDebt is a separate structural clone — must use ITS OWN player
+    // objects, not s's. netWorth derives the player's index via
+    // s.players.indexOf(p), so a player object from the wrong state either
+    // silently drops their debt legs (if some other player happens to sit at
+    // the same index) or throws (if the index doesn't resolve at all) —
+    // exactly the footgun the audit flagged in operatingNetWorth.
+    expect(netWorth(s, s.players[0])).toBe(netWorth(withoutDebt, withoutDebt.players[0]) - balance);
+    expect(netWorth(s, s.players[1])).toBe(netWorth(withoutDebt, withoutDebt.players[1]) + balance);
   });
 });

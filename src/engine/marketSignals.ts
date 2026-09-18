@@ -122,13 +122,11 @@ export function effectImpacts(s: GameState, effect: Effect): MarketSignalImpact[
       if (target) add(target.code, effect.d);
       break;
     }
-    // A player-selected target is not known when the card is drawn. Cash,
-    // margin, protection, timing, and close cards do not directly move a code.
+    // A player-selected target is not known when the card is drawn. Dividend,
+    // protection, timing, and close cards do not directly move a code.
     case 'pick':
-    case 'cash':
     case 'dividend':
     case 'cyberattack':
-    case 'margin':
     case 'circuitBreaker':
     case 'extend':
     case 'close':
