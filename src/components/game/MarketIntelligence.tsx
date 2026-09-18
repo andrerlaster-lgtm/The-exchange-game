@@ -1,13 +1,7 @@
 import { importantMarketSignals, playerSignalExposure } from '../../engine';
 import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
-
-const STANCE = {
-  hawkish: { label: 'Hawkish', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
-  dovish: { label: 'Dovish', color: '#16a34a', bg: 'rgba(34,197,94,0.13)' },
-  neutral: { label: 'Neutral', color: '#7c7263', bg: 'rgba(124,114,99,0.12)' },
-  mixed: { label: 'Mixed', color: '#b7791f', bg: 'rgba(245,158,11,0.14)' },
-};
+import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
 
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   fed: 'FED',
@@ -21,31 +15,12 @@ const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   milestone: 'PORTFOLIO MILESTONE',
 };
 
-function ImpactLine({ signal }: { signal: MarketSignal }) {
-  const up = signal.impacts.filter((impact) => impact.d > 0).map((impact) => `${impact.code} +${impact.d}`);
-  const down = signal.impacts.filter((impact) => impact.d < 0).map((impact) => `${impact.code} ${impact.d}`);
-  if (!up.length && !down.length) return null;
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
-      {up.length > 0 && <span style={impactStyle('#15803d', 'rgba(34,197,94,0.11)')}>▲ {up.join(' · ')}</span>}
-      {down.length > 0 && <span style={impactStyle('#b91c1c', 'rgba(239,68,68,0.10)')}>▼ {down.join(' · ')}</span>}
-    </div>
-  );
-}
-
-function impactStyle(color: string, background: string): React.CSSProperties {
-  return {
-    color, background, borderRadius: 5, padding: '3px 7px',
-    fontSize: 9, fontWeight: 800, lineHeight: 1.35,
-  };
-}
-
 export default function MarketIntelligence() {
   const s = useGameState();
   const latestFed = s.marketSignals.find((signal) => signal.kind === 'fed');
   const fedHistory = s.marketSignals.filter((signal) => signal.kind === 'fed').slice(0, 3);
   const important = importantMarketSignals(s).slice(0, 6);
-  const stance = latestFed?.stance ? STANCE[latestFed.stance] : STANCE.neutral;
+  const stance = latestFed?.stance ? STANCE_META[latestFed.stance] : STANCE_META.neutral;
 
   return (
     <section className="card-box" aria-label="Market Intelligence" style={{ padding: 10 }}>
@@ -86,7 +61,7 @@ export default function MarketIntelligence() {
                 What it means: {latestFed.insight}
               </div>
             )}
-            <ImpactLine signal={latestFed} />
+            <ImpactChips impacts={latestFed.impacts} style={{ marginTop: 7 }} />
           </div>
           <div style={{ borderLeft: '1px solid rgba(74,48,25,0.12)', paddingLeft: 9 }}>
             <div style={{ fontSize: 9, fontWeight: 900, color: 'var(--muted)', letterSpacing: 0.8 }}>YOUR EXPOSURE</div>
@@ -98,7 +73,7 @@ export default function MarketIntelligence() {
                 <div style={{ fontSize: 9, fontWeight: 900, color: 'var(--muted)', letterSpacing: 0.8 }}>LAST 3 FED DECISIONS</div>
                 {fedHistory.map((signal) => (
                   <div key={signal.id} style={{ fontSize: 9.5, color: 'var(--text)', marginTop: 3 }}>
-                    <span style={{ color: signal.stance ? STANCE[signal.stance].color : 'var(--muted)' }}>●</span>{' '}
+                    <span style={{ color: signal.stance ? STANCE_META[signal.stance].color : 'var(--muted)' }}>●</span>{' '}
                     {signal.title} <span style={{ color: 'var(--muted)' }}>· L{signal.lap}</span>
                   </div>
                 ))}

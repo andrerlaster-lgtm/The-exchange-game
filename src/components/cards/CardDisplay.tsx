@@ -2,8 +2,34 @@ import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { IPO_BY_CODE, STOCK_BY_CODE, STOCKS, isIpoCode } from '../../data';
 import { circuitBreakerOptions, priceOf } from '../../engine';
-import type { Action } from '../../engine';
+import type { Action, GameState, MarketSignal } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
+import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
+
+// Effect kinds that can actually move a company's price. Everything else
+// (dividend, cyberattack, openingBell, regulatoryInvestigation, cash, margin,
+// circuitBreaker, extend, close, the meter cards, insiderPreview, none) has
+// its own outcome — a payout, a prompt, a state flag — that the effect text
+// already describes; there is no separate "what actually moved" to confirm.
+const PRICE_MOVING_KINDS = new Set(['sector', 'all', 'risk', 'multi', 'lowest', 'highest', 'pick', 'regime']);
+
+/**
+ * The real, post-clamp/post-Circuit-Breaker outcome of the currently displayed
+ * card, once it has one. `recordCardSignal` writes this into `s.marketSignals`
+ * synchronously in the same dispatch that resolves the card (draw / pickTarget
+ * / resolveCircuitBreaker), so by the time this component re-renders it's
+ * already there — no separate "did it apply yet" state to track here. Matched
+ * by title + deck + lap rather than trusting index 0: recordPortfolioMilestones
+ * runs after every action and can occasionally prepend a signal of its own.
+ * Returns null for a non-price-moving card, while a pick or Circuit Breaker
+ * decision is still pending (no signal recorded yet), and for an Insider
+ * Information peek (which never resolves anything to confirm).
+ */
+function resolvedSignalFor(s: GameState, card: NonNullable<GameState['card']>, isInsiderPreview: boolean): MarketSignal | null {
+  if (isInsiderPreview || !PRICE_MOVING_KINDS.has(card.eff.k)) return null;
+  const kind = card.deck === 'FED' ? 'fed' : 'market';
+  return s.marketSignals.find((signal) => signal.kind === kind && signal.title === card.title && signal.lap === s.lap) ?? null;
+}
 
 type CardPhase = 'idle' | 'back' | 'reveal';
 
@@ -83,6 +109,12 @@ export default function CardDisplay() {
   const deckIcon   = isInsiderPreview ? '👁️' : deckId === 'ME' ? '📈' : '🏛️';
   const deckSymbol = deckId === 'ME' ? '📊' : '🏦';
 
+  // What this specific draw actually did, once it's resolved — see
+  // resolvedSignalFor's doc comment for why this can't just read s.card.eff.
+  const resolved = resolvedSignalFor(s, s.card, isInsiderPreview);
+  const fedSignal = deckId === 'FED' && !isInsiderPreview ? s.card.signal : undefined;
+  const fedStance = fedSignal ? STANCE_META[fedSignal.stance] : undefined;
+
   // Floats above the board (like the dice-roll overlay) instead of living
   // inline in the left column, so a drawn card is visible the instant it
   // appears regardless of how tall the reference panels below it get —
@@ -161,6 +193,14 @@ export default function CardDisplay() {
             fontSize: 14, fontWeight: 800, color: 'rgba(240,230,210,0.97)',
             letterSpacing: 0.5, lineHeight: 1.25, textTransform: 'uppercase',
           }}>{s.card.title}</div>
+          {/* Flavor line — every card is written with one; it never reached
+              the player before, only the mechanical effect text below did. */}
+          {s.card.story && (
+            <div style={{
+              fontSize: 10.5, fontStyle: 'italic', color: 'rgba(200,188,168,0.72)',
+              lineHeight: 1.4, marginTop: 4,
+            }}>{s.card.story}</div>
+          )}
         </div>
 
         {/* Center icon area */}
@@ -173,6 +213,26 @@ export default function CardDisplay() {
             {isStrategyOnly ? '⚙️' : deckSymbol}
           </span>
         </div>
+
+        {/* Fed stance readout — the card's own hawkish/dovish read and what it
+            means, previously shown only in the separate Market Intelligence
+            panel and never on the card that actually triggered it. */}
+        {fedSignal && fedStance && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 5,
+            margin: '0 10px 8px', padding: '7px 9px', borderRadius: 7,
+            background: fedStance.bg, border: `1px solid ${fedStance.color}44`,
+          }}>
+            <span style={{
+              alignSelf: 'flex-start', borderRadius: 999, padding: '2px 8px',
+              background: `${fedStance.color}22`, color: fedStance.color,
+              fontSize: 8.5, fontWeight: 900, letterSpacing: 0.9, textTransform: 'uppercase',
+            }}>{fedStance.label}</span>
+            <p style={{ fontSize: 10.5, color: 'rgba(220,210,192,0.92)', lineHeight: 1.5, margin: 0 }}>
+              {fedSignal.insight}
+            </p>
+          </div>
+        )}
 
         {/* Effect text box */}
         <div style={{ margin: '8px 10px', padding: '8px 10px', borderRadius: 7,
@@ -187,6 +247,26 @@ export default function CardDisplay() {
             <p style={{ fontSize: 9, color: 'rgba(100,90,78,0.8)', marginTop: 4, marginBottom: 0, fontStyle: 'italic' }}>
               Strategy Mode — no effect
             </p>
+          )}
+          {/* What this draw actually did — the effect text above states the
+              card's general rule; this confirms the real, post-clamp/
+              post-Circuit-Breaker outcome for THIS draw (a company already at
+              the floor/ceiling can't move further, and a shielded company's
+              drop never lands). Absent while a pick or Circuit Breaker
+              decision is still open — nothing has resolved yet. */}
+          {resolved && (
+            resolved.impacts.length > 0 ? (
+              <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: 0.9, color: 'rgba(200,188,168,0.55)', textTransform: 'uppercase', marginBottom: 4 }}>
+                  What Actually Moved
+                </div>
+                <ImpactChips impacts={resolved.impacts} />
+              </div>
+            ) : (
+              <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 9.5, color: 'rgba(200,188,168,0.55)', fontStyle: 'italic' }}>
+                No price actually moved — every eligible target was already clamped, protected, or the move landed on a company already at that price.
+              </div>
+            )
           )}
         </div>
 
