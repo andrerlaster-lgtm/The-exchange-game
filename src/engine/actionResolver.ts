@@ -444,7 +444,7 @@ function applyMove(s: GameState, steps: number, rng: Rng): void {
     // is always a subset of `passed` (the board wraps 1-36, so the only way
     // to land on 1 is by wrapping around), so this is a strictly narrower
     // condition, not a separate case.
-    payMarketOpen(s, s.cur, p.pos === 1);
+    const income = payMarketOpen(s, s.cur, p.pos === 1);
     ensureMarketCondition(s, rng, s.cur);
     s.marketOpenReport = {
       player: p.name,
@@ -456,6 +456,7 @@ function applyMove(s: GameState, steps: number, rng: Rng): void {
           const name = isIpoCode(code) ? (IPO_BY_CODE[code]?.name ?? code) : (STOCK_BY_CODE[code]?.name ?? code);
           return { code, name, qty: p.shares[code], unrealized: gl.unrealized, returnPct: gl.returnPct };
         }),
+      income,
     };
     p.lapTrades = [];
     if (s.opts.bankAuction) queueMarketOpenAuctions(s);

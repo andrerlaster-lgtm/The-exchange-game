@@ -64,13 +64,38 @@ export interface Player {
   lapTrades: TradeEntry[];           // this player's trade activity since their last Market Open report
 }
 
+/** Every line item paid or deducted by a single payMarketOpen() pass, so the
+    report panel can show one compact breakdown instead of players having to
+    reconstruct it from the activity log. Zero-value fields are still present
+    (the panel decides what's worth a line), except conditionTitle/
+    diversificationTier, which are null when nothing of that kind applied. */
+export interface MarketOpenIncome {
+  salary: number;
+  landedExactly: boolean;
+  dividends: number;
+  controllingCodes: string[];
+  etfPayout: number;
+  etfDiversificationBonus: number;
+  conditionDividend: number;
+  conditionEtf: number;
+  conditionTitle: string | null;
+  diversificationBonus: number;
+  diversificationTier: 'diversified' | 'broad' | null;
+  recoveryBonus: number;
+  total: number;
+  marginPaid: number;
+  marginShortfall: number;
+  marginBalanceAfter: number;
+}
+
 /** Small recap shown where the Market Open Trading Window used to appear:
-    what the player bought/sold since their last lap, and how their current
-    holdings are doing. */
+    what the player bought/sold since their last lap, how their current
+    holdings are doing, and the full income breakdown from this pass. */
 export interface MarketOpenReport {
   player: string;
   trades: TradeEntry[];
   holdings: { code: string; name: string; qty: number; unrealized: number; returnPct: number }[];
+  income: MarketOpenIncome;
 }
 
 export interface CompanyLoanOffer {

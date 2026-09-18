@@ -5,7 +5,7 @@ import {
   IPO_BY_CODE, MARGIN_DEFAULT_PENALTY, RECOVERY_BONUS, RECOVERY_BONUS_THRESHOLD, SALARY, STOCK_BY_CODE, isIpoCode,
 } from '../data';
 import { money } from '../utils/formatMoney';
-import type { GameState } from './types';
+import type { GameState, MarketOpenIncome } from './types';
 import { pushFeeEvent } from './feeLog';
 import { diversificationBonus, diversificationTier } from './sector';
 import { marketConditionIncome } from './marketConditions';
@@ -53,7 +53,7 @@ export function dividendPayment(s: GameState, pi: number): { amount: number; con
   return { amount, controllingCodes, cutCodes };
 }
 
-export function payMarketOpen(s: GameState, pi: number, landedExactly = false): void {
+export function payMarketOpen(s: GameState, pi: number, landedExactly = false): MarketOpenIncome {
   const p = s.players[pi];
 
   // Stock / IPO dividends — Controlling Stake (6+ regular shares or 3+ IPO
@@ -87,6 +87,11 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   p.cash += total;
   p.salaryCollected += salary;
 
+  // Captured now, before this pass's ensureMarketCondition (called later, in
+  // applyMove) can replace or expire it — this is the condition that
+  // actually produced conditionIncome above, not whatever's active next.
+  const conditionTitle = (conditionIncome.dividend || conditionIncome.etf) ? (s.marketConditions[pi]?.title ?? null) : null;
+
   const parts: string[] = [`+${money(salary)} income${landedExactly ? ' (landed exactly — double salary)' : ''}`];
   if (div) parts.push(`+${money(div)} dividends`);
   if (etfPay) parts.push(`+${money(etfPay)} ETF payout`);
@@ -109,13 +114,17 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   // Margin call: pay down half the outstanding margin balance. Cash is applied
   // first; any shortfall forces the player to sell stock to cover (+ a flat
   // penalty), handled interactively via the marginCall state.
+  let marginPaid = 0;
+  let marginShortfall = 0;
   if (p.margin > 0) {
     const call = marginCallDue(p.margin);
     const fromCash = Math.min(Math.max(p.cash, 0), call);
     p.cash -= fromCash;
     p.margin -= fromCash;
+    marginPaid = fromCash;
     const shortfall = call - fromCash;
     if (shortfall > 0) {
+      marginShortfall = shortfall;
       s.marginCall = { player: pi, owed: shortfall };
       addLog(s, `${p.name} MARGIN CALL — short ${money(shortfall)}. Sell stock to cover (+${money(MARGIN_DEFAULT_PENALTY)} penalty).`, 'r');
       // Log the immediate cash portion now; the forced-sale remainder (+ penalty)
@@ -133,6 +142,14 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   // call. It does NOT force a Market Event draw — those are triggered solely by
   // landing on space 19 (the Market Event space).
 
+  return {
+    salary, landedExactly, dividends: div, controllingCodes,
+    etfPayout: etfPay, etfDiversificationBonus: etfDiverBonus,
+    conditionDividend: conditionIncome.dividend, conditionEtf: conditionIncome.etf, conditionTitle,
+    diversificationBonus: diverBonus, diversificationTier: divTier === 'none' ? null : divTier,
+    recoveryBonus, total,
+    marginPaid, marginShortfall, marginBalanceAfter: p.margin,
+  };
 }
 
 /** Immediate dividend-only payout from the Dividend Payment Market Event card. */

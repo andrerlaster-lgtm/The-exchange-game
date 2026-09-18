@@ -3,6 +3,7 @@
 // gain/loss, generated the instant a player completes a lap.
 
 import { describe, expect, it } from 'vitest';
+import { RECOVERY_BONUS, RECOVERY_BONUS_THRESHOLD, SALARY } from '../data';
 import { holdingGainLoss } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -70,6 +71,56 @@ describe('Market Open Report', () => {
     s = patch(s, (d) => { d.turnPhase = 'acted'; });
     s = dispatch(s, { t: 'endTurn' }, rng());
     expect(s.marketOpenReport).toBeNull();
+  });
+
+  it('includes a full income breakdown — the actual point of the report, not just trades/holdings', () => {
+    let s = started(2);
+    s = patch(s, (d) => {
+      d.players[0].shares = { SAFE: 2 }; // Low-risk, $110/share
+      d.players[0].pos = 34;
+    });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // wraps to space 2, not landing exactly
+
+    const inc = s.marketOpenReport!.income;
+    expect(inc.salary).toBe(SALARY);
+    expect(inc.landedExactly).toBe(false);
+    expect(inc.dividends).toBe(220); // 2 × $110
+    expect(inc.total).toBe(SALARY + 220);
+    expect(inc.marginPaid).toBe(0);
+    expect(inc.marginShortfall).toBe(0);
+  });
+
+  it('doubles salary in the breakdown when landing exactly on Market Open', () => {
+    let s = started(2);
+    s = patch(s, (d) => { d.players[0].pos = 33; d.turnPhase = 'preRoll'; });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 3])); // 33 + 4 = space 1 exactly
+
+    const inc = s.marketOpenReport!.income;
+    expect(inc.landedExactly).toBe(true);
+    expect(inc.salary).toBe(SALARY * 2);
+  });
+
+  it('includes the Recovery Bonus when cash was low walking in', () => {
+    let s = started(2);
+    s = patch(s, (d) => { d.players[0].cash = 500; d.players[0].pos = 34; });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
+
+    const inc = s.marketOpenReport!.income;
+    expect(inc.recoveryBonus).toBe(RECOVERY_BONUS);
+    expect(inc.total).toBe(SALARY + RECOVERY_BONUS);
+    expect(s.players[0].cash).toBe(500 + SALARY + RECOVERY_BONUS);
+    expect(500).toBeLessThan(RECOVERY_BONUS_THRESHOLD); // sanity: the setup actually qualifies
+  });
+
+  it('captures margin repayment in the breakdown', () => {
+    let s = started(2);
+    s = patch(s, (d) => { d.players[0].margin = 2_000; d.players[0].pos = 34; });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
+
+    const inc = s.marketOpenReport!.income;
+    expect(inc.marginPaid).toBe(1_000); // half of 2,000
+    expect(inc.marginShortfall).toBe(0);
+    expect(inc.marginBalanceAfter).toBe(1_000);
   });
 
   it('survives a doubles bonus roll on the same turn (not cleared mid-turn)', () => {

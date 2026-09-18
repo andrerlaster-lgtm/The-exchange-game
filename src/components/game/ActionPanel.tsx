@@ -1,6 +1,6 @@
 import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, isIpoCode } from '../../data';
 import { gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
-import type { Action, GameState } from '../../engine';
+import type { Action, GameState, MarketOpenIncome } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
 export default function ActionPanel() {
@@ -245,6 +245,58 @@ function RegulatoryInvestigationPanel({ s, dispatch }: { s: GameState; dispatch:
   );
 }
 
+/** One compact line-item breakdown of everything a Market Open pass paid or
+    deducted — salary, dividends, ETFs, bonuses, Recovery Bonus, then any
+    margin payment — instead of players having to piece it together from the
+    activity log. */
+function MarketOpenIncomeSection({ income: inc }: { income: MarketOpenIncome }) {
+  const rows: { label: string; amount: number }[] = [
+    { label: `Salary${inc.landedExactly ? ' (landed exactly)' : ''}`, amount: inc.salary },
+  ];
+  if (inc.dividends > 0) {
+    rows.push({ label: `Dividends${inc.controllingCodes.length > 0 ? ` (Controller: ${inc.controllingCodes.join(', ')})` : ''}`, amount: inc.dividends });
+  }
+  if (inc.etfPayout > 0) rows.push({ label: 'ETF Payout', amount: inc.etfPayout });
+  if (inc.etfDiversificationBonus > 0) rows.push({ label: 'ETF Diversification (all 4 funds)', amount: inc.etfDiversificationBonus });
+  if (inc.conditionDividend > 0) rows.push({ label: inc.conditionTitle ?? 'Dividend Windfall', amount: inc.conditionDividend });
+  if (inc.conditionEtf > 0) rows.push({ label: inc.conditionTitle ?? 'ETF Inflows', amount: inc.conditionEtf });
+  if (inc.diversificationBonus > 0) {
+    rows.push({ label: inc.diversificationTier === 'broad' ? 'Broad Market Bonus' : 'Diversified Bonus', amount: inc.diversificationBonus });
+  }
+  if (inc.recoveryBonus > 0) rows.push({ label: 'Recovery Bonus (cash was low)', amount: inc.recoveryBonus });
+
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+        Market Open Income
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {rows.map((r, i) => (
+          <div key={i} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ color: 'var(--text)' }}>{r.label}</span>
+            <span className="mono" style={{ fontWeight: 700, color: 'var(--green)', flexShrink: 0 }}>+${r.amount.toLocaleString()}</span>
+          </div>
+        ))}
+        <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <span style={{ color: 'var(--text)', fontWeight: 800 }}>Total</span>
+          <span className="mono" style={{ fontWeight: 800, color: 'var(--green)', flexShrink: 0 }}>+${inc.total.toLocaleString()}</span>
+        </div>
+        {inc.marginPaid > 0 && (
+          <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ color: 'var(--text)' }}>Margin Repayment</span>
+            <span className="mono" style={{ fontWeight: 700, color: 'var(--red)', flexShrink: 0 }}>−${inc.marginPaid.toLocaleString()}</span>
+          </div>
+        )}
+        {inc.marginShortfall > 0 && (
+          <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700 }}>
+            Short ${inc.marginShortfall.toLocaleString()} on margin — a forced sale is due.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MarketOpenReportPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   const report = s.marketOpenReport!;
   return (
@@ -262,6 +314,8 @@ function MarketOpenReportPanel({ s, dispatch }: { s: GameState; dispatch: (a: Ac
           Dismiss
         </button>
       </div>
+
+      <MarketOpenIncomeSection income={report.income} />
 
       <div>
         <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
