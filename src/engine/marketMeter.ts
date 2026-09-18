@@ -42,6 +42,14 @@ const CEILING_STEP = LADDER.length - 1;
 
 export type MeterZone = 'bear' | 'neutral' | 'bull';
 
+/** Player-facing explanation of what the needle will do when the current
+    round finishes. The affected sector is intentionally not chosen until
+    that moment, so every player sees the same market move resolve together. */
+export interface MarketMeterForecast {
+  headline: string;
+  detail: string;
+}
+
 const ALL_SECTORS = Object.keys(SECTOR_CODES) as SectorId[];
 
 function isAtBound(s: GameState, code: string, dir: 1 | -1): boolean {
@@ -84,6 +92,32 @@ export function meterZone(pos: number): MeterZone {
   if (pos <= -2) return 'bear';
   if (pos >= 2) return 'bull';
   return 'neutral';
+}
+
+/** Explain the next round-end move without implying that a sector has already
+    been selected by an individual dice roll. */
+export function marketMeterForecast(meter: number): MarketMeterForecast {
+  const zone = meterZone(meter);
+  const magnitude = Math.abs(meter);
+
+  if (magnitude >= 3) {
+    const direction = zone === 'bull' ? 'rise' : 'fall';
+    return {
+      headline: `Two random sectors will ${direction} 1 step each.`,
+      detail: 'The sectors are selected when the round ends, after every player has taken a turn.',
+    };
+  }
+  if (magnitude === 2) {
+    const direction = zone === 'bull' ? 'rise' : 'fall';
+    return {
+      headline: `One random sector will ${direction} 2 steps.`,
+      detail: 'The sector is selected when the round ends, after every player has taken a turn.',
+    };
+  }
+  return {
+    headline: 'One random sector will move 1 step.',
+    detail: 'The direction and sector are selected when the round ends, after every player has taken a turn.',
+  };
 }
 
 /** A sector is eligible for a direction if at least one of its companies

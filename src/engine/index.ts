@@ -10,6 +10,7 @@ export { circuitBreakerOptions } from './eventCardResolver';
 export * from './marketSignals';
 export * from './gameProgress';
 export * from './marketRegime';
+export * from './marketMeter';
 export * from './marketConditions';
 export * from './gainLoss';
 export * from './feeDebt';

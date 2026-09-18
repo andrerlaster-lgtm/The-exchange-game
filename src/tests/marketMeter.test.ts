@@ -11,7 +11,7 @@ import type { SectorId } from '../data/types';
 import { blocked } from '../engine/rules';
 import { moveEventPrice } from '../engine/stockState';
 import {
-  advanceMeterOnRoll, eligibleSectors, meterZone, METER_MAX, METER_MIN, repriceRoundBoundary, triggerCardRipple,
+  advanceMeterOnRoll, eligibleSectors, marketMeterForecast, meterZone, METER_MAX, METER_MIN, repriceRoundBoundary, triggerCardRipple,
 } from '../engine/marketMeter';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -31,6 +31,17 @@ describe('meterZone', () => {
     expect(meterZone(1)).toBe('neutral');
     expect(meterZone(2)).toBe('bull');
     expect(meterZone(METER_MAX)).toBe('bull');
+  });
+});
+
+describe('marketMeterForecast', () => {
+  it('explains the exact round-end scope without naming a sector before it is selected', () => {
+    expect(marketMeterForecast(0).headline).toBe('One random sector will move 1 step.');
+    expect(marketMeterForecast(2).headline).toBe('One random sector will rise 2 steps.');
+    expect(marketMeterForecast(-2).headline).toBe('One random sector will fall 2 steps.');
+    expect(marketMeterForecast(3).headline).toBe('Two random sectors will rise 1 step each.');
+    expect(marketMeterForecast(-3).headline).toBe('Two random sectors will fall 1 step each.');
+    expect(marketMeterForecast(2).detail).toContain('selected when the round ends');
   });
 });
 

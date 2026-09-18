@@ -1,7 +1,8 @@
-import { importantMarketSignals, playerSignalExposure } from '../../engine';
+import { importantMarketSignals, marketMeterForecast, playerSignalExposure } from '../../engine';
 import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
+import MarketRegimeBadge from './MarketRegimeBadge';
 
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   fed: 'FED',
@@ -20,8 +21,11 @@ export default function MarketIntelligence() {
   const s = useGameState();
   const latestFed = s.marketSignals.find((signal) => signal.kind === 'fed');
   const fedHistory = s.marketSignals.filter((signal) => signal.kind === 'fed').slice(0, 3);
+  const latestMeterMove = s.marketSignals.find((signal) =>
+    signal.kind === 'market' && signal.title.startsWith('Market Meter'));
   const important = importantMarketSignals(s).slice(0, 6);
   const stance = latestFed?.stance ? STANCE_META[latestFed.stance] : STANCE_META.neutral;
+  const meterForecast = marketMeterForecast(s.meter);
 
   return (
     <section className="card-box" aria-label="Market Intelligence" style={{ padding: 10 }}>
@@ -67,6 +71,31 @@ export default function MarketIntelligence() {
           </div>
         );
       })()}
+
+      {s.opts.marketMeter && (
+        <div style={{
+          marginBottom: 9, padding: '9px 10px', borderRadius: 8,
+          background: 'rgba(30, 74, 112, 0.06)', border: '1px solid rgba(30, 74, 112, 0.17)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 0.9, color: 'var(--muted)' }}>MARKET METER — NEXT ROUND</div>
+              <div style={{ color: 'var(--text)', fontSize: 11, fontWeight: 800, marginTop: 3 }}>{meterForecast.headline}</div>
+            </div>
+            <MarketRegimeBadge meter={s.meter} variant="ticker" />
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 10, lineHeight: 1.35, marginTop: 5 }}>
+            Your dice roll changes the Meter — it does not pick a sector by itself. {meterForecast.detail}
+          </div>
+          {latestMeterMove && (
+            <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(30, 74, 112, 0.12)' }}>
+              <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 0.8, color: 'var(--muted)' }}>LAST METER MOVE</div>
+              <div style={{ color: 'var(--text)', fontSize: 10.5, fontWeight: 700, marginTop: 2 }}>{latestMeterMove.summary}</div>
+              <ImpactChips impacts={latestMeterMove.impacts} style={{ marginTop: 5 }} />
+            </div>
+          )}
+        </div>
+      )}
 
       {!latestFed ? (
         <div style={{
