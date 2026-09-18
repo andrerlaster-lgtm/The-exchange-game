@@ -772,6 +772,16 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const t = s.trade;
       const tradeStepSell = !!t && canTradeNow(s);
       if (!tradeStepSell && !canMarketSell(s)) break;
+      // Selling a DIFFERENT company than the one just landed on is financing
+      // for that still-pending buy/skip decision, not the decision itself —
+      // it must not burn the landing's one action. Without this, a player who
+      // sells another holding (e.g. via the always-visible Trading Market
+      // panel) to afford the company they're standing on would find Buy
+      // silently disabled afterward, actionsLeft having hit 0 for a choice
+      // they never got to make. Free Trading Day (t.scope === 'free') still
+      // spends one of its 2 actions per sell, same as always — a sell IS one
+      // of its actions, not financing for a separate pending decision.
+      const isFinancingSell = t?.scope === 'stock' && code !== t.code;
       if (qty > bankSellRemaining(s, code)) break;
       // Rulebook §11: the seller receives one price step BELOW current market
       // (or the $100 floor). A block sale of 3+ shares additionally moves the
@@ -789,7 +799,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.bankSoldThisTurn[code] = (s.bankSoldThisTurn[code] || 0) + qty;
       if (qty >= 3) setMarketStance(p, 'bearish');
       if (qty >= 3) moveTradePrice(s, code, -1);
-      if (tradeStepSell) t!.actionsLeft -= 1;
+      if (tradeStepSell && !isFinancingSell) t!.actionsLeft -= 1;
       const moved = qty >= 3 ? ' (▼1 step)' : '';
       addLog(s, `${p.name} sells ${qty} ${code} @ ${money(price)}${moved} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, 'r');
       addTradeLog(s, 'sell', `${qty}× ${code} @ ${money(price)} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, proceeds, p.name);

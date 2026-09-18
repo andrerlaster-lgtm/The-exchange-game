@@ -2,8 +2,10 @@
 // styling (cream certificate, Anton ticker, sector/risk badges, price + step
 // arrow, supply/dividend stats). Buying a regular stock is all-or-nothing: this
 // ticket only ever renders for an untouched company (11/11 shares still in the
-// bank), so there is nothing to "own" or sell yet — landing here is strictly a
-// buy-the-whole-company-or-skip decision.
+// bank), so the landing player never owns any of THIS one yet — but they can
+// sell OTHER holdings (via the always-visible Trading Market panel) to raise
+// the cash to afford it. That doesn't cost this landing's one action, only
+// the eventual Buy/Skip does (actionResolver.ts's 'sell' case, isFinancingSell).
 
 import { LADDER, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, stockOpportunityFor, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { StockOpportunity } from '../../data';
@@ -67,7 +69,13 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
 
   const buyoutCost = companyBuyoutCost(s, code);
   const opportunity = stockOpportunityFor(stock);
+  const shortfall = Math.max(0, buyoutCost - p.cash);
   const canBuy = canAct && supply === REGULAR_SUPPLY && p.cash >= buyoutCost;
+  // Selling another holding here (e.g. via the Trading Market panel) to
+  // raise the rest is a real option — it doesn't cost this landing's one
+  // action, only the eventual Buy/Skip does. Only worth mentioning when it
+  // would actually help: short on cash, and something else to sell exists.
+  const hasSellableElsewhere = Object.entries(p.shares).some(([c, qty]) => c !== code && (qty ?? 0) > 0);
 
   // What a Bull/Bear Run would actually pay from HERE, in dollars — not the
   // step count `opportunity.bullMove/bearMove` describe. The ladder is not
@@ -169,6 +177,15 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
       <div style={{ position: 'relative', fontSize: 9.5, color: 'rgba(200,188,168,0.65)', letterSpacing: 0.3, textAlign: 'center' }}>
         Cash ${p.cash.toLocaleString()}  ·  Fixed {stock.tier} company price
       </div>
+
+      {shortfall > 0 && hasSellableElsewhere && (
+        <div style={{
+          position: 'relative', fontSize: 10, lineHeight: 1.4, textAlign: 'center',
+          color: 'rgba(224,193,132,0.85)', padding: '2px 6px',
+        }}>
+          Short ${shortfall.toLocaleString()} — sell shares in the Trading Market to raise it, then come back and buy. Selling doesn't use up this landing.
+        </div>
+      )}
 
       {/* Buy the company */}
       <ActBtn

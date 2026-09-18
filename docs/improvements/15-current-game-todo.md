@@ -29,13 +29,13 @@ the Deep Audit and reconciled against the current code on 2026-09-18.
 - [x] **Unreachable `'cash'`/`'margin'` card-effect cases removed** — no card in either deck ever used them.
 - [x] **`operatingNetWorth` takes a player index** instead of re-deriving it from the Player object via `indexOf` on every call (an O(n) scan inside sorts/render loops, and one that silently zeroed a foreign player's debt legs instead of erroring).
 - [x] **Direct automated test for share-for-share trade cost basis** — both legs' cost basis (not just cash/share movement) are now asserted for a pure swap and a mixed cash+share offer.
+- [x] **Market Meter board visibility reviewed — left as-is.** Checked live: the ticker badge, the board-centered badge (with a pulse on zone change), and the Market Intelligence explainer/last-move recap all render clearly and unobstructed. No evidence of a real gap, so no change made rather than adding visual noise speculatively; revisit if a specific playtester complaint comes in.
 
 ## Next priorities
 
 ### 1. Improve player understanding
 
 - [ ] **Add a short in-game explanation of stock-price movement.** Cover Market Meter, Market Events/Fed cards, Bull/Bear Runs, Weak Demand, Strong Demand, and Payout Claims.
-- [ ] **Make the Market Meter result even easier to spot on the board** if playtesting shows players still miss it.
 - [ ] **Explain Market Open income in one compact place:** salary, dividends, ETFs, bonuses, recovery bonus, then possible margin payment.
 
 ### 2. Decisions needed before changing balance
@@ -59,6 +59,7 @@ the Deep Audit and reconciled against the current code on 2026-09-18.
 | 2026-09-18 | Market Open salary increased to $2,000 / $4,000 | `b5d45f0` |
 | 2026-09-18 | Rulebook reconciled against current code (Market Meter, Market Conditions, Sector Control, Payout Claim math, ETFs, Player Loans, first-lap grace, dividend multiplier, buyout cost, sectors) | `d965948` |
 | 2026-09-18 | Dead-code cleanup: removed `COMPANY_BUYOUT_BY_TIER` and unreachable `'cash'`/`'margin'` card-effect cases, wired `TAX_RATE` into Portfolio Tax, `operatingNetWorth` takes a player index, added direct cost-basis test for share-for-share trades | — |
+| 2026-09-18 | Selling another holding to finance a company buyout no longer silently burns the landing's action (previously made Buy permanently unavailable afterward even once enough cash was raised) | — |
 
 ## Original audit
 

@@ -225,6 +225,7 @@ Fresh shares can only be bought by landing on that stock space or resolving a ca
 - The buyer receives all 11 shares, normal market supply becomes 0, the company becomes permanently Sold Out, and the buyer receives its Payout Claim.
 - The purchase does not move the live per-share market price — the buyer's cost basis for all 11 shares always equals their market value at the moment of purchase, by design: acquiring an asset must never, by itself, create a paper gain or loss.
 - If the player can afford the purchase and explicitly skips anyway, add a Weak Demand marker (Section 9). A skip forced by insufficient cash never adds one.
+- If the player is short on cash, they may sell other regular-stock holdings to the bank to raise it (normal sell-back rules, Section 14) before deciding — this does not use up the landing's buy/skip decision, so the Buy option stays available afterward if it raised enough. Only the eventual Buy or Skip ends the landing.
 - Once another player owns the company, landing there does not open a normal buy step. Resolve the Sold-Out Payout Claim instead (Section 11).
 
 **Sold-Out landing payout (base rate)**
@@ -409,7 +410,7 @@ Trading is powerful, but it must happen in clean windows so the app can enforce 
 
 **Binding Trade Window**
 - Players may trade only during the active player's Trade Step, unless Market Open creates a Market Open Trading Window.
-- The Trade Step begins only after the active player fully resolves the landing space and all related effects.
+- The Trade Step begins only after the active player fully resolves the landing space and all related effects. The one exception: landing on an untouched regular company (Section 7) allows selling other holdings to the bank *before* the buy/skip decision, specifically to raise cash for that purchase — this doesn't count against the landing's own decision, only the eventual Buy or Skip does.
 - During the Trade Step, any player may propose P2P trades involving cash and owned shares. Only the active player may sell shares to the bank, within the per-company half-holding limit.
 - Trades can be for any agreed price: above market, below market, equal to market, or another accepted cash amount. A share-for-share swap values the shares handed over at current market price for cost-basis purposes on both legs.
 - All transfers must happen immediately when accepted.
@@ -742,7 +743,7 @@ Use this checklist when sending the rules to code.
 |---|---|
 | Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares at 11× the current per-share price; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; price ceiling = $5,000; Margin cap = $4,000; Salary = $750/pass ($1,500 landing exactly); starting cash = $35,000/$45,000/$55,000; regular dividend by risk = Low $110/Med $70/High $30; Recovery Bonus = $2,000 when cash is under $3,000 at Market Open |
 | Derived state | Ownership tier, Controller, Sector Portfolio, Sector Control pair ownership, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Strong/Weak Demand markers, Market Meter needle, active Market Condition, Margin balance, Player Loan balances, Outstanding Fees principal/interest, Circuit Breaker holder, remaining stock cost basis, realized/unrealized Stock G/L, salary-adjusted Market Gain |
-| Stock landing | If untouched, offer a full 11-share company buyout at 11× the current per-share price, or skip. If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment (base rate × landing value multiplier × shareholder discount, plus Sector Rent if applicable), with no payment and no Strong Demand marker when the owner lands on their own company, a Contested stock is landed on, or the landing player is still in their first-lap grace |
+| Stock landing | If untouched, offer a full 11-share company buyout at 11× the current per-share price, or skip; selling other holdings to the bank to finance the purchase is allowed before that decision and does not consume the landing's action (only Buy/Skip does). If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment (base rate × landing value multiplier × shareholder discount, plus Sector Rent if applicable), with no payment and no Strong Demand marker when the owner lands on their own company, a Contested stock is landed on, or the landing player is still in their first-lap grace |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |
 | Sell-back | Trade Step action only; pay seller 1 step below market (or floor); selling 3+ shares in one action also moves price down 1 step afterward (unless at floor) — selling 1-2 shares does not move price; mark shares Outstanding on that company, do not reopen normal supply |
 | Outstanding Shares | Only the player landing on that company may buy; any available/affordable quantity at current per-share market price; purchase does not move price; recalculate Payout Claim immediately |
