@@ -17,6 +17,63 @@ const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   milestone: 'PORTFOLIO MILESTONE',
 };
 
+const PRICE_MOVEMENT_GUIDE = [
+  {
+    title: 'Dice → Market Meter',
+    text: 'A roll of 2–6 moves the Meter bearish, 8–12 moves it bullish, and 7 holds. After every player takes a turn, the Meter moves one or two random sectors; the panel below previews the size and direction.',
+  },
+  {
+    title: 'Market Event & Fed cards',
+    text: 'The drawn card names the sectors, risk groups, or companies that move. Most targeted cards also create a separate 1-step ripple in one random eligible sector.',
+  },
+  {
+    title: 'Bull & Bear Runs',
+    text: 'High-Risk stocks move 2 steps, Medium-Risk stocks move 1, Low-Risk stocks stay steady, and revealed IPOs move 1. A Bull Run moves them up; a Bear Run moves them down.',
+  },
+  {
+    title: 'Weak Demand',
+    text: 'Two skips on the same untouched company lower its price 1 step. Its markers remain until the drop happens or somebody buys the company.',
+  },
+  {
+    title: 'Strong Demand & Payout Claims',
+    text: 'A Payout Claim does not raise the price by itself. Two qualifying opponent landings on the same Sold-Out company create Strong Demand and raise that company 1 step.',
+  },
+  {
+    title: 'Buying, selling & private trades',
+    text: 'Buying a company or outstanding shares does not move its price. Selling 3 or more shares to the bank lowers it 1 step. Private player-to-player trades do not move market prices.',
+  },
+] as const;
+
+function PriceMovementGuide() {
+  return (
+    <details style={{
+      marginBottom: 9, borderRadius: 8,
+      background: 'rgba(212,165,53,0.055)', border: '1px solid rgba(212,165,53,0.18)',
+    }}>
+      <summary style={{
+        cursor: 'pointer', padding: '8px 10px', color: 'var(--text)',
+        fontSize: 10.5, fontWeight: 900, letterSpacing: 0.65,
+      }}>
+        HOW STOCK PRICES MOVE · OPEN GUIDE
+      </summary>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6,
+        padding: '0 9px 9px',
+      }}>
+        {PRICE_MOVEMENT_GUIDE.map((item) => (
+          <div key={item.title} style={{
+            padding: '7px 8px', borderRadius: 6,
+            background: 'rgba(74,48,25,0.04)', border: '1px solid rgba(74,48,25,0.08)',
+          }}>
+            <div style={{ color: 'var(--text)', fontSize: 10, fontWeight: 900 }}>{item.title}</div>
+            <div style={{ color: 'var(--muted)', fontSize: 9.5, lineHeight: 1.4, marginTop: 3 }}>{item.text}</div>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 export default function MarketIntelligence() {
   const s = useGameState();
   const latestFed = s.marketSignals.find((signal) => signal.kind === 'fed');
@@ -96,6 +153,8 @@ export default function MarketIntelligence() {
           )}
         </div>
       )}
+
+      <PriceMovementGuide />
 
       {!latestFed ? (
         <div style={{

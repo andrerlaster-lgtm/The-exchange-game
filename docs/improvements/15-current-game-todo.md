@@ -37,7 +37,7 @@ the Deep Audit and reconciled against the current code on 2026-09-18.
 
 ### 1. Improve player understanding
 
-- [ ] **Add a short in-game explanation of stock-price movement.** Cover Market Meter, Market Events/Fed cards, Bull/Bear Runs, Weak Demand, Strong Demand, and Payout Claims.
+- [x] **Add a short in-game explanation of stock-price movement.** The Quick Rules and a collapsible Market Intelligence guide now cover the Market Meter, Market Event/Fed cards and their ripple, Bull/Bear Runs, Weak Demand, Strong Demand/Payout Claims, bank sales, buyouts, and private trades.
 
 ### 2. Decisions needed before changing balance
 
