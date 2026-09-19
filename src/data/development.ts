@@ -41,8 +41,11 @@ export function upgradeLevel(level: DevelopmentLevel): UpgradeLevelDef | null {
   return level === 0 ? null : UPGRADE_LEVELS[level - 1];
 }
 
-/** Market Protection shield. */
-export const SHIELD_COST = 750;
+/** Market Protection shield. Raised from $750 after the 20-round simulation:
+    at $750 the shield was the cheapest way to keep an upgraded company
+    drifting upward. A price sweep showed the price does not move Payout Claim
+    shortfalls either way; it trims how often shields are bought. */
+export const SHIELD_COST = 1_500;
 /** A shield absorbs up to this much of the next eligible external decline. */
 export const SHIELD_ABSORB_BP = 500;
 

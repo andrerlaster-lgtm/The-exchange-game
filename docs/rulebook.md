@@ -729,7 +729,7 @@ A player who **controls** a regular company (6+ shares) may invest in it. ETFs a
 - **Market Open bonus:** flat cash to the investor at their own Market Open. It is not a dividend and is never multiplied.
 - **Downside reduction:** shrinks declines from Weak Demand, the Market Meter, Market Event cards, Fed cards, and Bear Runs. It shrinks a decline by that share (a −10% Market Event becomes −6% at Level Ⅱ) but never removes it entirely or turns it into a rise. It does not apply to bank-sale drops, a player's own sales, or Cyberattack/Regulatory Investigation penalties the player chose.
 
-**Market Protection shield ($750):** one per company, Controller only, does not use the turn's upgrade. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
+**Market Protection shield ($1,500):** one per company, Controller only, does not use the turn's upgrade. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
 
 **Losing control:** if the investor drops below 6 shares — including when another player takes control or ownership becomes contested — the company resets to Base, its shield is removed, and the investor is immediately refunded 40% of their upgrade spending ($800 / $2,400 / $4,400). Upgrades never transfer. Regaining control starts again from Base.
 
