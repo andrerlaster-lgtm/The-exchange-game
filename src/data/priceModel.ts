@@ -81,12 +81,21 @@ export type PriceMoveSource =
   | 'regulatoryChoice'
   | 'investorDay';
 
+/** Player-facing name for each price-move source (logs, tooltips). */
+export const PRICE_MOVE_SOURCE_LABEL: Record<PriceMoveSource, string> = {
+  weakDemand: 'Weak Demand', strongDemand: 'Strong Demand', marketMeter: 'Market Meter',
+  marketEvent: 'Market Event', fedCard: 'Fed card', bullRun: 'Bull Run', bearRun: 'Bear Run',
+  bankSale: 'bank sale', voluntarySale: 'sale', cyberattackChoice: 'Cyberattack penalty',
+  regulatoryChoice: 'Regulatory penalty', investorDay: 'Investor Day',
+};
+
 /**
  * Sources a company upgrade's downside protection (and the Market Protection
  * shield) may reduce. Declines a player brings on themselves — selling into
  * the market, or picking their own company as a card's target — are excluded
- * by design. Consumed by the not-yet-implemented upgrade system; defined here
- * so the source list and the protection rule stay in one place.
+ * by design. Read by engine/development.ts (the optional Company Upgrades
+ * rule); defined here so the source list and the protection rule stay in one
+ * place.
  */
 export const SHIELDABLE_SOURCES: ReadonlySet<PriceMoveSource> = new Set<PriceMoveSource>([
   'weakDemand', 'marketMeter', 'marketEvent', 'fedCard', 'bearRun',

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { TurnPhase } from '../../engine';
 import { blocked, canTradeNow, companyBuyoutCost, developmentOf, fedSignalForStock, gameProgressLabel, getRankedPlayers, getStockMovementStatus, priceOf } from '../../engine';
-import { SECTORS, STOCK_BY_CODE, STOCKS, stockOpportunityFor } from '../../data';
+import { PRICE_MOVE_SOURCE_LABEL, SECTORS, STOCK_BY_CODE, STOCKS, stockOpportunityFor } from '../../data';
 import { useGameState, useDispatch } from '../../store';
 import { buildActionCenter } from '../../utils/buildBoard3DActionCenter';
 import { sync3dBoard, isBoard3DCommand, takeNextBoard3DCommand } from '../../utils/sync3dBoard';
@@ -101,7 +101,7 @@ export default function Board3DSync() {
     }
 
     // Live price snapshot for every regular stock (tiles + hover tooltips)
-    const prices: Record<string, { p: number; d: -1 | 0 | 1; delta: number; s: number; o?: number; so?: boolean; claim?: number | null; lv?: number; sh?: boolean }> = {};
+    const prices: Record<string, { p: number; d: -1 | 0 | 1; delta: number; s: number; o?: number; so?: boolean; claim?: number | null; lv?: number; sh?: boolean; lm?: number; lmWhy?: string }> = {};
     for (const st of STOCKS) {
       const mv = getStockMovementStatus(st.code, s);
       const rec = s.soldOut[st.code];
@@ -115,6 +115,8 @@ export default function Board3DSync() {
         claim: rec ? rec.claimHolder : undefined,
         lv: developmentOf(s, st.code).level,
         sh: developmentOf(s, st.code).shieldActive,
+        lm: s.lastMove?.[st.code]?.pct,
+        lmWhy: s.lastMove?.[st.code] ? `${PRICE_MOVE_SOURCE_LABEL[s.lastMove[st.code].source]} · round ${s.lastMove[st.code].lap}` : undefined,
       };
     }
 

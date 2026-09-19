@@ -11,7 +11,7 @@ import {
 } from '../data';
 import { applyPriceMove } from '../engine/stockState';
 import { priceOf, sellBackPrice, shortPayout } from '../engine';
-import { patch, started } from './helpers';
+import { dispatch, patch, rng, started } from './helpers';
 
 describe('applyBasisPoints', () => {
   it('moves a price by the requested percentage', () => {
@@ -212,5 +212,34 @@ describe('determinism', () => {
       expect(s.prices.MEDI % PRICE_GRID).toBe(0);
       expect(s.prices.MEDI).toBeGreaterThanOrEqual(PRICE_FLOOR);
     }
+  });
+});
+
+describe('last move per stock', () => {
+  it('records the realized percentage, source, and round of each real price change', () => {
+    let s = patch(started(2), (d) => { d.prices.MEDI = 1_000; d.lap = 3; });
+    expect(s.lastMove.MEDI).toBeUndefined();
+    s = patch(s, (d) => { applyPriceMove(d, 'MEDI', -500, 'weakDemand'); });
+    expect(s.lastMove.MEDI).toEqual({ pct: -5, source: 'weakDemand', lap: 3 });
+    s = patch(s, (d) => { d.lap = 4; applyPriceMove(d, 'MEDI', 1_000, 'marketMeter'); });
+    expect(s.lastMove.MEDI.source).toBe('marketMeter');
+    expect(s.lastMove.MEDI.lap).toBe(4);
+    expect(s.lastMove.MEDI.pct).toBeCloseTo(((s.prices.MEDI - 950) / 950) * 100, 10);
+  });
+
+  it('keeps the previous readout when a move changes nothing (price on the floor)', () => {
+    let s = patch(started(2), (d) => { d.prices.MEDI = 125; });
+    s = patch(s, (d) => { applyPriceMove(d, 'MEDI', -500, 'weakDemand'); }); // 125 -> 100
+    const before = s.lastMove.MEDI;
+    s = patch(s, (d) => { applyPriceMove(d, 'MEDI', -500, 'bearRun'); });   // stays 100
+    expect(s.prices.MEDI).toBe(PRICE_FLOOR);
+    expect(s.lastMove.MEDI).toEqual(before);
+  });
+
+  it('is cleared when a new game starts', () => {
+    let s = patch(started(2), (d) => { applyPriceMove(d, 'MEDI', 500, 'strongDemand'); });
+    expect(s.lastMove.MEDI).toBeDefined();
+    s = dispatch(s, { t: 'startGame' }, rng());
+    expect(s.lastMove).toEqual({});
   });
 });

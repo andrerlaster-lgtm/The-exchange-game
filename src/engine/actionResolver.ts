@@ -506,7 +506,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.marketConditions = s.players.map(() => null);
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       s.playerDebts = []; s.playerDebtSeq = 0;
-      s.development = freshDevelopment(); s.upgradedThisTurn = false;
+      s.development = freshDevelopment(); s.upgradedThisTurn = false; s.lastMove = {};
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;

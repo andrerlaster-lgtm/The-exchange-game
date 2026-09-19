@@ -159,6 +159,8 @@ export interface PriceInfo3D {
   claim?: number | null; // Payout Claim holder player index; null = Contested
   lv?: number;      // company development level (0 = Base)
   sh?: boolean;     // Market Protection shield active
+  lm?: number;      // last real price move, realized percent (absent until the stock first moves)
+  lmWhy?: string;   // its cause and round, e.g. "Weak Demand · round 4" (hover tooltip)
 }
 
 export interface Board3DPayload {

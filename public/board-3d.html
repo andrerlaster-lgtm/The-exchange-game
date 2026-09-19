@@ -860,7 +860,7 @@
 
     // Stock tile top face: parchment certificate — sector strip, letterpress ticker,
     // live price, sector glyph + risk chip, sold-out claim band.
-    function makeStockLabel(code, color, price, dir, soldOut=false, claimColor=null, sector=null, risk=0, w=256, dev=0, shield=false) {
+    function makeStockLabel(code, color, price, dir, soldOut=false, claimColor=null, sector=null, risk=0, w=256, dev=0, shield=false, lastPct=null) {
       const spaceN = Object.keys(STOCKS).find(k => STOCKS[k].code===code);
       const sec = sector || (spaceN && STOCKS[spaceN].sector);
       const rk  = risk || (spaceN && STOCKS[spaceN].risk) || 0;
@@ -897,6 +897,14 @@
           ctx.font=`700 ${w*0.12}px 'IBM Plex Mono',monospace`;
           ctx.fillText(dir>0?'▲':'▼', w/2 + w*0.27, w*0.60);
         }
+      }
+      // Last move — the most recent real price change, as a percentage. The
+      // arrow beside the price is direction since opening; this is only the
+      // latest move, so the two can differ.
+      if (lastPct != null && lastPct !== 0) {
+        ctx.fillStyle = lastPct > 0 ? '#1e7a4a' : '#b03a2c';
+        ctx.font=`700 ${w*0.075}px 'IBM Plex Mono',monospace`;
+        ctx.fillText(`${lastPct > 0 ? '▲' : '▼'}${Math.abs(lastPct).toFixed(1)}%`, w/2, w*0.705);
       }
       // Risk chip (lower strip) unless sold out
       if (rk && !soldOut) {
@@ -1230,7 +1238,7 @@
         const color = SECTOR_COLORS[STOCKS[spaceN].sector];
         const claimColor = (info.so && info.claim != null) ? playerColor(info.claim) : null;
         const old = mat.map;
-        mat.map = makeStockLabel(code, color, info.p, info.d, !!info.so, claimColor, null, 0, 256, info.lv || 0, !!info.sh);
+        mat.map = makeStockLabel(code, color, info.p, info.d, !!info.so, claimColor, null, 0, 256, info.lv || 0, !!info.sh, info.lm ?? null);
         mat.needsUpdate = true;
         if (old) old.dispose();
         updateClaimRing(code, claimColor);
@@ -1549,6 +1557,9 @@
             ? `<span style="color:rgba(138,122,104,0.9); font-size:10px; font-weight:400"> · SOLD OUT</span>`
             : `<span style="color:rgba(138,122,104,0.9); font-size:10px; font-weight:400"> · ${info.s} left</span>`;
           html += `<div class="tt-price" style="color:${dirColor}">$${info.p.toLocaleString()}${dirGlyph}${remain}</div>`;
+          if (info.lm != null && info.lm !== 0) {
+            html += `<div style="font-size:11px;color:${info.lm > 0 ? '#1e7a4a' : '#b03a2c'}">Last move ${info.lm > 0 ? '▲' : '▼'}${Math.abs(info.lm).toFixed(1)}%${info.lmWhy ? ` · ${info.lmWhy}` : ''}</div>`;
+          }
           if (info.so) {
             const cc = (info.claim != null) ? playerColor(info.claim) : null;
             const holderName = (info.claim != null && currentPlayers[info.claim]) ? currentPlayers[info.claim].name : null;

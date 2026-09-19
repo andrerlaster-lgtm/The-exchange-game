@@ -1,5 +1,6 @@
-import { UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { PRICE_MOVE_SOURCE_LABEL, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { developmentOf, getStockMovementStatus, sectorPairOwner } from '../../engine';
+import { pct } from '../../utils/formatMoney';
 import { useGameState, useDispatch } from '../../store';
 import { LandingResultBanner } from './ActionPanel';
 import investabearImg from '../../assets/investabear.png';
@@ -195,6 +196,8 @@ export default function BoardTrack() {
             const claimIdx = soldOut?.claimHolder ?? null;
             const claimColor = claimIdx !== null ? PLAYER_COLORS[claimIdx] : null;
             const dev = developmentOf(s, sp.code!);
+            const last = s.lastMove?.[sp.code!];
+            const lastColor = last && last.pct > 0 ? '#1e7a4a' : '#b03a2c';
             const mv = getStockMovementStatus(sp.code!, s);
             const mvColor = mv.direction === 'up' ? '#1e7a4a' : mv.direction === 'down' ? '#b03a2c' : '#8a795e';
             const mvGlyph = mv.direction === 'up' ? '▲' : mv.direction === 'down' ? '▼' : '';
@@ -242,7 +245,8 @@ export default function BoardTrack() {
 
                 {outstanding > 0 && (
                   <span title={`${outstanding} outstanding share${outstanding === 1 ? '' : 's'} · land here to buy`} style={{
-                    position: 'absolute', right: '5%', top: '9%', zIndex: 2,
+                    // Above the ticker letters: at 9% a wide code (GMBX) ran under it.
+                    position: 'absolute', right: '4%', top: '2%', zIndex: 2,
                     fontSize: 5.5, fontWeight: 900, lineHeight: 1,
                     color: '#f4ecd9', background: '#2f6fb0',
                     borderRadius: 3, padding: '2px 3px',
@@ -277,15 +281,39 @@ export default function BoardTrack() {
                   {mvGlyph && <span style={{ fontSize: 7, color: mvColor, fontWeight: 700, lineHeight: 1 }}>{mvGlyph}</span>}
                 </div>
 
-                {/* Risk chip — centered pill (hidden when sold out) */}
-                {!soldOut && (
-                  <div style={{ position: 'absolute', top: '72%', left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
-                    <span style={{
-                      fontSize: 6, fontWeight: 700, letterSpacing: 0.3,
-                      fontFamily: 'IBM Plex Mono, monospace',
-                      background: RISK_CHIP[stock?.risk ?? 'Med'], color: '#f4ecd9',
-                      borderRadius: 3, padding: '1px 5px', lineHeight: 1.4,
-                    }}>{(stock?.risk ?? '').toUpperCase()}</span>
+                {/* Bottom row — risk chip (hidden when sold out) beside the last
+                    move. Tiles are ~39px square at laptop sizes, so the last
+                    move shares this row rather than taking a line of its own;
+                    it is rounded to a whole percent here, with the exact figure,
+                    cause and round in the tooltip. The ▲/▼ beside the price is
+                    direction since OPENING — this is only the latest move. */}
+                {(!soldOut || last) && (
+                  <div style={{
+                    // Sold out: no risk chip, so the last move takes this row
+                    // alone, sitting a little higher and smaller to stay clear
+                    // of both the price and the claim band below it.
+                    position: 'absolute', top: soldOut ? '70%' : '72%', left: 0, right: 0,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2,
+                  }}>
+                    {!soldOut && (
+                      <span style={{
+                        fontSize: 6, fontWeight: 700, letterSpacing: 0.3,
+                        fontFamily: 'IBM Plex Mono, monospace',
+                        background: RISK_CHIP[stock?.risk ?? 'Med'], color: '#f4ecd9',
+                        borderRadius: 3, padding: last ? '1px 3px' : '1px 5px', lineHeight: 1.4,
+                      }}>{(stock?.risk ?? '').toUpperCase()}</span>
+                    )}
+                    {last && (
+                      <span
+                        title={`Last move ${pct(last.pct)} · ${PRICE_MOVE_SOURCE_LABEL[last.source]} · round ${last.lap}`}
+                        style={{
+                          fontFamily: 'IBM Plex Mono, monospace', fontSize: soldOut ? 5.5 : 6, fontWeight: 700,
+                          lineHeight: 1, color: lastColor,
+                        }}
+                      >
+                        {last.pct > 0 ? '▲' : '▼'}{Math.abs(last.pct) >= 1 ? Math.round(Math.abs(last.pct)) : Math.abs(last.pct).toFixed(1)}%
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -303,10 +331,14 @@ export default function BoardTrack() {
                   </div>
                 )}
 
-                {/* Weak-demand marker — bottom-right corner */}
+                {/* Weak-demand marker — top-right corner. It used to sit bottom-
+                    right, but the bottom row now holds the risk chip AND the last
+                    move. Top-right is the Outstanding Shares ("OUT") badge's slot,
+                    and the two never coexist: weak-demand markers only count on
+                    untouched companies, outstanding shares only exist once sold out. */}
                 {!soldOut && weakCount > 0 && (
                   <span style={{
-                    position: 'absolute', bottom: 1, right: 1,
+                    position: 'absolute', top: '2%', right: '4%', zIndex: 2,
                     fontSize: 6, fontWeight: 700,
                     background: '#b03a2c', color: '#fbe3dd',
                     borderRadius: 2, padding: '1px 3px', lineHeight: 1,

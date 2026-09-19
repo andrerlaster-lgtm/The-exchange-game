@@ -4,7 +4,7 @@
 
 import {
   CONTROL_THRESHOLD_REGULAR, MAX_DEVELOPMENT_LEVEL, SHIELD_ABSORB_BP, SHIELD_COST,
-  DEVELOPMENT_MIN_CASH_AFTER, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
+  DEVELOPMENT_MIN_CASH_AFTER, PRICE_MOVE_SOURCE_LABEL, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
   developmentRefund, isIpoCode, upgradeLevel,
 } from '../data';
 import type { DevelopmentLevel, PriceMoveSource } from '../data';
@@ -30,13 +30,6 @@ export function isController(s: GameState, player: number, code: string): boolea
   if (isIpoCode(code) || !STOCK_BY_CODE[code]) return false;
   return (s.players[player]?.shares[code] ?? 0) >= CONTROL_THRESHOLD_REGULAR;
 }
-
-const SOURCE_LABEL: Record<PriceMoveSource, string> = {
-  weakDemand: 'Weak Demand', strongDemand: 'Strong Demand', marketMeter: 'Market Meter',
-  marketEvent: 'Market Event', fedCard: 'Fed card', bullRun: 'Bull Run', bearRun: 'Bear Run',
-  bankSale: 'bank sale', voluntarySale: 'sale', cyberattackChoice: 'Cyberattack penalty',
-  regulatoryChoice: 'Regulatory penalty', investorDay: 'Investor Day',
-};
 
 // ── Purchase eligibility ────────────────────────────────────────────────────
 
@@ -166,7 +159,7 @@ export function protectMove(s: GameState, code: string, before: number, bp: numb
   if (def) {
     // Remove a share of the decline; a decline shrinks but never flips to a rise.
     result = Math.min(0, Math.round(bp * (1 - def.downsidePct / 100)));
-    const label = SOURCE_LABEL[source];
+    const label = PRICE_MOVE_SOURCE_LABEL[source];
     addLog(s, result === 0
       ? `${code} Level ${def.numeral} resilience fully absorbs a ${pct(bp / 100)} ${label}.`
       : `${code} reduces a ${pct(bp / 100)} ${label} to ${pct(result / 100)} through Level ${def.numeral} resilience.`, 'g');

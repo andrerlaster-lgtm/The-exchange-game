@@ -56,6 +56,13 @@ export function applyPriceMove(
   if (ipo) ipo.price = after;
   else s.prices[code] = after;
 
+  // Only a real change counts as the "last move": a decline absorbed by the
+  // floor or fully by protection leaves the previous readout in place.
+  if (after !== before) {
+    s.lastMove ??= {};
+    s.lastMove[code] = { pct: ((after - before) / before) * 100, source, lap: s.lap };
+  }
+
   return { before, after, delta: after - before, pct: before === 0 ? 0 : ((after - before) / before) * 100 };
 }
 

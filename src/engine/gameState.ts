@@ -85,6 +85,7 @@ export function initialState(rng: Rng): GameState {
     regulatoryInvestigationPrompt: null,
     payoutShortfallChoice: null,
     loanRatePrompt: null,
+    lastMove: {},
     development: freshDevelopment(),
     upgradedThisTurn: false,
     regimeRollPrompt: null,

@@ -2,6 +2,7 @@
 // produces new state via Immer. No DOM, no React here.
 
 import type { Card, DeckId, Effect } from '../data/types';
+import type { PriceMoveSource } from '../data/priceModel';
 
 export type Phase = 'setup' | 'orderRoll' | 'play' | 'over';
 export type TurnPhase = 'preRoll' | 'acted';
@@ -110,6 +111,14 @@ export interface IpoState {
   price: number;      // current live price in dollars
   supply: number;     // shares remaining
   revealed: boolean;
+}
+
+/** The most recent price change that actually moved a code, for the board's
+    "last move" readout. Recorded in applyPriceMove, so every source is covered. */
+export interface LastPriceMove {
+  pct: number;              // realized percentage, after the $25 grid and floor
+  source: PriceMoveSource;
+  lap: number;              // round it happened in
 }
 
 /** Per-regular-company development record (2026-09-19 upgrades). `fundedBy`
@@ -480,6 +489,7 @@ export interface GameState {
   regulatoryInvestigationPrompt: RegulatoryInvestigationPrompt | null;
   payoutShortfallChoice: PayoutShortfallChoice | null; // debtor choice: force-sell vs. negotiate a loan
   loanRatePrompt: LoanRatePrompt | null;               // creditor's pending 1-5% rate choice
+  lastMove: Record<string, LastPriceMove>;          // code -> the most recent real price change (board tiles)
   development: Record<string, CompanyDevelopment>;    // regular stock code -> upgrade level, shield, funder
   upgradedThisTurn: boolean;                          // one permanent upgrade per player turn (survives doubles re-rolls)
   regimeRollPrompt: { player: number } | null;         // pending d6 roll on the combined Market Swing space to decide Bull vs. Bear
