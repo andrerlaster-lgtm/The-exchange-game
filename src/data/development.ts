@@ -23,10 +23,15 @@ export interface UpgradeLevelDef {
 // could never lower a Level III company while every rise still landed — a
 // one-way ratchet that drove those companies 60-132% above opening in the
 // simulation. Removing a share of each decline keeps every decline real.
+//
+// Claim bonuses were halved (from $750/$1,500/$2,500) after the 20-round
+// simulation: at the original values, upgraded companies raised Payout Claim
+// shortfalls from 1-3 to 16-29 per 24 games. Halving roughly halved that excess;
+// the rest comes from upgrade spending itself, not the bonus.
 export const UPGRADE_LEVELS: readonly UpgradeLevelDef[] = [
-  { level: 1, numeral: 'Ⅰ', cost: 2_000, totalInvested: 2_000, claimBonus: 750, marketOpenBonus: 100, downsidePct: 20 },
-  { level: 2, numeral: 'Ⅱ', cost: 4_000, totalInvested: 6_000, claimBonus: 1_500, marketOpenBonus: 200, downsidePct: 40 },
-  { level: 3, numeral: 'Ⅲ', cost: 5_000, totalInvested: 11_000, claimBonus: 2_500, marketOpenBonus: 300, downsidePct: 60 },
+  { level: 1, numeral: 'Ⅰ', cost: 2_000, totalInvested: 2_000, claimBonus: 400, marketOpenBonus: 100, downsidePct: 20 },
+  { level: 2, numeral: 'Ⅱ', cost: 4_000, totalInvested: 6_000, claimBonus: 800, marketOpenBonus: 200, downsidePct: 40 },
+  { level: 3, numeral: 'Ⅲ', cost: 5_000, totalInvested: 11_000, claimBonus: 1_250, marketOpenBonus: 300, downsidePct: 60 },
 ];
 
 export const MAX_DEVELOPMENT_LEVEL = 3;

@@ -7,7 +7,7 @@
 // exact. Run with `npm run sim`.
 
 import { describe, it } from 'vitest';
-import { PAYOUT_CLAIM_TOTAL_CAP, STOCK_BY_CODE, developmentRefund } from '../../data';
+import { PAYOUT_CLAIM_TOTAL_CAP, STOCK_BY_CODE, UPGRADE_LEVELS, developmentRefund } from '../../data';
 import type { GameState } from '../../engine';
 import { makeRng } from '../../utils/rng';
 import { initialState, reduce } from '../../engine';
@@ -61,7 +61,7 @@ function observer(st: Stats): Observer {
     if (notice && notice.kind === 'payout' && notice !== before.landingNotice) {
       const code = notice.title.split('· ').pop()!.trim();
       const lost = /only \$([\d,]+) applies/.exec(notice.detail);
-      const bonus = [0, 750, 1_500, 2_500][after.development[code]?.level ?? 0];
+      const bonus = UPGRADE_LEVELS[(after.development[code]?.level ?? 0) - 1]?.claimBonus ?? 0;
       st.claims.push({
         owed: notice.amount,
         level: after.development[code]?.level ?? 0,

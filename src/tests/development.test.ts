@@ -185,13 +185,18 @@ describe('Payout Claim bonus and the $10,000 cap', () => {
   });
 
   it('never lets the combined landing payment exceed $10,000, and discloses the usable bonus', () => {
-    // FTRB opens at $1,000 (Premium). At $2,000 the space is worth 2x, so the
-    // Controller claim is 4 x $1,000 x 2 = $8,000. Level III adds $2,500 for
-    // $10,500, which the cap trims to $10,000 — only $2,000 of the bonus lands.
-    expect(landingOwed(atLevel(0, { price: 2_000 })).owed).toBe(8_000);
-    const { owed, detail } = landingOwed(atLevel(3, { price: 2_000 }));
+    // FTRB opens at $1,000 (Premium). With the Finance Sector Portfolio the
+    // Controller multiplier is 6x, and at $1,500 the space is worth 1.5x:
+    // 6 x $1,000 x 1.5 = $9,000. Level III adds $1,250 for $10,250, which the
+    // cap trims to $10,000 — only $1,000 of the bonus lands.
+    const withPortfolio = (level: 0 | 3) => patch(atLevel(level, { price: 1_500 }), (d) => {
+      d.players[0].shares.PAYW = 1;
+      d.players[0].shares.APEX = 1;
+    });
+    expect(landingOwed(withPortfolio(0)).owed).toBe(9_000);
+    const { owed, detail } = landingOwed(withPortfolio(3));
     expect(owed).toBe(PAYOUT_CLAIM_TOTAL_CAP);
-    expect(detail).toContain('only $2,000 applies under the $10,000 cap');
+    expect(detail).toContain('only $1,000 applies under the $10,000 cap');
   });
 });
 

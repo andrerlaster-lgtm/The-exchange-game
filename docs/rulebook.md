@@ -721,9 +721,9 @@ A player who **controls** a regular company (6+ shares) may invest in it. ETFs a
 
 | Level | Cost | Total spent | Payout Claim bonus | Market Open bonus | Downside reduction |
 |---|---:|---:|---:|---:|---:|
-| Ⅰ | $2,000 | $2,000 | +$750 | +$100 | 20% of each decline |
-| Ⅱ | $4,000 | $6,000 | +$1,500 | +$200 | 40% of each decline |
-| Ⅲ | $5,000 | $11,000 | +$2,500 | +$300 | 60% of each decline |
+| Ⅰ | $2,000 | $2,000 | +$400 | +$100 | 20% of each decline |
+| Ⅱ | $4,000 | $6,000 | +$800 | +$200 | 40% of each decline |
+| Ⅲ | $5,000 | $11,000 | +$1,250 | +$300 | 60% of each decline |
 
 - **Payout Claim bonus:** a flat amount added after the normal claim and any Market Condition adjustment, then Sector Rent is added, then the $10,000 total cap applies. The landing result shows how much of the bonus survived the cap.
 - **Market Open bonus:** flat cash to the investor at their own Market Open. It is not a dividend and is never multiplied.
