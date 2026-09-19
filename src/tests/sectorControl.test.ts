@@ -7,7 +7,7 @@
 // untouched one.
 
 import { describe, expect, it } from 'vitest';
-import { SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
+import { ladderStep, PAYOUT_CLAIM_TOTAL_CAP, SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
 import { claimPayoutForLanding } from '../engine/soldOut';
 import { controlledSectorPairs, sectorPairOwner } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
@@ -90,6 +90,29 @@ describe('Sector Rent stacks on the Payout Claim', () => {
       amount: claimOwed,
     });
     expect(s.payoutShortfallChoice?.owed).toBe(claimOwed);
+  });
+
+  it('caps the final combined Payout Claim and Sector Rent at $10,000', () => {
+    const premiumPair = SECTOR_PAIRS.speculativePlays; // SNKR + APEX
+    let s = started(2);
+    s = patch(s, (d) => {
+      for (const code of premiumPair.codes) {
+        d.supply[code] = 0;
+        d.soldOut[code] = { code, claimHolder: 1 };
+        d.players[1].shares[code] = 11;
+      }
+      // Complete APEX's Finance sector so its boosted claim reaches $12,000
+      // at 2× opening value, before the pair's $350 Sector Rent is added.
+      d.players[1].shares.FTRB = 1;
+      d.players[1].shares.PAYW = 1;
+      d.prices.APEX = ladderStep(2_000);
+      d.cur = 0;
+    });
+    s = rollTo(s, STOCK_BY_CODE.APEX.space);
+
+    expect(s.landingNotice?.amount).toBe(PAYOUT_CLAIM_TOTAL_CAP);
+    expect(s.payoutShortfallChoice?.owed).toBe(PAYOUT_CLAIM_TOTAL_CAP);
+    expect(s.landingNotice?.detail).toContain('combined $12,350 charge is capped at $10,000');
   });
 
   it('never charges Sector Rent to a player landing on their own controlled pair', () => {

@@ -22,7 +22,7 @@ import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, finalizeCard, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
 import { pushFeeEvent } from './feeLog';
-import { topOwner, recomputeClaim, claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from './soldOut';
+import { capPayoutClaimTotal, topOwner, recomputeClaim, claimPayoutForLanding, landingValueMultiplier, shareholderLandingDiscount } from './soldOut';
 import { hasSectorPortfolio } from './sector';
 import { sectorPairOwner } from './sectorControl';
 import { effectImpacts, recordClaimTakeover, recordMarketSignal } from './marketSignals';
@@ -203,7 +203,9 @@ function resolveLanding(s: GameState, pi: number): void {
           const controlsPair = !!pairDef && sectorPairOwner(s, pairId!) === rec.claimHolder;
           const rentMultiplier = marketConditionSectorRentMultiplier(s, rec.claimHolder);
           const sectorRent = controlsPair ? pairDef!.rent * rentMultiplier : 0;
-          const owed = claimOwed + sectorRent;
+          const uncappedOwed = claimOwed + sectorRent;
+          const owed = capPayoutClaimTotal(claimOwed, sectorRent);
+          const capApplied = owed < uncappedOwed;
           // Landing no longer force-pays from cash automatically — the debtor
           // gets a real choice (pay cash now, force-sell stock, or negotiate a
           // loan with the creditor at a rate the creditor picks, 1-5%/turn)
@@ -214,6 +216,7 @@ function resolveLanding(s: GameState, pi: number): void {
             (multiplier > 1 ? ` · space value ${multiplier}×` : '') +
             (discount > 0 ? ` · ${Math.round(discount * 100)}% shareholder discount` : '') +
             (sectorRent > 0 ? ` + ${money(sectorRent)} Sector Rent · ${pairDef!.name}${rentMultiplier > 1 ? ' (Toll Hike ×2)' : ''}` : '') +
+            (capApplied ? ` · capped at ${money(owed)}` : '') +
             ')', 'r');
           s.landingNotice = {
             kind: 'payout',
@@ -223,7 +226,8 @@ function resolveLanding(s: GameState, pi: number): void {
             paidFromCash: 0,
             remaining: owed,
             detail: `${money(claimOwed)} Payout Claim is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}${conditionAdjustment !== 0 ? `; ${holder.name}'s ${s.marketConditions[rec.claimHolder]?.title} ${conditionAdjustment > 0 ? 'adds' : 'reduces it by'} ${money(Math.abs(conditionAdjustment))}` : ''}` +
-              (sectorRent > 0 ? `, plus ${money(sectorRent)} Sector Rent for controlling ${pairDef!.name} (${pairDef!.codes.join(' + ')})${rentMultiplier > 1 ? ' — doubled by Toll Hike' : ''}` : '') + '.',
+              (sectorRent > 0 ? `, plus ${money(sectorRent)} Sector Rent for controlling ${pairDef!.name} (${pairDef!.codes.join(' + ')})${rentMultiplier > 1 ? ' — doubled by Toll Hike' : ''}` : '') +
+              (capApplied ? `; the combined ${money(uncappedOwed)} charge is capped at ${money(owed)}` : '') + '.',
             canDefer: false,
           };
           const hasSellable = Object.keys(p.shares).some((c) => !isIpoCode(c) && (p.shares[c] ?? 0) > 0);

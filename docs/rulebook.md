@@ -159,7 +159,7 @@ Each turn follows the same order unless a card or special rule changes it.
 Market Open is the payday space. It is not a Market Event trigger.
 
 **Market Open payout order**
-1. Pay salary: $750 per pass, doubled to $1,500 for landing exactly on Market Open instead of passing over it (Section 5).
+1. Pay salary: $2,000 per pass, doubled to $4,000 for landing exactly on Market Open instead of passing over it (Section 5).
 2. Pay Dividends for all eligible regular stock and IPO holdings (see Section 8).
 3. Apply Controller dividend multipliers where applicable (1.5×).
 4. Pay ETF payouts and any ETF Full-Diversification bonus (see Section 18).
@@ -325,7 +325,7 @@ Sold-Out status is the mid-game claim system. It turns limited share supply into
 
 **Putting it together**
 
-Final Payout Claim = round( base rate (Section 7, or the boosted Sector Portfolio rate from Section 16 if the holder has completed that sector) × landing value multiplier × (1 − shareholder discount) / $50 ) × $50, minimum $50, then adjusted by any active Market Condition (Section 6). Sector Rent (Section 12), if it applies, is added on top of this total afterward — it is a separate flat toll, never multiplied or discounted.
+Final Payout Claim = round( base rate (Section 7, or the boosted Sector Portfolio rate from Section 16 if the holder has completed that sector) × landing value multiplier × (1 − shareholder discount) / $50 ) × $50, minimum $50, then adjusted by any active Market Condition (Section 6). Sector Rent (Section 12), if it applies, is added afterward as a separate flat toll that is never multiplied or discounted. The final combined charge from one landing is capped at **$10,000** after all adjustments and Sector Rent.
 
 **Payout Claim transfer timing**
 - The Payout Claim transfers immediately whenever an ownership change — bank sell-back, outstanding-share purchase, or P2P trade — makes a different player the clear top owner.

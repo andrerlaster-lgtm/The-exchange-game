@@ -41,7 +41,7 @@ the Deep Audit and reconciled against the current code on 2026-09-18.
 
 ### 2. Decisions needed before changing balance
 
-- [ ] **Payout Claim amounts:** decide whether stacked Sector Control, price multipliers, and sector rent should remain as they are or have a cap.
+- [x] **Payout Claim amounts:** the final combined charge is capped at $10,000 after the shareholder discount, Market Condition adjustment, and Sector Rent. The landing result explains when the cap prevents a larger charge.
 - [ ] **Stock risk and dividends:** decide whether low-risk companies should have lower dividends, or high-risk companies should receive stronger upside.
 - [ ] **Player-loan interest:** decide whether the d6 rate should matter at small loan sizes; if yes, revise the minimum/rounding rule.
 - [ ] **Sold-Out ownership tiers and Bull/Bear Run payouts:** decide whether partial-owner Payout Claim tiers should be more common and whether Runs should create less automatic bank money.
