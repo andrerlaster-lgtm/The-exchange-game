@@ -126,26 +126,26 @@ describe('upgrade purchase and control', () => {
     expect(s.development[CODE]).toMatchObject({ level: 1, shieldActive: true });
   });
 
-  it('requires $20,000 in cash left over after paying for an upgrade', () => {
-    // Level I costs $2,000: $22,000 is exactly enough, $21,999 is not.
-    const exact = up(controlled(11, 22_000));
+  it('requires $5,000 in cash left over after paying for an upgrade', () => {
+    // Level I costs $2,000: $7,000 is exactly enough, $6,999 is not.
+    const exact = up(controlled(11, 7_000));
     expect(exact.development[CODE].level).toBe(1);
     expect(exact.players[0].cash).toBe(DEVELOPMENT_MIN_CASH_AFTER);
 
-    const short = controlled(11, 21_999);
-    expect(upgradeBlockReason(short, CODE)).toMatch(/must keep \$20,000 in cash after upgrading/);
+    const short = controlled(11, 6_999);
+    expect(upgradeBlockReason(short, CODE)).toMatch(/must keep \$5,000 in cash after upgrading/);
     expect(up(short).development[CODE].level).toBe(0);
-    expect(up(short).players[0].cash).toBe(21_999);
+    expect(up(short).players[0].cash).toBe(6_999);
   });
 
-  it('the same $20,000 floor applies to shields', () => {
-    // A shield costs $1,500: $21,500 is exactly enough, $21,499 is not.
-    const exact = shield(controlled(11, 21_500));
+  it('the same $5,000 floor applies to shields', () => {
+    // A shield costs $1,500: $6,500 is exactly enough, $6,499 is not.
+    const exact = shield(controlled(11, 6_500));
     expect(exact.development[CODE].shieldActive).toBe(true);
     expect(exact.players[0].cash).toBe(DEVELOPMENT_MIN_CASH_AFTER);
 
-    const short = controlled(11, 21_499);
-    expect(shieldBlockReason(short, CODE)).toMatch(/must keep \$20,000 in cash after buying it/);
+    const short = controlled(11, 6_499);
+    expect(shieldBlockReason(short, CODE)).toMatch(/must keep \$5,000 in cash after buying it/);
     expect(shield(short).development[CODE].shieldActive).toBe(false);
   });
 

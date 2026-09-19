@@ -50,9 +50,10 @@ export const MAX_DEVELOPMENT_LEVEL = 3;
  * later needed for claims, not from any price. A floor sweep then showed
  * $10,000 on upgrades alone barely helped (52 shortfalls vs 16 with upgrades
  * off, 24 games per player count); $20,000 covering shields as well came
- * closest (27).
+ * closest (27). Lowered to $5,000 on 2026-09-19 by design choice: as prices
+ * rise, keeping $20,000 idle made upgrades nearly unreachable.
  */
-export const DEVELOPMENT_MIN_CASH_AFTER = 20_000;
+export const DEVELOPMENT_MIN_CASH_AFTER = 5_000;
 
 /** The benefits a company has at a given level (level 0 = Base, no benefits). */
 export function upgradeLevel(level: DevelopmentLevel): UpgradeLevelDef | null {
