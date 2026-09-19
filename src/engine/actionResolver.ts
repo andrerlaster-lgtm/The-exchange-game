@@ -1040,8 +1040,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const effect: Effect = { k: 'regime', regime };
       const title = regime === 'bull' ? 'Bull Run' : 'Bear Run';
       const summary = regime === 'bull'
-        ? 'High Risk +2, Medium Risk +1, Low Risk unchanged, and revealed IPOs +1. Stance cash resolves for every player.'
-        : 'High Risk −2, Medium Risk −1, Low Risk +1, and revealed IPOs −1. Stance cash resolves for every player.';
+        ? 'High Risk +20%, Medium Risk +10%, Low Risk unchanged, and revealed IPOs +5%. Stance cash resolves for every player.'
+        : 'High Risk −20%, Medium Risk −10%, Low Risk unchanged, and revealed IPOs −5%. Stance cash resolves for every player.';
       addLog(s, `${s.players[s.cur].name} rolls ${roll} — ${title}! The entire market reacts.`, regime === 'bull' ? 'g' : 'r');
       recordMarketSignal(s, { kind: 'regime', title, summary, impacts: effectImpacts(s, effect) });
       beginMarketEventEffect(s, effect);

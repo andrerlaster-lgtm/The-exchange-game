@@ -1,6 +1,7 @@
 import { STOCKS } from '../../data';
 import { getStockMovementStatus, priceOf } from '../../engine';
 import type { GameState } from '../../engine';
+import { money, pct } from '../../utils/formatMoney';
 import { useGameState } from '../../store';
 import MarketRegimeBadge from './MarketRegimeBadge';
 
@@ -8,7 +9,8 @@ interface TickerEntry {
   code: string;
   price: number;
   direction: 'up' | 'down' | 'flat';
-  difference: number;
+  difference: number;   // dollars from opening
+  pctFromOpen: number;  // percent from opening
 }
 
 function tickerEntries(s: GameState): TickerEntry[] {
@@ -19,6 +21,7 @@ function tickerEntries(s: GameState): TickerEntry[] {
       price: priceOf(s, stock.code),
       direction: movement.direction,
       difference: movement.difference,
+      pctFromOpen: movement.pctFromOpen,
     };
   });
 }
@@ -28,16 +31,18 @@ function TickerGroup({ entries, hidden = false }: { entries: TickerEntry[]; hidd
     <div className="market-ticker-group" aria-hidden={hidden || undefined}>
       {entries.map((entry) => {
         const glyph = entry.direction === 'up' ? '▲' : entry.direction === 'down' ? '▼' : '—';
-        const steps = `${entry.difference > 0 ? '+' : ''}${entry.difference}`;
+        // Percentage is the headline number under the percentage market model;
+        // the dollar move rides along in the tooltip for players settling by hand.
+        const move = entry.direction === 'flat' ? '—' : pct(entry.pctFromOpen);
         return (
           <span
             className={`market-ticker-entry ${entry.direction}`}
             key={entry.code}
-            title={`${entry.code} is ${Math.abs(entry.difference)} step${Math.abs(entry.difference) === 1 ? '' : 's'} ${entry.direction} from its opening price`}
+            title={`${entry.code} is ${money(Math.abs(entry.difference))} (${pct(entry.pctFromOpen)}) ${entry.direction} from its opening price`}
           >
             <strong>{entry.code}</strong>
             <span>${entry.price.toLocaleString()}</span>
-            <span className="market-ticker-move">{glyph} {steps}</span>
+            <span className="market-ticker-move">{glyph} {move}</span>
           </span>
         );
       })}

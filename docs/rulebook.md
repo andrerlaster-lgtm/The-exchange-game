@@ -62,7 +62,7 @@ The setup screen offers two winning-score modes:
 **Final Portfolio Value**
 - Cash on hand
 - Plus the current market value of all owned regular stock shares
-- Plus the current value of owned IPO holdings, plus owned ETF holdings valued at their fixed purchase/card price (see Section 18; ETFs have no price ladder)
+- Plus the current value of owned IPO holdings, plus owned ETF holdings valued at their fixed purchase/card price (see Section 18; ETFs have no live market price)
 - Minus outstanding Margin balance (see Section 20, Margin System)
 - Minus any unpaid Player Loan balance owed to another player (see Section 13)
 - Minus Outstanding Fees principal and accumulated interest
@@ -84,7 +84,7 @@ The setup screen offers two winning-score modes:
 - Player tokens: Bull, Bear, Money Bill, Laptop, Calculator, Vault
 - Cash or digital bank balances
 - Share supply trackers
-- Price ladder / market price tracker, including floor and ceiling markers
+- Market price tracker, including the $100 floor marker and the $5,000 Market Event mark
 - A single shared Market Meter needle (see Section 21)
 - Weak Demand markers and Strong Demand markers
 - Payout Claim cards or markers
@@ -98,7 +98,7 @@ The setup screen offers two winning-score modes:
 
 - Each player chooses a token and receives the starting cash selected at setup: $35,000, $45,000, or $55,000. The default is $35,000.
 - Place all player tokens on Market Open.
-- Set each regular stock to its starting market price using the app price ladder or printed stock card. No stock may start above the $5,000 ceiling or below the $100 floor.
+- Set each regular stock to its starting market price from the app or its printed stock card. Every price is a multiple of $25 and never below the $100 floor.
 - Place 11 market shares in supply for each regular stock.
 - Shuffle the combined Market Event deck and The Fed deck separately. Shuffle the 4 IPO cards into their own shared reveal queue.
 - Set all 4 IPO cards face down in a single shared reveal queue (see Section 19). None are available for purchase until revealed.
@@ -107,7 +107,7 @@ The setup screen offers two winning-score modes:
 - Set the Market Meter needle to 0 (Neutral).
 - Determine the first player by the app, by highest dice roll, or by table agreement.
 
-**Note:** Starting cash, salary amount, exact price ladder values, dividend per-share amount, and any fixed ETF purchase prices should use the current app defaults until playtesting locks the final values.
+**Note:** Starting cash, salary amount, opening share prices, dividend per-share amount, and any fixed ETF purchase prices should use the current app defaults until playtesting locks the final values.
 
 ## 4. Board and Space Types
 
@@ -220,7 +220,7 @@ Fresh shares can only be bought by landing on that stock space or resolving a ca
 
 **Landing on an untouched regular company**
 - The active player may buy the entire company or skip. Partial purchases from normal market supply are not allowed.
-- A full-company purchase costs 11× the company's *current* per-share market price at the moment of purchase — not a one-time fixed tier price. At opening this is $5,500 (Starter), $8,250 (Growth), or $11,000 (Premium); it moves with the company's own price ladder from there.
+- A full-company purchase costs 11× the company's *current* per-share market price at the moment of purchase — not a one-time fixed tier price. At opening this is $5,500 (Starter), $8,250 (Growth), or $11,000 (Premium); it moves with the company's own live price from there.
 - The buyer receives all 11 shares, normal market supply becomes 0, the company becomes permanently Sold Out, and the buyer receives its Payout Claim.
 - The purchase does not move the live per-share market price — the buyer's cost basis for all 11 shares always equals their market value at the moment of purchase, by design: acquiring an asset must never, by itself, create a paper gain or loss.
 - If the player can afford the purchase and explicitly skips anyway, add a Weak Demand marker (Section 9). A skip forced by insufficient cash never adds one.
@@ -385,9 +385,9 @@ Selling back to the bank is allowed, but it does not reopen a Sold-Out company. 
 **Sell Back to Bank**
 - Selling to the bank is available to the active player after rolling and resolving required actions. It is not available during the Market Open Trading Window.
 - During one turn, a player may sell up to half of each regular-stock holding back to the bank, rounded down. Multiple sales of the same company share that cumulative limit.
-- The seller receives one price step below the current market price for each share sold.
-- If the stock is already at the lowest price step ($100 floor), use the floor price.
-- Selling 3 or more shares in one bank-sale action moves that stock down one price step, unless it is already at the $100 floor. Selling 1 or 2 shares does not move its price.
+- The seller receives the current market price less a 20% bank haircut for each share sold.
+- The sell-back price is never below the $100 floor.
+- Selling 3 or more shares in one bank-sale action moves that stock down 5%, unless it is already at the $100 floor. Selling 1 or 2 shares does not move its price.
 - Every regular stock and IPO purchase records actual cost basis. A full-company purchase uses its actual 11×-live-price buyout cost (Section 7) as the total basis for all 11 shares. IPOs, outstanding-share purchases, and private trades use the actual amount paid — including the market value of any shares handed over as part of the trade, not just cash.
 - **Unrealized stock gain/loss** = current market value of shares still held − their remaining cost basis.
 - When shares are sold, their proportional average basis is removed from the holding. **Realized gain/loss** = sale proceeds − removed basis.
@@ -495,7 +495,7 @@ ETFs are a diversification route and Market Open income source. They should not 
 - ETFs do not have ownership tiers, Controllers, Sector Portfolio status, or Weak/Strong Demand. They do have their own landing fee, described below — a separate mechanic from the regular-stock Payout Claim system, not a duplicate of it.
 - ETFs may be traded during legal trading windows unless a card or app setting says otherwise.
 - ETF payouts should remain clear and simple so they act as a lower-conflict strategy path.
-- ETFs have no price ladder. For all net-worth calculations (Final Portfolio Value and Portfolio Tax), owned ETF holdings are valued at their fixed purchase/card price.
+- ETFs have no live market price. For all net-worth calculations (Final Portfolio Value and Portfolio Tax), owned ETF holdings are valued at their fixed purchase/card price.
 
 **ETF payout table**
 
@@ -546,7 +546,7 @@ All 4 IPOs start at a fixed price of $3,000 per share. There is no tiered starti
 
 **IPO Price Movement**
 - IPO share prices do not move from buying or selling. IPO prices change only through Market Event cards, the Market Meter (Section 21), and other card effects.
-- IPOs are more exposed to market volatility than regular stocks: their value is driven by Market Events and the Market Meter rather than by buy/sell price steps.
+- IPOs are more exposed to market volatility than regular stocks: their value is driven by Market Events and the Market Meter rather than by buy/sell price moves.
 - The $100 floor and $5,000 ceiling still apply to IPO prices.
 - IPO prices do not move before being revealed.
 
@@ -623,11 +623,11 @@ The Market Meter is the game's ambient, round-guaranteed source of market moveme
 | The Fed | Draw and resolve 1 Fed card. |
 | Market Swing — space 19 | Roll a d6: 1-3 resolves as a Bear Run, 4-6 resolves as a Bull Run. Then resolve that Run's stock movements and every player's current stance, and reset all players to Balanced. Circuit Breaker may protect one affected owned company from a Bear Run roll. |
 | IPO | Resolve IPO reveal/purchase per Section 19. |
-| Investor Day — space 31 | Choose Company Growth or Insider Information. Company Growth moves 1 owned regular company below the $5,000 ceiling up 1 price step; reaching $5,000 triggers a Market Event. If none qualifies, collect $500. Insider Information reveals the title and effect of the next Market Event without drawing, resolving, or removing that card from the top of the deck. |
+| Investor Day — space 31 | Choose Company Growth or Insider Information. Company Growth raises 1 owned regular company by 5%; crossing $5,000 triggers a Market Event. If you own no regular company, collect $500. Insider Information reveals the title and effect of the next Market Event without drawing, resolving, or removing that card from the top of the deck. |
 | Portfolio Tax | Charge equals 10% of current net worth. Choose Pay Now or Carry as Debt under Outstanding Fees. |
 | Audit Notice | Charge equals 5% of current net worth, rounded to the nearest $100, with a $500 minimum. Outstanding Margin raises the rate to 7.5% with a $750 minimum. Choose Pay Now or Carry as Debt. |
 
-**Investor Day rollback note:** The previous rule is retained here in case playtesting favors it: choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step; if no owned company can rise, automatically collect $500. This version had no Insider Information choice.
+**Investor Day rollback note:** The previous rule is retained here in case playtesting favors it: choose 1 regular company you own and raise it 5%; if you own no regular company, automatically collect $500. This version had no Insider Information choice.
 
 **Market Swing, Bull Run, Bear Run, and Market Stance**
 
@@ -649,15 +649,15 @@ Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve st
 
 | Investment | Bull Run | Bear Run |
 |---|---:|---:|
-| High-Risk regular stock | +2 price steps | −2 price steps |
-| Medium-Risk regular stock | +1 price step | −1 price step |
+| High-Risk regular stock | +20% | −20% |
+| Medium-Risk regular stock | +10% | −10% |
 | Low-Risk regular stock | No change | No change |
-| Revealed IPO | +1 price step | −1 price step |
+| Revealed IPO | +5% | −5% |
 | ETF | No change | No change |
 
 Low-Risk stocks are unaffected by either Run in both directions — this is deliberate: Low-Risk already carries the highest dividend yield in the game, so a one-sided Bear Run exemption would make it strictly dominant with zero downside anywhere.
 
-Bull Run and Bear Run are resolved from the combined Market Swing space by a d6 roll, not drawn as cards from the Market Event deck. Dividends, share counts, and Payout Claim tiers do not change directly. Circuit Breaker may protect one owned company from a Bear Run drop. Run-driven moves stop at the price-track floor or ceiling and do not trigger another Market Event.
+Bull Run and Bear Run are resolved from the combined Market Swing space by a d6 roll, not drawn as cards from the Market Event deck. Dividends, share counts, and Payout Claim tiers do not change directly. Circuit Breaker may protect one owned company from a Bear Run drop. Run-driven moves stop at the $100 price floor and never trigger another Market Event, even when they carry a company past $5,000.
 
 **Circuit Breaker — Market Event hold card**
 - The former After-Hours cards are part of the combined Market Event deck; there is no separate After-Hours deck or board space.
@@ -670,19 +670,44 @@ Bull Run and Bear Run are resolved from the combined Market Swing space by a d6 
 
 ## 23. Price Movement
 
-The price ladder is the source of truth for each stock's market value. Exact ladder values come from current app data. All price movement is bounded by a $100 hard floor and a $5,000 ceiling.
+Stock prices are **percentages, not fixed steps**. Every company has a live
+market price that moves by a percentage of its *own* current price, so the same
+market event is worth more dollars to an expensive company than a cheap one.
+
+**Reading and rounding prices**
+- Every price is a whole multiple of **$25**. The price shown is the price paid — there are no hidden cents.
+- A price can never fall below the **$100 floor**.
+- There is **no price ceiling**. $5,000 is a trigger, not a cap: the first time a company crosses $5,000 upward on a trade-driven move, a global Market Event is drawn. It re-arms only if that company later falls back below $5,000.
+- Any non-zero move shifts the price at least one $25 increment, so a cheap company's price is never stuck.
+
+**Standard percentage moves**
+
+| Source | Move |
+|---|---:|
+| Weak Demand reaches 2 markers | −5% |
+| Strong Demand reaches 2 markers | +5% |
+| Market Meter, standard reprice | ±5% |
+| Market Meter, amplified reprice | ±10% |
+| Market Event / Fed card, single-step effect | ±5% |
+| Market Event / Fed card, double-step effect | ±10% |
+| Bull/Bear Run — High / Medium / Low risk | ±20% / ±10% / no change |
+| Revealed IPO in a Run | ±5% |
+| Selling 3+ shares to the bank in one action | −5% |
+| Investor Day Company Growth | +5% |
+
+**Event reference**
 
 | Event | Market price effect |
 |---|---|
 | Buy an untouched company | No market-price movement; 11× the current per-share price is paid instead |
-| Sell 3+ shares to bank in one action (Trade Step only) | Seller is paid 1 step below market per share; price also moves down 1 step after the sell action, unless already at the $100 floor |
-| Sell 1-2 shares to bank (Trade Step only) | Seller is paid 1 step below market per share; price does not move |
+| Sell 3+ shares to bank in one action (Trade Step only) | Seller is paid market price less the 20% bank haircut per share; the price also drops 5% after the sell action |
+| Sell 1-2 shares to bank (Trade Step only) | Seller is paid market price less the 20% bank haircut per share; the price does not move |
 | Private player-to-player trade | No market price movement |
 | Outstanding-share purchase | No market price movement unless a card says otherwise |
-| Weak Demand reaches 2 markers | Price moves down 1 step and markers clear, unless already at the $100 floor |
-| Strong Demand reaches 2 markers | Price moves up 1 step and markers clear, unless already at the $5,000 ceiling |
+| Weak Demand reaches 2 markers | Price falls 5% and markers clear, unless already at the $100 floor |
+| Strong Demand reaches 2 markers | Price rises 5% and markers clear |
 | Stock becomes Sold Out | This happens as part of the full-company purchase; no price increase is applied |
-| Stock reaches $5,000 ceiling | Price movement stops; triggers a global Market Event card |
+| Stock crosses $5,000 upward on a trade | Triggers a global Market Event card; the price itself is not capped |
 | Market Meter reprice or card ripple | Moves 1-2 random eligible sectors; see Section 21 |
 | Card effect | Follow the card text; no portfolio or share-count protection applies automatically |
 
@@ -699,7 +724,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 
 **Final scoring**
 - Add each player's cash.
-- Add the current market value of all owned regular stocks and IPOs, plus owned ETF holdings valued at their fixed purchase/card price (ETFs have no price ladder — see Section 18).
+- Add the current market value of all owned regular stocks and IPOs, plus owned ETF holdings valued at their fixed purchase/card price (ETFs have no live market price — see Section 18).
 - Subtract outstanding Margin balance, if the advanced Margin mode is on.
 - Subtract any unpaid Player Loan balance owed to another player (Section 13); add any unpaid Player Loan balance owed *to* the player by someone else.
 - Subtract all Outstanding Fees principal and accumulated interest.
@@ -766,7 +791,7 @@ Use this checklist when sending the rules to code.
 
 ## 27. Open Balance Items
 
-- Exact price ladder values
+- Opening share prices
 - IPO per-share dividend amount
 - Margin default penalty fee amount
 - Exact Market Close trigger and deck placement (Card mode) and round count (Rounds mode)
