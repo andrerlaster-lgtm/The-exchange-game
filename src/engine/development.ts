@@ -42,6 +42,7 @@ const SOURCE_LABEL: Record<PriceMoveSource, string> = {
 
 /** Why the current player can't upgrade `code` right now, or null if they can. */
 export function upgradeBlockReason(s: GameState, code: string): string | null {
+  if (!s.opts.companyUpgrades) return 'Company upgrades are turned off for this game.';
   if (isIpoCode(code) || !STOCK_BY_CODE[code]) return 'Only regular companies can be upgraded.';
   if (!isController(s, s.cur, code)) return `You need ${CONTROL_THRESHOLD_REGULAR}+ shares to control ${code}.`;
   const dev = developmentOf(s, code);
@@ -57,6 +58,7 @@ export function upgradeBlockReason(s: GameState, code: string): string | null {
 
 /** Why the current player can't buy a shield for `code` right now, or null. */
 export function shieldBlockReason(s: GameState, code: string): string | null {
+  if (!s.opts.companyUpgrades) return 'Company upgrades are turned off for this game.';
   if (isIpoCode(code) || !STOCK_BY_CODE[code]) return 'Only regular companies can be protected.';
   if (!isController(s, s.cur, code)) return `You need ${CONTROL_THRESHOLD_REGULAR}+ shares to control ${code}.`;
   if (developmentOf(s, code).shieldActive) return `${code} already has an active shield.`;

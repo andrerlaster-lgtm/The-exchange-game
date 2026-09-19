@@ -715,6 +715,8 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 ### Company Development (Upgrades)
 
+*Optional rule — the **Company Upgrades** setup option, off by default while its balance is reviewed.*
+
 A player who **controls** a regular company (6+ shares) may invest in it. ETFs and IPOs cannot be developed.
 
 **When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. You must still hold at least **$20,000 in cash after paying** for an upgrade or a shield — this keeps enough on hand to cover opponents' Payout Claims.

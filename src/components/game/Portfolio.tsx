@@ -3,7 +3,7 @@ import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION
 import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
-  feeDebtBalance, holdingDividendInfo, holdingGainLoss, lapReturnPct, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
+  feeDebtBalance, holdingDividendInfo, holdingGainLoss, holdingsReturnPct, lapReturnPct, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
   projectedDividend, sharesValue, stockGainLoss,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
   playerDebtBalance, playerDebtInstallment,
@@ -36,6 +36,7 @@ export default function Portfolio() {
   // questions ("total so far" vs. "rate per lap").
   const perLapReturn = lapReturnPct(s, p);
   const stockGl = stockGainLoss(s, p);
+  const holdingsReturn = holdingsReturnPct(s, p);
   const bp = getBuyingPower(viewIdx, s);
   const risk = getPortfolioRisk(viewIdx, s);
   const stance = marketStanceMeta(p.marketStance);
@@ -171,6 +172,12 @@ export default function Portfolio() {
         />
         <FinRow label="Salary Collected · excluded" value={`+$${p.salaryCollected.toLocaleString()}`} color="var(--muted)" />
         <FinRow label="Stock G/L · total" value={signedMoney(stockGl.total)} color={gainColor(stockGl.total)} />
+        <FinRow
+          label="Holdings Return"
+          value={signedPercent(holdingsReturn)}
+          color={gainColor(holdingsReturn)}
+          title="Return on what you hold now: unrealized gain divided by what those shares cost you. Realized gains from shares already sold are not included."
+        />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, fontSize: 9, color: 'var(--muted)' }}>
           <span>Unrealized {signedMoney(stockGl.unrealized)}</span>
           <span>Realized {signedMoney(stockGl.realized)}</span>

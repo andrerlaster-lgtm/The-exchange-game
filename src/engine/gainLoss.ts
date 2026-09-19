@@ -68,6 +68,27 @@ export function stockGainLoss(s: GameState, player: Player): StockGainLoss {
 }
 
 /** Salary-adjusted whole-game performance used by Gain/Loss Mode. */
+/**
+ * Return on what the player holds right now: total unrealized gain divided by
+ * total cost basis across current stock and IPO holdings, as a percentage —
+ * the "how are my investments doing" number a brokerage account shows.
+ * Holdings with no recorded basis are left out of both sides so they can't
+ * distort the ratio. Realized gains are not included: they have no remaining
+ * cost basis to measure against (see marketReturnPct for the whole game).
+ */
+export function holdingsReturnPct(s: GameState, player: Player): number {
+  let basis = 0;
+  let unrealized = 0;
+  for (const code of Object.keys(player.shares)) {
+    if ((player.shares[code] ?? 0) <= 0) continue;
+    const gl = holdingGainLoss(s, player, code);
+    if (gl.costBasis <= 0) continue;
+    basis += gl.costBasis;
+    unrealized += gl.unrealized;
+  }
+  return basis > 0 ? (unrealized / basis) * 100 : 0;
+}
+
 export function marketGain(s: GameState, player: Player): number {
   return netWorth(s, player) - s.opts.startCash - player.salaryCollected;
 }

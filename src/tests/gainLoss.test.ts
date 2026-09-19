@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ME_CARDS, REGULAR_SUPPLY, SALARY, STOCK_BY_CODE } from '../data';
 import {
-  companyBuyoutCost, getRankedPlayers, holdingDividendInfo, holdingGainLoss, lapReturnPct, marketGain, marketReturnPct, reduce, stockGainLoss,
+  companyBuyoutCost, getRankedPlayers, holdingDividendInfo, holdingGainLoss, holdingsReturnPct, lapReturnPct, marketGain, marketReturnPct, reduce, stockGainLoss,
 } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -243,5 +243,32 @@ describe('Gain/Loss Mode', () => {
     expect(getRankedPlayers(standard)[0].playerIdx).toBe(0);
     expect(getRankedPlayers(gainLoss)[0].playerIdx).toBe(1);
     expect(getRankedPlayers(gainLoss)[0].score).toBe(500);
+  });
+});
+
+describe('holdingsReturnPct', () => {
+  it('is the unrealized gain on current holdings as a percent of what they cost', () => {
+    let s = rollTo(started(2), 5);
+    s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng()); // 11 x $750 = $8,250 basis
+    expect(holdingsReturnPct(s, s.players[0])).toBe(0);
+    s = patch(s, (draft) => { draft.prices.MEDI = 1_000; }); // worth $11,000
+    expect(holdingsReturnPct(s, s.players[0])).toBeCloseTo((2_750 / 8_250) * 100, 10);
+    s = patch(s, (draft) => { draft.prices.MEDI = 500; }); // worth $5,500
+    expect(holdingsReturnPct(s, s.players[0])).toBeCloseTo((-2_750 / 8_250) * 100, 10);
+  });
+
+  it('leaves out holdings with no recorded cost basis instead of inflating the ratio', () => {
+    let s = rollTo(started(2), 5);
+    s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
+    s = patch(s, (draft) => {
+      draft.prices.MEDI = 1_000;
+      draft.players[0].shares.SAFE = 11; // no stockCostBasis entry
+    });
+    expect(holdingsReturnPct(s, s.players[0])).toBeCloseTo((2_750 / 8_250) * 100, 10);
+  });
+
+  it('is 0 with nothing held', () => {
+    const s = started(2);
+    expect(holdingsReturnPct(s, s.players[0])).toBe(0);
   });
 });

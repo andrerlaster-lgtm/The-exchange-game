@@ -3,7 +3,7 @@
 
 export { clampPrice, ipoOf, priceOf, sellBackPrice, canFall, canRise, companyBuyoutCost, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked, shortPayout } from './rules';
 export { sharesValue, netWorth, isDiversified } from './scoringEngine';
-export { holdingGainLoss, stockGainLoss, marketGain, marketReturnPct, lapReturnPct, rankingScore } from './gainLoss';
+export { holdingGainLoss, holdingsReturnPct, stockGainLoss, marketGain, marketReturnPct, lapReturnPct, rankingScore } from './gainLoss';
 export { topOwner, recomputeClaim, claimPayout } from './soldOut';
 export { completedSectors, hasSectorPortfolio, distinctSectors, diversificationTier, diversificationBonus } from './sector';
 export type { DiversificationTier } from './sector';
@@ -104,7 +104,7 @@ export function getStockMovementStatus(code: string, s: GameState): StockPriceMo
 import { MARGIN_INCREMENT, MARGIN_MAX } from '../data';
 import { netWorth, sharesValue } from './scoringEngine';
 import { priceOf } from './rules';
-import { marketGain, marketReturnPct, rankingScore, stockGainLoss } from './gainLoss';
+import { holdingsReturnPct, marketGain, marketReturnPct, rankingScore, stockGainLoss } from './gainLoss';
 import { feeDebtBalance } from './feeDebt';
 
 export interface BuyingPower {
@@ -176,6 +176,7 @@ export interface RankedPlayer {
   salaryCollected: number;
   marketGain: number;
   marketReturnPct: number;
+  holdingsReturnPct: number;   // unrealized return on current holdings vs their cost basis
   realizedStockGain: number;
   unrealizedStockGain: number;
   totalStockGain: number;
@@ -203,6 +204,7 @@ export function getRankedPlayers(s: GameState): RankedPlayer[] {
         salaryCollected: p.salaryCollected,
         marketGain: marketGain(s, p),
         marketReturnPct: marketReturnPct(s, p),
+        holdingsReturnPct: holdingsReturnPct(s, p),
         realizedStockGain: stockGl.realized,
         unrealizedStockGain: stockGl.unrealized,
         totalStockGain: stockGl.total,

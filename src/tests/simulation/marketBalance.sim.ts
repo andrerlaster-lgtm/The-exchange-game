@@ -120,7 +120,9 @@ function startedInRoundsMode(numPlayers: number, seed: string): GameState {
   const r = makeRng(seed);
   let s = initialState(r);
   s = reduce(s, { t: 'setNum', n: numPlayers }, r);
-  s = reduce(s, { t: 'setOpt', opt: { closeMode: 'rounds', closeRounds: ROUNDS_PER_GAME } }, r);
+  // Company Upgrades are off by default in real games; the sim turns the
+  // setting on and lets `development.enabled` decide whether the bot uses it.
+  s = reduce(s, { t: 'setOpt', opt: { closeMode: 'rounds', closeRounds: ROUNDS_PER_GAME, companyUpgrades: true } }, r);
   s = reduce(s, { t: 'startGame' }, r);
   return resolveOrderRoll(s, numPlayers);
 }

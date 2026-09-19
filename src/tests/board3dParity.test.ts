@@ -75,7 +75,12 @@ describe('3D Action Center parity', () => {
     const sells = (r: typeof row) => r?.buttons?.filter((entry) => entry.action.t === 'sell') ?? [];
     let row = buildActionCenter(s).portfolio.rows?.[0];
     expect(sells(row).map((entry) => entry.label)).toEqual(['Sell 1', 'Sell 2', 'Sell 3', 'Sell 4', 'Sell 5']);
-    expect(row?.buttons?.filter((entry) => entry.action.t !== 'sell').map((entry) => entry.action.t))
+    // Company Upgrades are off by default: no development buttons.
+    expect(row?.buttons?.every((entry) => entry.action.t === 'sell')).toBe(true);
+    // With the setting on, a controlled company also offers them.
+    const withUpgrades = patch(s, (draft) => { draft.opts.companyUpgrades = true; });
+    expect(buildActionCenter(withUpgrades).portfolio.rows?.[0].buttons
+      ?.filter((entry) => entry.action.t !== 'sell').map((entry) => entry.action.t))
       .toEqual(['upgradeCompany', 'buyMarketProtection']);
 
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());

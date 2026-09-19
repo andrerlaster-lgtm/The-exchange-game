@@ -7,11 +7,12 @@ import type { GameState } from '../engine';
 import {
   bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, companyBuyoutCost, getRankedPlayers,
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
-  playerSignalExposure, priceOf, sellBackPrice, stockGainLoss,
+  playerSignalExposure, priceOf, sellBackPrice, stockGainLoss, holdingsReturnPct, marketReturnPct,
   developmentOf, isController, shieldBlockReason, upgradeBlockReason,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
 import { marketRegimeInfo } from './marketRegime';
+import { pct } from './formatMoney';
 
 function money(value: number): string {
   return `$${value.toLocaleString()}`;
@@ -336,7 +337,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
       const gl = holdingGainLoss(s, current, code);
       // Company development (parity with the 2D Company Development panel):
       // only for regular companies this player controls.
-      const controls = !ipo && gameActive && isController(s, s.cur, code);
+      const controls = s.opts.companyUpgrades && !ipo && gameActive && isController(s, s.cur, code);
       const dev = developmentOf(s, code);
       const devLevel = dev.level === 0 ? null : UPGRADE_LEVELS[dev.level - 1];
       const nextLevel = UPGRADE_LEVELS[dev.level] ?? null;
@@ -372,7 +373,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
   const feeInstallment = Math.min(FEE_DEBT_INSTALLMENT, feeDebt);
   const portfolio: ActionPanel3D = {
     id: 'portfolio', title: `${currentStance.glyph} ${current.name} · ${currentStance.label} Portfolio`, accent: currentStance.color,
-    description: `Cash ${money(current.cash)} · Market Gain ${money(gameGain)} · Stock G/L ${money(stockGl.total)} (unrealized ${money(stockGl.unrealized)}, realized ${money(stockGl.realized)}) · Salary excluded ${money(current.salaryCollected)} · Margin ${money(current.margin)} · Outstanding Fees ${money(feeDebt)} (principal ${money(current.feeDebtPrincipal)}, interest ${money(current.feeDebtInterest)})`,
+    description: `Cash ${money(current.cash)} · Market Gain ${money(gameGain)} (${pct(marketReturnPct(s, current))}) · Stock G/L ${money(stockGl.total)} (unrealized ${money(stockGl.unrealized)}, realized ${money(stockGl.realized)}) · Holdings Return ${pct(holdingsReturnPct(s, current))} · Salary excluded ${money(current.salaryCollected)} · Margin ${money(current.margin)} · Outstanding Fees ${money(feeDebt)} (principal ${money(current.feeDebtPrincipal)}, interest ${money(current.feeDebtInterest)})`,
     rows: holdings,
     buttons: [
       button(`Take Margin +${money(MARGIN_INCREMENT)}`, { t: 'takeMargin' }, 'gold', !s.opts.margin || !purchaseOpen || current.margin + MARGIN_INCREMENT > MARGIN_MAX),

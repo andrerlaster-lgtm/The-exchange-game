@@ -213,6 +213,14 @@ export default function SetupScreen() {
             <TBtn active={!opts.ipos} onClick={() => setOpt('ipos', false)}>Off</TBtn>
           </OptRow>
 
+          <OptRow label="Company Upgrades">
+            <TBtn active={opts.companyUpgrades} onClick={() => setOpt('companyUpgrades', true)}>On</TBtn>
+            <TBtn active={!opts.companyUpgrades} onClick={() => setOpt('companyUpgrades', false)}>Off</TBtn>
+          </OptRow>
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45, padding: '0 2px' }}>
+            Controllers (6+ shares) can upgrade a company through Levels Ⅰ–Ⅲ and buy Market Protection. Experimental — off by default while the balance is reviewed.
+          </div>
+
           <OptRow label="Bank Auction">
             <TBtn active={opts.bankAuction} onClick={() => setOpt('bankAuction', true)}>On</TBtn>
             <TBtn active={!opts.bankAuction} onClick={() => setOpt('bankAuction', false)}>Off</TBtn>

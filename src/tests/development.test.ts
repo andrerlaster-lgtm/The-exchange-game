@@ -21,6 +21,7 @@ const P = 10_000;
 /** Player 0 controls CODE outright, has rolled, and nothing is pending. */
 function controlled(shares = 11, cash = 100_000): GameState {
   return patch(started(2), (d) => {
+    d.opts.companyUpgrades = true;
     d.players[0].shares[CODE] = shares;
     d.players[0].cash = cash;
     d.supply[CODE] = 11 - shares;
@@ -53,6 +54,18 @@ function moveWith(s: GameState, bp: number, source: PriceMoveSource): GameState 
 const tick = (s: GameState) => dispatch(s, { t: 'skipShort' }, rng());
 
 // ── Purchase and control ────────────────────────────────────────────────────
+
+describe('Company Upgrades setting', () => {
+  it('is off by default, and then nothing can be upgraded or shielded', () => {
+    const s = patch(controlled(), (d) => { d.opts.companyUpgrades = false; });
+    expect(started(2).opts.companyUpgrades).toBe(false);
+    expect(upgradeBlockReason(s, CODE)).toMatch(/turned off/);
+    expect(shieldBlockReason(s, CODE)).toMatch(/turned off/);
+    expect(up(s).development[CODE].level).toBe(0);
+    expect(shield(s).development[CODE].shieldActive).toBe(false);
+    expect(up(s).players[0].cash).toBe(s.players[0].cash);
+  });
+});
 
 describe('upgrade purchase and control', () => {
   it('only a 6+ share Controller can upgrade or buy a shield', () => {

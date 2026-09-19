@@ -382,6 +382,7 @@ export interface GameOptions {
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
   marketMeter: boolean;       // ambient roll-driven market repricing (2026-08-21 Market Overhaul)
   companiesMode: boolean;     // optional player-owned company market
+  companyUpgrades: boolean;   // Company Development (Levels I-III + Market Protection) — off by default pending review
   bankAuction: boolean;       // alternate resale mode: pooled shares go to a turn-order
                                // Market Open auction instead of the standard-mode Outstanding
                                // Shares offer (buy-on-landing) — off by default
@@ -398,6 +399,9 @@ export const DEFAULT_OPTIONS: GameOptions = {
   marketMeter: true, // core rule as of the 2026-08-21 Market Regime Display task — approved Market Overhaul contract, not an experimental option
   companiesMode: false,
   bankAuction: false, // standard mode uses Outstanding Shares (rulebook §11); this is the variant
+  // Off by default while the percentage market is played on its own; the
+  // upgrade system stays in code and tests for a later review (2026-09-19).
+  companyUpgrades: false,
 };
 
 /**

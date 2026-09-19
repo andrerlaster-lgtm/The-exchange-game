@@ -74,6 +74,9 @@ export default function Leaderboard() {
               <span className="mono" style={{ fontSize: 11, color: gainLossMode ? scoreColor(p.marketGain) : 'var(--green)', fontWeight: 600, flexShrink: 0 }}>
                 {gainLossMode ? signedMoney(p.marketGain) : `$${p.nw.toLocaleString()}`}
               </span>
+              <span className="mono" title="Market Gain as a percent of starting cash — the whole-game investment return, salary excluded" style={{ fontSize: 9, color: scoreColor(p.marketReturnPct), flexShrink: 0, minWidth: 40, textAlign: 'right' }}>
+                {signedPct(p.marketReturnPct)}
+              </span>
             </div>
 
             {/* Breakdown */}
@@ -88,6 +91,7 @@ export default function Leaderboard() {
                 <BRow label="Stocks" value={p.stocksValue} color="var(--accent)" />
                 <BRow label="Market Gain" value={p.marketGain} color={scoreColor(p.marketGain)} signed />
                 <BRow label="Stock G/L" value={p.totalStockGain} color={scoreColor(p.totalStockGain)} signed />
+                <PRow label="Holdings Return" value={p.holdingsReturnPct} />
                 <BRow label="Salary excluded" value={p.salaryCollected} color="var(--muted)" signed />
                 {p.margin > 0 && <BRow label="Margin" value={-p.margin} color="var(--red)" />}
                 {p.feeDebt > 0 && <BRow label="Outstanding Fees" value={-p.feeDebt} color="var(--red)" />}
@@ -96,6 +100,19 @@ export default function Leaderboard() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function signedPct(value: number): string {
+  return `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`;
+}
+
+function PRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+      <span style={{ color: 'var(--muted)' }}>{label}</span>
+      <span className="mono" style={{ color: scoreColor(value) }}>{signedPct(value)}</span>
     </div>
   );
 }

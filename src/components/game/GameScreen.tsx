@@ -58,7 +58,7 @@ export default function GameScreen() {
         <BoardTrack />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <TradingMarket />
-          <CompanyDevelopment />
+          {s.opts.companyUpgrades && <CompanyDevelopment />}
           <TradeHistory />
         </div>
       </div>
