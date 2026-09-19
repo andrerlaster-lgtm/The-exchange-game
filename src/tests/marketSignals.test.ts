@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FED_CARDS } from '../data';
 import { MOVE_BP, applyBasisPoints } from '../data';
 import { fedSignalForStock, importantMarketSignals, recordMarketSignal } from '../engine';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
@@ -8,7 +9,7 @@ describe('Market Intelligence signals', () => {
   it('records a Fed decision with exact company impacts and plain-language guidance', () => {
     const opening = patch(started(2), (draft) => {
       draft.pendingDraws = ['FED'];
-      draft.decks.FED = [0]; // Rate Hike
+      draft.decks.FED = [FED_CARDS.findIndex((c) => c.title === 'Rate Hike')];
     });
     const before = { ...opening.prices };
     const s = dispatch(opening, { t: 'draw', deck: 'FED' }, rng());

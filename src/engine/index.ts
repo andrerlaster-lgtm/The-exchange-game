@@ -21,7 +21,7 @@ export * from './sessionDebrief';
 export * from './sectorControl';
 export { minNextBid } from './auction';
 export {
-  developmentOf, isController, upgradeBlockReason, shieldBlockReason,
+  developmentOf, developmentMinNetWorth, isController, upgradeBlockReason, shieldBlockReason,
   developmentMarketOpenBonus, developmentClaimBonus,
 } from './development';
 export { ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone } from './ipoGrowth';

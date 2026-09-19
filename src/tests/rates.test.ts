@@ -7,6 +7,7 @@ import {
 import type { GameState } from '../engine';
 import { accrueFeeDebt, bankRateBp, feeDebtRatePct, marketRateBp, rateSpreadBp, spreadDirection } from '../engine';
 import { makeRng } from '../utils/rng';
+import { repriceRoundBoundary } from '../engine/marketMeter';
 import { dispatch, patch, rng, started } from './helpers';
 
 const fedIndex = (title: string) => FED_CARDS.findIndex((c) => c.title === title);
@@ -83,6 +84,35 @@ describe('Bank Rate and Market Rate', () => {
     const s = started(2);
     expect(bankRateBp(drawFed(s, 'Rate Hold'))).toBe(300);
     expect(bankRateBp(drawFed(s, 'Mortgage Pressure'))).toBe(300);
+  });
+
+  it('Jumbo Hike and Emergency Cut move it a full point', () => {
+    const s = started(2);
+    expect(bankRateBp(drawFed(s, 'Jumbo Hike'))).toBe(400);
+    expect(bankRateBp(drawFed(s, 'Emergency Cut'))).toBe(200);
+  });
+
+  it('a card that moves the rate but keeps its own effect does both', () => {
+    const s = started(2);
+    const t = drawFed(s, 'Inflation Warning'); // Consumer and High-Risk down 5%
+    expect(bankRateBp(t)).toBe(325);
+    const consumer = codesWhere((st) => st.sector === 'consumer' && st.risk !== 'High')[0];
+    expect(t.prices[consumer]).toBe(applyBasisPoints(s.prices[consumer], -500));
+    // Not a rate shock: Finance, which a shock would lift, is untouched.
+    const fin = codesWhere((st) => st.sector === 'finance' && st.risk !== 'High')[0];
+    expect(t.prices[fin]).toBe(s.prices[fin]);
+  });
+
+  it('a Bullish round nudges the rate up and a Bearish round nudges it down', () => {
+    const bull = patch(started(2), (d) => { d.meter = 2; });
+    const afterBull = patch(bull, (d) => { repriceRoundBoundary(d, makeRng('bull')); });
+    expect(afterBull.bankRateBp).toBe(325);
+
+    const bear = patch(started(2), (d) => { d.meter = -2; });
+    expect(patch(bear, (d) => { repriceRoundBoundary(d, makeRng('bear')); }).bankRateBp).toBe(275);
+
+    const flat = patch(started(2), (d) => { d.meter = 0; });
+    expect(patch(flat, (d) => { repriceRoundBoundary(d, makeRng('flat')); }).bankRateBp).toBe(300);
   });
 });
 

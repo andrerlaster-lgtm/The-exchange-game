@@ -652,8 +652,10 @@ Two rates run in the background and set the basis points behind loans and part o
 
 **Bank Rate** — the game's interest rate, per player turn.
 - Starts at **3.00% (300 bp)**; always between 1% and 8%.
-- Fed cards move it: **Rate Hike +50 bp**, **Rate Cut −50 bp**, **Tight Money +25 bp**, **Easy Money −25 bp**. Every other Fed card leaves it alone.
-- A rate change moves the rate-sensitive stocks by **10 bp of price per 1 bp of rate**: Finance moves *with* the rate; Real Estate and High-Risk stocks move *against* it. A +50 bp hike is Finance +5%, Real Estate −5%, High-Risk −5% (a High-Risk Real Estate company takes both). These moves are the whole price effect of a rate card.
+- Two things move it:
+  - **Fed cards.** Jumbo Hike +100 bp, Emergency Cut −100 bp, Rate Hike +50 bp, Rate Cut −50 bp, Tight Money +25 bp, Easy Money −25 bp, Inflation Warning +25 bp, Bond Yields Rise +25 bp, Cut Hopes Rally −25 bp. Rate Hold and the rest leave it alone.
+  - **The Market Meter, at every round boundary.** A Bullish round raises it 25 bp and a Bearish round lowers it 25 bp; a Neutral round leaves it alone. This nudge changes borrowing costs only — it does not move share prices.
+- A **rate card's** change moves the rate-sensitive stocks by **10 bp of price per 1 bp of rate**: Finance moves *with* the rate; Real Estate and High-Risk stocks move *against* it. A +50 bp hike is Finance +5%, Real Estate −5%, High-Risk −5% (a High-Risk Real Estate company takes both). These moves are the whole price effect of a pure rate card (Jumbo Hike, Emergency Cut, Rate Hike, Rate Cut, Tight Money, Easy Money). Inflation Warning, Bond Yields Rise and Cut Hopes Rally keep their own printed price effect and simply move the rate as well.
 - If the rate is at its floor or ceiling, it moves only as far as it can, and the stock moves shrink to match (none at all if it cannot move).
 - Every loan prices off it:
 
@@ -773,7 +775,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 A player who **controls** a regular company (6+ shares) may invest in it. ETFs and IPOs cannot be developed.
 
-**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. You must still hold at least **$5,000 in cash after paying** for an upgrade or a shield — this keeps enough on hand to cover opponents' Payout Claims.
+**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. Development is for players who are ahead: your **net worth** must be at least **your starting cash + $15,000** (so $50,000 at the default $35,000 start), counting cash, stock, IPOs and ETFs at market value, minus debt. You also need the cash to pay the price itself.
 
 | Level | Cost | Total spent | Payout Claim bonus | Market Open bonus | Downside reduction |
 |---|---:|---:|---:|---:|---:|
@@ -785,7 +787,7 @@ A player who **controls** a regular company (6+ shares) may invest in it. ETFs a
 - **Market Open bonus:** flat cash to the investor at their own Market Open. It is not a dividend and is never multiplied.
 - **Downside reduction:** shrinks declines from Weak Demand, the Market Meter, Market Event cards, Fed cards, and Bear Runs. It shrinks a decline by that share (a −10% Market Event becomes −6% at Level Ⅱ) but never removes it entirely or turns it into a rise. It does not apply to bank-sale drops, a player's own sales, or Cyberattack/Regulatory Investigation penalties the player chose.
 
-**Market Protection shield ($1,500):** one per company, Controller only, does not use the turn's upgrade, and needs $5,000 left over after buying it. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
+**Market Protection shield ($1,500):** one per company, Controller only, does not use the turn's upgrade, and passes the same net-worth test as an upgrade. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
 
 **Losing control:** if the investor drops below 6 shares — including when another player takes control or ownership becomes contested — the company resets to Base, its shield is removed, and the investor is immediately refunded 40% of their upgrade spending ($800 / $2,400 / $4,400). Upgrades never transfer. Regaining control starts again from Base.
 

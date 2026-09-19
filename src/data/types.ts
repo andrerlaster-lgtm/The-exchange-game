@@ -109,6 +109,9 @@ export interface Card {
   // Bank Rate change (bp) this card makes when it resolves (Fed cards only).
   // Its price effect is then the rate shock — see data/rates.ts.
   rateBp?: number;
+  // True when the card's whole price effect IS that rate shock, so a change
+  // clamped by the rate's floor or ceiling shrinks the price moves to match.
+  rateShock?: true;
   signal?: {
     stance: 'hawkish' | 'dovish' | 'neutral' | 'mixed';
     insight: string;

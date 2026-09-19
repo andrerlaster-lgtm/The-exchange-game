@@ -3,11 +3,11 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  DEVELOPMENT_MIN_CASH_AFTER, PAYOUT_CLAIM_TOTAL_CAP, PRICE_FLOOR, SHIELD_COST, UPGRADE_LEVELS, applyBasisPoints,
+  DEVELOPMENT_MIN_GAIN, PAYOUT_CLAIM_TOTAL_CAP, PRICE_FLOOR, SHIELD_COST, UPGRADE_LEVELS, applyBasisPoints,
 } from '../data';
 import type { PriceMoveSource } from '../data';
 import type { GameState } from '../engine';
-import { developmentOf, shieldBlockReason, upgradeBlockReason } from '../engine';
+import { developmentMinNetWorth, developmentOf, netWorth, shieldBlockReason, upgradeBlockReason } from '../engine';
 import { applyPriceMove } from '../engine/stockState';
 import { applyEffect } from '../engine/eventCardResolver';
 import { payMarketOpen } from '../engine/playerState';
@@ -126,26 +126,36 @@ describe('upgrade purchase and control', () => {
     expect(s.development[CODE]).toMatchObject({ level: 1, shieldActive: true });
   });
 
-  it('requires $5,000 in cash left over after paying for an upgrade', () => {
-    // Level I costs $2,000: $7,000 is exactly enough, $6,999 is not.
-    const exact = up(controlled(11, 7_000));
-    expect(exact.development[CODE].level).toBe(1);
-    expect(exact.players[0].cash).toBe(DEVELOPMENT_MIN_CASH_AFTER);
+  it('requires a portfolio worth the starting cash plus $15,000', () => {
+    // Net worth, not cash: shares count at market value.
+    const empty = controlled(11, 0);
+    const need = developmentMinNetWorth(empty);
+    expect(need).toBe(empty.opts.startCash + DEVELOPMENT_MIN_GAIN);
+    const cashForExactly = need - netWorth(empty, empty.players[0]);
 
-    const short = controlled(11, 6_999);
-    expect(upgradeBlockReason(short, CODE)).toMatch(/must keep \$5,000 in cash after upgrading/);
+    const exact = up(controlled(11, cashForExactly));
+    expect(exact.development[CODE].level).toBe(1);
+
+    const short = controlled(11, cashForExactly - 1);
+    expect(upgradeBlockReason(short, CODE)).toMatch(/needs a portfolio worth \$50,000/);
     expect(up(short).development[CODE].level).toBe(0);
-    expect(up(short).players[0].cash).toBe(6_999);
+    expect(up(short).players[0].cash).toBe(cashForExactly - 1);
   });
 
-  it('the same $5,000 floor applies to shields', () => {
-    // A shield costs $1,500: $6,500 is exactly enough, $6,499 is not.
-    const exact = shield(controlled(11, 6_500));
-    expect(exact.development[CODE].shieldActive).toBe(true);
-    expect(exact.players[0].cash).toBe(DEVELOPMENT_MIN_CASH_AFTER);
+  it('counts holdings toward the gate but still needs the cash to pay', () => {
+    // A big portfolio, almost no cash: past the gate, blocked on the price.
+    const rich = patch(controlled(11, 500), (d) => { d.prices[CODE] = 10_000; });
+    expect(netWorth(rich, rich.players[0])).toBeGreaterThan(developmentMinNetWorth(rich));
+    expect(upgradeBlockReason(rich, CODE)).toMatch(/costs \$2,000 and you have \$500 in cash/);
+    expect(up(rich).development[CODE].level).toBe(0);
+  });
 
-    const short = controlled(11, 6_499);
-    expect(shieldBlockReason(short, CODE)).toMatch(/must keep \$5,000 in cash after buying it/);
+  it('applies the same gate to shields', () => {
+    const empty = controlled(11, 0);
+    const cashForExactly = developmentMinNetWorth(empty) - netWorth(empty, empty.players[0]);
+    expect(shield(controlled(11, cashForExactly)).development[CODE].shieldActive).toBe(true);
+    const short = controlled(11, cashForExactly - 1);
+    expect(shieldBlockReason(short, CODE)).toMatch(/needs a portfolio worth/);
     expect(shield(short).development[CODE].shieldActive).toBe(false);
   });
 

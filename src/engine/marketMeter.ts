@@ -21,14 +21,14 @@
 // finalizeCard) — so the market can now move between laps too, tied to news
 // actually happening in the game, not only to a full round passing.
 
-import { IPO_BY_CODE, MOVE_BP, SECTOR_CODES } from '../data';
+import { IPO_BY_CODE, METER_RATE_NUDGE_BP, MOVE_BP, SECTOR_CODES } from '../data';
 import type { SectorId } from '../data/types';
 import type { Rng } from '../utils/rng';
 import { moveSize } from '../utils/formatMoney';
 import { moveMeterPrice } from './stockState';
 import { canFall, canRise } from './rules';
 import { recordMarketSignal } from './marketSignals';
-import { spreadDirection } from './rates';
+import { changeBankRate, spreadDirection } from './rates';
 import type { GameState, LogKind } from './types';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
@@ -233,6 +233,18 @@ export function repriceRoundBoundary(s: GameState, rng: Rng): void {
   // moment that matters to a player watching the badge; Neutral's minor ease
   // isn't curated into the log, matching the original "nothing to reset away
   // from" treatment.
+  // A Bullish round nudges the Bank Rate up and a Bearish one nudges it down
+  // — the market's own heat feeding back into policy, so the rate keeps
+  // moving in games where few Fed cards come up.
+  const nudge = zone === 'bull' ? METER_RATE_NUDGE_BP : zone === 'bear' ? -METER_RATE_NUDGE_BP : 0;
+  if (nudge !== 0) {
+    const before = s.bankRateBp;
+    const actual = changeBankRate(s, nudge);
+    if (actual !== 0) {
+      addLog(s, `${zone === 'bull' ? 'Bullish' : 'Bearish'} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
+    }
+  }
+
   if (zone === 'bull' || zone === 'bear') {
     moveMeterTowardNeutral(s, 1);
     // "Bullish/Bearish round", never "Bull Run"/"Bear Run" — those name the

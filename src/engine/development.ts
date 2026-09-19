@@ -4,13 +4,14 @@
 
 import {
   CONTROL_THRESHOLD_REGULAR, MAX_DEVELOPMENT_LEVEL, SHIELD_ABSORB_BP, SHIELD_COST,
-  DEVELOPMENT_MIN_CASH_AFTER, PRICE_MOVE_SOURCE_LABEL, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
+  DEVELOPMENT_MIN_GAIN, PRICE_MOVE_SOURCE_LABEL, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
   developmentRefund, isIpoCode, upgradeLevel,
 } from '../data';
 import type { DevelopmentLevel, PriceMoveSource } from '../data';
 import { money, moveSize, pctBp } from '../utils/formatMoney';
 import type { CompanyDevelopment, GameState, LogKind } from './types';
 import { canMarketSell } from './rules';
+import { netWorth } from './scoringEngine';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -43,9 +44,26 @@ export function upgradeBlockReason(s: GameState, code: string): string | null {
   if (s.upgradedThisTurn) return 'You have already bought an upgrade this turn.';
   if (!canMarketSell(s)) return 'Roll and resolve every required action first.';
   const next = UPGRADE_LEVELS[dev.level];
-  if (s.players[s.cur].cash - next.cost < DEVELOPMENT_MIN_CASH_AFTER) {
-    return `Level ${next.numeral} costs ${money(next.cost)}, and you must keep ${money(DEVELOPMENT_MIN_CASH_AFTER)} in cash after upgrading (need ${money(next.cost + DEVELOPMENT_MIN_CASH_AFTER)}).`;
+  const gate = developmentGateReason(s, next.cost, `Level ${next.numeral}`);
+  if (gate) return gate;
+  return null;
+}
+
+/** The portfolio test both upgrades and shields must pass: the player has to
+    be up at least DEVELOPMENT_MIN_GAIN on their starting cash by market value,
+    and have the cash to pay. */
+export function developmentMinNetWorth(s: GameState): number {
+  return s.opts.startCash + DEVELOPMENT_MIN_GAIN;
+}
+
+function developmentGateReason(s: GameState, cost: number, what: string): string | null {
+  const p = s.players[s.cur];
+  const required = developmentMinNetWorth(s);
+  const worth = netWorth(s, p);
+  if (worth < required) {
+    return `${what} needs a portfolio worth ${money(required)} — your starting cash plus ${money(DEVELOPMENT_MIN_GAIN)}. Yours is ${money(worth)}.`;
   }
+  if (p.cash < cost) return `${what} costs ${money(cost)} and you have ${money(p.cash)} in cash.`;
   return null;
 }
 
@@ -56,9 +74,8 @@ export function shieldBlockReason(s: GameState, code: string): string | null {
   if (!isController(s, s.cur, code)) return `You need ${CONTROL_THRESHOLD_REGULAR}+ shares to control ${code}.`;
   if (developmentOf(s, code).shieldActive) return `${code} already has an active shield.`;
   if (!canMarketSell(s)) return 'Roll and resolve every required action first.';
-  if (s.players[s.cur].cash - SHIELD_COST < DEVELOPMENT_MIN_CASH_AFTER) {
-    return `A shield costs ${money(SHIELD_COST)}, and you must keep ${money(DEVELOPMENT_MIN_CASH_AFTER)} in cash after buying it (need ${money(SHIELD_COST + DEVELOPMENT_MIN_CASH_AFTER)}).`;
-  }
+  const gate = developmentGateReason(s, SHIELD_COST, 'A shield');
+  if (gate) return gate;
   return null;
 }
 

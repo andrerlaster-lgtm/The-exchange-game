@@ -44,16 +44,17 @@ export const UPGRADE_LEVELS: readonly UpgradeLevelDef[] = [
 export const MAX_DEVELOPMENT_LEVEL = 3;
 
 /**
- * Cash a player must still hold AFTER paying for an upgrade or a shield.
- * Simulation sweeps of claim bonus, shield price, and upgrade cost all showed
- * the extra Payout Claim shortfalls came from players spending the cash they
- * later needed for claims, not from any price. A floor sweep then showed
- * $10,000 on upgrades alone barely helped (52 shortfalls vs 16 with upgrades
- * off, 24 games per player count); $20,000 covering shields as well came
- * closest (27). Lowered to $5,000 on 2026-09-19 by design choice: as prices
- * rise, keeping $20,000 idle made upgrades nearly unreachable.
+ * How far a player's net worth must sit ABOVE their starting cash before they
+ * may buy an upgrade or a shield. Development is meant to be what a player
+ * does once they are ahead, not a way to spend their opening stack.
+ *
+ * This replaced a plain cash floor (last $5,000, originally $20,000) on
+ * 2026-09-19: simulation showed the floor was really a test of "can you
+ * afford the claims you might owe", but as prices rose it turned into a
+ * demand to leave cash idle. Measuring the whole portfolio instead lets a
+ * player who has genuinely grown their holdings develop them.
  */
-export const DEVELOPMENT_MIN_CASH_AFTER = 5_000;
+export const DEVELOPMENT_MIN_GAIN = 15_000;
 
 /** The benefits a company has at a given level (level 0 = Base, no benefits). */
 export function upgradeLevel(level: DevelopmentLevel): UpgradeLevelDef | null {

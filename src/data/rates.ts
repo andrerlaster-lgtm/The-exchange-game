@@ -41,6 +41,11 @@ export function rateShockMoves(rateBp: number): Array<{ sec?: SectorId; risk?: R
   ];
 }
 
+/** The Bank Rate the Market Meter nudges at each round boundary: a hot
+    (Bullish) market invites tightening, a cold (Bearish) one invites easing.
+    Neutral rounds leave it alone. */
+export const METER_RATE_NUDGE_BP = 25;
+
 /** Outstanding Fees and emergency company loans charge this much over the
     Bank Rate: 5% per turn at the starting 3% rate, as before. */
 export const FEE_DEBT_SPREAD_BP = 200;

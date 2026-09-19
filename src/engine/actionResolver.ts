@@ -1289,7 +1289,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         if (c.rateBp) {
           const before = bankRateBp(s);
           const actual = changeBankRate(s, c.rateBp);
-          if (actual !== c.rateBp) eff = { k: 'multi', m: rateShockMoves(actual) };
+          if (c.rateShock && actual !== c.rateBp) eff = { k: 'multi', m: rateShockMoves(actual) };
           addLog(s, actual === 0
             ? `Bank Rate stays at ${before / 100}% — already at its ${c.rateBp > 0 ? 'ceiling' : 'floor'}.`
             : `Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${bankRateBp(s) / 100}%. Loans now cost ${actual > 0 ? 'more' : 'less'}.`, 'y');

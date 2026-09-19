@@ -6,6 +6,7 @@
 // explicitly opt out for the same reason.
 
 import { describe, expect, it } from 'vitest';
+import { FED_CARDS } from '../data';
 import { CEILING_TRIGGER, MOVE_BP, PRICE_FLOOR, SECTOR_CODES, STOCK_BY_CODE, applyBasisPoints } from '../data';
 import type { SectorId } from '../data/types';
 import { blocked } from '../engine/rules';
@@ -504,7 +505,7 @@ describe('Option A — card-triggered ripple (2026-09-18)', () => {
     s = patch(s, (d) => {
       d.meter = 2;
       d.pendingDraws = ['FED'];
-      d.decks.FED = [0]; // "Rate Hike" — multi: finance +1, realestate -1
+      d.decks.FED = [FED_CARDS.findIndex((c) => c.title === 'Rate Hike')];
       d.turnPhase = 'acted';
     });
     s = dispatch(s, { t: 'draw', deck: 'FED' }, rng('fed-ripple'));
