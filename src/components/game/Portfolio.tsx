@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DEFS, ETF_DIVERSIFICATION_BONUS, ETF_PRICE, FEE_DEBT_INSTALLMENT, FEE_DEBT_INTEREST_RATE, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, hasFullEtfDiversification, isIpoCode, totalEtfShares } from '../../data';
+import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, FEE_DEBT_INTEREST_RATE, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
 import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
@@ -46,13 +46,13 @@ export default function Portfolio() {
   const nwGlyph = nwMv.direction === 'up' ? '▲' : nwMv.direction === 'down' ? '▼' : '—';
   const nextDividend = projectedDividend(s, p);
   const nextEtfPayout = calcEtfPayout(p.etfShares);
-  // ETF_PAYOUT is a shared table keyed by TOTAL shares across all 4 funds, not
-  // an amount attributable to any one fund — so yield is computed once at the
-  // portfolio level (matching how the $ figure is already shown), never
-  // per-holding, which would misattribute a tiered/pooled payout to one fund.
+  // Distributions are per fund, but shown as one portfolio-level yield to
+  // match the single $ figure above; the diversification bonus is separate.
   const totalEtfCostBasis = totalEtfShares(p.etfShares) * ETF_PRICE;
   const etfYieldPct = totalEtfCostBasis > 0 ? (nextEtfPayout / totalEtfCostBasis) * 100 : 0;
-  const fullyDiversifiedEtf = hasFullEtfDiversification(p.etfShares);
+  const etfFundsHeld = distinctEtfFunds(p.etfShares);
+  const etfDiverBonus = etfDiversificationBonus(p.etfShares);
+  const nextEtfTier = [2, 3, 4].find((n) => n > etfFundsHeld);
   const sectors = completedSectors(p);
   const controlledPairs = controlledSectorPairs(s, viewIdx);
   const divTier = diversificationTier(p);
@@ -361,9 +361,9 @@ export default function Portfolio() {
         </span>
       </div>
 
-      {/* Projected ETF income — table payout, separate from stock dividends since
-          ETFs never had visibility here before. Diversification bonus gets its own
-          line once all 4 funds are held. */}
+      {/* Projected ETF income — per-fund distributions, separate from stock
+          dividends. The diversification bonus gets its own line once 2+
+          different funds are held. */}
       {etfEntries.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '0 2px' }}>
           <span style={{ color: 'var(--muted)' }}>
@@ -376,13 +376,13 @@ export default function Portfolio() {
           </span>
         </div>
       )}
-      {fullyDiversifiedEtf && (
+      {etfDiverBonus > 0 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '0 2px' }}>
           <span style={{ color: 'var(--muted)' }}>
             ETF Diversification Bonus
-            <span style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.7, marginLeft: 5 }}>all 4 funds · next pass</span>
+            <span style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.7, marginLeft: 5 }}>{etfFundsHeld} funds · next pass</span>
           </span>
-          <span className="mono" style={{ color: 'var(--green)', fontWeight: 700 }}>+${ETF_DIVERSIFICATION_BONUS.toLocaleString()}</span>
+          <span className="mono" style={{ color: 'var(--green)', fontWeight: 700 }}>+${etfDiverBonus.toLocaleString()}</span>
         </div>
       )}
 
@@ -548,9 +548,9 @@ export default function Portfolio() {
               </div>
             );
           })}
-          {!fullyDiversifiedEtf && etfEntries.length < ETF_DEFS.length && (
+          {nextEtfTier != null && (
             <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.8, padding: '2px 2px 0' }}>
-              Hold all 4 funds for +${ETF_DIVERSIFICATION_BONUS.toLocaleString()}/lap.
+              Hold {nextEtfTier} different funds for +${ETF_DIVERSIFICATION_BONUS_BY_FUNDS[nextEtfTier].toLocaleString()}/lap.
             </div>
           )}
         </div>

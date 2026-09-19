@@ -1,7 +1,7 @@
 // Player-focused state mutations (called on Immer drafts from actionResolver).
 
 import {
-  calcEtfPayout, etfDiversificationBonus, CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR,
+  calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR,
   IPO_BY_CODE, MARGIN_DEFAULT_PENALTY, RECOVERY_BONUS, RECOVERY_BONUS_THRESHOLD, SALARY, STOCK_BY_CODE, isIpoCode,
 } from '../data';
 import { money } from '../utils/formatMoney';
@@ -102,7 +102,7 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   const parts: string[] = [`+${money(salary)} income${landedExactly ? ' (landed exactly — double salary)' : ''}`];
   if (div) parts.push(`+${money(div)} dividends`);
   if (etfPay) parts.push(`+${money(etfPay)} ETF payout`);
-  if (etfDiverBonus) parts.push(`+${money(etfDiverBonus)} ETF diversification bonus (all 4 funds)`);
+  if (etfDiverBonus) parts.push(`+${money(etfDiverBonus)} ETF diversification bonus (${distinctEtfFunds(p.etfShares)} funds)`);
   if (conditionIncome.dividend) parts.push(`+${money(conditionIncome.dividend)} Dividend Windfall`);
   if (conditionIncome.etf) parts.push(`+${money(conditionIncome.etf)} ETF Inflows`);
   if (diverBonus) parts.push(`+${money(diverBonus)} ${divTier === 'broad' ? 'Broad Market' : 'Diversified'} bonus`);

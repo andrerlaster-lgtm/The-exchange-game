@@ -1,6 +1,6 @@
 import {
   ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, IPO_PRESENTATION, MARGIN_DEFAULT_PENALTY,
-  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, SECTORS, SHIELD_COST, STOCK_BY_CODE, STOCKS, UPGRADE_LEVELS,
+  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, projectedEtfIncome, SECTORS, SHIELD_COST, STOCK_BY_CODE, STOCKS, UPGRADE_LEVELS,
   developmentRefund, isIpoCode, stockOpportunityFor,
 } from '../data';
 import type { GameState } from '../engine';
@@ -278,7 +278,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     const etf = ETF_BY_CODE[s.etfPick];
     if (etf) required.push({
       id: 'etf', title: `${etf.glyph} ${etf.name}`, accent: etf.color, urgent: true,
-      description: `${money(ETF_PRICE)} fixed price. ETFs never crash and cannot be sold or force-sold.`,
+      description: `${money(ETF_PRICE)} fixed price. ETFs never crash and cannot be sold or force-sold. This share adds ${money(projectedEtfIncome({ ...current.etfShares, [etf.code]: (current.etfShares[etf.code] ?? 0) + 1 }) - projectedEtfIncome(current.etfShares))} per Market Open.`,
       buttons: [
         button(`Buy 1 · ${money(ETF_PRICE)}`, { t: 'buyEtf', code: etf.code }, 'primary', current.cash < ETF_PRICE),
         button('Skip', { t: 'skipEtf' }),

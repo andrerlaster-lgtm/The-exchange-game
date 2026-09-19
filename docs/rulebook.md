@@ -491,19 +491,21 @@ ETFs are a diversification route and Market Open income source. They should not 
 
 **ETF rules**
 - There are 4 ETF spaces/cards in the current board structure.
-- ETFs pay at Market Open according to the payout table below.
+- ETFs pay at Market Open according to the distribution table below.
 - ETFs do not have ownership tiers, Controllers, Sector Portfolio status, or Weak/Strong Demand. They do have their own landing fee, described below — a separate mechanic from the regular-stock Payout Claim system, not a duplicate of it.
 - ETFs may be traded during legal trading windows unless a card or app setting says otherwise.
 - ETF payouts should remain clear and simple so they act as a lower-conflict strategy path.
 - ETFs have no live market price. For all net-worth calculations (Final Portfolio Value and Portfolio Tax), owned ETF holdings are valued at their fixed purchase/card price.
 
-**ETF payout table**
+**ETF distributions**
 
-Fixed purchase price $3,000/share. Payout at every Market Open, indexed by a player's *total* ETF shares owned across all 4 funds (capped at 4):
+Fixed purchase price $3,000/share. At every Market Open, **each fund** pays by how many shares of that fund you hold:
 
-| Total ETF shares owned | 0 | 1 | 2 | 3 | 4+ |
-|---|---:|---:|---:|---:|---:|
-| Market Open payout | $0 | $300 | $700 | $1,200 | $1,800 |
+| Shares of one fund | 1 | 2 | 3+ |
+|---|---:|---:|---:|
+| That fund's Market Open distribution | $250 | $500 | $750 |
+
+Add up the funds you hold. A fund stops paying more at 3 shares, so spreading across funds earns more than stacking one.
 
 **ETF landing fee**
 - Landing on an ETF space already controlled by another player — that player is the sole holder with strictly more shares of that fund than anyone else — charges the landing player a landing fee, paid to that fund's controller.
@@ -513,9 +515,10 @@ Fixed purchase price $3,000/share. Payout at every Market Open, indexed by a pla
 - Buying a share of the fund is always offered on landing regardless of who else already owns it — only the landing fee, not the purchase itself, depends on ownership.
 - A landing during the landing player's first-lap grace period (Section 5) owes no landing fee, but the purchase offer is unaffected.
 
-**ETF Full-Diversification bonus**
-- A player holding at least 1 share in every one of the 4 distinct funds receives an extra $600 at Market Open, on top of the payout table above.
-- This mirrors Sector Portfolio's "complete the set" reward, applied to ETFs instead of regular stocks.
+**ETF diversification bonus**
+- Holding *different* funds (at least 1 share each) pays an extra bonus at Market Open, on top of the distributions: **2 funds +$250, 3 funds +$500, all 4 funds +$750**.
+- It counts different funds, not more shares of one fund.
+- Example: 1 share in each of the 4 funds pays 4 × $250 = $1,000 in distributions + $750 bonus = **$1,750** per Market Open.
 
 ## 19. IPOs
 

@@ -1,4 +1,4 @@
-import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, MOVE_BP, isIpoCode } from '../../data';
+import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, distinctEtfFunds, etfDiversificationBonus, projectedEtfIncome, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, MOVE_BP, isIpoCode } from '../../data';
 import { gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState, MarketOpenIncome } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
@@ -260,7 +260,7 @@ function MarketOpenIncomeSection({ income: inc }: { income: MarketOpenIncome }) 
     rows.push({ label: `Dividends${inc.controllingCodes.length > 0 ? ` (Controller: ${inc.controllingCodes.join(', ')})` : ''}`, amount: inc.dividends });
   }
   if (inc.etfPayout > 0) rows.push({ label: 'ETF Payout', amount: inc.etfPayout });
-  if (inc.etfDiversificationBonus > 0) rows.push({ label: 'ETF Diversification (all 4 funds)', amount: inc.etfDiversificationBonus });
+  if (inc.etfDiversificationBonus > 0) rows.push({ label: 'ETF Diversification (different funds)', amount: inc.etfDiversificationBonus });
   if (inc.conditionDividend > 0) rows.push({ label: inc.conditionTitle ?? 'Dividend Windfall', amount: inc.conditionDividend });
   if (inc.conditionEtf > 0) rows.push({ label: inc.conditionTitle ?? 'ETF Inflows', amount: inc.conditionEtf });
   if (inc.diversificationBonus > 0) {
@@ -893,14 +893,19 @@ export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; d
   const etf = ETF_BY_CODE[code];
   if (!etf) return null;
   const p = s.players[s.cur];
-  const currentTotal = totalEtfShares(p.etfShares);
-  const nextTotal = Math.min(currentTotal + 1, ETF_PAYOUT.length - 1);
+  const ownedHere = p.etfShares[code] ?? 0;
+  // What this one share adds per Market Open, from the same function the game
+  // pays with — fund distribution plus any diversification-tier step.
+  const incomeNow = projectedEtfIncome(p.etfShares);
+  const incomeAfter = projectedEtfIncome({ ...p.etfShares, [code]: ownedHere + 1 });
+  const addsPerLap = incomeAfter - incomeNow;
   const canAfford = p.cash >= ETF_PRICE;
   // Landing on a fund someone else controls charges a fee AND still offers the
   // share — but the fee is settled first, matching the engine's buyEtf guard.
   const feeFirst = !!s.landingNotice || !!s.insolvency;
-  const distinctOwned = ETF_DEFS.filter((e) => (p.etfShares[e.code] ?? 0) > 0).length;
-  const fullyDiversified = hasFullEtfDiversification(p.etfShares);
+  const distinctOwned = distinctEtfFunds(p.etfShares);
+  const bonusNow = etfDiversificationBonus(p.etfShares);
+  const nextTier = [2, 3, 4].find((n) => n > distinctOwned);
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 8,
@@ -913,10 +918,10 @@ export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; d
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: etf.color }}>{etf.name}</div>
           <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-            ${ETF_PRICE.toLocaleString()} · you own {currentTotal} fund{currentTotal !== 1 ? 's' : ''} total
-            {currentTotal < ETF_PAYOUT.length - 1 && (
-              <> · next payout: ${ETF_PAYOUT[nextTotal].toLocaleString()}/lap</>
-            )}
+            ${ETF_PRICE.toLocaleString()} · you own {ownedHere} share{ownedHere !== 1 ? 's' : ''} of this fund
+            {' · '}{addsPerLap > 0
+              ? <>this share adds <strong>+${addsPerLap.toLocaleString()}</strong> per Market Open</>
+              : <>this fund already pays its maximum (3+ shares)</>}
           </div>
         </div>
       </div>
@@ -930,11 +935,11 @@ export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; d
         🔒 Fixed price, never crashes · can't be sold or force-sold — a safe, illiquid income asset.
       </div>
 
-      {/* Full-Diversification bonus progress — own all 4 distinct funds */}
-      <div style={{ fontSize: 10, color: fullyDiversified ? 'var(--green)' : 'var(--muted)', lineHeight: 1.5 }}>
-        {fullyDiversified
-          ? `✓ All 4 funds held — earning the +$${ETF_DIVERSIFICATION_BONUS.toLocaleString()}/lap diversification bonus`
-          : `Own all 4 distinct funds (${distinctOwned}/4) for +$${ETF_DIVERSIFICATION_BONUS.toLocaleString()}/lap`}
+      {/* Diversification bonus progress — different funds, not more shares */}
+      <div style={{ fontSize: 10, color: bonusNow > 0 ? 'var(--green)' : 'var(--muted)', lineHeight: 1.5 }}>
+        {`Different funds held: ${distinctOwned}/${ETF_DEFS.length}`}
+        {bonusNow > 0 && ` · earning +$${bonusNow.toLocaleString()}/lap diversification bonus`}
+        {nextTier != null && ` · ${nextTier} funds pays +$${ETF_DIVERSIFICATION_BONUS_BY_FUNDS[nextTier].toLocaleString()}/lap`}
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>

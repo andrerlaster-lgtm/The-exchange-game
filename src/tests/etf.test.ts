@@ -1,35 +1,62 @@
-// ETF pricing, rebalanced payout table, and the Full-Diversification bonus
-// (paid only when a player holds all 4 distinct funds, not just 4 shares of one).
+// ETF pricing, per-fund Market Open distributions, and the diversification
+// bonus for holding different funds (2026-09-19 redesign).
 
 import { describe, expect, it } from 'vitest';
-import { ETF_DEFS, ETF_DIVERSIFICATION_BONUS, ETF_PAYOUT, ETF_PRICE, calcEtfPayout, etfDiversificationBonus, hasFullEtfDiversification } from '../data';
+import {
+  ETF_DEFS, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_FUND_DISTRIBUTION, ETF_PRICE,
+  calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, hasFullEtfDiversification, projectedEtfIncome,
+} from '../data';
 import { dispatch, patch, scriptedRng, started } from './helpers';
 
 describe('ETF pricing', () => {
   it('is fixed at $3,000/share', () => {
     expect(ETF_PRICE).toBe(3_000);
   });
+});
 
-  it('rebalanced payout table (0–4 total shares owned)', () => {
-    expect(ETF_PAYOUT).toEqual([0, 300, 700, 1_200, 1_800]);
+describe('ETF distributions (per fund)', () => {
+  it('pays each fund by its own shares: 1 → $250, 2 → $500, 3+ → $750', () => {
+    expect(ETF_FUND_DISTRIBUTION).toEqual([0, 250, 500, 750]);
+    expect(calcEtfPayout({ GRW: 1 })).toBe(250);
+    expect(calcEtfPayout({ GRW: 2 })).toBe(500);
+    expect(calcEtfPayout({ GRW: 3 })).toBe(750);
+    expect(calcEtfPayout({ GRW: 5 })).toBe(750); // capped at 3+
+  });
+
+  it('adds the funds together', () => {
+    expect(calcEtfPayout({ GRW: 1, INC: 2 })).toBe(250 + 500);
+    const oneEach = Object.fromEntries(ETF_DEFS.map((e) => [e.code, 1]));
+    expect(calcEtfPayout(oneEach)).toBe(4 * 250);
+  });
+
+  it('pays nothing with no ETFs', () => {
+    expect(calcEtfPayout({})).toBe(0);
+    expect(projectedEtfIncome({})).toBe(0);
   });
 });
 
-describe('ETF Full-Diversification bonus', () => {
-  it('is 0 with any single fund, even at 4 shares of the same one', () => {
-    expect(hasFullEtfDiversification({ GRW: 4 })).toBe(false);
+describe('ETF diversification bonus (different funds)', () => {
+  it('counts different funds, not more shares of one', () => {
+    expect(distinctEtfFunds({ GRW: 4 })).toBe(1);
     expect(etfDiversificationBonus({ GRW: 4 })).toBe(0);
-    // The share-count table still pays the max tier regardless.
-    expect(calcEtfPayout({ GRW: 4 })).toBe(ETF_PAYOUT[4]);
   });
 
-  it('is paid once all 4 distinct funds are held (1 share each is enough)', () => {
-    const etfShares = Object.fromEntries(ETF_DEFS.map((e) => [e.code, 1]));
-    expect(hasFullEtfDiversification(etfShares)).toBe(true);
-    expect(etfDiversificationBonus(etfShares)).toBe(ETF_DIVERSIFICATION_BONUS);
+  it('pays 2 funds +$250, 3 funds +$500, all 4 +$750', () => {
+    expect(ETF_DIVERSIFICATION_BONUS_BY_FUNDS).toEqual({ 2: 250, 3: 500, 4: 750 });
+    expect(etfDiversificationBonus({ GRW: 1, INC: 1 })).toBe(250);
+    expect(etfDiversificationBonus({ GRW: 1, INC: 1, PROP: 1 })).toBe(500);
+    const oneEach = Object.fromEntries(ETF_DEFS.map((e) => [e.code, 1]));
+    expect(hasFullEtfDiversification(oneEach)).toBe(true);
+    expect(etfDiversificationBonus(oneEach)).toBe(750);
   });
 
-  it('stacks on top of the share-count payout at Market Open', () => {
+  it('spreading beats stacking: 4 shares across 4 funds out-earn 4 shares of one', () => {
+    const oneEach = Object.fromEntries(ETF_DEFS.map((e) => [e.code, 1]));
+    expect(projectedEtfIncome(oneEach)).toBe(1_000 + 750); // $1,750
+    expect(projectedEtfIncome({ GRW: 4 })).toBe(750);        // capped fund, no bonus
+  });
+
+  it('is paid on top of distributions at Market Open', () => {
     let s = started(2);
     const etfShares = Object.fromEntries(ETF_DEFS.map((e) => [e.code, 1]));
     s = patch(s, (d) => {
@@ -39,11 +66,8 @@ describe('ETF Full-Diversification bonus', () => {
     const cashBefore = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // total 4
     expect(s.players[0].pos).toBe(1);
-
-    const expectedEtfIncome = ETF_PAYOUT[4] + ETF_DIVERSIFICATION_BONUS; // 4 total shares, all distinct
-    expect(s.log.some((l) => /ETF diversification bonus/i.test(l.text))).toBe(true);
-    // Cash gained must be at least salary + full ETF income (dividends/other bonuses may also apply, but none here).
-    expect(s.players[0].cash).toBeGreaterThanOrEqual(cashBefore + expectedEtfIncome);
+    expect(s.log.some((l) => /ETF diversification bonus \(4 funds\)/i.test(l.text))).toBe(true);
+    expect(s.players[0].cash).toBeGreaterThanOrEqual(cashBefore + projectedEtfIncome(etfShares));
   });
 
   it('ETF shares can never be force-sold (rulebook §17): forcedSell only touches p.shares', () => {

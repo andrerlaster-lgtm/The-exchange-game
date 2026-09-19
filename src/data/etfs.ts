@@ -9,23 +9,21 @@ export interface EtfDef {
 
 export const ETF_PRICE = 3_000;
 
-// Payout per Market Open pass/land, indexed by total ETF shares owned (capped at 4).
-// Boosted so Funds compete with a Controlling Stake stock position instead of
-// trailing it — each additional fund pays a better rate, flattening at 4.
-//   1 fund  → $300   on $3,000 invested  (10%/lap)
-//   2 funds → $700   on $6,000 invested  (11.7%/lap)
-//   3 funds → $1,200 on $9,000 invested  (13.3%/lap)
-//   4 funds → $1,800 on $12,000 invested (15%/lap)
-export const ETF_PAYOUT = [0, 300, 700, 1_200, 1_800];
+// ETF Market Open distributions (2026-09-19 redesign). ETFs are the steady-
+// income, lower-risk asset: they pay every Market Open without anyone landing
+// on them. Each FUND pays by how many shares of it you hold, capped at 3+:
+//   1 share  → $250    ($3,000 invested,  8.3%/lap)
+//   2 shares → $500    ($6,000 invested,  8.3%/lap)
+//   3+       → $750    ($9,000 invested,  8.3%/lap at 3; falls beyond 3)
+// The cap pushes players to spread across funds rather than stack one.
+// Replaces the old table keyed by TOTAL shares across all funds
+// ($300/$700/$1,200/$1,800 for 1-4 shares).
+export const ETF_FUND_DISTRIBUTION = [0, 250, 500, 750] as const;
 
-// Full-Diversification bonus: paid on top of the table above only when a player
-// holds at least 1 share in EVERY one of the 4 distinct funds — not just 4 shares
-// of a single fund. Mirrors the stock world's Sector Portfolio bonus and is what
-// actually makes ETFs a "diversification route" per the rulebook, rather than
-// just a flat income ladder that rewards raw share count. Doubled alongside the
-// payout table so full diversification ($1,800 + $600 = $2,400/lap on $12,000,
-// 20%/lap) reads as a prize worth racing for, not a rounding bonus.
-export const ETF_DIVERSIFICATION_BONUS = 600;
+// Diversification bonus for holding DIFFERENT funds (not more shares of one):
+// 2 funds +$250, 3 funds +$500, all 4 funds +$750. Replaces the old flat $600
+// paid only when all 4 were held.
+export const ETF_DIVERSIFICATION_BONUS_BY_FUNDS: Record<number, number> = { 2: 250, 3: 500, 4: 750 };
 
 // Railroad-style landing fee paid to the player who controls a fund space.
 export const ETF_LANDING_FEES = [0, 750, 1_500, 2_500, 4_000];
@@ -53,28 +51,37 @@ export function isEtfCode(code: string): boolean {
   return code in ETF_BY_CODE;
 }
 
-/** Total ETF shares owned (all funds combined), capped at payout table length. */
+/** Total ETF shares owned (all funds combined). */
 export function totalEtfShares(etfShares: Record<string, number>): number {
   return Object.values(etfShares).reduce((s, n) => s + n, 0);
 }
 
-/** ETF payout for this Market Open (share-count table only, no diversification bonus). */
+/** How many different funds the player holds at least one share of. */
+export function distinctEtfFunds(etfShares: Record<string, number>): number {
+  return ETF_DEFS.filter((e) => (etfShares[e.code] ?? 0) > 0).length;
+}
+
+/** One fund's distribution for its share count (capped at 3+). */
+export function etfFundDistribution(shares: number): number {
+  return ETF_FUND_DISTRIBUTION[Math.max(0, Math.min(shares, ETF_FUND_DISTRIBUTION.length - 1))];
+}
+
+/** ETF distributions for this Market Open: the sum over funds (no diversification bonus). */
 export function calcEtfPayout(etfShares: Record<string, number>): number {
-  const total = Math.min(totalEtfShares(etfShares), ETF_PAYOUT.length - 1);
-  return ETF_PAYOUT[total];
+  return ETF_DEFS.reduce((sum, e) => sum + etfFundDistribution(etfShares[e.code] ?? 0), 0);
 }
 
-/** Whether the player holds at least 1 share in every one of the 4 distinct funds. */
+/** Whether the player holds at least 1 share in every fund. */
 export function hasFullEtfDiversification(etfShares: Record<string, number>): boolean {
-  return ETF_DEFS.every((e) => (etfShares[e.code] ?? 0) > 0);
+  return distinctEtfFunds(etfShares) === ETF_DEFS.length;
 }
 
-/** Full-Diversification bonus for this Market Open — 0 unless all 4 funds are held. */
+/** Diversification bonus for this Market Open, by number of different funds held. */
 export function etfDiversificationBonus(etfShares: Record<string, number>): number {
-  return hasFullEtfDiversification(etfShares) ? ETF_DIVERSIFICATION_BONUS : 0;
+  return ETF_DIVERSIFICATION_BONUS_BY_FUNDS[distinctEtfFunds(etfShares)] ?? 0;
 }
 
-/** Total ETF income (table payout + diversification bonus) for this Market Open. */
+/** Total ETF income (distributions + diversification bonus) for this Market Open. */
 export function projectedEtfIncome(etfShares: Record<string, number>): number {
   return calcEtfPayout(etfShares) + etfDiversificationBonus(etfShares);
 }

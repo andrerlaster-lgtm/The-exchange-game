@@ -6,7 +6,7 @@
 // against their cash BEFORE that income is added.
 
 import { describe, expect, it } from 'vitest';
-import { RECOVERY_BONUS, RECOVERY_BONUS_THRESHOLD, SALARY } from '../data';
+import { ETF_FUND_DISTRIBUTION, RECOVERY_BONUS, RECOVERY_BONUS_THRESHOLD, SALARY } from '../data';
 import { patch, started } from './helpers';
 import { payMarketOpen } from '../engine/playerState';
 
@@ -49,7 +49,7 @@ describe('Recovery Bonus', () => {
     const before = s.players[0].cash;
     s = patch(s, (d) => payMarketOpen(d, 0));
     const dividend = 2 * 110;
-    const etfPay = 300; // ETF_PAYOUT[1]
+    const etfPay = ETF_FUND_DISTRIBUTION[1]; // one share of one fund
     expect(s.players[0].cash - before).toBe(SALARY + dividend + etfPay + RECOVERY_BONUS);
   });
 
