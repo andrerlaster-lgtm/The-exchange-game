@@ -153,6 +153,7 @@ export interface PriceInfo3D {
   p: number;        // current dollar price
   d: -1 | 0 | 1;    // direction vs opening price
   delta: number;    // signed dollar difference from opening
+  po?: number;      // percent from opening (realized)
   s: number;        // shares remaining in supply
   o?: number;       // outstanding sold-back shares available on landing
   so?: boolean;     // sold out (permanent)

@@ -1,7 +1,7 @@
 import { STOCKS } from '../../data';
 import { getStockMovementStatus, priceOf } from '../../engine';
 import type { GameState } from '../../engine';
-import { money, pct } from '../../utils/formatMoney';
+import { money, pctBp } from '../../utils/formatMoney';
 import { useGameState } from '../../store';
 import MarketRegimeBadge from './MarketRegimeBadge';
 
@@ -33,12 +33,12 @@ function TickerGroup({ entries, hidden = false }: { entries: TickerEntry[]; hidd
         const glyph = entry.direction === 'up' ? '▲' : entry.direction === 'down' ? '▼' : '—';
         // Percentage is the headline number under the percentage market model;
         // the dollar move rides along in the tooltip for players settling by hand.
-        const move = entry.direction === 'flat' ? '—' : pct(entry.pctFromOpen);
+        const move = entry.direction === 'flat' ? '—' : pctBp(entry.pctFromOpen);
         return (
           <span
             className={`market-ticker-entry ${entry.direction}`}
             key={entry.code}
-            title={`${entry.code} is ${money(Math.abs(entry.difference))} (${pct(entry.pctFromOpen)}) ${entry.direction} from its opening price`}
+            title={`${entry.code} is ${money(Math.abs(entry.difference))} (${pctBp(entry.pctFromOpen)}) ${entry.direction} from its opening price`}
           >
             <strong>{entry.code}</strong>
             <span>${entry.price.toLocaleString()}</span>

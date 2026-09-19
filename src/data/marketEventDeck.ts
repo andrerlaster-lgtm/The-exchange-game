@@ -21,22 +21,22 @@ const mk = (title: string, story: string, effect: string, eff: Card['eff'], mete
 // across this group. Net meter sentiment: Neutral (no meterSentiment set) —
 // capital rotation, not a market-wide mood.
 const SECTOR_ROTATION_CARDS: Card[] = [
-  mk('Tech Breakthrough',       'A surprise product launch reshapes the tech landscape.',   'Technology +1; Real Estate -1.',       { k: 'multi', m: [{ sec: 'tech', bp: 500 }, { sec: 'realestate', bp: -500 }] }),
-  mk('Property Rebound',        'Commercial real estate demand snaps back.',                'Real Estate +1; Technology -1.',       { k: 'multi', m: [{ sec: 'realestate', bp: 500 }, { sec: 'tech', bp: -500 }] }),
-  mk('Bank Earnings Surge',     'Lenders report stronger-than-expected income.',            'Finance +1; Consumer -1.',             { k: 'multi', m: [{ sec: 'finance', bp: 500 }, { sec: 'consumer', bp: -500 }] }),
-  mk('Consumer Spending Boom',  'Households open their wallets for the season.',            'Consumer +1; Finance -1.',             { k: 'multi', m: [{ sec: 'consumer', bp: 500 }, { sec: 'finance', bp: -500 }] }),
-  mk('Medical Breakthrough',    'A clinical trial reports unexpectedly strong results.',    'Healthcare +1; Energy -1.',            { k: 'multi', m: [{ sec: 'health', bp: 500 }, { sec: 'energy', bp: -500 }] }),
-  mk('Energy Supply Shock',     'A supply disruption tightens the energy market.',          'Energy +1; Healthcare -1.',            { k: 'multi', m: [{ sec: 'energy', bp: 500 }, { sec: 'health', bp: -500 }] }),
-  mk('Infrastructure Boom',     'A wave of public works spending breaks ground.',           'Industrials +1; Comms/Media -1.',      { k: 'multi', m: [{ sec: 'industrials', bp: 500 }, { sec: 'comm', bp: -500 }] }),
-  mk('Media Breakout',          'A streaming or platform launch dominates headlines.',      'Comms/Media +1; Industrials -1.',      { k: 'multi', m: [{ sec: 'comm', bp: 500 }, { sec: 'industrials', bp: -500 }] }),
+  mk('Tech Breakthrough',       'A surprise product launch reshapes the tech landscape.',   'Technology +5% (500 bp); Real Estate -5% (500 bp).',       { k: 'multi', m: [{ sec: 'tech', bp: 500 }, { sec: 'realestate', bp: -500 }] }),
+  mk('Property Rebound',        'Commercial real estate demand snaps back.',                'Real Estate +5% (500 bp); Technology -5% (500 bp).',       { k: 'multi', m: [{ sec: 'realestate', bp: 500 }, { sec: 'tech', bp: -500 }] }),
+  mk('Bank Earnings Surge',     'Lenders report stronger-than-expected income.',            'Finance +5% (500 bp); Consumer -5% (500 bp).',             { k: 'multi', m: [{ sec: 'finance', bp: 500 }, { sec: 'consumer', bp: -500 }] }),
+  mk('Consumer Spending Boom',  'Households open their wallets for the season.',            'Consumer +5% (500 bp); Finance -5% (500 bp).',             { k: 'multi', m: [{ sec: 'consumer', bp: 500 }, { sec: 'finance', bp: -500 }] }),
+  mk('Medical Breakthrough',    'A clinical trial reports unexpectedly strong results.',    'Healthcare +5% (500 bp); Energy -5% (500 bp).',            { k: 'multi', m: [{ sec: 'health', bp: 500 }, { sec: 'energy', bp: -500 }] }),
+  mk('Energy Supply Shock',     'A supply disruption tightens the energy market.',          'Energy +5% (500 bp); Healthcare -5% (500 bp).',            { k: 'multi', m: [{ sec: 'energy', bp: 500 }, { sec: 'health', bp: -500 }] }),
+  mk('Infrastructure Boom',     'A wave of public works spending breaks ground.',           'Industrials +5% (500 bp); Comms/Media -5% (500 bp).',      { k: 'multi', m: [{ sec: 'industrials', bp: 500 }, { sec: 'comm', bp: -500 }] }),
+  mk('Media Breakout',          'A streaming or platform launch dominates headlines.',      'Comms/Media +5% (500 bp); Industrials -5% (500 bp).',      { k: 'multi', m: [{ sec: 'comm', bp: 500 }, { sec: 'industrials', bp: -500 }] }),
 ];
 
 // ── B. Four balanced risk cards ──────────────────────────────────────────────
 const RISK_CARDS: Card[] = [
-  mk('Flight to Quality', 'Investors seek shelter in dependable names.',        'Low Risk +1; High Risk -1.', { k: 'multi', m: [{ risk: 'Low', bp: 500 }, { risk: 'High', bp: -500 }] }),
-  mk('Risk-On Rally',     'Traders chase upside in the market’s riskiest names.', 'High Risk +1; Low Risk -1.', { k: 'multi', m: [{ risk: 'High', bp: 500 }, { risk: 'Low', bp: -500 }] }),
-  mk('Steady Earnings',   'Mid-tier companies post reliable, unremarkable results.', 'Medium Risk +1.',       { k: 'risk', risk: 'Med', bp: 500 }, 1),
-  mk('Growth Warning',    'Mid-tier guidance comes in soft for the quarter.',   'Medium Risk -1.',            { k: 'risk', risk: 'Med', bp: -500 }, -1),
+  mk('Flight to Quality', 'Investors seek shelter in dependable names.',        'Low Risk +5% (500 bp); High Risk -5% (500 bp).', { k: 'multi', m: [{ risk: 'Low', bp: 500 }, { risk: 'High', bp: -500 }] }),
+  mk('Risk-On Rally',     'Traders chase upside in the market’s riskiest names.', 'High Risk +5% (500 bp); Low Risk -5% (500 bp).', { k: 'multi', m: [{ risk: 'High', bp: 500 }, { risk: 'Low', bp: -500 }] }),
+  mk('Steady Earnings',   'Mid-tier companies post reliable, unremarkable results.', 'Medium Risk +5% (500 bp).',       { k: 'risk', risk: 'Med', bp: 500 }, 1),
+  mk('Growth Warning',    'Mid-tier guidance comes in soft for the quarter.',   'Medium Risk -5% (500 bp).',            { k: 'risk', risk: 'Med', bp: -500 }, -1),
 ];
 
 // ── C. Four company-specific cards ───────────────────────────────────────────
@@ -45,10 +45,10 @@ const RISK_CARDS: Card[] = [
 // required direction (not already at the ladder floor/ceiling) — enforced in
 // eventCardResolver.ts, not by this data module.
 const COMPANY_SPECIFIC_CARDS: Card[] = [
-  mk('Earnings Beat',   'One company crushes its sales and profit targets.', 'Choose an eligible company — it rises 2 steps.', { k: 'pick', bp: 1000, label: 'Choose a company to move UP 2 steps' }),
-  mk('Earnings Miss',   'One company badly misses expectations.',            'Choose an eligible company — it falls 2 steps.', { k: 'pick', bp: -1000, label: 'Choose a company to move DOWN 2 steps' }),
-  mk('Short Squeeze',   'Traders betting against the cheapest stock scramble to cover.', 'The lowest-priced eligible company rises 2 steps.', { k: 'lowest', bp: 1000 }),
-  mk('Bad Press',       'Negative headlines hit the market leader.',         'The highest-priced eligible company falls 2 steps.', { k: 'highest', bp: -1000 }),
+  mk('Earnings Beat',   'One company crushes its sales and profit targets.', 'Choose an eligible company — it rises 10% (1,000 bp).', { k: 'pick', bp: 1000, label: 'Choose a company to move UP 10% (1,000 bp)' }),
+  mk('Earnings Miss',   'One company badly misses expectations.',            'Choose an eligible company — it falls 10% (1,000 bp).', { k: 'pick', bp: -1000, label: 'Choose a company to move DOWN 10% (1,000 bp)' }),
+  mk('Short Squeeze',   'Traders betting against the cheapest stock scramble to cover.', 'The lowest-priced eligible company rises 10% (1,000 bp).', { k: 'lowest', bp: 1000 }),
+  mk('Bad Press',       'Negative headlines hit the market leader.',         'The highest-priced eligible company falls 10% (1,000 bp).', { k: 'highest', bp: -1000 }),
 ];
 
 // ── D. Two broad-market headline cards ───────────────────────────────────────
@@ -57,8 +57,8 @@ const COMPANY_SPECIFIC_CARDS: Card[] = [
 // every round; going back to +/-2 on top of that was not validated as safe
 // (see the balance simulation in the Stage report).
 const BROAD_MARKET_CARDS: Card[] = [
-  mk('Melt-Up Rally', 'Momentum buyers chase the whole market higher.', 'Every eligible company rises 1 step.', { k: 'all', bp: 500 }, 2),
-  mk('Flash Crash',   'Selling hits fast, before buyers respond.',      'Every eligible company falls 1 step.', { k: 'all', bp: -500, crash: true }, -2),
+  mk('Melt-Up Rally', 'Momentum buyers chase the whole market higher.', 'Every eligible company rises 5% (500 bp).', { k: 'all', bp: 500 }, 2),
+  mk('Flash Crash',   'Selling hits fast, before buyers respond.',      'Every eligible company falls 5% (500 bp).', { k: 'all', bp: -500, crash: true }, -2),
 ];
 
 // ── E. Three sentiment/information cards ─────────────────────────────────────
@@ -104,9 +104,9 @@ export const MARKET_CLOSE_CARD: Card =
 // named for inclusion or removal (see the module doc comment above).
 const PRESERVED_CARDS: Card[] = [
   mk('Dividend Payment',         'Your portfolio had a profitable quarter.',                    'Receive the stock and IPO dividends currently due on your holdings.',      { k: 'dividend' }),
-  mk('Cyberattack',              'Your portfolio security system has been breached.',           'Choose: one holding drops 1 step, or pay 3% of net worth (minimum $500).', { k: 'cyberattack' }),
+  mk('Cyberattack',              'Your portfolio security system has been breached.',           'Choose: one holding drops 5% (500 bp), or pay 3% of net worth (minimum $500).', { k: 'cyberattack' }),
   mk('Opening Bell',             'A new trading session begins with a rare first-mover opportunity.', 'Randomly reveal an untouched company. Buy the entire 11-share company at its current market price, or pass.', { k: 'openingBell' }),
-  mk('Regulatory Investigation', 'Government regulators open an investigation into one company in your portfolio.', 'Choose: one holding drops 1 step and its next dividend is reduced 50%, or pay $5,000.', { k: 'regulatoryInvestigation' }),
+  mk('Regulatory Investigation', 'Government regulators open an investigation into one company in your portfolio.', 'Choose: one holding drops 5% (500 bp) and its next dividend is reduced 50%, or pay $5,000.', { k: 'regulatoryInvestigation' }),
 ];
 
 export const ME_CARDS: Card[] = [...CORE_ME_CARDS, ...PRESERVED_CARDS, MARKET_CLOSE_CARD];

@@ -10,6 +10,7 @@ import {
 } from '../../engine';
 import { toBps } from '../../utils/formatRate';
 import { useDispatch, useGameState } from '../../store';
+import { pctBp } from '../../utils/formatMoney';
 
 export default function Portfolio() {
   const s = useGameState();
@@ -478,7 +479,7 @@ export default function Portfolio() {
                     )}
                   </span>
                   <span style={{ fontSize: 10, color: mvColor, fontWeight: 700 }}>
-                    {mvGlyph} {mv?.label ?? ''}{mv && mv.pctFromOpen !== 0 ? ` ${signedPercent(mv.pctFromOpen)}` : ''}
+                    {mvGlyph} {mv?.label ?? ''}{mv && mv.pctFromOpen !== 0 ? ` ${pctBp(mv.pctFromOpen)}` : ''}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>

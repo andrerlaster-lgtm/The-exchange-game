@@ -7,12 +7,13 @@
 // Market on the board.
 
 import type { CSSProperties } from 'react';
-import { MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, STOCK_BY_CODE, STOCKS, WEAK_DEMAND_THRESHOLD, SELL_BACK_HAIRCUT_BP } from '../../data';
 import type { Stock } from '../../data/types';
 import { bankSellRemaining, canTradeNow, companyBuyoutCost, priceOf, sellBackPrice } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 import TradeTicket from './TradeTicket';
 import FedSignalBadge from './FedSignalBadge';
+import { moveSize } from '../../utils/formatMoney';
 
 const overlayStyle: CSSProperties = {
   position: 'fixed',
@@ -131,7 +132,7 @@ export default function StockTradeCard() {
                   )}
                   <button style={{ fontSize: 11, padding: '2px 8px' }}
                     disabled={sellRemaining <= 0}
-                    title={sellRemaining > 0 ? `Sell one step below market · $${sellPrice.toLocaleString()} · ${sellRemaining} left this turn` : 'Half-holding bank-sale limit reached'}
+                    title={sellRemaining > 0 ? `Sell ${moveSize(SELL_BACK_HAIRCUT_BP)} below market · $${sellPrice.toLocaleString()} · ${sellRemaining} left this turn` : 'Half-holding bank-sale limit reached'}
                     onClick={() => dispatch({ t: 'sell', code: st.code })}>Sell&nbsp;${sellPrice.toLocaleString()}</button>
                 </div>
               );

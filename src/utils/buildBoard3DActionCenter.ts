@@ -12,7 +12,7 @@ import {
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
 import { marketRegimeInfo } from './marketRegime';
-import { pct } from './formatMoney';
+import { moveSize, pct } from './formatMoney';
 
 function money(value: number): string {
   return `$${value.toLocaleString()}`;
@@ -314,7 +314,9 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
         const opportunity = stockOpportunityFor(stock);
         const leadBenefit = opportunity.dividendPerLap > 0
           ? `Dividend ${money(opportunity.dividendPerLap)}/lap`
-          : `Bull Run +${opportunity.bullMove} steps`;
+          // bullMove is basis points since the percentage redesign; this used to
+          // print it as a step count ("Bull Run +2000 steps").
+          : `Bull Run +${moveSize(opportunity.bullMove)}`;
         return {
           key: stock.code,
           title: `${stock.code} · ${stock.name}`,

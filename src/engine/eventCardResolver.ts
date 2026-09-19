@@ -1,7 +1,7 @@
 // Card effect application and market-close trigger (called on Immer drafts).
 
 import { CARDS, CIRCUIT_BREAKER_INDEX, IPO_RUN_BP, MARKET_RUN_MOVE_BY_RISK, REGULAR_SUPPLY, STOCK_BY_CODE } from '../data';
-import { money, pct } from '../utils/formatMoney';
+import { money, pctBp } from '../utils/formatMoney';
 import type { Card, Effect } from '../data/types';
 import type { PriceMoveSource } from '../data';
 import type { GameState, LogKind, MarketSignalImpact } from './types';
@@ -163,7 +163,7 @@ export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng, 
       return null;
     }
     const r = moveEventPrice(s, target, effect.bp);
-    addLog(s, `${target} (${effect.k}) moves ${pct(r.pct)} to ${money(r.after)}`);
+    addLog(s, `${target} (${effect.k}) moves ${pctBp(r.pct)} to ${money(r.after)}`);
     return r.delta !== 0 ? [{ code: target, pct: r.pct }] : [];
   }
   const holder = s.circuitBreakerHolder;

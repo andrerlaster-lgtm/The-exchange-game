@@ -4,6 +4,7 @@
 
 import type { CSSProperties } from 'react';
 import type { MarketSignalImpact } from '../../engine';
+import { pctBp } from '../../utils/formatMoney';
 
 export const STANCE_META: Record<'hawkish' | 'dovish' | 'neutral' | 'mixed', { label: string; color: string; bg: string }> = {
   hawkish: { label: 'Hawkish', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
@@ -19,13 +20,12 @@ function impactStyle(color: string, background: string): CSSProperties {
   };
 }
 
-/** Up/down percentage pills for a resolved set of price impacts. Renders
+/** Up/down percentage (and basis-point) pills for a resolved set of price impacts. Renders
     nothing for an empty list (a card that had no eligible target, or whose
     entire move was shielded by Circuit Breaker). */
 export function ImpactChips({ impacts, style }: { impacts: MarketSignalImpact[]; style?: CSSProperties }) {
-  const pct = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
-  const up = impacts.filter((impact) => impact.pct > 0).map((impact) => `${impact.code} ${pct(impact.pct)}`);
-  const down = impacts.filter((impact) => impact.pct < 0).map((impact) => `${impact.code} ${pct(impact.pct)}`);
+  const up = impacts.filter((impact) => impact.pct > 0).map((impact) => `${impact.code} ${pctBp(impact.pct)}`);
+  const down = impacts.filter((impact) => impact.pct < 0).map((impact) => `${impact.code} ${pctBp(impact.pct)}`);
   if (!up.length && !down.length) return null;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, ...style }}>

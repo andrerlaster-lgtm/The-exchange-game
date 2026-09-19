@@ -1,4 +1,4 @@
-import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, isIpoCode } from '../../data';
+import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_PAYOUT, ETF_DIVERSIFICATION_BONUS, totalEtfShares, hasFullEtfDiversification, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, MOVE_BP, isIpoCode } from '../../data';
 import { gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState, MarketOpenIncome } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
@@ -521,7 +521,7 @@ function InvestorDayPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action)
         {(pick.codes ?? []).map((code) => (
           <button key={code}
             style={{ fontSize: 11, padding: '6px 10px' }}
-            title={`Move ${STOCK_BY_CODE[code]?.name ?? code} up 1 price step`}
+            title={`Grow ${STOCK_BY_CODE[code]?.name ?? code} by ${moveSize(pick.bp)}`}
             onClick={() => dispatch({ t: 'pickTarget', code })}>
             {code} · ${priceOf(s, code).toLocaleString()} →
           </button>
@@ -844,7 +844,7 @@ function AuctionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => 
 
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
         {a.highBidder === null
-          ? <>Opening bid on {stock?.name ?? a.code} is <span className="mono" style={{ color: 'var(--gold)', fontWeight: 800 }}>${a.startPrice.toLocaleString()}</span> (one step below market).</>
+          ? <>Opening bid on {stock?.name ?? a.code} is <span className="mono" style={{ color: 'var(--gold)', fontWeight: 800 }}>${a.startPrice.toLocaleString()}</span> — {moveSize(MOVE_BP.cardStep)} below market.</>
           : <>High bid <span className="mono" style={{ color: 'var(--gold)', fontWeight: 800 }}>${a.highBid.toLocaleString()}</span> by <strong style={{ color: s.players[a.highBidder].color }}>{s.players[a.highBidder].name}</strong>.</>}
       </div>
 
@@ -952,3 +952,4 @@ export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; d
   );
 }
 import { useEffect, useState } from 'react';
+import { moveSize } from '../../utils/formatMoney';

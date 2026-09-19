@@ -1,6 +1,6 @@
 import { PRICE_MOVE_SOURCE_LABEL, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { developmentOf, getStockMovementStatus, sectorPairOwner } from '../../engine';
-import { pct } from '../../utils/formatMoney';
+import { pctBp } from '../../utils/formatMoney';
 import { useGameState, useDispatch } from '../../store';
 import { LandingResultBanner } from './ActionPanel';
 import investabearImg from '../../assets/investabear.png';
@@ -305,7 +305,7 @@ export default function BoardTrack() {
                     )}
                     {last && (
                       <span
-                        title={`Last move ${pct(last.pct)} · ${PRICE_MOVE_SOURCE_LABEL[last.source]} · round ${last.lap}`}
+                        title={`Last move ${pctBp(last.pct)} · ${PRICE_MOVE_SOURCE_LABEL[last.source]} · round ${last.lap}`}
                         style={{
                           fontFamily: 'IBM Plex Mono, monospace', fontSize: soldOut ? 5.5 : 6, fontWeight: 700,
                           lineHeight: 1, color: lastColor,

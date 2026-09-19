@@ -684,7 +684,11 @@
         const glyph = direction === 'up' ? '▲' : direction === 'down' ? '▼' : '—';
         const entry = document.createElement('span');
         entry.className = `ticker3d-entry ${direction}`;
-        entry.title = `${stock.code} is ${Math.abs(delta)} step${Math.abs(delta) === 1 ? '' : 's'} ${direction} from its opening price`;
+        // delta is DOLLARS from opening (not ladder steps since the percentage
+        // redesign); po is the percent. Show the move like the 2D ticker does.
+        const po = Number.isFinite(info.po) ? info.po : 0;
+        const pctBp = `${po > 0 ? '+' : po < 0 ? '-' : ''}${Math.abs(po).toFixed(1)}% (${po > 0 ? '+' : po < 0 ? '-' : ''}${Math.round(Math.abs(po) * 100).toLocaleString()} bp)`;
+        entry.title = `${stock.code} is $${Math.abs(delta).toLocaleString()} (${pctBp}) ${direction} from its opening price`;
 
         const code = document.createElement('strong');
         code.textContent = stock.code;
@@ -692,7 +696,7 @@
         price.textContent = `$${info.p.toLocaleString()}`;
         const move = document.createElement('span');
         move.className = 'ticker3d-move';
-        move.textContent = `${glyph} ${delta > 0 ? '+' : ''}${delta}`;
+        move.textContent = direction === 'flat' ? '—' : `${glyph} ${pctBp}`;
         entry.append(code, price, move);
         group.appendChild(entry);
       });
@@ -1558,7 +1562,7 @@
             : `<span style="color:rgba(138,122,104,0.9); font-size:10px; font-weight:400"> · ${info.s} left</span>`;
           html += `<div class="tt-price" style="color:${dirColor}">$${info.p.toLocaleString()}${dirGlyph}${remain}</div>`;
           if (info.lm != null && info.lm !== 0) {
-            html += `<div style="font-size:11px;color:${info.lm > 0 ? '#1e7a4a' : '#b03a2c'}">Last move ${info.lm > 0 ? '▲' : '▼'}${Math.abs(info.lm).toFixed(1)}%${info.lmWhy ? ` · ${info.lmWhy}` : ''}</div>`;
+            html += `<div style="font-size:11px;color:${info.lm > 0 ? '#1e7a4a' : '#b03a2c'}">Last move ${info.lm > 0 ? '▲' : '▼'}${Math.abs(info.lm).toFixed(1)}% (${Math.round(Math.abs(info.lm) * 100).toLocaleString()} bp)${info.lmWhy ? ` · ${info.lmWhy}` : ''}</div>`;
           }
           if (info.so) {
             const cc = (info.claim != null) ? playerColor(info.claim) : null;
@@ -1843,11 +1847,13 @@
 
     const RISK_MAP = { High: ['HIGH RISK', '#c0392b'], Med: ['MED RISK', '#b07d1a'], Low: ['LOW RISK', '#1f7a44'] };
 
-    function signedStep(value) { return `${value > 0 ? '+' : ''}${value}`; }
+    // bullMove / bearMove are basis points since the percentage redesign (they
+    // used to be ladder steps, and this card printed "+2000 / -2000 STEPS").
+    function signedPct(bp) { return `${bp > 0 ? '+' : bp < 0 ? '-' : ''}${Math.abs(bp) / 100}%`; }
     function opportunityRows(opportunity) {
       const runRow = opportunity.tone === 'income'
-        ? ['BEAR RUN', `${signedStep(opportunity.bearMove)} PRICE STEP`]
-        : ['BULL / BEAR RUN', `${signedStep(opportunity.bullMove)} / ${signedStep(opportunity.bearMove)} STEPS`];
+        ? ['BULL / BEAR RUN', opportunity.bullMove === 0 && opportunity.bearMove === 0 ? 'NO CHANGE' : `${signedPct(opportunity.bullMove)} / ${signedPct(opportunity.bearMove)}`]
+        : ['BULL / BEAR RUN', `${signedPct(opportunity.bullMove)} / ${signedPct(opportunity.bearMove)} (${Math.abs(opportunity.bullMove).toLocaleString()} bp)`];
       if (opportunity.tone === 'growth') return [
         runRow,
         ['LANDING PAYOUT', `$${opportunity.landingPayout.toLocaleString()}`],

@@ -24,6 +24,7 @@
 import { IPO_BY_CODE, MOVE_BP, SECTOR_CODES } from '../data';
 import type { SectorId } from '../data/types';
 import type { Rng } from '../utils/rng';
+import { moveSize } from '../utils/formatMoney';
 import { moveMeterPrice } from './stockState';
 import { canFall, canRise } from './rules';
 import { recordMarketSignal } from './marketSignals';
@@ -100,19 +101,19 @@ export function marketMeterForecast(meter: number): MarketMeterForecast {
   if (magnitude >= 3) {
     const direction = zone === 'bull' ? 'rise' : 'fall';
     return {
-      headline: `Two random sectors will ${direction} 5% each.`,
+      headline: `Two random sectors will ${direction} ${moveSize(MOVE_BP.meterStandard)} each.`,
       detail: 'The sectors are selected when the round ends, after every player has taken a turn.',
     };
   }
   if (magnitude === 2) {
     const direction = zone === 'bull' ? 'rise' : 'fall';
     return {
-      headline: `One random sector will ${direction} 10%.`,
+      headline: `One random sector will ${direction} ${moveSize(MOVE_BP.meterAmplified)}.`,
       detail: 'The sector is selected when the round ends, after every player has taken a turn.',
     };
   }
   return {
-    headline: 'One random sector will move 5%.',
+    headline: `One random sector will move ${moveSize(MOVE_BP.meterStandard)}.`,
     detail: 'The direction and sector are selected when the round ends, after every player has taken a turn.',
   };
 }
@@ -279,7 +280,10 @@ export function triggerCardRipple(s: GameState, rng: Rng): void {
   }
   if (elig.length === 0) return;
   const sec = pick(rng, elig);
-  const impacts = moveSector(s, sec, dir, 1);
+  // The ripple is one standard move. This passed `1` — a step count from the
+  // ladder era — which became 1 bp after the percentage redesign, so every
+  // ripple silently fell back to the minimum $25 move.
+  const impacts = moveSector(s, sec, dir, MOVE_BP.meterStandard);
   if (impacts.length > 0) {
     recordMarketSignal(s, {
       kind: 'market',

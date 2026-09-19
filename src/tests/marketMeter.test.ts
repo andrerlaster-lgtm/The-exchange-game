@@ -36,11 +36,11 @@ describe('meterZone', () => {
 
 describe('marketMeterForecast', () => {
   it('explains the exact round-end scope without naming a sector before it is selected', () => {
-    expect(marketMeterForecast(0).headline).toBe('One random sector will move 5%.');
-    expect(marketMeterForecast(2).headline).toBe('One random sector will rise 10%.');
-    expect(marketMeterForecast(-2).headline).toBe('One random sector will fall 10%.');
-    expect(marketMeterForecast(3).headline).toBe('Two random sectors will rise 5% each.');
-    expect(marketMeterForecast(-3).headline).toBe('Two random sectors will fall 5% each.');
+    expect(marketMeterForecast(0).headline).toBe('One random sector will move 5% (500 bp).');
+    expect(marketMeterForecast(2).headline).toBe('One random sector will rise 10% (1,000 bp).');
+    expect(marketMeterForecast(-2).headline).toBe('One random sector will fall 10% (1,000 bp).');
+    expect(marketMeterForecast(3).headline).toBe('Two random sectors will rise 5% (500 bp) each.');
+    expect(marketMeterForecast(-3).headline).toBe('Two random sectors will fall 5% (500 bp) each.');
     expect(marketMeterForecast(2).detail).toContain('selected when the round ends');
   });
 });
@@ -428,15 +428,17 @@ describe('Option C — amplitude scales with |meter| (2026-09-18)', () => {
 });
 
 describe('Option A — card-triggered ripple (2026-09-18)', () => {
-  it('triggerCardRipple moves exactly one sector, one step, direction from the current zone', () => {
+  it('triggerCardRipple moves exactly one sector by one standard move, direction from the current zone', () => {
     let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = 2; }); // bull
+    // $2,000 everywhere, so a standard 5% move (+$100) is distinguishable from
+    // the minimum $25 step a wrong-unit amount would fall back to.
+    s = patch(s, (d) => { d.meter = 2; for (const c of Object.keys(d.prices)) d.prices[c] = 2_000; }); // bull
     const before = { ...s.prices };
     triggerCardRipple(s, rng('ripple-bull'));
     const moved = SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
     expect(moved).toHaveLength(1);
     for (const code of SECTOR_CODES[moved[0]]) {
-      expect(s.prices[code]).toBeGreaterThanOrEqual(before[code]); // up or already-clamped
+      expect(s.prices[code]).toBe(applyBasisPoints(before[code], MOVE_BP.meterStandard)); // +$100
     }
   });
 

@@ -8,7 +8,7 @@ import {
   developmentRefund, isIpoCode, upgradeLevel,
 } from '../data';
 import type { DevelopmentLevel, PriceMoveSource } from '../data';
-import { money, pct } from '../utils/formatMoney';
+import { money, moveSize, pctBp } from '../utils/formatMoney';
 import type { CompanyDevelopment, GameState, LogKind } from './types';
 import { canMarketSell } from './rules';
 
@@ -161,15 +161,15 @@ export function protectMove(s: GameState, code: string, before: number, bp: numb
     result = Math.min(0, Math.round(bp * (1 - def.downsidePct / 100)));
     const label = PRICE_MOVE_SOURCE_LABEL[source];
     addLog(s, result === 0
-      ? `${code} Level ${def.numeral} resilience fully absorbs a ${pct(bp / 100)} ${label}.`
-      : `${code} reduces a ${pct(bp / 100)} ${label} to ${pct(result / 100)} through Level ${def.numeral} resilience.`, 'g');
+      ? `${code} Level ${def.numeral} resilience fully absorbs a ${pctBp(bp / 100)} ${label}.`
+      : `${code} reduces a ${pctBp(bp / 100)} ${label} to ${pctBp(result / 100)} through Level ${def.numeral} resilience.`, 'g');
   }
 
   if (result < 0 && dev.shieldActive && applyBasisPoints(before, result) < before) {
     const absorbed = Math.min(SHIELD_ABSORB_BP, -result);
     result += absorbed;
     s.development[code] = { ...dev, shieldActive: false };
-    addLog(s, `${code} Market Protection absorbs ${pct(absorbed / 100).replace('+', '')} of the remaining decline.`, 'g');
+    addLog(s, `${code} Market Protection absorbs ${moveSize(absorbed)} of the remaining decline.`, 'g');
   }
   return result;
 }

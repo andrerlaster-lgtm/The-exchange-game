@@ -12,6 +12,7 @@ import type { StockOpportunity } from '../../data';
 import { companyBuyoutCost, priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import FedSignalBadge from './FedSignalBadge';
+import { pctBp } from '../../utils/formatMoney';
 
 /** Signed dollar amount — "+$500" / "−$250" / "$0". */
 function signedMoney(value: number): string {
@@ -19,10 +20,10 @@ function signedMoney(value: number): string {
   return `${value > 0 ? '+' : '−'}$${Math.abs(value).toLocaleString()}`;
 }
 
-/** Signed percent, parenthesized and ready to append — "" for exactly 0. */
+/** Signed percent with basis points, parenthesized and ready to append — "" for exactly 0. */
 function signedPercentSuffix(value: number): string {
   if (value === 0) return '';
-  return ` (${value > 0 ? '+' : ''}${value.toFixed(1)}%)`;
+  return ` (${pctBp(value)})`;
 }
 
 interface Props {

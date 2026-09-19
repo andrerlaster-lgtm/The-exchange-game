@@ -649,10 +649,10 @@ Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve st
 
 | Investment | Bull Run | Bear Run |
 |---|---:|---:|
-| High-Risk regular stock | +20% | −20% |
-| Medium-Risk regular stock | +10% | −10% |
+| High-Risk regular stock | +20% (+2,000 bp) | −20% (−2,000 bp) |
+| Medium-Risk regular stock | +10% (+1,000 bp) | −10% (−1,000 bp) |
 | Low-Risk regular stock | No change | No change |
-| Revealed IPO | +5% | −5% |
+| Revealed IPO | +5% (+500 bp) | −5% (−500 bp) |
 | ETF | No change | No change |
 
 Low-Risk stocks are unaffected by either Run in both directions — this is deliberate: Low-Risk already carries the highest dividend yield in the game, so a one-sided Bear Run exemption would make it strictly dominant with zero downside anywhere.
@@ -670,7 +670,7 @@ Bull Run and Bear Run are resolved from the combined Market Swing space by a d6 
 
 ## 23. Price Movement
 
-Stock prices are **percentages, not fixed steps**. Every company has a live
+Stock prices are **percentages, not fixed steps**. Moves are set in basis points (bp): 100 bp = 1%, so 500 bp is a 5% move and 1,000 bp is 10%. The game shows each move both ways, e.g. −5.0% (−500 bp). Every company has a live
 market price that moves by a percentage of its *own* current price, so the same
 market event is worth more dollars to an expensive company than a cheap one.
 
@@ -684,16 +684,16 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 | Source | Move |
 |---|---:|
-| Weak Demand reaches 2 markers | −5% |
-| Strong Demand reaches 2 markers | +5% |
-| Market Meter, standard reprice | ±5% |
-| Market Meter, amplified reprice | ±10% |
-| Market Event / Fed card, single-step effect | ±5% |
-| Market Event / Fed card, double-step effect | ±10% |
-| Bull/Bear Run — High / Medium / Low risk | ±20% / ±10% / no change |
-| Revealed IPO in a Run | ±5% |
-| Selling 3+ shares to the bank in one action | −5% |
-| Investor Day Company Growth | +5% |
+| Weak Demand reaches 2 markers | −5% (−500 bp) |
+| Strong Demand reaches 2 markers | +5% (+500 bp) |
+| Market Meter, standard reprice | ±5% (±500 bp) |
+| Market Meter, amplified reprice | ±10% (±1,000 bp) |
+| Market Event / Fed card, standard effect | ±5% (±500 bp) |
+| Market Event / Fed card, large effect | ±10% (±1,000 bp) |
+| Bull/Bear Run — High / Medium / Low risk | ±20% / ±10% / no change (±2,000 / ±1,000 / 0 bp) |
+| Revealed IPO in a Run | ±5% (±500 bp) |
+| Selling 3+ shares to the bank in one action | −5% (−500 bp) |
+| Investor Day Company Growth | +5% (+500 bp) |
 
 **Event reference**
 

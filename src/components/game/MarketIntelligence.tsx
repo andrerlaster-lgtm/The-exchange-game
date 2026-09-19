@@ -3,6 +3,8 @@ import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
 import MarketRegimeBadge from './MarketRegimeBadge';
+import { IPO_RUN_BP, MOVE_BP, RUN_BP } from '../../data';
+import { moveSize } from '../../utils/formatMoney';
 
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   fed: 'FED',
@@ -24,23 +26,23 @@ const PRICE_MOVEMENT_GUIDE = [
   },
   {
     title: 'Market Event & Fed cards',
-    text: 'The drawn card names the sectors, risk groups, or companies that move. Most targeted cards also create a separate 1-step ripple in one random eligible sector.',
+    text: `The drawn card names the sectors, risk groups, or companies that move, and by how much (for example 5% = 500 bp). Most targeted cards also create a separate ${moveSize(MOVE_BP.meterStandard)} ripple in one random eligible sector.`,
   },
   {
     title: 'Bull & Bear Runs',
-    text: 'High-Risk stocks move 2 steps, Medium-Risk stocks move 1, Low-Risk stocks stay steady, and revealed IPOs move 1. A Bull Run moves them up; a Bear Run moves them down.',
+    text: `High-Risk stocks move ${moveSize(RUN_BP.High)}, Medium-Risk stocks ${moveSize(RUN_BP.Med)}, Low-Risk stocks stay steady, and revealed IPOs ${moveSize(IPO_RUN_BP)}. A Bull Run moves them up; a Bear Run moves them down.`,
   },
   {
     title: 'Weak Demand',
-    text: 'Two skips on the same untouched company lower its price 1 step. Its markers remain until the drop happens or somebody buys the company.',
+    text: `Two skips on the same untouched company lower its price ${moveSize(MOVE_BP.weakDemand)}. Its markers remain until the drop happens or somebody buys the company.`,
   },
   {
     title: 'Strong Demand & Payout Claims',
-    text: 'A Payout Claim does not raise the price by itself. Two qualifying opponent landings on the same Sold-Out company create Strong Demand and raise that company 1 step.',
+    text: `A Payout Claim does not raise the price by itself. Two qualifying opponent landings on the same Sold-Out company create Strong Demand and raise that company ${moveSize(MOVE_BP.strongDemand)}.`,
   },
   {
     title: 'Buying, selling & private trades',
-    text: 'Buying a company or outstanding shares does not move its price. Selling 3 or more shares to the bank lowers it 1 step. Private player-to-player trades do not move market prices.',
+    text: `Buying a company or outstanding shares does not move its price. Selling 3 or more shares to the bank lowers it ${moveSize(MOVE_BP.bankSale)}. Private player-to-player trades do not move market prices.`,
   },
 ] as const;
 

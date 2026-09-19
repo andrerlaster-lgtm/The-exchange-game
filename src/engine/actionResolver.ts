@@ -9,7 +9,7 @@ import {
   PLAYER_LOAN_MAX_RATE, SECTOR_PAIR_BY_CODE, SECTOR_PAIRS,
 } from '../data';
 import type { Effect } from '../data/types';
-import { money, pct } from '../utils/formatMoney';
+import { money, pctBp } from '../utils/formatMoney';
 import { toBps } from '../utils/formatRate';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
@@ -262,11 +262,11 @@ function resolveLanding(s: GameState, pi: number): void {
           if (s.demand[code] >= STRONG_DEMAND_THRESHOLD) {
             const r = moveTradePrice(s, code, MOVE_BP.strongDemand, 'strongDemand');
             s.demand[code] = 0;
-            addLog(s, `Strong demand: ${code} rises ${pct(r.pct)} to ${money(r.after)} (${STRONG_DEMAND_THRESHOLD} landings).`, 'g');
+            addLog(s, `Strong demand: ${code} rises ${pctBp(r.pct)} to ${money(r.after)} (${STRONG_DEMAND_THRESHOLD} landings).`, 'g');
             recordMarketSignal(s, {
               kind: 'strongDemand',
               title: `Strong Demand · ${code}`,
-              summary: `${code} rose ${pct(r.pct)} to ${money(r.after)} after ${STRONG_DEMAND_THRESHOLD} consecutive Payout Claim landings.`,
+              summary: `${code} rose ${pctBp(r.pct)} to ${money(r.after)} after ${STRONG_DEMAND_THRESHOLD} consecutive Payout Claim landings.`,
               impacts: [{ code, pct: r.pct }],
             });
           }
@@ -637,7 +637,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // A player-chosen penalty: never softened by upgrades or shields.
       const hit = moveEventPrice(s, action.code, -MOVE_BP.cardStep, 'cyberattackChoice');
       s.cyberattackPrompt = null;
-      addLog(s, `${s.players[s.cur].name} shields cash from Cyberattack — ${action.code} drops ${pct(hit.pct)} to ${money(hit.after)}.`, 'r');
+      addLog(s, `${s.players[s.cur].name} shields cash from Cyberattack — ${action.code} drops ${pctBp(hit.pct)} to ${money(hit.after)}.`, 'r');
       break;
     }
     case 'payCyberattackFee': {
@@ -684,7 +684,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const hit = moveEventPrice(s, action.code, -MOVE_BP.cardStep, 'regulatoryChoice');
       s.players[s.cur].dividendCuts[action.code] = 1;
       s.regulatoryInvestigationPrompt = null;
-      addLog(s, `${s.players[s.cur].name} accepts the investigation penalty: ${action.code} drops ${pct(hit.pct)} and its next dividend is cut 50%.`, 'r');
+      addLog(s, `${s.players[s.cur].name} accepts the investigation penalty: ${action.code} drops ${pctBp(hit.pct)} and its next dividend is cut 50%.`, 'r');
       break;
     }
     case 'payRegulatoryInvestigation': {
@@ -810,7 +810,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (qty >= 3) setMarketStance(p, 'bearish');
       const bulkSale = qty >= 3 ? moveTradePrice(s, code, MOVE_BP.bankSale, 'bankSale') : null;
       if (tradeStepSell && !isFinancingSell) t!.actionsLeft -= 1;
-      const moved = bulkSale ? ` (▼${pct(bulkSale.pct)})` : '';
+      const moved = bulkSale ? ` (▼${pctBp(bulkSale.pct)})` : '';
       addLog(s, `${p.name} sells ${qty} ${code} @ ${money(price)}${moved} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, 'r');
       addTradeLog(s, 'sell', `${qty}× ${code} @ ${money(price)} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, proceeds, p.name);
       recomputeAndLogClaim(s, code);
@@ -834,11 +834,11 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
           if (s.skips[code] >= WEAK_DEMAND_THRESHOLD) {
             const r = applyPriceMove(s, code, MOVE_BP.weakDemand, 'weakDemand');
             s.skips[code] = 0;
-            addLog(s, `Weak demand: ${code} drops ${pct(r.pct)} to ${money(r.after)} (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
+            addLog(s, `Weak demand: ${code} drops ${pctBp(r.pct)} to ${money(r.after)} (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
             recordMarketSignal(s, {
               kind: 'weakDemand',
               title: `Weak Demand · ${code}`,
-              summary: `${code} fell ${pct(r.pct)} to ${money(r.after)} after ${WEAK_DEMAND_THRESHOLD} consecutive skips.`,
+              summary: `${code} fell ${pctBp(r.pct)} to ${money(r.after)} after ${WEAK_DEMAND_THRESHOLD} consecutive skips.`,
               impacts: [{ code, pct: r.pct }],
             });
           }
@@ -1278,7 +1278,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (s.pick.codes && !s.pick.codes.includes(action.code)) break;
       if (s.pick.source === 'investor') {
         const r = moveTradePrice(s, action.code, s.pick.bp, 'investorDay');
-        addLog(s, `${action.code} moves ${pct(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
+        addLog(s, `${action.code} moves ${pctBp(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
         s.pick = null;
         break;
       }
@@ -1295,7 +1295,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       }
       const r = moveEventPrice(s, code, s.pick.bp);
       const impacts = r.delta !== 0 ? [{ code, pct: r.pct }] : [];
-      addLog(s, `${code} moves ${pct(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
+      addLog(s, `${code} moves ${pctBp(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
       const pickedCard = s.pick.card;
       s.pick = null;
       if (pickedCard) finalizeCard(s, pickedCard, impacts, rng);

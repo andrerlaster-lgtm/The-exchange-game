@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { PLAYER_COLORS, PIECES } from '../../data';
+import { PLAYER_COLORS, PIECES, MOVE_BP } from '../../data';
 import { DEFAULT_OPTIONS } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
+import { moveSize } from '../../utils/formatMoney';
 
 const CASH_OPTIONS = [35_000, 45_000, 55_000];
 const ROUND_OPTIONS = [5, 7, 10];
@@ -10,8 +11,8 @@ const QUICK_RULES = [
   'Roll dice, move your token, and resolve the space you land on. Doubles earn exactly 1 bonus roll after the landing is fully resolved; doubles on the bonus roll do not chain.',
   'Land on an untouched company: buy all 11 shares at 11× its current share price, or skip. Tier opening prices are Starter $500, Growth $750, Premium $1,000 — so at the open a company costs $5,500, $8,250, or $11,000, and less or more once the market has moved it. Your cost basis always equals market value at the moment you buy, and the buyout itself moves no price.',
   'A company bought in full becomes Sold Out for good, and its buyer holds the Payout Claim. Everyone else who lands there pays the claim instead of opening a normal buy step; landing on your own company costs nothing, and the final combined landing charge is capped at $10,000.',
-  'Weak Demand has no ownership protection: 2 explicit skips on an untouched company drop its price 1 step. Markers stay on the company between laps until they reach 2 or someone buys it out.',
-  'Stock prices move through the Market Meter, Market Event and Fed cards, Bull/Bear Runs, Weak Demand, Strong Demand after repeated Payout Claims, and large bank sales. Buying a company or making a private trade does not move its market price.',
+  `Weak Demand has no ownership protection: 2 explicit skips on an untouched company drop its price ${moveSize(MOVE_BP.weakDemand)}. Markers stay on the company between laps until they reach 2 or someone buys it out.`,
+  'Stock prices move by percentages (basis points: 100 bp = 1%) through the Market Meter, Market Event and Fed cards, Bull/Bear Runs, Weak Demand, Strong Demand after repeated Payout Claims, and large bank sales. Prices round to the nearest $25 and never fall below $100. Buying a company or making a private trade does not move its market price.',
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own regular companies across 3+ different sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
   'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window for private player-to-player trades.',
   'Every Market Open also starts a random Market Condition outside the card decks. It stays active for every player until the next player reaches Market Open, when it is replaced; Conditions never stack.',
@@ -22,7 +23,7 @@ const QUICK_RULES = [
   'An Extended Hours card, if drawn before Market Close is triggered, delays the game end by exactly one more round.',
   'Circuit Breaker is a single held Market Event card. Play it during a later negative Market Event or Bear Run to protect 1 affected company you own from that effect’s entire price drop, or keep it for later.',
   'Market Stance: buying a company or using Margin makes you Bullish; selling 3+ shares or opening a Short makes you Bearish. The latest qualifying action sets your position for the next Bull or Bear Run, then everyone resets to Balanced.',
-  'Investor Day: choose Company Growth (move 1 eligible owned company up 1 step, or collect $500 if none qualifies) or Insider Information (preview the next Market Event without drawing it).',
+  `Investor Day: choose Company Growth (grow 1 owned company ${moveSize(MOVE_BP.investorDay)}, or collect $500 if you own none) or Insider Information (preview the next Market Event without drawing it).`,
   'Standard Mode: build the highest net worth. Gain/Loss Mode: win with the highest Market Gain (Net Worth − Starting Cash − Salary Collected).',
   'Every stock and IPO holding tracks cost basis, unrealized gain/loss while held, and realized gain/loss when shares are sold.',
   'The game ends at Market Close — either the Market Close card is drawn or a fixed round count is reached, whichever you chose at setup.',

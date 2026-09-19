@@ -21,7 +21,7 @@ function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
   const moveClass = pctDiff > 0 ? 'up' : pctDiff < 0 ? 'down' : 'flat';
   const moveLabel = pctDiff === 0
     ? 'Opening price'
-    : `${pctDiff > 0 ? '↑' : '↓'} ${Math.abs(pctDiff).toFixed(1)}%`;
+    : `${pctDiff > 0 ? '↑' : '↓'} ${Math.abs(pctDiff).toFixed(1)}% (${Math.round(Math.abs(pctDiff) * 100).toLocaleString()} bp)`;
 
   return (
     <article className="ipo-card holo-card" style={{ '--ipo-color': def.color } as CSSProperties}
