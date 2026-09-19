@@ -889,9 +889,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     }
     case 'marginSell': {
       // Forced sale to raise cash during a margin call. Follows normal sell-back
-      // mechanics for regular stock (rulebook §11/§17): one step below market, and
-      // the price drops one step. IPO shares have no sell-back step, so they sell
-      // at their current price with no movement. No action cost.
+      // mechanics for regular stock (rulebook §11/§17): market less the bank
+      // haircut. IPO shares have no bank haircut, so they sell at their current
+      // price with no movement. No action cost.
       const mc = s.marginCall;
       if (!mc || mc.player !== s.cur) break;
       const { code } = action;
@@ -957,8 +957,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const p = s.players[iv.player];
       const owned = p.shares[code] || 0;
       if (owned <= 0) break;
-      // Forced sales pay the normal sell-back price (rulebook §11/§17): one step
-      // below market. Single-share sales don't move the price (as elsewhere).
+      // Forced sales pay the normal sell-back price (rulebook §11/§17): market
+      // less the bank haircut. Single-share sales don't move the price.
       const price = sellBackPrice(s, code);
       const realized = recordStockSale(p, code, 1, price, owned);
       p.cash += price;

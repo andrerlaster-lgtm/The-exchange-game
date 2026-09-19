@@ -158,7 +158,7 @@ Each turn follows the same order unless a card or special rule changes it.
 Market Open is the payday space. It is not a Market Event trigger.
 
 **Market Open payout order**
-1. Pay salary: $2,000 per pass, doubled to $4,000 for landing exactly on Market Open instead of passing over it (Section 5).
+1. Pay salary: $3,000 per pass, doubled to $6,000 for landing exactly on Market Open instead of passing over it (Section 5).
 2. Pay Dividends for all eligible regular stock and IPO holdings (see Section 8).
 3. Apply Controller dividend multipliers where applicable (1.5×).
 4. Pay ETF payouts and any ETF Full-Diversification bonus (see Section 18).
@@ -788,7 +788,7 @@ Use this checklist when sending the rules to code.
 
 | Area | Implementation requirement |
 |---|---|
-| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares at 11× the current per-share price; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; price ceiling = $5,000; Margin cap = $4,000; Salary = $750/pass ($1,500 landing exactly); starting cash = $35,000/$45,000/$55,000; regular dividend by risk = Low $110/Med $70/High $30; Recovery Bonus = $2,000 when cash is under $3,000 at Market Open |
+| Constants | Regular stock supply = 11; a normal market purchase requires all 11 shares at 11× the current per-share price; regular control = 6; IPO supply = 5; IPO control = 3; a player may sell up to half their shares in one bank sale; price floor = $100; no price ceiling ($5,000 is a one-way Market Event trigger); Margin cap = $4,000; Salary = $3,000/pass ($6,000 landing exactly); starting cash = $35,000/$45,000/$55,000; regular dividend by risk = Low $110/Med $70/High $30; Recovery Bonus = $2,000 when cash is under $3,000 at Market Open |
 | Derived state | Ownership tier, Controller, Sector Portfolio, Sector Control pair ownership, Diversified Portfolio, Payout Claim, Contested state, Sold-Out state, Strong/Weak Demand markers, Market Meter needle, active Market Condition, Margin balance, Player Loan balances, Outstanding Fees principal/interest, Circuit Breaker holder, remaining stock cost basis, realized/unrealized Stock G/L, salary-adjusted Market Gain |
 | Stock landing | If untouched, offer a full 11-share company buyout at 11× the current per-share price, or skip; selling other holdings to the bank to finance the purchase is allowed before that decision and does not consume the landing's action (only Buy/Skip does). If already owned/Sold Out, do not open a normal buy step; resolve the Payout Claim payment (base rate × landing value multiplier × shareholder discount, plus Sector Rent if applicable), with no payment and no Strong Demand marker when the owner lands on their own company, a Contested stock is landed on, or the landing player is still in their first-lap grace |
 | Sellout trigger | On the full-company buy: mark Sold Out, assign the buyer the Payout Claim, and leave the share price unchanged |

@@ -8,7 +8,7 @@
 import { blocked, reduce, shieldBlockReason, upgradeBlockReason } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import type { Rng } from '../../utils/rng';
-import { SHIELD_COST, UPGRADE_LEVELS } from '../../data';
+import { SHIELD_COST, UPGRADE_LEVELS, isIpoCode } from '../../data';
 
 /** Codes the current player owns at least one share of. */
 function owned(s: GameState, player = s.cur): string[] {
@@ -43,16 +43,26 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   if (s.regimeRollPrompt) return { t: 'rollRegime' };
   if (s.loanRatePrompt) return { t: 'rollLoanRate' };
 
+  // Debts are paid from cash whenever cash covers them, and stock is sold only
+  // until it does. An earlier version chose "force-sell" for every Payout
+  // Claim while owning any stock (even holding $26,000 against a $4,000 claim)
+  // and then kept selling until it owned nothing — liquidating its whole
+  // portfolio on every claim and inflating insolvency and forced-sale counts
+  // in every balance run before 2026-09-19.
+  const cash = s.players[s.cur].cash;
   if (s.marginCall) {
+    if (cash >= s.marginCall.owed) return { t: 'payMarginCall' };
     const code = pick(rng, owned(s));
     return code ? { t: 'marginSell', code } : { t: 'payMarginCall' };
   }
   if (s.insolvency) {
-    const code = pick(rng, owned(s));
+    if (s.players[s.insolvency.player].cash >= s.insolvency.owed) return { t: 'payInsolvency' };
+    const code = pick(rng, owned(s, s.insolvency.player).filter((c) => !isIpoCode(c)));
     return code ? { t: 'forcedSell', code } : { t: 'payInsolvency' };
   }
   if (s.payoutShortfallChoice) {
-    return owned(s).length > 0 ? { t: 'choosePayoutForceSell' } : { t: 'choosePayoutLoan' };
+    if (cash >= s.payoutShortfallChoice.owed) return { t: 'choosePayoutPayCash' };
+    return s.payoutShortfallChoice.canForceSell ? { t: 'choosePayoutForceSell' } : { t: 'choosePayoutLoan' };
   }
 
   if (s.circuitBreakerPrompt) return { t: 'passCircuitBreaker' };

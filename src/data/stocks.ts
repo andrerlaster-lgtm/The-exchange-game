@@ -2,7 +2,11 @@ import type { CompanyTier, Risk, Sector, SectorId, SectorPair, SectorPairId, Sto
 import { RUN_BP } from './priceModel';
 
 export const START_CASH = 35_000; // default starting cash — must match DEFAULT_OPTIONS.startCash (engine/types.ts)
-export const SALARY = 2_000; // Market Open salary; landing exactly on Market Open pays double
+// Market Open salary; landing exactly on Market Open pays double. Raised from
+// $2,000 on 2026-09-19: once the simulation bot stopped liquidating its whole
+// portfolio on every Payout Claim, a salary sweep showed $3,000 cuts
+// insolvencies about 25-45% across 2-6 players.
+export const SALARY = 3_000;
 // ── Recovery Bonus (2026-09-18 cash-flow pass) ──────────────────────────────
 // A live 200-turn trace found average Payout Claim hits of $4,000-4,300 —
 // roughly 8x a single salary payment — with players landing at literal $0

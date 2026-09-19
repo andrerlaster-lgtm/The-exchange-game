@@ -4,7 +4,7 @@ import {
   marketConditionClaimAdjustment, marketConditionIncome, marketConditionLoanRateCap,
   marketConditionSectorRentMultiplier, reduce,
 } from '../engine';
-import { SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
+import { SALARY, SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
 import { claimPayoutForLanding } from '../engine/soldOut';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -228,13 +228,13 @@ describe('Market Conditions — personal, per-player', () => {
     landed = dispatch(landed, { t: 'roll' }, scriptedRng([1, 2])); // 34 -> 1 exactly
     expect(landed.players[0].pos).toBe(1);
     expect(landed.log.some((entry) => entry.text.includes('landed exactly'))).toBe(true);
-    expect(landed.players[0].salaryCollected).toBe(4_000);
+    expect(landed.players[0].salaryCollected).toBe(SALARY * 2);
 
     let passed = started(2);
     passed = patch(passed, (d) => { d.players[0].pos = 35; d.turnPhase = 'preRoll'; });
     passed = dispatch(passed, { t: 'roll' }, scriptedRng([1, 2])); // 35 -> 2, passing over 1
     expect(passed.players[0].pos).toBe(2);
     expect(passed.log.some((entry) => entry.text.includes('landed exactly'))).toBe(false);
-    expect(passed.players[0].salaryCollected).toBe(2_000);
+    expect(passed.players[0].salaryCollected).toBe(SALARY);
   });
 });

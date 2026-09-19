@@ -2,7 +2,7 @@
 // payments are logged to s.feeLog. projectedDividend reports the next-pass payout.
 
 import { describe, expect, it } from 'vitest';
-import { SALARY } from '../data';
+import { RECOVERY_BONUS, SALARY } from '../data';
 import { blocked, projectedDividend } from '../engine';
 import { dispatch, patch, rollTo, scriptedRng, started } from './helpers';
 
@@ -49,10 +49,11 @@ describe('Taxes & Fees — feeLog', () => {
     s = patch(s, (d) => {
       // A real game caps Margin at $4,000, but this patches state directly to
       // force a shortfall even after the Recovery Bonus (2026-09-18 cash-flow
-      // pass) kicks in: starting at $0 cash still nets $2,000 salary + $2,000
-      // Recovery Bonus = $4,000 before the margin call is deducted, which
-      // alone covers half of a real $4,000 balance ($2,000).
-      d.players[0].margin = 10_000;
+      // pass) kicks in: starting at $0 cash still nets salary + Recovery Bonus
+      // before the margin call (half the balance) is deducted. The balance is
+      // set so the call exceeds that income by $1,000, derived from the
+      // constants so a salary change can't silently remove the shortfall.
+      d.players[0].margin = 2 * (SALARY + RECOVERY_BONUS) + 2_000;
       d.players[0].cash = 0;
       d.players[0].shares = { MEDI: 3 };
       d.players[0].pos = 34;

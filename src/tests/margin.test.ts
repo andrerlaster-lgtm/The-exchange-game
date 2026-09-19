@@ -2,7 +2,7 @@
 // call, and the forced sell-to-cover default with a flat penalty.
 
 import { describe, expect, it } from 'vitest';
-import { MARGIN_DEFAULT_PENALTY, MARGIN_MAX, SPACES } from '../data';
+import { MARGIN_DEFAULT_PENALTY, MARGIN_MAX, RECOVERY_BONUS, SALARY, SPACES } from '../data';
 import { blocked } from '../engine';
 import { feeDebtBalance } from '../engine/feeDebt';
 import { marginCallDue } from '../engine/playerState';
@@ -81,11 +81,11 @@ describe('Margin — Market Open call', () => {
       // A real game caps Margin at $4,000, but this patches state directly
       // to force a shortfall even after Market Open income: starting at $0
       // cash still nets salary (doubled for landing exactly on space 1) plus
-      // the Recovery Bonus before the call is deducted, which alone covers
-      // half of a real $4,000 balance. Margin bumped past what that income
-      // covers, but still low enough that selling the 3 owned MEDI shares
-      // (~$500 each) closes the remaining gap.
-      d.players[0].margin = 14_000;
+      // the Recovery Bonus before the call is deducted. The call is half the
+      // balance, so this sets it to that income plus $1,000 — a real shortfall
+      // that selling the 3 owned MEDI shares (~$600 each) closes. Derived from
+      // the constants so a salary change can't silently remove the shortfall.
+      d.players[0].margin = 2 * (SALARY * 2 + RECOVERY_BONUS) + 2_000;
       d.players[0].cash = 0;            // cannot cover the call
       d.players[0].shares = { MEDI: 3 }; // owns stock to liquidate
       d.players[0].pos = 33;

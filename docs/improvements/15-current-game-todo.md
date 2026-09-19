@@ -22,7 +22,7 @@ the Deep Audit and reconciled against the current code on 2026-09-18.
 - [x] **Share-for-share trades use the proper cost basis.**
 - [x] **Rotating Market Conditions** now add a separate temporary Market Open effect.
 - [x] **Market Meter visibility:** the game explains what the Meter will do next and shows the sector/stocks from the last Meter move.
-- [x] **Market Open salary:** passing pays $2,000; landing exactly pays $4,000.
+- [x] **Market Open salary:** passing pays $3,000; landing exactly pays $6,000 (raised from $2,000/$4,000 on 2026-09-19 after the corrected balance simulation).
 - [x] **Rulebook reconciled against current code** — Market Meter and its round-end sector movement, Market Conditions (including the later per-player ownership redesign), Sector Control rent, Payout Claim price multipliers and shareholder discounts, ETF landing fees/income/all-four-funds bonus, Player Loans, first-lap grace, current dividend multiplier, live company buyout cost, ETF payout table, and the eight sectors are all documented and match the app. This was already done before this checklist was written — the "Update the rulebook" item this checklist originally listed under Next Priorities was stale the moment it was added.
 - [x] **Unused fixed company-buyout constant removed** (`COMPANY_BUYOUT_BY_TIER`) — nothing read it; the live `companyBuyoutCost()` formula (11× current price) already superseded it.
 - [x] **Portfolio Tax now uses the shared `TAX_RATE` constant** instead of three separate hardcoded `0.10`/`"10%"` copies.
