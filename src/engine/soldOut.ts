@@ -4,7 +4,7 @@
 import {
   PAYOUT_MULT_CONTROL, PAYOUT_MULT_LOW, PAYOUT_MULT_MID,
   PAYOUT_MULT_CONTROL_SECTOR, PAYOUT_MULT_LOW_SECTOR, PAYOUT_MULT_MID_SECTOR,
-  CONTROL_THRESHOLD_REGULAR,
+  CONTROL_THRESHOLD_REGULAR, PAYOUT_CLAIM_TOTAL_CAP,
 } from '../data';
 import { LADDER } from '../data';
 import type { GameState } from './types';
@@ -75,6 +75,12 @@ export function landingValueMultiplier(currentPrice: number, openingPrice: numbe
 /** Landing player's shareholder discount: 10% per share, capped at 50%. */
 export function shareholderLandingDiscount(sharesHeld: number): number {
   return Math.min(0.5, Math.max(0, sharesHeld) * 0.10);
+}
+
+/** Cap the complete player-to-player charge from one sold-out landing. This is
+    applied only after every claim adjustment and any Sector Rent are known. */
+export function capPayoutClaimTotal(claimAmount: number, sectorRent = 0): number {
+  return Math.min(PAYOUT_CLAIM_TOTAL_CAP, claimAmount + sectorRent);
 }
 
 /**

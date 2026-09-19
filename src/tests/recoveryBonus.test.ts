@@ -31,7 +31,7 @@ describe('Recovery Bonus', () => {
 
   it('checks cash from BEFORE this Market Open\'s own income, not after', () => {
     // At $2,900 the player is under the threshold walking in, even though
-    // salary alone ($750) would have carried them past $3,000 on its own.
+    // Salary alone would have carried them past $3,000 on its own.
     let s = started(2);
     s = patch(s, (d) => { d.players[0].cash = RECOVERY_BONUS_THRESHOLD - 100; });
     const before = s.players[0].cash;

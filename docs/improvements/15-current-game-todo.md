@@ -32,18 +32,17 @@ the Deep Audit and reconciled against the current code on 2026-09-18.
 - [x] **Market Meter board visibility reviewed — left as-is.** Checked live: the ticker badge, the board-centered badge (with a pulse on zone change), and the Market Intelligence explainer/last-move recap all render clearly and unobstructed. No evidence of a real gap, so no change made rather than adding visual noise speculatively; revisit if a specific playtester complaint comes in.
 - [x] **Selling another holding to finance a company buyout** no longer silently burns the landing's action (previously made Buy permanently unavailable afterward even once enough cash was raised).
 - [x] **Market Open income breakdown** — the report shown after passing/landing on Market Open now lists every line item (salary, dividends, ETF payout, ETF diversification bonus, Market Condition income, Diversified/Broad Market bonus, Recovery Bonus, total, margin repayment) in one place, instead of only existing as a single collapsed activity-log line.
-- [x] **In-game stock-price movement explainer** — a "? Price Guide" button in the Market Intelligence header, available anytime during play (not just at setup, unlike the existing Quick Rules), opens a compact modal covering all 6 requested mechanisms with real current numbers: Market Meter, Market Event & Fed cards, Bull Run & Bear Run, Weak Demand, Strong Demand, and how price affects what a Payout Claim costs.
 - [x] **Combined Bull/Bear board redesign** — the dedicated Bull Run (space 16) and Bear Run (space 26) spaces are now plain Market Event spaces; the old Market Event space (space 19) is now "Market Swing," a combined space that rolls a d6 on landing (1-3 Bear, 4-6 Bull) before resolving that Run. Traced with a ~10,000-turn bot simulation before implementing: Market Event draws roughly double and Run triggers roughly halve, with total event frequency unchanged. Also fixed a real bug found during live verification: `BoardTrack.tsx`'s 2D board tile labels and both static `public/board-3d.html` and `public/board-print.html` reference sheets each kept their own hardcoded copy of the old Bull Run/Bear Run/Market Event space labels, independent of `src/data/boardSpaces.ts` — all three were updated to match.
 
 ## Next priorities
 
 ### 1. Improve player understanding
 
-No open items right now.
+- [x] **Add a short in-game explanation of stock-price movement.** The Quick Rules and a collapsible Market Intelligence guide now cover the Market Meter, Market Event/Fed cards and their ripple, Bull/Bear Runs, Weak Demand, Strong Demand/Payout Claims, bank sales, buyouts, and private trades.
 
 ### 2. Decisions needed before changing balance
 
-- [ ] **Payout Claim amounts:** decide whether stacked Sector Control, price multipliers, and sector rent should remain as they are or have a cap.
+- [x] **Payout Claim amounts:** the final combined charge is capped at $10,000 after the shareholder discount, Market Condition adjustment, and Sector Rent. The landing result explains when the cap prevents a larger charge.
 - [ ] **Stock risk and dividends:** decide whether low-risk companies should have lower dividends, or high-risk companies should receive stronger upside.
 - [ ] **Player-loan interest:** decide whether the d6 rate should matter at small loan sizes; if yes, revise the minimum/rounding rule.
 - [ ] **Sold-Out ownership tiers and Bull/Bear Run payouts:** decide whether partial-owner Payout Claim tiers should be more common and whether Runs should create less automatic bank money.
@@ -64,7 +63,6 @@ No open items right now.
 | 2026-09-18 | Dead-code cleanup: removed `COMPANY_BUYOUT_BY_TIER` and unreachable `'cash'`/`'margin'` card-effect cases, wired `TAX_RATE` into Portfolio Tax, `operatingNetWorth` takes a player index, added direct cost-basis test for share-for-share trades | — |
 | 2026-09-18 | Selling another holding to finance a company buyout no longer silently burns the landing's action (previously made Buy permanently unavailable afterward even once enough cash was raised) | — |
 | 2026-09-18 | Market Open income breakdown — the passing/landing report now shows every line item (salary, dividends, ETFs, bonuses, Recovery Bonus, margin) in one place | — |
-| 2026-09-18 | In-game "? Price Guide" explainer covering all 6 stock-price-movement mechanisms | — |
 | 2026-09-18 | Combined Bull/Bear board redesign: spaces 16/26 are now Market Event, space 19 ("Market Swing") rolls a d6 to pick the Run; fixed matching stale hardcoded labels in `BoardTrack.tsx`, `board-3d.html`, and `board-print.html` | — |
 
 ## Original audit

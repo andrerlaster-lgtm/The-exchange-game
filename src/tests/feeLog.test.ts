@@ -49,8 +49,8 @@ describe('Taxes & Fees — feeLog', () => {
     s = patch(s, (d) => {
       // A real game caps Margin at $4,000, but this patches state directly to
       // force a shortfall even after the Recovery Bonus (2026-09-18 cash-flow
-      // pass) kicks in: starting at $0 cash still nets $750 salary + $2,000
-      // Recovery Bonus = $2,750 before the margin call is deducted, which
+      // pass) kicks in: starting at $0 cash still nets $2,000 salary + $2,000
+      // Recovery Bonus = $4,000 before the margin call is deducted, which
       // alone covers half of a real $4,000 balance ($2,000).
       d.players[0].margin = 10_000;
       d.players[0].cash = 0;

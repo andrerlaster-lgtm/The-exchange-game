@@ -85,6 +85,9 @@ export const PAYOUT_MULT_CONTROL = 4;      // holder owns 6+ shares (Controller)
 export const PAYOUT_MULT_LOW_SECTOR = 1.5;
 export const PAYOUT_MULT_MID_SECTOR = 3;
 export const PAYOUT_MULT_CONTROL_SECTOR = 6;
+/** Maximum combined amount owed from one sold-out landing, after the Payout
+    Claim, shareholder discount, Market Condition adjustment, and Sector Rent. */
+export const PAYOUT_CLAIM_TOTAL_CAP = 10_000;
 
 export const MARKET_RUN_MOVE_BY_RISK = {
   bull: { Low: 0, Med: 1, High: 2 },
