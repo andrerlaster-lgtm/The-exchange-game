@@ -86,7 +86,8 @@ function DevRow({ code, s, dispatch }: { code: string; s: GameState; dispatch: (
           Shield · {money(SHIELD_COST)}
         </button>
       </div>
-      {next && upBlock && <div style={{ fontSize: 10, color: 'var(--muted)' }}>{upBlock}</div>}
+      {next && upBlock && <div style={{ fontSize: 10, color: 'var(--muted)' }}>Upgrade: {upBlock}</div>}
+      {shBlock && !dev.shieldActive && <div style={{ fontSize: 10, color: 'var(--muted)' }}>Shield: {shBlock}</div>}
       {next && !upBlock && (
         <div style={{ fontSize: 10, color: 'var(--muted)' }}>
           Level {next.numeral}: +{money(next.claimBonus)} claim · +{money(next.marketOpenBonus)} Market Open · {next.downsidePct}% smaller declines

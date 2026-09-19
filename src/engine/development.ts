@@ -4,7 +4,7 @@
 
 import {
   CONTROL_THRESHOLD_REGULAR, MAX_DEVELOPMENT_LEVEL, SHIELD_ABSORB_BP, SHIELD_COST,
-  SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, UPGRADE_MIN_CASH_AFTER, applyBasisPoints,
+  DEVELOPMENT_MIN_CASH_AFTER, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
   developmentRefund, isIpoCode, upgradeLevel,
 } from '../data';
 import type { DevelopmentLevel, PriceMoveSource } from '../data';
@@ -49,8 +49,8 @@ export function upgradeBlockReason(s: GameState, code: string): string | null {
   if (s.upgradedThisTurn) return 'You have already bought an upgrade this turn.';
   if (!canMarketSell(s)) return 'Roll and resolve every required action first.';
   const next = UPGRADE_LEVELS[dev.level];
-  if (s.players[s.cur].cash - next.cost < UPGRADE_MIN_CASH_AFTER) {
-    return `Level ${next.numeral} costs ${money(next.cost)}, and you must keep ${money(UPGRADE_MIN_CASH_AFTER)} in cash after upgrading (need ${money(next.cost + UPGRADE_MIN_CASH_AFTER)}).`;
+  if (s.players[s.cur].cash - next.cost < DEVELOPMENT_MIN_CASH_AFTER) {
+    return `Level ${next.numeral} costs ${money(next.cost)}, and you must keep ${money(DEVELOPMENT_MIN_CASH_AFTER)} in cash after upgrading (need ${money(next.cost + DEVELOPMENT_MIN_CASH_AFTER)}).`;
   }
   return null;
 }
@@ -61,7 +61,9 @@ export function shieldBlockReason(s: GameState, code: string): string | null {
   if (!isController(s, s.cur, code)) return `You need ${CONTROL_THRESHOLD_REGULAR}+ shares to control ${code}.`;
   if (developmentOf(s, code).shieldActive) return `${code} already has an active shield.`;
   if (!canMarketSell(s)) return 'Roll and resolve every required action first.';
-  if (s.players[s.cur].cash < SHIELD_COST) return `A shield costs ${money(SHIELD_COST)}.`;
+  if (s.players[s.cur].cash - SHIELD_COST < DEVELOPMENT_MIN_CASH_AFTER) {
+    return `A shield costs ${money(SHIELD_COST)}, and you must keep ${money(DEVELOPMENT_MIN_CASH_AFTER)} in cash after buying it (need ${money(SHIELD_COST + DEVELOPMENT_MIN_CASH_AFTER)}).`;
+  }
   return null;
 }
 

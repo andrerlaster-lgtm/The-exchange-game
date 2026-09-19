@@ -717,7 +717,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 A player who **controls** a regular company (6+ shares) may invest in it. ETFs and IPOs cannot be developed.
 
-**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. You must still hold at least **$10,000 in cash after paying** for an upgrade — this keeps enough on hand to cover opponents' Payout Claims. (Shields are not limited by this rule.)
+**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. You must still hold at least **$20,000 in cash after paying** for an upgrade or a shield — this keeps enough on hand to cover opponents' Payout Claims.
 
 | Level | Cost | Total spent | Payout Claim bonus | Market Open bonus | Downside reduction |
 |---|---:|---:|---:|---:|---:|
@@ -729,7 +729,7 @@ A player who **controls** a regular company (6+ shares) may invest in it. ETFs a
 - **Market Open bonus:** flat cash to the investor at their own Market Open. It is not a dividend and is never multiplied.
 - **Downside reduction:** shrinks declines from Weak Demand, the Market Meter, Market Event cards, Fed cards, and Bear Runs. It shrinks a decline by that share (a −10% Market Event becomes −6% at Level Ⅱ) but never removes it entirely or turns it into a rise. It does not apply to bank-sale drops, a player's own sales, or Cyberattack/Regulatory Investigation penalties the player chose.
 
-**Market Protection shield ($1,500):** one per company, Controller only, does not use the turn's upgrade. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
+**Market Protection shield ($1,500):** one per company, Controller only, does not use the turn's upgrade, and needs $20,000 left over after buying it. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
 
 **Losing control:** if the investor drops below 6 shares — including when another player takes control or ownership becomes contested — the company resets to Base, its shield is removed, and the investor is immediately refunded 40% of their upgrade spending ($800 / $2,400 / $4,400). Upgrades never transfer. Regaining control starts again from Base.
 

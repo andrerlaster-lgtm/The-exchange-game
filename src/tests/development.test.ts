@@ -3,11 +3,11 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  PAYOUT_CLAIM_TOTAL_CAP, PRICE_FLOOR, SHIELD_COST, UPGRADE_LEVELS, applyBasisPoints,
+  DEVELOPMENT_MIN_CASH_AFTER, PAYOUT_CLAIM_TOTAL_CAP, PRICE_FLOOR, SHIELD_COST, UPGRADE_LEVELS, applyBasisPoints,
 } from '../data';
 import type { PriceMoveSource } from '../data';
 import type { GameState } from '../engine';
-import { developmentOf, upgradeBlockReason } from '../engine';
+import { developmentOf, shieldBlockReason, upgradeBlockReason } from '../engine';
 import { applyPriceMove } from '../engine/stockState';
 import { applyEffect } from '../engine/eventCardResolver';
 import { payMarketOpen } from '../engine/playerState';
@@ -113,21 +113,27 @@ describe('upgrade purchase and control', () => {
     expect(s.development[CODE]).toMatchObject({ level: 1, shieldActive: true });
   });
 
-  it('requires $10,000 in cash left over after paying for the upgrade', () => {
-    // Level I costs $2,000: $12,000 is exactly enough, $11,999 is not.
-    const exact = up(controlled(11, 12_000));
+  it('requires $20,000 in cash left over after paying for an upgrade', () => {
+    // Level I costs $2,000: $22,000 is exactly enough, $21,999 is not.
+    const exact = up(controlled(11, 22_000));
     expect(exact.development[CODE].level).toBe(1);
-    expect(exact.players[0].cash).toBe(10_000);
+    expect(exact.players[0].cash).toBe(DEVELOPMENT_MIN_CASH_AFTER);
 
-    const short = controlled(11, 11_999);
-    expect(upgradeBlockReason(short, CODE)).toMatch(/must keep \$10,000 in cash after upgrading/);
+    const short = controlled(11, 21_999);
+    expect(upgradeBlockReason(short, CODE)).toMatch(/must keep \$20,000 in cash after upgrading/);
     expect(up(short).development[CODE].level).toBe(0);
-    expect(up(short).players[0].cash).toBe(11_999);
+    expect(up(short).players[0].cash).toBe(21_999);
   });
 
-  it('the cash rule does not apply to shields', () => {
-    const s = shield(controlled(11, 2_000));
-    expect(s.development[CODE].shieldActive).toBe(true);
+  it('the same $20,000 floor applies to shields', () => {
+    // A shield costs $1,500: $21,500 is exactly enough, $21,499 is not.
+    const exact = shield(controlled(11, 21_500));
+    expect(exact.development[CODE].shieldActive).toBe(true);
+    expect(exact.players[0].cash).toBe(DEVELOPMENT_MIN_CASH_AFTER);
+
+    const short = controlled(11, 21_499);
+    expect(shieldBlockReason(short, CODE)).toMatch(/must keep \$20,000 in cash after buying it/);
+    expect(shield(short).development[CODE].shieldActive).toBe(false);
   });
 
   it('cannot upgrade before rolling or with a required action open', () => {

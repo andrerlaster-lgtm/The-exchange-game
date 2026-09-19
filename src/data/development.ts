@@ -37,13 +37,15 @@ export const UPGRADE_LEVELS: readonly UpgradeLevelDef[] = [
 export const MAX_DEVELOPMENT_LEVEL = 3;
 
 /**
- * Cash a player must still hold AFTER paying for an upgrade. Simulation sweeps
- * of claim bonus, shield price, and upgrade cost all showed the extra Payout
- * Claim shortfalls came from players spending the cash they later needed for
- * claims — keeping $20,000 on hand brought shortfalls back to the no-upgrade
- * level, while no price change did. Shields are not subject to this rule.
+ * Cash a player must still hold AFTER paying for an upgrade or a shield.
+ * Simulation sweeps of claim bonus, shield price, and upgrade cost all showed
+ * the extra Payout Claim shortfalls came from players spending the cash they
+ * later needed for claims, not from any price. A floor sweep then showed
+ * $10,000 on upgrades alone barely helped (52 shortfalls vs 16 with upgrades
+ * off, 24 games per player count); $20,000 covering shields as well came
+ * closest (27).
  */
-export const UPGRADE_MIN_CASH_AFTER = 10_000;
+export const DEVELOPMENT_MIN_CASH_AFTER = 20_000;
 
 /** The benefits a company has at a given level (level 0 = Base, no benefits). */
 export function upgradeLevel(level: DevelopmentLevel): UpgradeLevelDef | null {
