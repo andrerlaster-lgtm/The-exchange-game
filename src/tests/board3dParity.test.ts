@@ -70,13 +70,18 @@ describe('3D Action Center parity', () => {
       draft.turnPhase = 'acted';
       draft.players[0].shares.MEDI = 11;
     });
+    // A controlled company's row also carries Company Development buttons;
+    // the sell allowance is checked on the sell buttons alone.
+    const sells = (r: typeof row) => r?.buttons?.filter((entry) => entry.action.t === 'sell') ?? [];
     let row = buildActionCenter(s).portfolio.rows?.[0];
-    expect(row?.buttons?.map((entry) => entry.label)).toEqual(['Sell 1', 'Sell 2', 'Sell 3', 'Sell 4', 'Sell 5']);
+    expect(sells(row).map((entry) => entry.label)).toEqual(['Sell 1', 'Sell 2', 'Sell 3', 'Sell 4', 'Sell 5']);
+    expect(row?.buttons?.filter((entry) => entry.action.t !== 'sell').map((entry) => entry.action.t))
+      .toEqual(['upgradeCompany', 'buyMarketProtection']);
 
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
     row = buildActionCenter(s).portfolio.rows?.[0];
     expect(row?.detail).toContain('2 of 5 bank-sale shares left');
-    expect(row?.buttons?.map((entry) => entry.disabled)).toEqual([false, false, true, true, true]);
+    expect(sells(row).map((entry) => entry.disabled)).toEqual([false, false, true, true, true]);
   });
 
   it('offers both Investor Day paths and the follow-up company choice in 3D', () => {
