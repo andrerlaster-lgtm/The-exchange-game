@@ -185,13 +185,14 @@ export interface LogEntry {
   t: number;          // lap number
 }
 
-/** `regime` is a Bull Run / Bear Run BOARD-SPACE landing (spaces 16/26) —
-    market-wide risk-tier price moves plus stance cash for every player. It is
-    deliberately its own kind, not `market`: it is the one signal the
-    persistent Market Condition display does NOT cover (that display tracks
-    the Market Meter, a separate mechanic), so it must stay in the curated
-    Important Events feed. The meter's own ambient signals stay `market` and
-    stay out of that feed, because the display does cover those. */
+/** `regime` is a Bull Run / Bear Run resolution — market-wide risk-tier price
+    moves plus stance cash for every player, triggered by rolling on the
+    combined Market Swing space (see actionResolver.ts's 'regime'/'rollRegime'
+    cases). It is deliberately its own kind, not `market`: it is the one
+    signal the persistent Market Condition display does NOT cover (that
+    display tracks the Market Meter, a separate mechanic), so it must stay in
+    the curated Important Events feed. The meter's own ambient signals stay
+    `market` and stay out of that feed, because the display does cover those. */
 export type MarketSignalKind = 'fed' | 'market' | 'regime' | 'soldout' | 'claim' | 'weakDemand' | 'strongDemand' | 'ipo' | 'close' | 'milestone';
 
 export interface MarketSignalImpact {
@@ -464,6 +465,7 @@ export interface GameState {
   regulatoryInvestigationPrompt: RegulatoryInvestigationPrompt | null;
   payoutShortfallChoice: PayoutShortfallChoice | null; // debtor choice: force-sell vs. negotiate a loan
   loanRatePrompt: LoanRatePrompt | null;               // creditor's pending 1-5% rate choice
+  regimeRollPrompt: { player: number } | null;         // pending d6 roll on the combined Market Swing space to decide Bull vs. Bear
   playerDebts: PlayerDebt[];                            // active negotiated Payout Claim loans
   playerDebtSeq: number;                                // id source for playerDebts
   feeLog: FeeEventEntry[];           // Taxes & Fees panel: margin calls, income, audit notices (most recent first)
@@ -515,6 +517,7 @@ export type Action =
   | { t: 'choosePayoutForceSell' }
   | { t: 'choosePayoutLoan' }
   | { t: 'rollLoanRate' }
+  | { t: 'rollRegime' }
   | { t: 'dismissMarketOpenReport' }
   | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }

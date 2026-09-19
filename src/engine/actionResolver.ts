@@ -411,17 +411,9 @@ function resolveLanding(s: GameState, pi: number): void {
       s.pendingDraws.push('ME');
       addLog(s, `${p.name} landed on Market Event — draw a card.`, 'r');
       break;
-    case 'bull':
-    case 'bear': {
-      const regime = sp.type;
-      const effect: Effect = { k: 'regime', regime };
-      const title = regime === 'bull' ? 'Bull Run' : 'Bear Run';
-      const summary = regime === 'bull'
-        ? 'High Risk +2, Medium Risk +1, Low Risk unchanged, and revealed IPOs +1. Stance cash resolves for every player.'
-        : 'High Risk −2, Medium Risk −1, Low Risk +1, and revealed IPOs −1. Stance cash resolves for every player.';
-      addLog(s, `${p.name} lands on ${title} — the entire market reacts.`, regime === 'bull' ? 'g' : 'r');
-      recordMarketSignal(s, { kind: 'regime', title, summary, impacts: effectImpacts(s, effect) });
-      beginMarketEventEffect(s, effect);
+    case 'regime': {
+      s.regimeRollPrompt = { player: pi };
+      addLog(s, `${p.name} lands on Market Swing — roll to see if it's a Bull or Bear Run.`, 'y');
       break;
     }
     case 'placeholder':
@@ -1033,6 +1025,22 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       });
       const capNote = roll > rate ? ` (capped at ${rate}%${loanRateCap !== null && rate === loanRateCap ? ' — Credit Tightening' : ''})` : '';
       addLog(s, `${s.players[prompt.creditor].name} rolls ${roll}${capNote} for the rate — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
+      break;
+    }
+    case 'rollRegime': {
+      const prompt = s.regimeRollPrompt;
+      if (!prompt || prompt.player !== s.cur) break;
+      const roll = rng.int(1, 6);
+      const regime: 'bull' | 'bear' = roll <= 3 ? 'bear' : 'bull';
+      s.regimeRollPrompt = null;
+      const effect: Effect = { k: 'regime', regime };
+      const title = regime === 'bull' ? 'Bull Run' : 'Bear Run';
+      const summary = regime === 'bull'
+        ? 'High Risk +2, Medium Risk +1, Low Risk unchanged, and revealed IPOs +1. Stance cash resolves for every player.'
+        : 'High Risk −2, Medium Risk −1, Low Risk +1, and revealed IPOs −1. Stance cash resolves for every player.';
+      addLog(s, `${s.players[s.cur].name} rolls ${roll} — ${title}! The entire market reacts.`, regime === 'bull' ? 'g' : 'r');
+      recordMarketSignal(s, { kind: 'regime', title, summary, impacts: effectImpacts(s, effect) });
+      beginMarketEventEffect(s, effect);
       break;
     }
     case 'dismissMarketOpenReport':

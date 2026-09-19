@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { CARDS, LADDER, SPACES } from '../data';
 import type { Effect } from '../data/types';
 import { circuitBreakerOptions, effectImpacts } from '../engine';
-import { dispatch, patch, rng, rollTo, started } from './helpers';
+import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 function landOnRegime(state: ReturnType<typeof started>, regime: 'bull' | 'bear') {
-  return rollTo(state, regime === 'bull' ? 16 : 26);
+  const s = rollTo(state, 19);
+  return dispatch(s, { t: 'rollRegime' }, scriptedRng([regime === 'bull' ? 6 : 1]));
 }
 
 describe('Bull and Bear Run market regimes', () => {
@@ -102,9 +103,10 @@ describe('Bull and Bear Run market regimes', () => {
     ]));
   });
 
-  it('uses dedicated spaces 16 and 26 and removes both Runs from the Market Event deck', () => {
-    expect(SPACES[15]).toMatchObject({ n: 16, type: 'bull', name: 'BULL RUN' });
-    expect(SPACES[25]).toMatchObject({ n: 26, type: 'bear', name: 'BEAR RUN' });
+  it('spaces 16 and 26 are plain Market Event spaces, and space 19 is the combined Market Swing space', () => {
+    expect(SPACES[15]).toMatchObject({ n: 16, type: 'event', name: 'MARKET EVENT' });
+    expect(SPACES[25]).toMatchObject({ n: 26, type: 'event', name: 'MARKET EVENT' });
+    expect(SPACES[18]).toMatchObject({ n: 19, type: 'regime', name: 'MARKET SWING' });
     expect(CARDS.ME.some((card) => card.title === 'Bull Run' || card.title === 'Bear Run')).toBe(false);
   });
 });

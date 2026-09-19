@@ -122,6 +122,9 @@ export default function ActionPanel() {
       {/* Creditor picks the 1-5%/turn rate for a newly-negotiated loan */}
       {s.loanRatePrompt && <LoanRatePanel s={s} dispatch={dispatch} />}
 
+      {/* Market Swing landing — roll a d6 to decide Bull Run vs. Bear Run */}
+      {s.regimeRollPrompt && <RegimeRollPanel s={s} dispatch={dispatch} />}
+
       {/* Payout Claim shortfall — forced sale to pay the other player */}
       {s.insolvency && !s.landingNotice && <InsolvencyPanel s={s} dispatch={dispatch} />}
 
@@ -659,6 +662,28 @@ function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) =>
       <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800, alignSelf: 'flex-start' }}
         onClick={() => dispatch({ t: 'rollLoanRate' })}>
         🎲 Roll for Rate
+      </button>
+    </div>
+  );
+}
+
+function RegimeRollPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const prompt = s.regimeRollPrompt!;
+  const player = s.players[prompt.player];
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(167,139,250,0.18), rgba(167,139,250,0.06))',
+      border: '2px solid rgba(167,139,250,0.65)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#a78bfa' }}>⚡ {player.name} — ROLL FOR BULL OR BEAR</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        {player.name} landed on Market Swing. Roll a d6 — 1-3 is a Bear Run, 4-6 is a Bull Run — and the entire market reacts.
+      </div>
+      <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800, alignSelf: 'flex-start' }}
+        onClick={() => dispatch({ t: 'rollRegime' })}>
+        🎲 Roll
       </button>
     </div>
   );

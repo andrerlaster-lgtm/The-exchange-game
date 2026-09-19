@@ -7,7 +7,7 @@ import { dispatch, rng, rollTo, scriptedRng, started } from './helpers';
 describe('Event card draw', () => {
   it('drawing a ME card applies its effect and clears pendingDraws', () => {
     let s = started();
-    s = rollTo(s, 19); // space 19 = Market Event
+    s = rollTo(s, 16); // space 16 = Market Event
     expect(s.pendingDraws[0]).toBe('ME');
     s = dispatch(s, { t: 'draw', deck: 'ME' }, scriptedRng([]));
     expect(s.pendingDraws).toHaveLength(0);
@@ -36,7 +36,7 @@ describe('Event card draw', () => {
 
   it('deck reshuffles from discard when exhausted', () => {
     let s = started();
-    s = rollTo(s, 19); // space 19 = Market Event
+    s = rollTo(s, 16); // space 16 = Market Event
     // drain the ME deck (guard: must shrink every pass or the test fails fast)
     let guard = 0;
     while (s.decks.ME.length > 0 && guard++ < 40) {
@@ -48,7 +48,7 @@ describe('Event card draw', () => {
       if (s.openingBellPrompt) s = dispatch(s, { t: 'passOpeningBell' }, rng());
       if (!s.closing && s.phase !== 'over') {
         s = dispatch(s, { t: 'endTurn' }, rng());
-        s = rollTo(s, 19);
+        s = rollTo(s, 16);
       } else break;
     }
     expect(s.decks.ME.length === 0 || s.discard.ME.length > 0).toBe(true);
@@ -56,7 +56,7 @@ describe('Event card draw', () => {
 
   it('Market Close card triggers full-round close', () => {
     let s = started(2);
-    s = rollTo(s, 19); // space 19 = Market Event
+    s = rollTo(s, 16); // space 16 = Market Event
     const closeIdx = CARDS.ME.findIndex((card) => card.eff.k === 'close');
     s = { ...s, decks: { ...s.decks, ME: [closeIdx, ...s.decks.ME.filter((i) => i !== closeIdx)] } };
     s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());

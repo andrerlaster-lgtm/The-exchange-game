@@ -156,6 +156,16 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
+  if (s.regimeRollPrompt) {
+    const prompt = s.regimeRollPrompt;
+    const player = s.players[prompt.player];
+    required.push({
+      id: 'regime-roll', title: `${player.name} — Roll for Bull or Bear`, accent: '#a78bfa', urgent: true,
+      description: `${player.name} landed on Market Swing. Roll a d6 — 1-3 is a Bear Run, 4-6 is a Bull Run — and the entire market reacts.`,
+      buttons: [button('Roll', { t: 'rollRegime' }, 'primary')],
+    });
+  }
+
   if (s.insolvency && !s.landingNotice) {
     const iv = s.insolvency;
     const player = s.players[iv.player];

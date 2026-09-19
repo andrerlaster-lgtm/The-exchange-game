@@ -79,6 +79,7 @@ export function initialState(rng: Rng): GameState {
     regulatoryInvestigationPrompt: null,
     payoutShortfallChoice: null,
     loanRatePrompt: null,
+    regimeRollPrompt: null,
     playerDebts: [],
     playerDebtSeq: 0,
     feeLog: [],

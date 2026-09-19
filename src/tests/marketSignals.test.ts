@@ -92,16 +92,18 @@ describe('Market Intelligence signals', () => {
     expect(importantMarketSignals(s)[0].summary).toContain('Riley took control of MEDI from Morgan');
   });
 
-  it('keeps a REAL Bull/Bear Run board landing in Important Events — it has no landing banner of its own', () => {
-    // Regression guard (2026-08-22). A landing on space 16/26 moves every
-    // company by risk tier AND pays/charges every player stance cash, but
-    // sets no s.landingNotice, so this feed is its only prominent surfacing.
-    // Deliberately drives a real landing rather than hand-recording a signal:
-    // an earlier version of this test hand-built one with the wrong `kind`
-    // and so kept passing while real landings were silently dropped.
-    for (const [space, title] of [[16, 'Bull Run'], [26, 'Bear Run']] as const) {
-      const s = rollTo(started(2), space);
+  it('keeps a REAL Bull/Bear Run resolution in Important Events — it has no landing banner of its own', () => {
+    // Regression guard (2026-08-22, updated 2026-09-18 for the combined
+    // Market Swing space). Resolving a Run moves every company by risk tier
+    // AND pays/charges every player stance cash, but sets no s.landingNotice,
+    // so this feed is its only prominent surfacing. Deliberately drives a
+    // real landing + roll rather than hand-recording a signal: an earlier
+    // version of this test hand-built one with the wrong `kind` and so kept
+    // passing while real landings were silently dropped.
+    for (const [roll, title] of [[6, 'Bull Run'], [1, 'Bear Run']] as const) {
+      let s = rollTo(started(2), 19);
       expect(s.landingNotice).toBeNull(); // still no banner — hence the feed matters
+      s = dispatch(s, { t: 'rollRegime' }, scriptedRng([roll]));
       expect(importantMarketSignals(s).map((signal) => signal.title)).toContain(title);
     }
   });

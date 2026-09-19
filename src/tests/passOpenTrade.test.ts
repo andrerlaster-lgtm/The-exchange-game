@@ -1,6 +1,6 @@
 // Market Open is payday only; Market Event draws come solely from landing on
-// space 19. These tests pin that separation and confirm a forced draw from a
-// draw-space (Fed/Market Event) never strips a concurrent trade.
+// a Market Event space. These tests pin that separation and confirm a forced
+// draw from a draw-space (Fed/Market Event) never strips a concurrent trade.
 
 import { describe, expect, it } from 'vitest';
 import { SPACES } from '../data';
@@ -24,8 +24,8 @@ describe('Market Open payday vs. Market Event space', () => {
 
   it('landing on the Market Event space queues exactly one ME draw', () => {
     let s = started(2);
-    s = rollTo(s, 19);
-    expect(s.players[s.cur].pos).toBe(19);
+    s = rollTo(s, 16);
+    expect(s.players[s.cur].pos).toBe(16);
     expect(s.pendingDraws).toEqual(['ME']);
     expect(s.trade).toBeNull();  // Market Event space is not a trade space
   });

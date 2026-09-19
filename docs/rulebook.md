@@ -75,8 +75,8 @@ The setup screen offers two winning-score modes:
 - 4 ETF spaces/cards
 - 2 IPO spaces and 4 IPO cards (shared reveal queue — see Section 19)
 - 1 The Fed space and Fed cards
-- 1 Bull Run space and 1 Bear Run space
-- 1 Market Event space and the combined Market Event deck
+- 1 Market Swing space (combined Bull Run / Bear Run — resolved by a d6 roll on landing)
+- 2 Market Event spaces and the combined Market Event deck
 - 1 Investor Day space
 - 1 Portfolio Tax space
 - 1 Audit Notice space
@@ -118,10 +118,9 @@ The board has 36 spaces. The current rule direction preserves the board count an
 | Regular stock | 22 | Buy shares, build ownership, sell out companies, create Payout Claims, earn dividends |
 | ETF | 4 | Diversification-style investment route that pays at Market Open and can charge a landing fee |
 | The Fed | 1 | Draw and resolve a Fed card; space 7 |
-| Bull Run | 1 | Resolve the global Bull Run and every player's locked stance; space 16 |
-| Bear Run | 1 | Resolve the global Bear Run and every player's locked stance; space 26 |
+| Market Swing | 1 | Roll a d6 to decide Bull Run or Bear Run, then resolve it and every player's locked stance; space 19 |
 | IPO | 2 | Reveal and access IPO opportunities (shared queue of 4) |
-| Market Event | 1 | Dedicated Market Event space; space 19 |
+| Market Event | 2 | Draw and resolve a Market Event card; spaces 16 and 26 |
 | Market Open | 1 | Payday, Market Condition roll, then Market Open Trading Window |
 | Portfolio Tax | 1 | Penalty space based on net worth |
 | Investor Day | 1 | Choose Company Growth (+1 step to an eligible owned company, or $500 if none) or Insider Information (preview the next Market Event without drawing it) |
@@ -129,7 +128,7 @@ The board has 36 spaces. The current rule direction preserves the board count an
 
 **Board rule locks**
 - Market Open is payday plus a new Market Condition roll, and does not trigger a Market Event.
-- Space 19 is the dedicated Market Event space.
+- Spaces 16 and 26 are Market Event spaces; space 19 is the combined Market Swing space.
 - Short Sell is not part of the standard game flow.
 - The 3D board is a renderer; the rules engine remains the source of truth.
 
@@ -613,17 +612,16 @@ The Market Meter is the game's ambient, round-guaranteed source of market moveme
 
 **Interaction with other systems**
 - The round-boundary reprice and card ripple both move real stock (and revealed IPO) prices using the normal price floor/ceiling and Weak/Strong Demand rules — they do not bypass them.
-- They are unrelated to, and do not double up with, the Bull Run and Bear Run board spaces (Section 22) or the temporary Market Conditions (Section 6).
+- They are unrelated to, and do not double up with, the Market Swing space's Bull Run / Bear Run resolution (Section 22) or the temporary Market Conditions (Section 6).
 
 ## 22. Special Spaces
 
 | Space | Rule |
 |---|---|
 | Market Open | Payday, then a new Market Condition roll, then the Market Open Trading Window. Does not draw a Market Event. |
-| Market Event — space 19 | Draw and resolve 1 Market Event card. Also triggered automatically if any stock reaches the $5,000 price ceiling. |
+| Market Event — spaces 16 and 26 | Draw and resolve 1 Market Event card. Also triggered automatically if any stock reaches the $5,000 price ceiling. |
 | The Fed | Draw and resolve 1 Fed card. |
-| Bull Run — space 16 | Resolve the Bull Run stock movements and every player's current stance, then reset all players to Balanced. |
-| Bear Run — space 26 | Resolve the Bear Run stock movements and every player's current stance, then reset all players to Balanced. Circuit Breaker may protect one affected owned company. |
+| Market Swing — space 19 | Roll a d6: 1-3 resolves as a Bear Run, 4-6 resolves as a Bull Run. Then resolve that Run's stock movements and every player's current stance, and reset all players to Balanced. Circuit Breaker may protect one affected owned company from a Bear Run roll. |
 | IPO | Resolve IPO reveal/purchase per Section 19. |
 | Investor Day — space 31 | Choose Company Growth or Insider Information. Company Growth moves 1 owned regular company below the $5,000 ceiling up 1 price step; reaching $5,000 triggers a Market Event. If none qualifies, collect $500. Insider Information reveals the title and effect of the next Market Event without drawing, resolving, or removing that card from the top of the deck. |
 | Portfolio Tax | Charge equals 10% of current net worth. Choose Pay Now or Carry as Debt under Outstanding Fees. |
@@ -631,7 +629,9 @@ The Market Meter is the game's ambient, round-guaranteed source of market moveme
 
 **Investor Day rollback note:** The previous rule is retained here in case playtesting favors it: choose 1 regular company you own below the $5,000 ceiling and move it up 1 price step; if no owned company can rise, automatically collect $500. This version had no Insider Information choice.
 
-**Bull Run, Bear Run, and Market Stance**
+**Market Swing, Bull Run, Bear Run, and Market Stance**
+
+Landing on Market Swing (space 19) does not resolve a Run directly — it opens a required roll first. The active player rolls 1 die: 1-3 resolves the landing as a Bear Run, 4-6 resolves it as a Bull Run. Once rolled, that Run resolves exactly as described below; there is no further choice.
 
 Each player holds one visible Market Stance. The latest qualifying action replaces the previous stance:
 
@@ -645,7 +645,7 @@ Each player holds one visible Market Stance. The latest qualifying action replac
 | Balanced | +$500 | −$500 |
 | Bearish | −$750 | +$1,500 |
 
-Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve stock and cash effects when a player lands on the corresponding Run space:
+Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve stock and cash effects once the Market Swing roll determines which Run applies:
 
 | Investment | Bull Run | Bear Run |
 |---|---:|---:|
@@ -657,7 +657,7 @@ Required cash losses stop at $0 cash; a Run does not open Insolvency. Resolve st
 
 Low-Risk stocks are unaffected by either Run in both directions — this is deliberate: Low-Risk already carries the highest dividend yield in the game, so a one-sided Bear Run exemption would make it strictly dominant with zero downside anywhere.
 
-Bull Run and Bear Run are dedicated board spaces, not cards in the Market Event deck. Dividends, share counts, and Payout Claim tiers do not change directly. Circuit Breaker may protect one owned company from a Bear Run drop. Run-driven moves stop at the price-track floor or ceiling and do not trigger another Market Event.
+Bull Run and Bear Run are resolved from the combined Market Swing space by a d6 roll, not drawn as cards from the Market Event deck. Dividends, share counts, and Payout Claim tiers do not change directly. Circuit Breaker may protect one owned company from a Bear Run drop. Run-driven moves stop at the price-track floor or ceiling and do not trigger another Market Event.
 
 **Circuit Breaker — Market Event hold card**
 - The former After-Hours cards are part of the combined Market Event deck; there is no separate After-Hours deck or board space.
