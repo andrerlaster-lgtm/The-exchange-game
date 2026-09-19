@@ -4,6 +4,7 @@ import { CEILING_TRIGGER, IPO_INDEX, type PriceMoveSource, applyBasisPoints, isI
 import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
 import { priceOf, shortPayout } from './rules';
+import { protectMove } from './development';
 
 /** What a price move actually did, in dollars, after the grid, the floor and
     (later) upgrade protection — for logs, the ticker, and tests. */
@@ -40,16 +41,17 @@ export function applyPriceMove(
   s: GameState,
   code: string,
   bp: number,
-  _source: PriceMoveSource,
+  source: PriceMoveSource,
 ): PriceMoveResult {
   const ipo = isIpoCode(code) ? s.ipos[IPO_INDEX[code]] : null;
   if (ipo && !ipo.revealed) return { before: ipo.price, after: ipo.price, delta: 0, pct: 0 };
 
   const before = priceOf(s, code);
-  // Upgrade downside protection hooks in here: reduce a negative `bp` when
-  // SHIELDABLE_SOURCES.has(_source), never past 0. Deliberately not implemented
-  // yet — the brief defers upgrades until this price model is reviewed.
-  const after = applyBasisPoints(before, bp);
+  // Upgrade resilience and Market Protection apply here and only here, so no
+  // individual event resolver needs its own protection logic. Grid rounding
+  // and the floor come last, inside applyBasisPoints.
+  const protectedBp = protectMove(s, code, before, bp, source);
+  const after = applyBasisPoints(before, protectedBp);
 
   if (ipo) ipo.price = after;
   else s.prices[code] = after;

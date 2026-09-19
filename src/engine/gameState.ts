@@ -29,6 +29,12 @@ export function freshDecks(rng: Rng, closeMode: GameState['opts']['closeMode'] =
   return { ME: buildMarketEventDeck(rng, closeMode), FED: seq(CARDS.FED.length) };
 }
 
+export function freshDevelopment(): GameState['development'] {
+  return Object.fromEntries(Object.keys(STOCK_BY_CODE).map((code) => [
+    code, { level: 0, shieldActive: false, fundedBy: null, totalInvested: 0 },
+  ]));
+}
+
 export function freshIpos(): GameState['ipos'] {
   return IPO_DEFS.map((ip) => ({
     code: ip.code, startPrice: ip.start, price: ip.start,
@@ -79,6 +85,8 @@ export function initialState(rng: Rng): GameState {
     regulatoryInvestigationPrompt: null,
     payoutShortfallChoice: null,
     loanRatePrompt: null,
+    development: freshDevelopment(),
+    upgradedThisTurn: false,
     regimeRollPrompt: null,
     playerDebts: [],
     playerDebtSeq: 0,

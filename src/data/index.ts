@@ -18,3 +18,4 @@ export const CARDS: Record<DeckId, Card[]> = {
   ME:  ME_CARDS,
   FED: FED_CARDS,
 };
+export * from './development';

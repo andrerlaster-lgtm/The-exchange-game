@@ -19,3 +19,7 @@ export * from './companyMode';
 export * from './sessionDebrief';
 export * from './sectorControl';
 export { minNextBid } from './auction';
+export {
+  developmentOf, isController, upgradeBlockReason, shieldBlockReason,
+  developmentMarketOpenBonus, developmentClaimBonus,
+} from './development';

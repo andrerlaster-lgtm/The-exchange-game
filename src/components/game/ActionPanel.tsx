@@ -267,6 +267,7 @@ function MarketOpenIncomeSection({ income: inc }: { income: MarketOpenIncome }) 
     rows.push({ label: inc.diversificationTier === 'broad' ? 'Broad Market Bonus' : 'Diversified Bonus', amount: inc.diversificationBonus });
   }
   if (inc.recoveryBonus > 0) rows.push({ label: 'Recovery Bonus (cash was low)', amount: inc.recoveryBonus });
+  if (inc.developmentBonus > 0) rows.push({ label: 'Company development bonus', amount: inc.developmentBonus });
 
   return (
     <div>

@@ -3,7 +3,7 @@
 
 import {
   AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE, TAX_RATE,
-  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP,
+  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
   PLAYER_LOAN_MAX_RATE, SECTOR_PAIR_BY_CODE, SECTOR_PAIRS,
@@ -14,7 +14,8 @@ import { toBps } from '../utils/formatRate';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
 import { bankSellRemaining, canRise, canTradeNow, canMarketSell, blocked, companyBuyoutCost, ipoOf, priceOf, sellBackPrice } from './rules';
-import { freshDecks, freshIpos, resetPlayers } from './gameState';
+import { freshDecks, freshDevelopment, freshIpos, resetPlayers } from './gameState';
+import { buyMarketProtection, developmentClaimBonus, developmentOf, upgradeCompany } from './development';
 import { payMarketOpen } from './playerState';
 import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
 import { advanceMeterOnRoll, repriceRoundBoundary } from './marketMeter';
@@ -203,8 +204,15 @@ function resolveLanding(s: GameState, pi: number): void {
           const controlsPair = !!pairDef && sectorPairOwner(s, pairId!) === rec.claimHolder;
           const rentMultiplier = marketConditionSectorRentMultiplier(s, rec.claimHolder);
           const sectorRent = controlsPair ? pairDef!.rent * rentMultiplier : 0;
-          const uncappedOwed = claimOwed + sectorRent;
-          const owed = capPayoutClaimTotal(claimOwed, sectorRent);
+          // Company development: a flat bonus added after the normal claim and
+          // Market Condition adjustment, then Sector Rent, then the shared cap.
+          // `upgradeApplied` is the part of the bonus that actually survives the
+          // cap (its marginal contribution), which the landing notice discloses.
+          const upgradeBonus = developmentClaimBonus(s, code);
+          const uncappedOwed = claimOwed + upgradeBonus + sectorRent;
+          const owed = capPayoutClaimTotal(claimOwed + upgradeBonus, sectorRent);
+          const upgradeApplied = Math.max(0, owed - capPayoutClaimTotal(claimOwed, sectorRent));
+          const upgradeLevelDef = upgradeLevel(developmentOf(s, code).level);
           const capApplied = owed < uncappedOwed;
           // Landing no longer force-pays from cash automatically — the debtor
           // gets a real choice (pay cash now, force-sell stock, or negotiate a
@@ -215,6 +223,7 @@ function resolveLanding(s: GameState, pi: number): void {
             (sectorComplete ? ' · Sector Portfolio boost' : '') +
             (multiplier > 1 ? ` · space value ${multiplier}×` : '') +
             (discount > 0 ? ` · ${Math.round(discount * 100)}% shareholder discount` : '') +
+            (upgradeBonus > 0 ? ` + ${money(upgradeApplied)} Level ${upgradeLevelDef!.numeral} development${upgradeApplied < upgradeBonus ? ` of ${money(upgradeBonus)}` : ''}` : '') +
             (sectorRent > 0 ? ` + ${money(sectorRent)} Sector Rent · ${pairDef!.name}${rentMultiplier > 1 ? ' (Toll Hike ×2)' : ''}` : '') +
             (capApplied ? ` · capped at ${money(owed)}` : '') +
             ')', 'r');
@@ -226,6 +235,7 @@ function resolveLanding(s: GameState, pi: number): void {
             paidFromCash: 0,
             remaining: owed,
             detail: `${money(claimOwed)} Payout Claim is owed to ${holder.name}${sectorComplete ? ' because the Sector Portfolio boost applies' : ''}${multiplier > 1 ? `; the stock price makes this space worth ${multiplier}×` : ''}${discount > 0 ? `; your shares reduce it by ${Math.round(discount * 100)}%` : ''}${conditionAdjustment !== 0 ? `; ${holder.name}'s ${s.marketConditions[rec.claimHolder]?.title} ${conditionAdjustment > 0 ? 'adds' : 'reduces it by'} ${money(Math.abs(conditionAdjustment))}` : ''}` +
+              (upgradeBonus > 0 ? `, plus a ${money(upgradeBonus)} Level ${upgradeLevelDef!.numeral} development bonus${upgradeApplied < upgradeBonus ? ` (only ${money(upgradeApplied)} applies under the ${money(PAYOUT_CLAIM_TOTAL_CAP)} cap)` : ''}` : '') +
               (sectorRent > 0 ? `, plus ${money(sectorRent)} Sector Rent for controlling ${pairDef!.name} (${pairDef!.codes.join(' + ')})${rentMultiplier > 1 ? ' — doubled by Toll Hike' : ''}` : '') +
               (capApplied ? `; the combined ${money(uncappedOwed)} charge is capped at ${money(owed)}` : '') + '.',
             canDefer: false,
@@ -496,6 +506,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.marketConditions = s.players.map(() => null);
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       s.playerDebts = []; s.playerDebtSeq = 0;
+      s.development = freshDevelopment(); s.upgradedThisTurn = false;
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;
@@ -623,9 +634,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'chooseCyberattackStock': {
       const prompt = s.cyberattackPrompt;
       if (!prompt || prompt.player !== s.cur || !prompt.codes.includes(action.code)) break;
-      moveEventPrice(s, action.code, -1);
+      // A player-chosen penalty: never softened by upgrades or shields.
+      const hit = moveEventPrice(s, action.code, -MOVE_BP.cardStep, 'cyberattackChoice');
       s.cyberattackPrompt = null;
-      addLog(s, `${s.players[s.cur].name} shields cash from Cyberattack — ${action.code} drops 1 price step.`, 'r');
+      addLog(s, `${s.players[s.cur].name} shields cash from Cyberattack — ${action.code} drops ${pct(hit.pct)} to ${money(hit.after)}.`, 'r');
       break;
     }
     case 'payCyberattackFee': {
@@ -668,10 +680,11 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'chooseRegulatoryInvestigationStock': {
       const prompt = s.regulatoryInvestigationPrompt;
       if (!prompt || prompt.player !== s.cur || !prompt.codes.includes(action.code)) break;
-      moveEventPrice(s, action.code, -1);
+      // A player-chosen penalty: never softened by upgrades or shields.
+      const hit = moveEventPrice(s, action.code, -MOVE_BP.cardStep, 'regulatoryChoice');
       s.players[s.cur].dividendCuts[action.code] = 1;
       s.regulatoryInvestigationPrompt = null;
-      addLog(s, `${s.players[s.cur].name} accepts the investigation penalty: ${action.code} drops 1 step and its next dividend is cut 50%.`, 'r');
+      addLog(s, `${s.players[s.cur].name} accepts the investigation penalty: ${action.code} drops ${pct(hit.pct)} and its next dividend is cut 50%.`, 'r');
       break;
     }
     case 'payRegulatoryInvestigation': {
@@ -1031,6 +1044,12 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       addLog(s, `${s.players[prompt.creditor].name} rolls ${roll}${capNote} for the rate — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
       break;
     }
+    case 'upgradeCompany':
+      upgradeCompany(s, action.code);
+      break;
+    case 'buyMarketProtection':
+      buyMarketProtection(s, action.code);
+      break;
     case 'rollRegime': {
       const prompt = s.regimeRollPrompt;
       if (!prompt || prompt.player !== s.cur) break;
@@ -1249,7 +1268,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // narrow Market Event card does — using the real impacts applyEffect
         // returns, not the predicted fallback recordCardSignal would compute
         // on its own.
-        const impacts = applyEffect(s, c.eff);
+        const impacts = applyEffect(s, c.eff, [], undefined, 'fedCard');
         finalizeCard(s, c, impacts, rng);
       }
       break;
@@ -1492,6 +1511,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.bonusRollPending = false;
       s.bonusRollUsed = false;
       s.marketOpenReport = null;
+      // Reset here, not in clearTurnState: a doubles re-roll also clears turn
+      // state, and must not grant a second upgrade in the same turn.
+      s.upgradedThisTurn = false;
       clearTurnState(s);
       settleShorts(s);
       addLog(s, `— ${s.players[s.cur].name}'s turn —`);

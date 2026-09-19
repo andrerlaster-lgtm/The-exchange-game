@@ -5,10 +5,14 @@ import type { Rng } from '../utils/rng';
 import type { Action, GameState } from './types';
 import { resolveAction } from './actionResolver';
 import { recordPortfolioMilestones } from './marketSignals';
+import { enforceDevelopmentControl } from './development';
 
 export function reduce(state: GameState, action: Action, rng: Rng): GameState {
   return produce(state, (draft) => {
     resolveAction(draft as GameState, action, rng);
+    // After every action, so no share-moving path can skip the control-loss
+    // reset and refund.
+    enforceDevelopmentControl(draft as GameState);
     recordPortfolioMilestones(draft as GameState);
   });
 }

@@ -3,6 +3,7 @@
 import { CARDS, CIRCUIT_BREAKER_INDEX, IPO_RUN_BP, MARKET_RUN_MOVE_BY_RISK, REGULAR_SUPPLY, STOCK_BY_CODE } from '../data';
 import { money, pct } from '../utils/formatMoney';
 import type { Card, Effect } from '../data/types';
+import type { PriceMoveSource } from '../data';
 import type { GameState, LogKind, MarketSignalImpact } from './types';
 import { canFall, canRise, companyBuyoutCost, eventPool, priceOf } from './rules';
 import { moveEventPrice } from './stockState';
@@ -271,7 +272,12 @@ export function triggerClose(s: GameState): void {
  * a real target is known — a card's Circuit Breaker offer cannot be made
  * before the target it would protect is chosen.
  */
-export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = [], rng?: Rng): MarketSignalImpact[] {
+export function applyEffect(
+  s: GameState, e: Effect, protectedCodes: string[] = [], rng?: Rng, deckSource: PriceMoveSource = 'marketEvent',
+): MarketSignalImpact[] {
+  // Runs name their own source so upgrade logs read "Bear Run", and so Bull
+  // Run is never mistaken for a protectable decline.
+  const source: PriceMoveSource = e.k === 'regime' ? (e.regime === 'bull' ? 'bullRun' : 'bearRun') : deckSource;
   const pool = eventPool(s);
   const protectedSet = new Set(protectedCodes);
   const impacts: MarketSignalImpact[] = [];
@@ -280,7 +286,7 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
       addLog(s, `Circuit Breaker shields ${code} from this card's price drop.`, 'g');
       return false;
     }
-    const r = moveEventPrice(s, code, bp);
+    const r = moveEventPrice(s, code, bp, source);
     if (r.delta !== 0) impacts.push({ code, pct: r.pct });
     return true;
   };

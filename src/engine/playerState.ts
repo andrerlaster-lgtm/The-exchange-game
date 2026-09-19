@@ -5,6 +5,7 @@ import {
   IPO_BY_CODE, MARGIN_DEFAULT_PENALTY, RECOVERY_BONUS, RECOVERY_BONUS_THRESHOLD, SALARY, STOCK_BY_CODE, isIpoCode,
 } from '../data';
 import { money } from '../utils/formatMoney';
+import { developmentMarketOpenBonus } from './development';
 import type { GameState, MarketOpenIncome } from './types';
 import { pushFeeEvent } from './feeLog';
 import { diversificationBonus, diversificationTier } from './sector';
@@ -83,7 +84,13 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   const qualifiesForRecovery = p.cash < RECOVERY_BONUS_THRESHOLD;
   const recoveryBonus = qualifiesForRecovery ? RECOVERY_BONUS : 0;
 
-  const total = salary + div + etfPay + etfDiverBonus + diverBonus + conditionIncome.dividend + conditionIncome.etf + recoveryBonus;
+  // Company development: a flat per-company bonus for companies this player
+  // upgraded — deliberately outside the dividend calculation, so the Controller
+  // multiplier, price performance, and Market Conditions never scale it.
+  const development = developmentMarketOpenBonus(s, pi);
+  const developmentBonus = development.total;
+
+  const total = salary + div + etfPay + etfDiverBonus + diverBonus + conditionIncome.dividend + conditionIncome.etf + recoveryBonus + developmentBonus;
   p.cash += total;
   p.salaryCollected += salary;
 
@@ -100,10 +107,11 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
   if (conditionIncome.etf) parts.push(`+${money(conditionIncome.etf)} ETF Inflows`);
   if (diverBonus) parts.push(`+${money(diverBonus)} ${divTier === 'broad' ? 'Broad Market' : 'Diversified'} bonus`);
   if (recoveryBonus) parts.push(`+${money(recoveryBonus)} Recovery Bonus (cash was under ${money(RECOVERY_BONUS_THRESHOLD)})`);
+  if (developmentBonus) parts.push(`+${money(developmentBonus)} company development (${development.codes.join(', ')})`);
   if (controllingCodes.length > 0) parts.push(`(control bonus: ${controllingCodes.join(', ')})`);
   addLog(s, `${p.name} Market Open: ${parts.join(' ')}`, 'g');
 
-  if (div + etfPay + etfDiverBonus + diverBonus + recoveryBonus > 0) {
+  if (div + etfPay + etfDiverBonus + diverBonus + recoveryBonus + developmentBonus > 0) {
     s.tradeLog.unshift({ kind: 'dividend', text: `Income +${money(total)}`, amount: total, player: p.name, t: s.lap });
     if (s.tradeLog.length > 60) s.tradeLog.pop();
   }
@@ -147,7 +155,7 @@ export function payMarketOpen(s: GameState, pi: number, landedExactly = false): 
     etfPayout: etfPay, etfDiversificationBonus: etfDiverBonus,
     conditionDividend: conditionIncome.dividend, conditionEtf: conditionIncome.etf, conditionTitle,
     diversificationBonus: diverBonus, diversificationTier: divTier === 'none' ? null : divTier,
-    recoveryBonus, total,
+    recoveryBonus, developmentBonus, total,
     marginPaid, marginShortfall, marginBalanceAfter: p.margin,
   };
 }

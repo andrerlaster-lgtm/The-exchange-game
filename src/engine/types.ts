@@ -82,6 +82,7 @@ export interface MarketOpenIncome {
   diversificationBonus: number;
   diversificationTier: 'diversified' | 'broad' | null;
   recoveryBonus: number;
+  developmentBonus: number;          // flat Market Open bonus from companies this player has upgraded
   total: number;
   marginPaid: number;
   marginShortfall: number;
@@ -109,6 +110,16 @@ export interface IpoState {
   price: number;      // current live price in dollars
   supply: number;     // shares remaining
   revealed: boolean;
+}
+
+/** Per-regular-company development record (2026-09-19 upgrades). `fundedBy`
+    and `totalInvested` survive until control loss so the right player is
+    refunded even if Payout Claim ownership moves first. */
+export interface CompanyDevelopment {
+  level: 0 | 1 | 2 | 3;
+  shieldActive: boolean;
+  fundedBy: number | null;
+  totalInvested: number;   // upgrade spending only — shields are not refunded
 }
 
 export interface Short {
@@ -465,6 +476,8 @@ export interface GameState {
   regulatoryInvestigationPrompt: RegulatoryInvestigationPrompt | null;
   payoutShortfallChoice: PayoutShortfallChoice | null; // debtor choice: force-sell vs. negotiate a loan
   loanRatePrompt: LoanRatePrompt | null;               // creditor's pending 1-5% rate choice
+  development: Record<string, CompanyDevelopment>;    // regular stock code -> upgrade level, shield, funder
+  upgradedThisTurn: boolean;                          // one permanent upgrade per player turn (survives doubles re-rolls)
   regimeRollPrompt: { player: number } | null;         // pending d6 roll on the combined Market Swing space to decide Bull vs. Bear
   playerDebts: PlayerDebt[];                            // active negotiated Payout Claim loans
   playerDebtSeq: number;                                // id source for playerDebts
@@ -518,6 +531,8 @@ export type Action =
   | { t: 'choosePayoutLoan' }
   | { t: 'rollLoanRate' }
   | { t: 'rollRegime' }
+  | { t: 'upgradeCompany'; code: string }
+  | { t: 'buyMarketProtection'; code: string }
   | { t: 'dismissMarketOpenReport' }
   | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
