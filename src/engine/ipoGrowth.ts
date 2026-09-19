@@ -19,6 +19,12 @@ export function ipoPctFromLaunch(s: GameState, code: string): number {
   return ip.startPrice > 0 ? ((ip.price - ip.startPrice) / ip.startPrice) * 100 : 0;
 }
 
+/** What a player has put into an IPO's growth since its last milestone —
+    repaid to them if the IPO reaches its next milestone. */
+export function ipoGrowthAtRisk(s: GameState, code: string, player: number): number {
+  return ipoOf(s, code).growthFunding?.[player] ?? 0;
+}
+
 /** The next milestone an IPO has not yet paid, or null once all have. */
 export function nextIpoMilestone(s: GameState, code: string) {
   return IPO_MILESTONES[ipoOf(s, code).milestonesPaid ?? 0] ?? null;
@@ -31,6 +37,9 @@ export function ipoGrowthBlockReason(s: GameState, code: string, size: IpoGrowth
   if (!s.opts.ipos) return 'IPOs are turned off for this game.';
   if (!isIpoCode(code) || !IPO_BY_CODE[code]) return 'Only IPOs take growth investments.';
   if (!ipoOf(s, code).revealed) return `${code} has not launched yet.`;
+  // Growth is repaid at the NEXT milestone; once all have paid there is
+  // nothing left to repay it, so it could only ever lose money.
+  if (!nextIpoMilestone(s, code)) return `${code} has reached every milestone — growth investment is closed.`;
   if ((s.players[s.cur].shares[code] ?? 0) <= 0) return `You need at least 1 share of ${code} to fund its growth.`;
   if (s.ipoGrowthThisTurn) return 'You have already made an IPO growth investment this turn.';
   if ((s.ipoBoughtThisTurn ?? []).includes(code)) return `You bought ${code} shares this turn — fund its growth on a later turn.`;
@@ -46,6 +55,9 @@ export function investIpoGrowth(s: GameState, code: string, size: IpoGrowthSize)
   const inv = IPO_GROWTH_INVESTMENTS[size];
   p.cash -= inv.cost;
   s.ipoGrowthThisTurn = true;
+  const ip = ipoOf(s, code);
+  ip.growthFunding ??= {};
+  ip.growthFunding[s.cur] = (ip.growthFunding[s.cur] ?? 0) + inv.cost;
   // Through the trade mover, like Investor Day's Company Growth: a player-
   // driven rise, so crossing $5,000 queues a Market Event the same way.
   const r = moveTradePrice(s, code, inv.bp, 'ipoGrowth');
@@ -89,7 +101,21 @@ export function payIpoMilestones(s: GameState, turnStart: GameState['ipoSharesAt
         p.cash += amount;
         paid.push(`${p.name} ${money(amount)}`);
       });
+      // Repay every funder what they put into growth since the last
+      // milestone. Growth is a bet: reach the milestone and the stake comes
+      // back on top of the payout; fall short by game end and it is lost.
+      // Repaid whether or not the funder still holds shares — it is their
+      // stake, not the shares'.
+      const repaid: string[] = [];
+      for (const [who, amount] of Object.entries(ip.growthFunding ?? {})) {
+        const funder = s.players[Number(who)];
+        if (!funder || amount <= 0) continue;
+        funder.cash += amount;
+        repaid.push(`${funder.name} ${money(amount)}`);
+      }
+      ip.growthFunding = {};
       ip.milestonesPaid += 1;
+      if (repaid.length) addLog(s, `${ip.code} growth funding repaid at ${m.name}: ${repaid.join(', ')}.`, 'g');
       const who = paid.length ? paid.join(', ') : 'no qualifying holders';
       addLog(s, `${ip.code} reaches ${m.name} (+${m.pct}% from launch) — ${money(m.perShare)}/share: ${who}.`, 'g');
       recordMarketSignal(s, {

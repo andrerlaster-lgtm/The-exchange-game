@@ -4,7 +4,7 @@ import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
   feeDebtBalance, holdingDividendInfo, holdingGainLoss, holdingsReturnPct, lapReturnPct, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
-  projectedDividend, sharesValue, stockGainLoss, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
+  projectedDividend, sharesValue, stockGainLoss, ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
   playerDebtBalance, playerDebtInstallment,
 } from '../../engine';
@@ -666,6 +666,7 @@ function IpoGrowthRow({ code, s, isOwnTurn, dispatch }: {
 }) {
   const fromLaunch = ipoPctFromLaunch(s, code);
   const next = nextIpoMilestone(s, code);
+  const atRisk = ipoGrowthAtRisk(s, code, s.cur);
   const sizes = ['standard', 'major'] as const;
   return (
     <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -675,6 +676,11 @@ function IpoGrowthRow({ code, s, isOwnTurn, dispatch }: {
           ? <> · next: <strong>{next.name}</strong> at +{next.pct}% pays ${next.perShare.toLocaleString()}/share</>
           : <> · all milestones reached</>}
       </div>
+      {atRisk > 0 && next && (
+        <div style={{ fontSize: 9, color: 'var(--gold)' }}>
+          ${atRisk.toLocaleString()} of growth funding riding on {next.name} — repaid if {code} reaches +{next.pct}%, lost if it doesn't by game end
+        </div>
+      )}
       {isOwnTurn && (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {sizes.map((size) => {

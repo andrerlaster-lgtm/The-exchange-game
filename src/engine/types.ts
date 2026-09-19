@@ -110,6 +110,7 @@ export interface IpoState {
   startPrice: number;
   price: number;      // current live price in dollars
   milestonesPaid: number; // how many IPO_MILESTONES have paid out (one-time each)
+  growthFunding: Record<number, number>; // player -> growth spending since the last milestone, repaid when the next one is reached
   supply: number;     // shares remaining
   revealed: boolean;
 }

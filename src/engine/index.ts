@@ -23,4 +23,4 @@ export {
   developmentOf, isController, upgradeBlockReason, shieldBlockReason,
   developmentMarketOpenBonus, developmentClaimBonus,
 } from './development';
-export { ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone } from './ipoGrowth';
+export { ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone } from './ipoGrowth';

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { IPO_GROWTH_INVESTMENTS, IPO_MILESTONES, applyBasisPoints } from '../data';
 import type { GameState } from '../engine';
-import { ipoGrowthBlockReason } from '../engine';
+import { ipoGrowthAtRisk, ipoGrowthBlockReason } from '../engine';
 import { dispatch, patch, rng, started } from './helpers';
 
 /** Player 0 holds 2 shares of the first IPO, which has launched; it's their
@@ -142,11 +142,12 @@ describe('IPO milestones', () => {
     expect(t.players[0].cash - s.players[0].cash).toBe(1 * 250);
   });
 
-  it('a growth investment that crosses a threshold triggers it', () => {
+  it('a growth investment that crosses a threshold triggers it — and is repaid', () => {
     const { s, code } = setup((d) => { d.ipos[0].price = 3_600; }); // +20%
     const t = invest(s, code, 'major'); // +5% → $3,775, +25.8%
     expect(t.ipos[0].milestonesPaid).toBe(1);
-    expect(t.players[0].cash).toBe(s.players[0].cash - 1_000 + 2 * 250);
+    // -$1,000 invested, +$1,000 repaid at the milestone, +2 x $250 payout.
+    expect(t.players[0].cash).toBe(s.players[0].cash + 2 * 250);
   });
 
   it('a new turn records current holdings for the next milestone', () => {
@@ -155,3 +156,72 @@ describe('IPO milestones', () => {
     expect(next.ipoSharesAtTurnStart[0][code]).toBe(3);
   });
 });
+
+describe('IPO growth funding is repaid at the next milestone', () => {
+  /** Invest on several separate turns by clearing the per-turn limit between. */
+  function investTurns(s: GameState, code: string, times: number, size: 'standard' | 'major' = 'major'): GameState {
+    let t = s;
+    for (let i = 0; i < times; i++) t = invest(patch(t, (d) => { d.ipoGrowthThisTurn = false; }), code, size);
+    return t;
+  }
+
+  it('tracks each player\'s growth spending since the last milestone', () => {
+    const { s, code } = setup();
+    const t = investTurns(s, code, 2, 'standard'); // $3,000 → $3,075 → $3,150: under +25%
+    expect(ipoGrowthAtRisk(t, code, 0)).toBe(1_000);
+    expect(t.players[0].cash).toBe(s.players[0].cash - 1_000);
+  });
+
+  it('repays the funder in full when the milestone is reached, then resets', () => {
+    const { s, code } = setup();
+    const funded = investTurns(s, code, 2, 'standard'); // $1,000 at risk
+    const t = setPct(funded, code, 25);
+    // +$1,000 repaid, +2 x $250 milestone payout.
+    expect(t.players[0].cash - funded.players[0].cash).toBe(1_000 + 500);
+    expect(ipoGrowthAtRisk(t, code, 0)).toBe(0);
+    expect(t.log.some((l) => /growth funding repaid at Early Growth: .*\$1,000/.test(l.text))).toBe(true);
+  });
+
+  it('repays every funder their own amount', () => {
+    const { s, code } = setup((d) => {
+      d.players[1].shares[d.ipos[0].code] = 1;
+      d.ipoSharesAtTurnStart[1] = { [d.ipos[0].code]: 1 };
+    });
+    let t = investTurns(s, code, 1, 'major'); // player 0: $1,000
+    t = invest(patch(t, (d) => { d.cur = 1; d.ipoGrowthThisTurn = false; d.players[1].cash = 50_000; }), code, 'standard'); // player 1: $500
+    expect(ipoGrowthAtRisk(t, code, 0)).toBe(1_000);
+    expect(ipoGrowthAtRisk(t, code, 1)).toBe(500);
+    const done = setPct(t, code, 25);
+    expect(done.players[0].cash - t.players[0].cash).toBe(1_000 + 2 * 250);
+    expect(done.players[1].cash - t.players[1].cash).toBe(500 + 1 * 250);
+  });
+
+  it('repays only once when one move clears several milestones', () => {
+    const { s, code } = setup();
+    const funded = investTurns(s, code, 1, 'major');
+    const t = setPct(funded, code, 110);
+    expect(t.players[0].cash - funded.players[0].cash).toBe(1_000 + 2 * (250 + 500 + 750));
+  });
+
+  it('repays a funder who has since sold their shares', () => {
+    const { s, code } = setup();
+    const funded = investTurns(s, code, 1, 'standard');
+    const sold = patch(funded, (d) => { d.players[0].shares[code] = 0; });
+    const t = setPct(sold, code, 25);
+    expect(t.players[0].cash - sold.players[0].cash).toBe(500); // repayment only; no shares, no payout
+  });
+
+  it('stays at risk — not repaid — while the milestone is not reached', () => {
+    const { s, code } = setup();
+    const t = setPct(investTurns(s, code, 2, 'standard'), code, 20);
+    expect(ipoGrowthAtRisk(t, code, 0)).toBe(1_000);
+  });
+
+  it('closes growth once every milestone has paid out', () => {
+    const { s, code } = setup();
+    const t = setPct(s, code, 110);
+    expect(t.ipos[0].milestonesPaid).toBe(3);
+    expect(ipoGrowthBlockReason(patch(t, (d) => { d.ipoGrowthThisTurn = false; }), code, 'major')).toMatch(/every milestone/);
+  });
+});
+

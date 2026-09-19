@@ -562,7 +562,9 @@ Any player who owns at least 1 share of a revealed IPO may fund its growth after
 
 - One IPO growth investment per player turn (a doubles re-roll is the same turn).
 - Several shareholders may each fund the same IPO on their own turns.
-- It grants no shares or ownership, and the cash is spent — it is not an asset.
+- It grants no shares or ownership. Instead it is a **bet on the next milestone**: the game tracks what each player has put into an IPO's growth since its last milestone. When the IPO reaches its next milestone, every funder is **repaid their full growth spending**, on top of the normal per-share milestone payout. If the IPO never reaches that milestone before the game ends, the money is lost.
+- Funders are repaid even if they have sold their shares since — the stake is theirs, not the shares'.
+- Once an IPO has reached all three milestones, growth investment in it closes: there is no further milestone to repay it.
 - You may not buy shares of an IPO and fund its growth on the same turn.
 - Crossing $5,000 upward this way triggers a Market Event, as other player-driven rises do.
 

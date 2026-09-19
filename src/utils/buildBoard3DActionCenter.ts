@@ -9,7 +9,7 @@ import {
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss, holdingsReturnPct, marketReturnPct,
   developmentOf, isController, shieldBlockReason, upgradeBlockReason,
-  ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
+  ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
 import { marketRegimeInfo } from './marketRegime';
@@ -20,7 +20,9 @@ function ipoMilestoneText(s: GameState, code: string): string {
   const pctNow = ipoPctFromLaunch(s, code);
   const next = nextIpoMilestone(s, code);
   const from = `${pct(pctNow)} (${Math.round(pctNow * 100).toLocaleString()} bp) from launch`;
-  return next ? `${from} · next: ${next.name} +${next.pct}% pays $${next.perShare.toLocaleString()}/share` : `${from} · all milestones reached`;
+  const atRisk = ipoGrowthAtRisk(s, code, s.cur);
+  const risk = atRisk > 0 && next ? ` · $${atRisk.toLocaleString()} growth funding repaid if it reaches +${next.pct}%` : '';
+  return next ? `${from} · next: ${next.name} +${next.pct}% pays $${next.perShare.toLocaleString()}/share${risk}` : `${from} · all milestones reached`;
 }
 
 function money(value: number): string {
