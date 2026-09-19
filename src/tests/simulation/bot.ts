@@ -95,7 +95,7 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   // controlled company when the purchase still leaves a cash cushion, and
   // sometimes buy a shield. The cushion keeps the bot from upgrading itself
   // into the very Payout Claim shortfalls the simulation is measuring.
-  if (!blocked(s) && development.enabled) {
+  if (!blocked(s) && development.enabled && (development.onlyPlayers === null || development.onlyPlayers.includes(s.cur))) {
     const cash = s.players[s.cur].cash;
     for (const code of owned(s)) {
       if (!upgradeBlockReason(s, code)) {
@@ -113,7 +113,14 @@ function nextAction(s: GameState, rng: Rng): Action | null {
 }
 
 /** Development policy for a simulation run. */
-export const development = { enabled: true, shields: true, reserve: 6_000 };
+export const development = {
+  enabled: true,
+  shields: true,
+  reserve: 6_000,
+  // Restrict development to these seats (null = everyone), so a run can measure
+  // whether upgrading pays for the player who does it, not just the table.
+  onlyPlayers: null as number[] | null,
+};
 
 /** Called after every accepted action, for measurement. */
 export type Observer = (before: GameState, action: Action, after: GameState) => void;
