@@ -126,7 +126,7 @@ function playerJoke(facts: JokeFacts): Pick<PlayerDebrief, 'title' | 'verdict'> 
   if (facts.feeDebt > 0) {
     return {
       title: 'Collections Has Your Number',
-      verdict: `${facts.name} did not dodge the fee. They adopted it, fed it 5% interest, and brought it home for the final score.`,
+      verdict: `${facts.name} did not dodge the fee. They adopted it, fed it interest every turn, and brought it home for the final score.`,
     };
   }
   if (facts.margin > 0 && facts.marketGain < 0) {

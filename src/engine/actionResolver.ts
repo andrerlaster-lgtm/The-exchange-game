@@ -6,7 +6,7 @@ import {
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isEtfCode, isIpoCode,
-  PLAYER_LOAN_MAX_RATE, SECTOR_PAIR_BY_CODE, SECTOR_PAIRS,
+  SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, rateShockMoves,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money, pctBp } from '../utils/formatMoney';
@@ -34,8 +34,9 @@ import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, holdingGainLoss, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
 import { accruePlayerDebt, payPlayerDebt, playerDebtBalance, playerDebtInstallment } from './playerLoans';
-import { ensureMarketCondition, marketConditionBlocksMargin, marketConditionClaimAdjustment, marketConditionLoanRateCap, marketConditionSectorRentMultiplier, tickMarketConditionTurn } from './marketConditions';
-import { COMPANY_LOAN_RATE, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
+import { ensureMarketCondition, marketConditionBlocksMargin, marketConditionClaimAdjustment, marketConditionWaivesLoanPremium, marketConditionSectorRentMultiplier, tickMarketConditionTurn } from './marketConditions';
+import { bankRateBp, changeBankRate, companyLoanRatePct, feeDebtRatePct, marginRatePct, playerLoanPremiumBp } from './rates';
+import { companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -222,7 +223,7 @@ function resolveLanding(s: GameState, pi: number): void {
           const capApplied = owed < uncappedOwed;
           // Landing no longer force-pays from cash automatically — the debtor
           // gets a real choice (pay cash now, force-sell stock, or negotiate a
-          // loan with the creditor at a rate the creditor picks, 1-5%/turn)
+          // loan with the creditor at the Bank Rate plus a premium the creditor rolls)
           // even when they could afford the full amount outright.
           addLog(s, `${p.name} owes ${holder.name} ${money(owed)}` +
             ` (${money(claimOwed)} Payout Claim on ${code}` +
@@ -581,7 +582,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       p.companyLoanPrincipal = offer.amount;
       p.cash += offer.amount;
       s.companyLoanOffer = null;
-      addLog(s, `${p.name} takes a ${money(offer.amount)} emergency company loan (5% interest).`, 'y');
+      addLog(s, `${p.name} takes a ${money(offer.amount)} emergency company loan (${companyLoanRatePct(s)}% interest per turn, following the Bank Rate).`, 'y');
       addTradeLog(s, 'margin', `Emergency company loan +${money(offer.amount)}`, offer.amount, p.name);
       break;
     }
@@ -1033,22 +1034,23 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'rollLoanRate': {
       const prompt = s.loanRatePrompt;
       if (!prompt) break;
-      // The creditor rolls a d6 for the rate instead of picking one — 6 is
-      // capped down to PLAYER_LOAN_MAX_RATE (5%) since the die has one more
-      // face than the 1-5% range allows. Credit Tightening additionally caps
-      // it lower still, so that condition always does something even in
-      // games where Margin (its other effect) is off.
+      // The loan is priced off the Bank Rate: the creditor rolls a d6 for a
+      // premium on top (1-2 → +1%, 3-4 → +2%, 5-6 → +3%).
+      // Credit Tightening waives the premium for its owner as debtor, so that
+      // condition always does something even when Margin is off. The rate is
+      // fixed for the life of the loan.
       const roll = rng.int(1, 6);
-      const loanRateCap = marketConditionLoanRateCap(s, prompt.debtor);
-      const rate = Math.min(roll, PLAYER_LOAN_MAX_RATE, loanRateCap ?? Infinity);
+      const waived = marketConditionWaivesLoanPremium(s, prompt.debtor);
+      const premiumBp = waived ? 0 : playerLoanPremiumBp(roll);
+      const rate = (bankRateBp(s) + premiumBp) / 100;
       s.loanRatePrompt = null;
       s.playerDebtSeq += 1;
       s.playerDebts.push({
         id: s.playerDebtSeq, debtor: prompt.debtor, creditor: prompt.creditor,
         code: prompt.code, principal: prompt.amount, interest: 0, rate,
       });
-      const capNote = roll > rate ? ` (capped at ${rate}%${loanRateCap !== null && rate === loanRateCap ? ' — Credit Tightening' : ''})` : '';
-      addLog(s, `${s.players[prompt.creditor].name} rolls ${roll}${capNote} for the rate — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
+      const rateNote = `Bank Rate ${bankRateBp(s) / 100}% + ${waived ? '0% premium (Credit Tightening)' : `${premiumBp / 100}% premium`}`;
+      addLog(s, `${s.players[prompt.creditor].name} rolls ${roll} (${rateNote}) — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
       break;
     }
     case 'upgradeCompany':
@@ -1280,7 +1282,19 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // narrow Market Event card does — using the real impacts applyEffect
         // returns, not the predicted fallback recordCardSignal would compute
         // on its own.
-        const impacts = applyEffect(s, c.eff, [], undefined, 'fedCard');
+        // A rate card moves the Bank Rate first; its price effect is the shock
+        // of the change that actually happened (smaller, or none, at the
+        // rate's floor or ceiling).
+        let eff = c.eff;
+        if (c.rateBp) {
+          const before = bankRateBp(s);
+          const actual = changeBankRate(s, c.rateBp);
+          if (actual !== c.rateBp) eff = { k: 'multi', m: rateShockMoves(actual) };
+          addLog(s, actual === 0
+            ? `Bank Rate stays at ${before / 100}% — already at its ${c.rateBp > 0 ? 'ceiling' : 'floor'}.`
+            : `Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${bankRateBp(s) / 100}%. Loans now cost ${actual > 0 ? 'more' : 'less'}.`, 'y');
+        }
+        const impacts = applyEffect(s, eff, [], undefined, 'fedCard');
         finalizeCard(s, c, impacts, rng);
       }
       break;
@@ -1494,9 +1508,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         s.marketHaltUntilLap = null;
         addLog(s, 'Market halt lifted — player-company trading resumes.', 'g');
       }
-      const debtInterest = accrueFeeDebt(s.players[s.cur]);
+      const debtInterest = accrueFeeDebt(s.players[s.cur], feeDebtRatePct(s));
       if (debtInterest > 0) {
-        addLog(s, `${s.players[s.cur].name}'s Outstanding Fees add ${money(debtInterest)} interest (5%). Balance ${money(feeDebtBalance(s.players[s.cur]))}.`, 'r');
+        addLog(s, `${s.players[s.cur].name}'s Outstanding Fees add ${money(debtInterest)} interest (${feeDebtRatePct(s)}%). Balance ${money(feeDebtBalance(s.players[s.cur]))}.`, 'r');
       }
       for (const debt of s.playerDebts.filter((d) => d.debtor === s.cur)) {
         const loanInterest = accruePlayerDebt(debt);
@@ -1506,9 +1520,16 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       }
       const companyLoan = s.players[s.cur];
       if (companyLoan.companyLoanPrincipal > 0) {
-        const interest = Math.max(100, Math.round(companyLoanBalance(companyLoan) * COMPANY_LOAN_RATE / 100) * 100);
+        const interest = Math.max(100, Math.round(companyLoanBalance(companyLoan) * companyLoanRatePct(s) / 100 / 100) * 100);
         companyLoan.companyLoanInterest += interest;
-        addLog(s, `${companyLoan.name}'s emergency company loan adds ${money(interest)} interest (5%).`, 'r');
+        addLog(s, `${companyLoan.name}'s emergency company loan adds ${money(interest)} interest (${companyLoanRatePct(s)}%).`, 'r');
+      }
+      // Margin is borrowed from the bank at the Bank Rate, added to the balance
+      // at the start of each of the borrower's turns.
+      if (companyLoan.margin > 0) {
+        const interest = Math.max(10, Math.round(companyLoan.margin * marginRatePct(s) / 100 / 10) * 10);
+        companyLoan.margin += interest;
+        addLog(s, `${companyLoan.name}'s Margin adds ${money(interest)} interest (${marginRatePct(s)}%). Balance ${money(companyLoan.margin)}.`, 'r');
       }
       offerCompanyLoanIfNeeded(s, rng, s.cur);
       // Arm Market Close when the configured final round begins. The closing

@@ -6,6 +6,7 @@ export * from './ipoStocks';
 export * from './etfs';
 export * from './boardSpaces';
 export * from './pieces';
+export * from './rates';
 
 import type { Card, DeckId } from './types';
 import { ME_CARDS } from './marketEventDeck';

@@ -1,4 +1,5 @@
-import { importantMarketSignals, marketMeterForecast, playerSignalExposure } from '../../engine';
+import { bankRateBp, feeDebtRatePct, importantMarketSignals, marketMeterForecast, marketRateBp, playerSignalExposure, rateSpreadBp } from '../../engine';
+import { spreadUpChance } from '../../data';
 import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
@@ -131,6 +132,8 @@ export default function MarketIntelligence() {
         );
       })()}
 
+      <RatesStrip />
+
       {s.opts.marketMeter && (
         <div style={{
           marginBottom: 9, padding: '9px 10px', borderRadius: 8,
@@ -235,5 +238,34 @@ export default function MarketIntelligence() {
         )}
       </div>
     </section>
+  );
+}
+
+const pctOf = (bpValue: number) => `${(bpValue / 100).toFixed(2)}%`;
+
+/** Bank Rate, Market Rate, and the spread between them (data/rates.ts). */
+function RatesStrip() {
+  const s = useGameState();
+  const bank = bankRateBp(s);
+  const market = marketRateBp(s);
+  const spread = rateSpreadBp(s);
+  const up = Math.round(spreadUpChance(spread) * 100);
+  const spreadColor = spread > 0 ? '#15803d' : spread < 0 ? '#b91c1c' : 'var(--text)';
+  const cell = (label: string, value: string, sub: string, color = 'var(--text)') => (
+    <div style={{ flex: '1 1 90px', minWidth: 0 }}>
+      <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: 0.8, color: 'var(--muted)' }}>{label}</div>
+      <div className="mono" style={{ fontSize: 13, fontWeight: 800, color, marginTop: 2 }}>{value}</div>
+      <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 1 }}>{sub}</div>
+    </div>
+  );
+  return (
+    <div aria-label="Rates" style={{
+      display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 9, padding: '9px 10px', borderRadius: 8,
+      background: 'rgba(183, 121, 31, 0.07)', border: '1px solid rgba(183, 121, 31, 0.22)',
+    }}>
+      {cell('BANK RATE', pctOf(bank), `${bank} bp · fees ${feeDebtRatePct(s)}%/turn`)}
+      {cell('MARKET RATE', pctOf(market), s.opts.marketMeter ? `${market} bp · from the Meter` : `${market} bp · Meter off`)}
+      {cell('SPREAD', `${spread > 0 ? '+' : ''}${spread} bp`, s.opts.marketMeter ? `Neutral moves go up ${up}% of the time` : 'Market Rate − Bank Rate', spreadColor)}
+    </div>
   );
 }

@@ -106,6 +106,9 @@ export interface Card {
   // resolves — independent of `eff`'s own kind. Undefined/0 means no meter
   // effect. Never triggers the round-boundary repricing routine itself.
   meterSentiment?: number;
+  // Bank Rate change (bp) this card makes when it resolves (Fed cards only).
+  // Its price effect is then the rate shock — see data/rates.ts.
+  rateBp?: number;
   signal?: {
     stance: 'hawkish' | 'dovish' | 'neutral' | 'mixed';
     insight: string;

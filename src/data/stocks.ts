@@ -27,16 +27,13 @@ export const AUDIT_RATE = 0.05;
 export const AUDIT_MINIMUM = 500;
 export const AUDIT_MARGIN_RATE = 0.075;
 export const AUDIT_MARGIN_MINIMUM = 750;
-export const FEE_DEBT_INTEREST_RATE = 0.05;
 export const FEE_DEBT_MIN_INTEREST = 100;
 export const FEE_DEBT_INSTALLMENT = 500;
 // ── Player-to-player Payout Claim loans ─────────────────────────────────────
 // When a landing player can't fully cover a Payout Claim in cash, they may
 // negotiate a loan instead of force-selling stock. The creditor (the player
-// owed the claim) picks the per-turn rate; unpaid balance at game end counts
+// owed the claim) rolls a premium over the Bank Rate (data/rates.ts); unpaid balance at game end counts
 // against the debtor's score and for the creditor's.
-export const PLAYER_LOAN_MIN_RATE = 1;
-export const PLAYER_LOAN_MAX_RATE = 5;
 export const PLAYER_LOAN_MIN_INTEREST = 20; // was $100 — floored out the 1-5% rate roll at realistic loan sizes (see accruePlayerDebt)
 export const PLAYER_LOAN_INSTALLMENT = 500;
 export const REGULAR_SUPPLY = 11;

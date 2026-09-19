@@ -149,7 +149,8 @@ describe('Market Intelligence signals', () => {
 
     expect(center.marketIntel.title).toBe('Fed Watch · Rate Hike');
     expect(center.marketIntel.description).toContain('Tailwind: FTRB');
-    expect(center.marketIntel.rows?.[0]).toMatchObject({ title: 'Bear Run', value: 'MAJOR' });
+    expect(center.marketIntel.rows?.[0]).toMatchObject({ key: 'rates', value: 'RATES' }); // Bank Rate strip leads
+    expect(center.marketIntel.rows?.[1]).toMatchObject({ title: 'Bear Run', value: 'MAJOR' });
   });
 
   it('records each $100k portfolio milestone once and promotes it as important', () => {

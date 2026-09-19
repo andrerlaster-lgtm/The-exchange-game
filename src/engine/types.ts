@@ -311,7 +311,7 @@ export interface PlayerDebt {
   code: string;        // originating stock, for context/log
   principal: number;
   interest: number;
-  rate: number;         // 1-5, chosen by the creditor when the loan was made
+  rate: number;         // percent per turn, fixed when the loan was made: Bank Rate + the creditor's rolled premium
 }
 
 /** Presented to the debtor immediately after a Payout Claim shortfall: force-
@@ -326,7 +326,7 @@ export interface PayoutShortfallChoice {
 }
 
 /** Presented to the creditor after the debtor chooses to negotiate a loan:
-    pick the 1-5% per-turn rate that creates the PlayerDebt record. */
+    roll the premium over the Bank Rate that creates the PlayerDebt record. */
 export interface LoanRatePrompt {
   debtor: number;
   creditor: number;
@@ -490,7 +490,7 @@ export interface GameState {
   openingBellPrompt: OpeningBellPrompt | null;
   regulatoryInvestigationPrompt: RegulatoryInvestigationPrompt | null;
   payoutShortfallChoice: PayoutShortfallChoice | null; // debtor choice: force-sell vs. negotiate a loan
-  loanRatePrompt: LoanRatePrompt | null;               // creditor's pending 1-5% rate choice
+  loanRatePrompt: LoanRatePrompt | null;               // creditor's pending loan-premium roll
   lastMove: Record<string, LastPriceMove>;          // code -> the most recent real price change (board tiles)
   development: Record<string, CompanyDevelopment>;    // regular stock code -> upgrade level, shield, funder
   upgradedThisTurn: boolean;
@@ -505,6 +505,7 @@ export interface GameState {
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
   p2pSeq: number;                    // monotonically increasing id source for p2pOffers
   meter: number;                     // Market Meter needle, METER_MIN..METER_MAX, starts at 0
+  bankRateBp: number;                // Bank Rate in bp per turn (data/rates.ts); Fed cards move it, loans price off it
   companyMarketOpen: boolean;         // opens after the first lap in Companies Mode
   marketHeat: number;                 // doubles-based shared Market Heat meter (0-3)
   marketHaltUntilLap: number | null; // trading is paused until this lap

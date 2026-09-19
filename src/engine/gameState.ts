@@ -1,6 +1,6 @@
 // Factory functions for fresh game state.
 
-import { IPO_DEFS, IPO_SUPPLY, PLAYER_COLORS, REGULAR_SUPPLY, STOCK_BY_CODE, CARDS, DEFAULT_PIECES } from '../data';
+import { IPO_DEFS, IPO_SUPPLY, PLAYER_COLORS, REGULAR_SUPPLY, STOCK_BY_CODE, CARDS, DEFAULT_PIECES, BANK_RATE_START_BP } from '../data';
 import type { Rng } from '../utils/rng';
 import type { GameState } from './types';
 import { DEFAULT_OPTIONS } from './types';
@@ -99,6 +99,7 @@ export function initialState(rng: Rng): GameState {
     p2pOffers: [],
     p2pSeq: 0,
     meter: 0,
+    bankRateBp: BANK_RATE_START_BP,
     companyMarketOpen: false,
     marketHeat: 0,
     marketHaltUntilLap: null,

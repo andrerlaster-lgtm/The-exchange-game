@@ -133,7 +133,8 @@ describe('Insolvency — Payout Claim landing payment', () => {
 
     s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([3]));
     expect(s.loanRatePrompt).toBeNull();
-    expect(s.playerDebts).toMatchObject([{ debtor: 0, creditor: 1, principal: owed, interest: 0, rate: 3 }]);
+    expect(s.playerDebts).toMatchObject([{ debtor: 0, creditor: 1, principal: owed, interest: 0, rate: 5 }]); // 3% Bank Rate + 2% premium for a rolled 3
+    expect(s.playerDebts).toHaveLength(1);
     expect(s.insolvency).toBeNull();
   });
 });

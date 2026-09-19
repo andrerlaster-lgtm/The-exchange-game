@@ -9,7 +9,7 @@ import {
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss, holdingsReturnPct, marketReturnPct,
   developmentOf, isController, shieldBlockReason, upgradeBlockReason,
-  ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone, tradableHoldings, heldQty,
+  ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone, tradableHoldings, heldQty, playerLoanRateText, bankRateBp, marketRateBp, rateSpreadBp,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
 import { marketRegimeInfo } from './marketRegime';
@@ -59,13 +59,18 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     description: latestFed
       ? `${(latestFed.stance ?? 'neutral').toUpperCase()} · ${latestFed.summary}${latestFed.insight ? ` What it means: ${latestFed.insight}` : ''} Your exposure: ${playerSignalExposure(s, latestFed)}`
       : 'Fed decisions and the major events worth acting on will stay here. Routine turns stay out of this feed.',
-    rows: importantMarketSignals(s).slice(0, 5).map((signal) => ({
+    rows: [{
+      key: 'rates',
+      title: `Bank Rate ${(bankRateBp(s) / 100).toFixed(2)}% · Market Rate ${(marketRateBp(s) / 100).toFixed(2)}%`,
+      detail: `Spread ${rateSpreadBp(s) > 0 ? '+' : ''}${rateSpreadBp(s)} bp. Loans price off the Bank Rate; a positive spread tilts Neutral market moves up.`,
+      value: 'RATES',
+    }, ...importantMarketSignals(s).slice(0, 5).map((signal) => ({
       key: `signal-${signal.id}`,
       title: signal.title,
       detail: signal.summary,
       value: signal.kind === 'milestone' ? 'MILESTONE' : 'MAJOR',
       color: signal.kind === 'fed' ? stanceColor : undefined,
-    })),
+    }))],
   };
 
   if (!gameActive) {
@@ -166,7 +171,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     const creditor = s.players[prompt.creditor];
     required.push({
       id: 'loan-rate', title: `${creditor.name} — Roll for Loan Rate`, accent: '#4da3ff', urgent: true,
-      description: `${debtor.name} is asking to borrow ${money(prompt.amount)} on their ${prompt.label}. Roll a d6 for the interest rate charged per turn (6 is capped at 5%). Unpaid at game end counts against ${debtor.name}'s score and adds to yours.`,
+      description: `${debtor.name} is asking to borrow ${money(prompt.amount)} on their ${prompt.label}. ${playerLoanRateText(s, prompt.debtor)} Unpaid at game end counts against ${debtor.name}'s score and adds to yours.`,
       buttons: [button('Roll for Rate', { t: 'rollLoanRate' }, 'primary')],
     });
   }

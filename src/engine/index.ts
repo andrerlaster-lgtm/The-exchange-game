@@ -11,6 +11,7 @@ export * from './marketSignals';
 export * from './gameProgress';
 export * from './marketRegime';
 export * from './marketMeter';
+export * from './rates';
 export * from './marketConditions';
 export * from './gainLoss';
 export * from './feeDebt';

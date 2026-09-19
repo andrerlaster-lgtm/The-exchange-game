@@ -180,7 +180,7 @@ Reaching Market Open does not automatically reroll a still-active condition — 
 | Sector Spotlight | One random sector: the owner's own Payout Claims there pay them an extra $250. |
 | Dividend Windfall | The owner's dividend-paying shares earn an extra $25 per share at their Market Open. |
 | ETF Inflows | If the owner holds at least one ETF, they receive an extra $300 at their Market Open. |
-| Credit Tightening | The owner personally cannot take new Margin. If they negotiate a Payout Claim loan as debtor, their rate is capped at 2% (Section 13). |
+| Credit Tightening | The owner personally cannot take new Margin. If they negotiate a Payout Claim loan as debtor, they borrow at the bare Bank Rate with no rolled premium (Section 13). |
 | Weak Demand Bargains | The owner gets 10% off buying any untouched company carrying a Weak Demand marker. |
 | Risk-Off | The owner's own High-risk Payout Claims (when they're the holder) pay them $250 less, to a minimum of $50. |
 | Toll Hike | Sector Control rent the owner collects, if they control a pair, is doubled ($400/$700/$1,100). |
@@ -372,7 +372,7 @@ When the active player owes a Payout Claim (optionally with Sector Rent added, S
 
 **Negotiated loan rule**
 - Only available for a Payout Claim shortfall — this is not a general-purpose player-to-player loan. Every other kind of future promise or side-agreement loan remains unsupported (Section 15).
-- The creditor (the player owed the claim) rolls a single d6 to set the loan's per-turn interest rate: a roll of 1-5 maps directly to that percent; a rolled 6 is capped down to 5%.
+- The loan's per-turn interest rate is the current **Bank Rate** (Section 21) plus a premium the creditor (the player owed the claim) rolls on a single d6: 1-2 adds 1%, 3-4 adds 2%, 5-6 adds 3%. At the starting 3% Bank Rate that is 4-6% per turn. The rate is fixed when the loan is made; later Bank Rate changes do not alter it.
 - The debtor receives the shortfall as loan principal immediately. The creditor's cash is not paid out at this moment — they are now owed the balance instead.
 - At the start of each of the debtor's own turns, the outstanding balance (principal + interest) accrues one turn of interest at the loan's own rate, rounded to the nearest $10 with a $20 minimum increase.
 - The debtor may pay a $500 installment or the full remaining balance at any time from their Portfolio. Payments apply to interest first, then principal.
@@ -592,6 +592,7 @@ Margin (renamed from Loans) is an advanced-mode borrowing system, distinct from 
 **Margin rules**
 - Maximum outstanding Margin balance: $4,000 per player.
 - A player may draw Margin from the bank up to the $4,000 cap, subject to app/table rules for when Margin may be taken. No new Margin may be drawn while the Credit Tightening Market Condition (Section 6) is active.
+- Interest: at the start of each of the borrower's turns, the Margin balance adds the current **Bank Rate** (Section 21), rounded to the nearest $10 with a $10 minimum.
 - Repayment: each time a player passes or lands on Market Open, they must repay half of their current outstanding Margin balance.
 - Default consequence: if a player cannot make a required Margin repayment and has no regular stock left to sell, the balance carries forward as Outstanding Fees debt (Section 24) instead of blocking the turn. If shares remain, the bank forces a sale of that player's shares to cover the amount owed, and the player pays an additional penalty fee.
 - Penalty fee amount: TBD during balance testing.
@@ -604,7 +605,7 @@ Margin (renamed from Loans) is an advanced-mode borrowing system, distinct from 
 Audit Notice, Portfolio Tax, and ETF landing fees are bank/player fees a player may carry. After landing, the player chooses **Pay Now** or **Carry as Debt**. If the player cannot afford the full fee, carrying it is required.
 
 - Carried charges appear in the player's Portfolio as **Outstanding Fees**.
-- At the beginning of each of that player's later turns, the current balance adds 5% interest, rounded to the nearest $10 with a $100 minimum increase.
+- At the beginning of each of that player's later turns, the current balance adds interest at the **Bank Rate + 2%** (5% at the starting 3% rate), rounded to the nearest $10 with a $100 minimum increase. The rate used is whatever the Bank Rate is at that moment.
 - A player may pay $500 installments or pay the full balance from the Portfolio during their turn. Payments cover outstanding interest first, then principal.
 - Outstanding Fees are subtracted from Net Worth and therefore reduce both Standard Mode and Gain/Loss Mode scoring. Any balance left at Market Close remains deducted from the final score.
 - A Sold-Out Payout Claim is different because another player is owed immediately. If the landing player cannot cover it, they may negotiate a Player Loan (Section 13) instead of an immediate forced sale. If a forced sale is used instead, the bank forces sales of regular shares at the normal sell-back price until it is covered or regular shares are exhausted. IPOs and ETFs cannot be force-sold; any remaining Payout Claim shortfall is waived. Cash never goes negative, and no player is eliminated.
@@ -629,7 +630,7 @@ The Market Meter is the game's ambient, round-guaranteed source of market moveme
 
 **Guaranteed round-boundary reprice**
 - At the end of every non-final round, the Market Meter forces exactly one reprice, using its zone and magnitude at that moment:
-  - Neutral zone (magnitude 1): 1 random eligible sector moves 1 step, direction chosen at random.
+  - Neutral zone (magnitude 1): 1 random eligible sector moves 1 step. Its direction is random, tilted by the rate spread (see Bank Rate and Market Rate below): 50/50 at a zero spread.
   - Bullish/Bearish zone, magnitude 2 (needle at ±2): the *same* sector moves, but 2 steps instead of 1 — direction is fixed by the zone (Bullish only moves sectors up, Bearish only down).
   - Pinned at the extreme, magnitude 3 (needle at ±3): 2 different random eligible sectors each move 1 step, in the zone's fixed direction.
 - A sector already at the price floor or ceiling in the required direction is not eligible; if every sector is clamped, no reprice happens that round.
@@ -644,6 +645,28 @@ The Market Meter is the game's ambient, round-guaranteed source of market moveme
 **Interaction with other systems**
 - The round-boundary reprice and card ripple both move real stock (and revealed IPO) prices using the normal price floor/ceiling and Weak/Strong Demand rules — they do not bypass them.
 - They are unrelated to, and do not double up with, the Market Swing space's Bull Run / Bear Run resolution (Section 22) or the temporary Market Conditions (Section 6).
+
+### Bank Rate and Market Rate
+
+Two rates run in the background and set the basis points behind loans and part of the market. Both are shown in Market Intelligence.
+
+**Bank Rate** — the game's interest rate, per player turn.
+- Starts at **3.00% (300 bp)**; always between 1% and 8%.
+- Fed cards move it: **Rate Hike +50 bp**, **Rate Cut −50 bp**, **Tight Money +25 bp**, **Easy Money −25 bp**. Every other Fed card leaves it alone.
+- A rate change moves the rate-sensitive stocks by **10 bp of price per 1 bp of rate**: Finance moves *with* the rate; Real Estate and High-Risk stocks move *against* it. A +50 bp hike is Finance +5%, Real Estate −5%, High-Risk −5% (a High-Risk Real Estate company takes both). These moves are the whole price effect of a rate card.
+- If the rate is at its floor or ceiling, it moves only as far as it can, and the stock moves shrink to match (none at all if it cannot move).
+- Every loan prices off it:
+
+| Borrowing | Interest per turn |
+|---|---|
+| Player Loan (Section 13) | Bank Rate + creditor's rolled premium (1-3%), fixed when made |
+| Outstanding Fees (Section 20) | Bank Rate + 2% |
+| Margin (Section 20) | Bank Rate |
+| Companies Mode emergency loan | Bank Rate + 2% |
+
+**Market Rate** — the market's return, read from the Market Meter: 3% + 1% per Meter point (0% fully Bearish, 6% fully Bullish).
+
+**Spread** — Market Rate − Bank Rate. Zero at the start of a game. A positive spread means stocks are beating cash; a negative one means cash is winning. The spread tilts the direction of *undirected* market moves — the Neutral-zone round-boundary reprice and Neutral-zone card ripples: up with probability 50% + 1% per 8 bp of spread, held between 20% and 80%. Bullish and Bearish zones keep their fixed direction.
 
 ## 22. Special Spaces
 
@@ -832,11 +855,11 @@ Use this checklist when sending the rules to code.
 | Dividends | Pay flat per-share dividend on every regular stock and revealed IPO at every Market Open; apply 1.5× multiplier for Controllers; Always On, independent of Sold-Out status |
 | IPO reveal | Single shared 4-IPO queue; landing on either IPO space reveals the next unrevealed IPO; only the landing player may buy, up to 2 shares |
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default, or carry to Outstanding Fees if nothing is left to sell |
-| Player Loans | Payout Claim shortfall only; creditor rolls d6 for a 1-5% rate (6 capped to 5%); interest accrues each debtor turn, rounded to $10 with a $20 minimum; $500 installment or full payoff; unpaid balance counts against debtor's score and for creditor's |
+| Player Loans | Payout Claim shortfall only; rate = Bank Rate + creditor's d6 premium (1-2: +1%, 3-4: +2%, 5-6: +3%), fixed at creation; interest accrues each debtor turn, rounded to $10 with a $20 minimum; $500 installment or full payoff; unpaid balance counts against debtor's score and for creditor's |
 | Sector Control | 11 fixed pairs of regular stocks, each with a flat rent ($200/$350/$550 by tier); rent is added on top of a Payout Claim only when the claim holder also exclusively owns both companies in the pair |
 | Market Meter | Needle range −3..+3; nudged ±1 per roll (7 holds); guaranteed reprice at every non-final round boundary, scaled by zone and magnitude; decays 1 toward neutral after each reprice instead of resetting; narrow Market Event/Fed cards also trigger a 1-sector ripple on resolution |
 | Market Conditions | One random condition active at a time, independent of both card decks; rerolled every time a player reaches Market Open; never stacks |
-| Outstanding Fees | Audit Notice, Portfolio Tax, and ETF landing fees may be paid immediately or carried as debt; add 5% each debtor turn, rounded to $10 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
+| Outstanding Fees | Audit Notice, Portfolio Tax, and ETF landing fees may be paid immediately or carried as debt; add the Bank Rate + 2% each debtor turn, rounded to $10 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
 | Insolvency | Payout Claim only: if the landing player can't pay another player, offer a Player Loan, or force-sell regular stock (not IPO/ETF) until covered or exhausted; waive any remaining shortfall, cash floors at $0, no elimination |
 | Market Open | Pay salary, dividends, ETF payouts and diversification bonus, Market Condition income, Recovery Bonus (if pre-payout cash was under $3,000), resolve Margin repayment, continue or roll a personal Market Condition, then open Market Open Trading Window |
 | Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |

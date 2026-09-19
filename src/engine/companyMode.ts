@@ -5,7 +5,6 @@ export const COMPANY_TOTAL_SHARES = 100;
 export const COMPANY_FOUNDER_SHARES = 60;
 export const COMPANY_PUBLIC_SHARES = 40;
 export const COMPANY_PRICE_FLOOR = 25;
-export const COMPANY_LOAN_RATE = 0.05;
 
 /** Company value deliberately excludes player-company holdings, so prices do not loop. */
 export function companyValue(s: GameState, owner: number): number {

@@ -35,14 +35,20 @@ describe('Player-to-player Payout Claim loans', () => {
     expect(blocked(s)).toBe(false);
   });
 
-  it('caps a rolled 6 at the 5% max rate', () => {
-    let s = payoutState();
-    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
-    s = dispatch(s, { t: 'ackLandingNotice' }, rng());
-    s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
-    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([6]));
-
-    expect(s.playerDebts[0].rate).toBe(5);
+  it('prices the loan at the Bank Rate plus the creditor\'s rolled premium', () => {
+    const loanAt = (roll: number, bankRateBp?: number) => {
+      let s = payoutState();
+      if (bankRateBp) s = patch(s, (d) => { d.bankRateBp = bankRateBp; });
+      s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
+      s = dispatch(s, { t: 'ackLandingNotice' }, rng());
+      s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
+      s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([roll]));
+      return s.playerDebts[0].rate;
+    };
+    // Starting Bank Rate 3%; premium +1% (1-2), +2% (3-4), +3% (5-6)... see PLAYER_LOAN_PREMIUM_BY_ROLL_BP.
+    expect([1, 2, 3, 4, 5, 6].map((r) => loanAt(r))).toEqual([4, 4, 5, 5, 6, 6]);
+    // A higher Bank Rate makes every loan cost more.
+    expect(loanAt(3, 550)).toBe(7.5);
   });
 
   it('accrues interest at the loan\'s own rate on the debtor\'s next turn', () => {

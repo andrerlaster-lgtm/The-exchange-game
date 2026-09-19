@@ -1,5 +1,5 @@
 import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, distinctEtfFunds, etfDiversificationBonus, projectedEtfIncome, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, MOVE_BP, isIpoCode } from '../../data';
-import { gameProgressLabel, minNextBid, priceOf, sellBackPrice } from '../../engine';
+import { gameProgressLabel, minNextBid, playerLoanRateText, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState, MarketOpenIncome } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -119,7 +119,7 @@ export default function ActionPanel() {
       {/* Payout Claim shortfall — debtor chooses force-sale or a negotiated loan */}
       {s.payoutShortfallChoice && !s.landingNotice && <PayoutShortfallChoicePanel s={s} dispatch={dispatch} />}
 
-      {/* Creditor picks the 1-5%/turn rate for a newly-negotiated loan */}
+      {/* Creditor rolls the premium over the Bank Rate for a newly-negotiated loan */}
       {s.loanRatePrompt && <LoanRatePanel s={s} dispatch={dispatch} />}
 
       {/* Market Swing landing — roll a d6 to decide Bull Run vs. Bear Run */}
@@ -658,7 +658,7 @@ function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) =>
     }}>
       <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--blue)' }}>💰 {creditor.name} — ROLL FOR LOAN RATE</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: 'var(--blue)' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. Roll a d6 for the interest rate charged per turn — a 6 is capped at 5%. Unpaid at game end counts against {debtor.name}'s score and adds to yours.
+        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: 'var(--blue)' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. {playerLoanRateText(s, prompt.debtor)} Unpaid at game end counts against {debtor.name}'s score and adds to yours.
       </div>
       <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800, alignSelf: 'flex-start' }}
         onClick={() => dispatch({ t: 'rollLoanRate' })}>

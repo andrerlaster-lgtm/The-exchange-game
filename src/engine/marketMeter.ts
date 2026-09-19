@@ -28,6 +28,7 @@ import { moveSize } from '../utils/formatMoney';
 import { moveMeterPrice } from './stockState';
 import { canFall, canRise } from './rules';
 import { recordMarketSignal } from './marketSignals';
+import { spreadDirection } from './rates';
 import type { GameState, LogKind } from './types';
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
@@ -177,9 +178,10 @@ export function repriceRoundBoundary(s: GameState, rng: Rng): void {
   const zone = meterZone(s.meter); // captured before any repricing or decay
   const magnitude = Math.abs(s.meter);
 
-  // Neutral has no directional bias, so it flips a coin. Bull and Bear are
-  // fixed: a Bull round must never push a sector down, nor a Bear round up.
-  let dir: 1 | -1 = zone === 'bull' ? 1 : zone === 'bear' ? -1 : (rng.int(0, 1) === 0 ? 1 : -1);
+  // Neutral has no fixed direction: the rate spread tilts the odds (50/50 at
+  // a zero spread). Bull and Bear are fixed: a Bull round must never push a
+  // sector down, nor a Bear round up.
+  let dir: 1 | -1 = zone === 'bull' ? 1 : zone === 'bear' ? -1 : spreadDirection(s, rng);
 
   let elig = eligibleSectors(s, dir);
   // Only Neutral may flip: its direction was arbitrary to begin with, so if
@@ -272,7 +274,7 @@ function formatSignedMeterInternal(meter: number): string {
 export function triggerCardRipple(s: GameState, rng: Rng): void {
   if (!s.opts.marketMeter) return;
   const zone = meterZone(s.meter);
-  let dir: 1 | -1 = zone === 'bull' ? 1 : zone === 'bear' ? -1 : (rng.int(0, 1) === 0 ? 1 : -1);
+  let dir: 1 | -1 = zone === 'bull' ? 1 : zone === 'bear' ? -1 : spreadDirection(s, rng);
   let elig = eligibleSectors(s, dir);
   if (elig.length === 0 && zone === 'neutral') {
     dir = dir === 1 ? -1 : 1;

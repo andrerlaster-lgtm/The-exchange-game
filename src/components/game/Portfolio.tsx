@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, FEE_DEBT_INTEREST_RATE, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
+import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
 import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
@@ -7,6 +7,7 @@ import {
   projectedDividend, sharesValue, stockGainLoss, ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
   playerDebtBalance, playerDebtInstallment,
+  feeDebtRatePct, companyLoanRatePct,
 } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { toBps } from '../../utils/formatRate';
@@ -219,7 +220,7 @@ export default function Portfolio() {
 
           {companyLoanOffer !== null && isOwnTurn && <div style={{ padding: 8, borderRadius: 6, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)' }}>
             <div style={{ fontSize: 10, fontWeight: 800, color: '#fca5a5' }}>EMERGENCY LOAN REQUIRED</div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>Company hit $0. Randomized offer: <b>${companyLoanOffer.toLocaleString()}</b> · 5% interest.</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>Company hit $0. Randomized offer: <b>${companyLoanOffer.toLocaleString()}</b> · {companyLoanRatePct(s)}% interest per turn (Bank Rate + 2%).</div>
             <button className="danger" style={{ width: '100%', marginTop: 6, fontSize: 10 }} onClick={() => dispatch({ t: 'takeCompanyLoan' })}>Take Loan</button>
           </div>}
 
@@ -269,7 +270,7 @@ export default function Portfolio() {
             <span>Interest ${p.feeDebtInterest.toLocaleString()}</span>
           </div>
           <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
-            Adds {FEE_DEBT_INTEREST_RATE * 100}% ({toBps(FEE_DEBT_INTEREST_RATE * 100)} bps) at the beginning of this player’s turn, rounded to $10 with a $100 minimum. Already deducted from score.
+            Adds {feeDebtRatePct(s)}% ({toBps(feeDebtRatePct(s))} bps) — the Bank Rate + 2% — at the beginning of this player’s turn, rounded to $10 with a $100 minimum. Already deducted from score.
           </div>
           {isOwnTurn && s.phase === 'play' && (
             <div style={{ display: 'flex', gap: 6 }}>

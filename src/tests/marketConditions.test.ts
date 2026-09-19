@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   marketConditionBlocksMargin, marketConditionBuyoutDiscount,
-  marketConditionClaimAdjustment, marketConditionIncome, marketConditionLoanRateCap,
+  marketConditionClaimAdjustment, marketConditionIncome, marketConditionWaivesLoanPremium,
   marketConditionSectorRentMultiplier, reduce,
 } from '../engine';
 import { SALARY, SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
@@ -172,14 +172,14 @@ describe('Market Conditions — personal, per-player', () => {
     expect(marketConditionSectorRentMultiplier(s, 0)).toBe(1); // a different player's rent is unaffected
   });
 
-  it('caps the negotiated loan rate for the debtor\'s own Credit Tightening, and leaves it uncapped otherwise', () => {
+  it('waives the loan premium for the debtor\'s own Credit Tightening only', () => {
     let s = started(2);
-    expect(marketConditionLoanRateCap(s, 0)).toBeNull();
+    expect(marketConditionWaivesLoanPremium(s, 0)).toBe(false);
     s = patch(s, (d) => {
       d.marketConditions[0] = { id: 'creditTightening', title: 'Credit Tightening', detail: 'test', icon: '▣', color: '#f87171', owner: 0, lap: 1, durationUnit: 'turns', remaining: 5 };
     });
-    expect(marketConditionLoanRateCap(s, 0)).toBe(2);
-    expect(marketConditionLoanRateCap(s, 1)).toBeNull(); // creditor's own condition (if any) is irrelevant here
+    expect(marketConditionWaivesLoanPremium(s, 0)).toBe(true);
+    expect(marketConditionWaivesLoanPremium(s, 1)).toBe(false); // creditor's own condition (if any) is irrelevant here
   });
 
   it('charges doubled Sector Rent on a live landing while the claim holder\'s own Toll Hike is active', () => {
@@ -203,7 +203,7 @@ describe('Market Conditions — personal, per-player', () => {
     });
   });
 
-  it('caps a rolled loan rate at 2% for the debtor\'s own Credit Tightening, even on a high roll', () => {
+  it('lends at the bare Bank Rate for the debtor\'s own Credit Tightening, even on a high roll', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.marketConditions[0] = { id: 'creditTightening', title: 'Credit Tightening', detail: 'test', icon: '▣', color: '#f87171', owner: 0, lap: 1, durationUnit: 'turns', remaining: 5 };
@@ -218,8 +218,8 @@ describe('Market Conditions — personal, per-player', () => {
     s = rollTo(s, 8); // FTRB
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
-    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([6])); // would be 5% uncapped
-    expect(s.playerDebts[0].rate).toBe(2);
+    s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([6])); // would be 3% + 3% premium otherwise
+    expect(s.playerDebts[0].rate).toBe(3);
   });
 
   it('pays double salary for landing exactly on Market Open, and normal salary for passing over it', () => {

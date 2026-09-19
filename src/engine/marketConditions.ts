@@ -15,12 +15,6 @@ const IDS: readonly MarketConditionId[] = [
   'creditTightening', 'weakDemandBargains', 'riskOff', 'tollHike',
 ];
 
-// Credit Tightening's margin block is a no-op in standard mode, where Margin
-// is off by default. This is the rate the owner's own negotiated Player Loan
-// (as debtor) is capped at instead, so the condition always does something.
-// Below PLAYER_LOAN_MAX_RATE (5%) but above PLAYER_LOAN_MIN_RATE (1%), so a
-// rolled 1 still differs from a capped 2-6.
-export const CREDIT_TIGHTENING_LOAN_RATE_CAP = 2;
 
 // Doubles Sector Control's flat per-tier rent ($200/$350/$550 -> $400/$700/
 // $1,100) the OWNER collects, if they control a pair, while active.
@@ -89,7 +83,7 @@ function rollNewCondition(s: GameState, rng: Rng, pi: number): void {
       condition = { ...base, id, icon: '◆', color: '#60a5fa', title: 'ETF Inflows', detail: 'If you hold any ETF, you receive an extra $300 at your Market Open.' };
       break;
     case 'creditTightening':
-      condition = { ...base, id, icon: '▣', color: '#f87171', title: 'Credit Tightening', detail: `You personally cannot take new Margin; if you negotiate a Payout Claim loan as debtor, your rate is capped at ${CREDIT_TIGHTENING_LOAN_RATE_CAP}%.` };
+      condition = { ...base, id, icon: '▣', color: '#f87171', title: 'Credit Tightening', detail: `You personally cannot take new Margin; if you negotiate a Payout Claim loan as debtor, you borrow at the Bank Rate with no premium.` };
       break;
     case 'weakDemandBargains':
       condition = { ...base, id, icon: '⌄', color: '#fbbf24', title: 'Weak Demand Bargains', detail: 'You get 10% off buying any company carrying a Weak Demand marker.' };
@@ -182,10 +176,11 @@ export function marketConditionBlocksMargin(s: GameState, pi: number): boolean {
   return conditionFor(s, pi)?.id === 'creditTightening';
 }
 
-/** Cap on player `debtorIdx`'s own negotiated Player Loan rate, or null for
-    the normal 1-5% range (see PLAYER_LOAN_MAX_RATE). */
-export function marketConditionLoanRateCap(s: GameState, debtorIdx: number): number | null {
-  return conditionFor(s, debtorIdx)?.id === 'creditTightening' ? CREDIT_TIGHTENING_LOAN_RATE_CAP : null;
+/** Credit Tightening's standard-mode effect (its Margin block is a no-op
+    while Margin is off): the owner, as debtor, borrows at the Bank Rate with
+    no rolled premium. */
+export function marketConditionWaivesLoanPremium(s: GameState, debtorIdx: number): boolean {
+  return conditionFor(s, debtorIdx)?.id === 'creditTightening';
 }
 
 /** Sector Control rent multiplier for the pair CONTROLLER (`controllerIdx`)

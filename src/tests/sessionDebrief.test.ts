@@ -50,7 +50,7 @@ describe('Session Debrief', () => {
     expect(cards.every((card) => card.title.length > 0 && card.verdict.length > 0)).toBe(true);
     expect(concentrated.title).toBe('All Eggs, One Ticker');
     expect(debtor.title).toBe('Collections Has Your Number');
-    expect(debtor.verdict).toContain('5% interest');
+    expect(debtor.verdict).toContain('fed it interest every turn');
     expect(diversified.title).toBe('Diversified-ish');
   });
 
