@@ -132,9 +132,10 @@ function run(numPlayers: number, upgrades: boolean): Stats {
   for (let game = 0; game < GAMES_PER_SIZE; game += 1) {
     const seed = `sim-${numPlayers}p-${game}`;
     const rng = makeRng(seed);
+    const botRng = makeRng(`${seed}:bot`); // own stream: OFF and ON runs roll the same dice
     let s = startedInRoundsMode(numPlayers, seed);
     for (let turn = 0; turn < TURN_SAFETY_CAP; turn += 1) {
-      const next = playTurn(s, rng, observe);
+      const next = playTurn(s, rng, observe, botRng);
       if (next === s || next.phase === 'over') { s = next; break; }
       s = next;
       if (turn % SAMPLE_EVERY === 0) sample(s, st);

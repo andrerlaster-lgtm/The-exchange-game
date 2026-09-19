@@ -187,7 +187,7 @@ describe('upgrade costs and Market Open bonus', () => {
       windfall = payMarketOpen(d, 0).developmentBonus;
     });
     expect(windfall).toBe(plain);
-    expect(plain).toBe(300);
+    expect(plain).toBe(UPGRADE_LEVELS[2].marketOpenBonus);
   });
 });
 

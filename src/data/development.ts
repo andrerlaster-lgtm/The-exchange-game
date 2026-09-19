@@ -28,10 +28,17 @@ export interface UpgradeLevelDef {
 // simulation: at the original values, upgraded companies raised Payout Claim
 // shortfalls from 1-3 to 16-29 per 24 games. Halving roughly halved that excess;
 // the rest comes from upgrade spending itself, not the bonus.
+//
+// Market Open bonuses were raised 2.5x (from $100/$200/$300). Paired
+// simulation showed upgrading cost the upgrader $4,500-7,100 of net worth at
+// every player count, but a 6x bonus recovered only ~$850 of it: upgraded
+// companies are usually force-sold below control (6 -> 5 shares) before they
+// earn many Market Opens. The raise is deliberately moderate because careful
+// human players keep upgrades far longer than the simulation bot does.
 export const UPGRADE_LEVELS: readonly UpgradeLevelDef[] = [
-  { level: 1, numeral: 'Ⅰ', cost: 2_000, totalInvested: 2_000, claimBonus: 400, marketOpenBonus: 100, downsidePct: 20 },
-  { level: 2, numeral: 'Ⅱ', cost: 4_000, totalInvested: 6_000, claimBonus: 800, marketOpenBonus: 200, downsidePct: 40 },
-  { level: 3, numeral: 'Ⅲ', cost: 5_000, totalInvested: 11_000, claimBonus: 1_250, marketOpenBonus: 300, downsidePct: 60 },
+  { level: 1, numeral: 'Ⅰ', cost: 2_000, totalInvested: 2_000, claimBonus: 400, marketOpenBonus: 250, downsidePct: 20 },
+  { level: 2, numeral: 'Ⅱ', cost: 4_000, totalInvested: 6_000, claimBonus: 800, marketOpenBonus: 500, downsidePct: 40 },
+  { level: 3, numeral: 'Ⅲ', cost: 5_000, totalInvested: 11_000, claimBonus: 1_250, marketOpenBonus: 750, downsidePct: 60 },
 ];
 
 export const MAX_DEVELOPMENT_LEVEL = 3;

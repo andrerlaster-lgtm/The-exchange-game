@@ -125,14 +125,23 @@ export const development = {
 /** Called after every accepted action, for measurement. */
 export type Observer = (before: GameState, action: Action, after: GameState) => void;
 
-/** Play one turn to completion. Returns the state after End Turn. */
-export function playTurn(s: GameState, rng: Rng, observe?: Observer): GameState {
+/**
+ * Play one turn to completion. Returns the state after End Turn.
+ *
+ * `decisionRng` gives the bot's own choices (which code to pick, whether to buy
+ * a shield) a separate random stream from the engine's dice and cards. Without
+ * it, a single extra bot action shifts every later die roll, so two runs of the
+ * "same" seed that differ only in one policy play out as unrelated games — a
+ * paired comparison then measures dice luck, not the policy. A null test showed
+ * that noise alone produced average net-worth gaps up to $8,000.
+ */
+export function playTurn(s: GameState, rng: Rng, observe?: Observer, decisionRng: Rng = rng): GameState {
   let state = s;
   const startingPlayer = state.cur;
   // Generous guard: a single turn can chain several prompts (card -> pick ->
   // circuit breaker -> notice), plus doubles re-rolls.
   for (let i = 0; i < 200; i += 1) {
-    const action = nextAction(state, rng);
+    const action = nextAction(state, decisionRng);
     if (!action) break;
     const next = reduce(state, action, rng);
     // A no-op means the bot asked for something the engine rejected; stop
