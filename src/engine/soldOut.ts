@@ -6,7 +6,6 @@ import {
   PAYOUT_MULT_CONTROL_SECTOR, PAYOUT_MULT_LOW_SECTOR, PAYOUT_MULT_MID_SECTOR,
   CONTROL_THRESHOLD_REGULAR, PAYOUT_CLAIM_TOTAL_CAP,
 } from '../data';
-import { LADDER } from '../data';
 import type { GameState } from './types';
 
 /**
@@ -93,12 +92,10 @@ export function capPayoutClaimTotal(claimAmount: number, sectorRent = 0): number
 export function claimPayoutForLanding(
   holderShares: number,
   sectorComplete: boolean,
-  currentStep: number,
-  openingStep: number,
+  currentPrice: number,
+  openingPrice: number,
   landingShares: number,
 ): number {
-  const currentPrice = LADDER[Math.max(0, Math.min(LADDER.length - 1, currentStep))];
-  const openingPrice = LADDER[Math.max(0, Math.min(LADDER.length - 1, openingStep))];
   const base = claimPayout(holderShares, openingPrice, sectorComplete);
   const multiplier = landingValueMultiplier(currentPrice, openingPrice);
   const discount = shareholderLandingDiscount(landingShares);

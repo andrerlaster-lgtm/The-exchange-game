@@ -92,7 +92,7 @@ export default function Board3DSync() {
           risk: st.risk,
           dividend: st.div,
           opportunity: stockOpportunityFor(st),
-          stepDiff: (s.prices[code] ?? st.step) - st.step,
+          priceDiff: (s.prices[code] ?? st.base) - st.base,
           tier: st.tier,
           buyoutPrice: companyBuyoutCost(s, code),
           fedSignal: fedSignalForStock(s, code),
@@ -108,7 +108,7 @@ export default function Board3DSync() {
       prices[st.code] = {
         p: priceOf(s, st.code),
         d: mv.direction === 'up' ? 1 : mv.direction === 'down' ? -1 : 0,
-        delta: mv.stepDifference,
+        delta: mv.difference,
         s: s.supply[st.code] ?? 0,
         o: s.bankPool[st.code] ?? 0,
         so: !!rec,

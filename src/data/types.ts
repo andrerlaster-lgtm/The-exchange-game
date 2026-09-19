@@ -51,10 +51,9 @@ export interface Stock {
   code: string;        // ticker, e.g. 'CCAI'
   name: string;
   sector: SectorId;
-  base: number;        // tier-aligned opening share price — defines starting ladder step
+  base: number;        // opening share price in dollars — the company's live price starts here
   risk: Risk;
   space: number;       // board space 1..36
-  step: number;        // starting ladder step index (0..11)
   color: string;       // sector color (denormalized for convenience)
   div: number;         // printed dividend per share (placeholder: derived from risk)
   tier: CompanyTier;   // fixed acquisition-price tier while the company is untouched
@@ -65,21 +64,24 @@ export interface IpoDef {
   name: string;
   sector: SectorId;
   start: number;       // starting price (dollars)
-  startStep: number;   // starting ladder step index (0..11)
   div: number;         // printed dividend per share
   vol: Volatility;     // volatility tier (amplifies event moves for high/spec)
   color: string;
 }
 
 // Card effect kinds. The engine interprets these.
+// Price-moving effects carry `bp` — a basis-point move (100 bp = 1%), not the
+// old ladder-step delta. The field was renamed along with the unit change so
+// no call site could keep reading a step count as though nothing had moved;
+// the decks' former ±1/±2 steps map to ±500/±1,000 bp.
 export type Effect =
-  | { k: 'sector'; sec: SectorId; d: number }
-  | { k: 'all'; d: number; crash?: boolean }
-  | { k: 'risk'; risk: Risk; d: number }
-  | { k: 'multi'; m: Array<{ sec?: SectorId; risk?: Risk; d: number }> }
-  | { k: 'lowest'; d: number }
-  | { k: 'highest'; d: number }
-  | { k: 'pick'; d: number; label: string }
+  | { k: 'sector'; sec: SectorId; bp: number }
+  | { k: 'all'; bp: number; crash?: boolean }
+  | { k: 'risk'; risk: Risk; bp: number }
+  | { k: 'multi'; m: Array<{ sec?: SectorId; risk?: Risk; bp: number }> }
+  | { k: 'lowest'; bp: number }
+  | { k: 'highest'; bp: number }
+  | { k: 'pick'; bp: number; label: string }
   | { k: 'dividend' }
   | { k: 'cyberattack' }
   | { k: 'openingBell' }

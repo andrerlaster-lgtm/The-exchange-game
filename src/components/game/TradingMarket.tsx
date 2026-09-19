@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { STOCK_BY_CODE, isIpoCode } from '../../data';
-import { bankSellLimit, bankSellRemaining, canMarketSell, getStockMovementStatus, priceOf, sellBackPrice, stepOf } from '../../engine';
+import { bankSellLimit, bankSellRemaining, canMarketSell, getStockMovementStatus, priceOf, sellBackPrice, canFall } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -67,7 +67,7 @@ function MarketRow({ code, owned, s, dispatch, sellable }: {
   const q = Math.min(qty, Math.max(1, maxQty));
   const price = priceOf(s, code);
   const sellPrice = sellBackPrice(s, code);
-  const atFloor = stepOf(s, code) === 0;
+  const atFloor = !canFall(s, code);
   const sc = STOCK_BY_CODE[code]?.color ?? 'var(--accent)';
   const name = STOCK_BY_CODE[code]?.name ?? code;
   const mv = getStockMovementStatus(code, s);

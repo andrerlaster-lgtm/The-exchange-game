@@ -1,60 +1,85 @@
 // Stock price mutations and short settlement (called on Immer drafts).
 
-import { IPO_INDEX, LADDER, isIpoCode } from '../data';
+import { CEILING_TRIGGER, IPO_INDEX, type PriceMoveSource, applyBasisPoints, isIpoCode } from '../data';
 import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
-import { clampStep, shortPayout, stepOf } from './rules';
+import { priceOf, shortPayout } from './rules';
 
-/** Ladder step index of the $5,000 ceiling. */
-export const CEILING_STEP = LADDER.length - 1;
+/** What a price move actually did, in dollars, after the grid, the floor and
+    (later) upgrade protection — for logs, the ticker, and tests. */
+export interface PriceMoveResult {
+  before: number;
+  after: number;
+  delta: number;
+  pct: number;
+}
 
 /**
- * Queue a global Market Event when a stock/IPO first reaches the $5,000 ceiling
- * on a trade-driven move. Fires only on the transition into the top step
- * (before < ceiling, after === ceiling), so buying again at the ceiling — where
- * price no longer moves — does not re-trigger. Card-driven moves are excluded
- * to avoid a Market Event queuing another one mid-resolution.
+ * Queue a global Market Event when a stock/IPO crosses the $5,000 mark upward
+ * on a trade-driven move. Fires only on the upward crossing and re-arms only
+ * once the company falls back below, so repeated buying above the mark does
+ * not re-trigger. Card-driven moves are excluded to avoid a Market Event
+ * queuing another one mid-resolution.
  */
 function triggerCeiling(s: GameState, code: string): void {
   s.pendingDraws.push('ME');
-  s.log.unshift({ text: `${code} hit the ${money(LADDER[CEILING_STEP])} ceiling — a Market Event is triggered.`, kind: 'r', t: s.lap });
+  s.log.unshift({ text: `${code} crossed the ${money(CEILING_TRIGGER)} mark — a Market Event is triggered.`, kind: 'r', t: s.lap });
   if (s.log.length > 40) s.log.pop();
 }
 
-/** Trade-driven move (Rule 2): regular stocks only, ±1 step after buy/sell. */
-export function moveTradePrice(s: GameState, code: string, d: number): void {
-  const before = s.prices[code];
-  s.prices[code] = clampStep(before + d);
-  if (before < CEILING_STEP && s.prices[code] === CEILING_STEP) triggerCeiling(s, code);
+/**
+ * The single entry point for every price change in the game.
+ *
+ * Every caller must name its `source`. The upgrade/shield system has to tell a
+ * market-driven decline (protected) from a decline a player brought on
+ * themselves by selling or by picking their own company as a card's target,
+ * and that intent cannot be recovered from a bare delta. Unrevealed IPOs never
+ * move.
+ */
+export function applyPriceMove(
+  s: GameState,
+  code: string,
+  bp: number,
+  _source: PriceMoveSource,
+): PriceMoveResult {
+  const ipo = isIpoCode(code) ? s.ipos[IPO_INDEX[code]] : null;
+  if (ipo && !ipo.revealed) return { before: ipo.price, after: ipo.price, delta: 0, pct: 0 };
+
+  const before = priceOf(s, code);
+  // Upgrade downside protection hooks in here: reduce a negative `bp` when
+  // SHIELDABLE_SOURCES.has(_source), never past 0. Deliberately not implemented
+  // yet — the brief defers upgrades until this price model is reviewed.
+  const after = applyBasisPoints(before, bp);
+
+  if (ipo) ipo.price = after;
+  else s.prices[code] = after;
+
+  return { before, after, delta: after - before, pct: before === 0 ? 0 : ((after - before) / before) * 100 };
 }
 
-/** Event-driven move: regular stocks and IPOs shift directly (no volatility amplification). */
-export function moveEventPrice(s: GameState, code: string, d: number): void {
-  if (isIpoCode(code)) {
-    const ip = s.ipos[IPO_INDEX[code]];
-    if (!ip.revealed) return;
-    ip.step = clampStep(ip.step + d);
-  } else {
-    s.prices[code] = clampStep(s.prices[code] + d);
-  }
+/** Trade-driven move (Rule 2): regular stocks only, after a buy or sell. */
+export function moveTradePrice(s: GameState, code: string, bp: number): PriceMoveResult {
+  const r = applyPriceMove(s, code, bp, bp >= 0 ? 'strongDemand' : 'voluntarySale');
+  if (r.before < CEILING_TRIGGER && r.after >= CEILING_TRIGGER) triggerCeiling(s, code);
+  return r;
+}
+
+/** Event-driven move: regular stocks and revealed IPOs shift directly. */
+export function moveEventPrice(
+  s: GameState, code: string, bp: number, source: PriceMoveSource = 'marketEvent',
+): PriceMoveResult {
+  return applyPriceMove(s, code, bp, source);
 }
 
 /**
  * Market Meter move: guaranteed once-per-round ambient repricing (2026-08-21
- * Market Overhaul). Deliberately mirrors {@link moveEventPrice}, not
- * {@link moveTradePrice} — it never queues a Market Event on hitting the
- * ceiling. The meter reprices every non-final round by design, so treating
+ * Market Overhaul). Deliberately never queues a Market Event on crossing the
+ * $5,000 mark. The meter reprices every non-final round by design, so treating
  * it like a trade would inflate Market Event frequency far beyond what the
  * deck was tuned for; card-driven moves already skip this too.
  */
-export function moveMeterPrice(s: GameState, code: string, d: number): void {
-  if (isIpoCode(code)) {
-    const ip = s.ipos[IPO_INDEX[code]];
-    if (!ip.revealed) return;
-    ip.step = clampStep(ip.step + d);
-  } else {
-    s.prices[code] = clampStep(s.prices[code] + d);
-  }
+export function moveMeterPrice(s: GameState, code: string, bp: number): PriceMoveResult {
+  return applyPriceMove(s, code, bp, 'marketMeter');
 }
 
 /** Settle the current player's open short at the start of their next turn (Rule 6). */
@@ -62,8 +87,7 @@ export function settleShorts(s: GameState): void {
   const keep: GameState['shorts'] = [];
   for (const sh of s.shorts) {
     if (sh.owner === s.cur) {
-      const delta = s.prices[sh.code] - sh.entryStep;
-      const pl = shortPayout(delta);
+      const pl = shortPayout(sh.entryPrice, priceOf(s, sh.code));
       s.players[s.cur].cash += pl;
       s.players[s.cur].realizedStockGain += pl;
       s.log.unshift({
@@ -80,10 +104,10 @@ export function settleShorts(s: GameState): void {
 
 /** Lowest-priced code in the event pool. */
 export function lowestCode(s: GameState, pool: Array<{ code: string }>): string {
-  return pool.slice().sort((a, b) => stepOf(s, a.code) - stepOf(s, b.code))[0].code;
+  return pool.slice().sort((a, b) => priceOf(s, a.code) - priceOf(s, b.code))[0].code;
 }
 
 /** Highest-priced code in the event pool. */
 export function highestCode(s: GameState, pool: Array<{ code: string }>): string {
-  return pool.slice().sort((a, b) => stepOf(s, b.code) - stepOf(s, a.code))[0].code;
+  return pool.slice().sort((a, b) => priceOf(s, b.code) - priceOf(s, a.code))[0].code;
 }

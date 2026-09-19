@@ -1,6 +1,6 @@
 // Barrel re-export for all static game data.
 export * from './types';
-export * from './priceTrack';
+export * from './priceModel';
 export * from './stocks';
 export * from './ipoStocks';
 export * from './etfs';

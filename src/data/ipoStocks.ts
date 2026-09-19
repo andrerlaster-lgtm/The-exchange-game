@@ -1,5 +1,4 @@
 import type { IpoDef, SectorId } from './types';
-import { ladderStep } from './priceTrack';
 import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, SECTORS } from './stocks';
 
 // A single shared reveal queue of 4 IPOs, all entering the game at the same
@@ -60,7 +59,6 @@ const RAW_IPOS: Array<[string, string, SectorId, number, IpoDef['vol']]> = [
 export const IPO_DEFS: IpoDef[] = RAW_IPOS.map(([code, name, sector, div, vol]) => ({
   code, name, sector, div, vol,
   start: IPO_FIXED_PRICE,
-  startStep: ladderStep(IPO_FIXED_PRICE),
   color: SECTORS[sector].color,
 }));
 

@@ -7,9 +7,9 @@
 // the cash to afford it. That doesn't cost this landing's one action, only
 // the eventual Buy/Skip does (actionResolver.ts's 'sell' case, isFinancingSell).
 
-import { LADDER, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, stockOpportunityFor, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { MOVE_BP, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, applyBasisPoints, stockOpportunityFor, WEAK_DEMAND_THRESHOLD } from '../../data';
 import type { StockOpportunity } from '../../data';
-import { clampStep, companyBuyoutCost, priceOf } from '../../engine';
+import { companyBuyoutCost, priceOf } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import FedSignalBadge from './FedSignalBadge';
 
@@ -52,7 +52,6 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
   const p = s.players[s.cur];
   const price = priceOf(s, code);
   const supply = s.supply[code] ?? 0;
-  const currentStep = s.prices[code] ?? stock.step;
   const [riskLabel, riskColor] = RISK_MAP[stock.risk] ?? ['—', '#555'];
 
   // Real dollar/percent move since this company's opening price — not a step
@@ -77,19 +76,16 @@ export default function TradeTicket({ code, s, dispatch, weakCount, canAct }: Pr
   // would actually help: short on cash, and something else to sell exists.
   const hasSellableElsewhere = Object.entries(p.shares).some(([c, qty]) => c !== code && (qty ?? 0) > 0);
 
-  // What a Bull/Bear Run would actually pay from HERE, in dollars — not the
-  // step count `opportunity.bullMove/bearMove` describe. The ladder is not
-  // evenly spaced ($100 steps near the floor, $1,000 near the ceiling), so
-  // "+2 steps" is worth a very different amount depending on where a stock
-  // already sits; this projects the real post-clamp price the same way the
-  // engine itself would move it (clampStep — never past the floor/ceiling).
-  const bullDelta = LADDER[clampStep(currentStep + opportunity.bullMove)] - price;
-  const bearDelta = LADDER[clampStep(currentStep + opportunity.bearMove)] - price;
+  // What a Bull/Bear Run would actually pay from HERE, in dollars. The Run
+  // table is a percentage (opportunity.bullMove/bearMove are basis points), so
+  // the dollar value depends on where the stock already sits; applyBasisPoints
+  // is the same helper the engine moves prices with, floor included.
+  const bullDelta = applyBasisPoints(price, opportunity.bullMove) - price;
+  const bearDelta = applyBasisPoints(price, opportunity.bearMove) - price;
 
-  // Real price Weak Demand would actually drop this stock to on the next
-  // skip — the engine moves it exactly one ladder step down, clamped at the
-  // $100 floor (moveTradePrice), so this mirrors that precisely.
-  const weakDropPrice = LADDER[clampStep(currentStep - 1)];
+  // Real price Weak Demand would actually drop this stock to on the next skip,
+  // mirroring the engine's own move exactly.
+  const weakDropPrice = applyBasisPoints(price, MOVE_BP.weakDemand);
 
   return (
     <div key={code} style={{

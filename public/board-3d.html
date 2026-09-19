@@ -1896,14 +1896,14 @@
       // Price + step direction
       tcGlyph.textContent = ti.glyph || '◆';
       tcPrice.textContent = `$${ti.price.toLocaleString()}`;
-      const diff = ti.stepDiff || 0;
+      const diff = ti.priceDiff || 0;
       const dirColor = diff > 0 ? '#1f7a44' : diff < 0 ? '#c0392b' : '#8a7a68';
       tcArrow.textContent = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
       tcArrow.style.color = dirColor;
       tcStep.style.color = dirColor;
       tcStep.textContent = diff === 0
         ? 'NO CHANGE'
-        : `${diff > 0 ? '+' : ''}${diff} STEP${Math.abs(diff) !== 1 ? 'S' : ''}`;
+        : `${diff > 0 ? '+' : '-'}$${Math.abs(diff).toLocaleString()}`;
 
       // Stats
       tcSupply.textContent = ti.supply;

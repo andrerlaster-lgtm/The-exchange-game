@@ -21,11 +21,11 @@
 // finalizeCard) — so the market can now move between laps too, tied to news
 // actually happening in the game, not only to a full round passing.
 
-import { IPO_BY_CODE, LADDER, SECTOR_CODES } from '../data';
+import { IPO_BY_CODE, MOVE_BP, SECTOR_CODES } from '../data';
 import type { SectorId } from '../data/types';
 import type { Rng } from '../utils/rng';
 import { moveMeterPrice } from './stockState';
-import { stepOf } from './rules';
+import { canFall, canRise } from './rules';
 import { recordMarketSignal } from './marketSignals';
 import type { GameState, LogKind } from './types';
 
@@ -37,8 +37,6 @@ function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
 export const METER_MIN = -3;
 export const METER_MAX = 3;
 
-/** Ladder ceiling step index — same constant stockState's CEILING_STEP derives from. */
-const CEILING_STEP = LADDER.length - 1;
 
 export type MeterZone = 'bear' | 'neutral' | 'bull';
 
@@ -53,8 +51,7 @@ export interface MarketMeterForecast {
 const ALL_SECTORS = Object.keys(SECTOR_CODES) as SectorId[];
 
 function isAtBound(s: GameState, code: string, dir: 1 | -1): boolean {
-  const step = stepOf(s, code);
-  return dir === 1 ? step >= CEILING_STEP : step <= 0;
+  return dir === 1 ? !canRise(s, code) : !canFall(s, code);
 }
 
 /**
@@ -103,19 +100,19 @@ export function marketMeterForecast(meter: number): MarketMeterForecast {
   if (magnitude >= 3) {
     const direction = zone === 'bull' ? 'rise' : 'fall';
     return {
-      headline: `Two random sectors will ${direction} 1 step each.`,
+      headline: `Two random sectors will ${direction} 5% each.`,
       detail: 'The sectors are selected when the round ends, after every player has taken a turn.',
     };
   }
   if (magnitude === 2) {
     const direction = zone === 'bull' ? 'rise' : 'fall';
     return {
-      headline: `One random sector will ${direction} 2 steps.`,
+      headline: `One random sector will ${direction} 10%.`,
       detail: 'The sector is selected when the round ends, after every player has taken a turn.',
     };
   }
   return {
-    headline: 'One random sector will move 1 step.',
+    headline: 'One random sector will move 5%.',
     detail: 'The direction and sector are selected when the round ends, after every player has taken a turn.',
   };
 }
@@ -136,13 +133,11 @@ export function eligibleSectors(s: GameState, dir: 1 | -1): SectorId[] {
     effects. Mirrors the existing card-effect sector handler in
     marketSignals.ts's effectImpacts for the regular-stock part, so "a sector
     moves" means the same thing everywhere in this codebase. */
-function moveSector(s: GameState, sec: SectorId, dir: 1 | -1, steps: number): Array<{ code: string; d: number }> {
-  const moved: Array<{ code: string; d: number }> = [];
+function moveSector(s: GameState, sec: SectorId, dir: 1 | -1, bp: number): Array<{ code: string; pct: number }> {
+  const moved: Array<{ code: string; pct: number }> = [];
   for (const code of sectorParticipants(s, sec)) {
-    const before = stepOf(s, code);
-    moveMeterPrice(s, code, dir * steps);
-    const after = stepOf(s, code);
-    if (after !== before) moved.push({ code, d: after - before });
+    const r = moveMeterPrice(s, code, dir * bp);
+    if (r.delta !== 0) moved.push({ code, pct: r.pct });
   }
   return moved;
 }
@@ -198,8 +193,8 @@ export function repriceRoundBoundary(s: GameState, rng: Rng): void {
   if (elig.length > 0) {
     const sec = pick(rng, elig);
     const movedSectors = [sec];
-    const steps = magnitude === 2 ? 2 : 1;
-    const impacts = moveSector(s, sec, dir, steps);
+    const bp = magnitude === 2 ? MOVE_BP.meterAmplified : MOVE_BP.meterStandard;
+    const impacts = moveSector(s, sec, dir, bp);
 
     // Pinned at the extreme: a second, DIFFERENT sector also reacts (one step),
     // rather than piling a third step onto the first. Falls back to allowing
@@ -210,7 +205,7 @@ export function repriceRoundBoundary(s: GameState, rng: Rng): void {
       if (pool.length > 0) {
         const sec2 = pick(rng, pool);
         movedSectors.push(sec2);
-        impacts.push(...moveSector(s, sec2, dir, 1));
+        impacts.push(...moveSector(s, sec2, dir, MOVE_BP.meterStandard));
       }
     }
 

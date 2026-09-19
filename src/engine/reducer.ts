@@ -16,5 +16,5 @@ export function reduce(state: GameState, action: Action, rng: Rng): GameState {
 // Re-exports for consumers that previously imported from reducer.ts
 export { initialState, freshDecks, freshIpos } from './gameState';
 export { netWorth, sharesValue, isDiversified } from './scoringEngine';
-export { priceOf, stepOf, canTradeNow, blocked } from './rules';
+export { priceOf, canFall, canRise, canTradeNow, blocked } from './rules';
 export { money } from '../utils/formatMoney';

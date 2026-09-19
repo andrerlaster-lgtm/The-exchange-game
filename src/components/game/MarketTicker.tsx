@@ -8,7 +8,7 @@ interface TickerEntry {
   code: string;
   price: number;
   direction: 'up' | 'down' | 'flat';
-  stepDifference: number;
+  difference: number;
 }
 
 function tickerEntries(s: GameState): TickerEntry[] {
@@ -18,7 +18,7 @@ function tickerEntries(s: GameState): TickerEntry[] {
       code: stock.code,
       price: priceOf(s, stock.code),
       direction: movement.direction,
-      stepDifference: movement.stepDifference,
+      difference: movement.difference,
     };
   });
 }
@@ -28,12 +28,12 @@ function TickerGroup({ entries, hidden = false }: { entries: TickerEntry[]; hidd
     <div className="market-ticker-group" aria-hidden={hidden || undefined}>
       {entries.map((entry) => {
         const glyph = entry.direction === 'up' ? '▲' : entry.direction === 'down' ? '▼' : '—';
-        const steps = `${entry.stepDifference > 0 ? '+' : ''}${entry.stepDifference}`;
+        const steps = `${entry.difference > 0 ? '+' : ''}${entry.difference}`;
         return (
           <span
             className={`market-ticker-entry ${entry.direction}`}
             key={entry.code}
-            title={`${entry.code} is ${Math.abs(entry.stepDifference)} step${Math.abs(entry.stepDifference) === 1 ? '' : 's'} ${entry.direction} from its opening price`}
+            title={`${entry.code} is ${Math.abs(entry.difference)} step${Math.abs(entry.difference) === 1 ? '' : 's'} ${entry.direction} from its opening price`}
           >
             <strong>{entry.code}</strong>
             <span>${entry.price.toLocaleString()}</span>

@@ -1,11 +1,16 @@
 // Rule-checking functions: pure reads used to gate actions and compute payouts.
 
-import { IPO_BY_CODE, IPO_INDEX, LADDER, REGULAR_SUPPLY, STOCK_BY_CODE, isIpoCode } from '../data';
+import {
+  IPO_BY_CODE, IPO_INDEX, PRICE_FLOOR, REGULAR_SUPPLY, SELL_BACK_HAIRCUT_BP,
+  STOCK_BY_CODE, applyBasisPoints, isIpoCode,
+} from '../data';
 import type { GameState, IpoState } from './types';
 import { marketConditionBuyoutDiscount } from './marketConditions';
 
-export function clampStep(x: number): number {
-  return Math.max(0, Math.min(LADDER.length - 1, x));
+/** Keep a price on the right side of the floor. There is no hard ceiling —
+    see CEILING_TRIGGER in data/priceModel.ts. */
+export function clampPrice(x: number): number {
+  return Math.max(PRICE_FLOOR, x);
 }
 
 /** Resolved IpoState for an IPO code. */
@@ -13,20 +18,30 @@ export function ipoOf(s: GameState, code: string): IpoState {
   return s.ipos[IPO_INDEX[code]];
 }
 
-/** Current ladder step for any tradable code (regular or IPO). */
-export function stepOf(s: GameState, code: string): number {
-  return isIpoCode(code) ? ipoOf(s, code).step : s.prices[code];
-}
-
-/** Current dollar price for any tradable code. */
+/** Current dollar price for any tradable code (regular or IPO). */
 export function priceOf(s: GameState, code: string): number {
-  return LADDER[stepOf(s, code)];
+  return isIpoCode(code) ? ipoOf(s, code).price : s.prices[code];
 }
 
-/** Bank sell-back price (rulebook §11): the seller receives one price step
-    below the current market price — or the $100 floor when already there. */
+/** Bank sell-back price (rulebook §11): the seller receives the current market
+    price less the standard bank haircut, never below the $100 floor. */
 export function sellBackPrice(s: GameState, code: string): number {
-  return LADDER[Math.max(0, stepOf(s, code) - 1)];
+  return applyBasisPoints(priceOf(s, code), -SELL_BACK_HAIRCUT_BP);
+}
+
+/** Whether a company still has room to fall. Replaces the old `step > 0`
+    check; a company sitting on the $100 floor cannot absorb a decline, so
+    cards that need a falling target must skip it. */
+export function canFall(s: GameState, code: string): boolean {
+  return priceOf(s, code) > PRICE_FLOOR;
+}
+
+/** Whether a company has room to rise. Always true — the redesign removed the
+    hard ceiling, leaving $5,000 as a Market Event trigger only. Kept as a
+    named predicate so the card-targeting code still reads symmetrically and
+    so reintroducing a cap later is a one-line change. */
+export function canRise(_s: GameState, _code: string): boolean {
+  return true;
 }
 
 /**
@@ -123,10 +138,11 @@ export function blocked(s: GameState): boolean {
  * Short settlement payout by step delta (Rule 6). Profit when price falls.
  *  delta <= -2 -> +$1000 ; -1 -> +$500 ; 0 -> $0 ; +1 -> -$500 ; +2+ -> -$1000
  */
-export function shortPayout(delta: number): number {
-  if (delta <= -2) return 1000;
-  if (delta === -1) return 500;
-  if (delta === 0) return 0;
-  if (delta === 1) return -500;
-  return -1000;
+export function shortPayout(entryPrice: number, currentPrice: number): number {
+  // Percentage-based conversion of the old step-delta table, preserving its
+  // scale exactly: one step was ~5%, which paid $500, and the payout capped at
+  // two steps (~10%) for $1,000. So $100 per 1% moved, capped at ±$1,000.
+  if (entryPrice <= 0) return 0;
+  const pct = ((currentPrice - entryPrice) / entryPrice) * 100;
+  return Math.max(-1000, Math.min(1000, Math.round(-pct * 100 / 50) * 50));
 }

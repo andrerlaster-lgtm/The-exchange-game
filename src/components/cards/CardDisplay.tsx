@@ -280,7 +280,7 @@ export default function CardDisplay() {
             <PickTarget
               label={s.pick.label}
               codes={s.pick.codes}
-              d={s.pick.d}
+              bp={s.pick.bp}
               s={s}
               dispatch={dispatch}
             />
@@ -340,10 +340,10 @@ function CircuitBreakerDecision({ s, dispatch }: {
   );
 }
 
-function PickTarget({ label, codes, d, s, dispatch }: {
+function PickTarget({ label, codes, bp, s, dispatch }: {
   label: string;
   codes?: string[];
-  d: number;
+  bp: number;
   s: ReturnType<typeof useGameState>;
   dispatch: (a: Action) => void;
 }) {
@@ -362,7 +362,7 @@ function PickTarget({ label, codes, d, s, dispatch }: {
       <div style={{ fontSize: 11, color: 'var(--muted)' }}>{label}</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {pickable.map(({ code, name }) => {
-          const price = d !== 0 ? priceOf(s, code) : null;
+          const price = bp !== 0 ? priceOf(s, code) : null;
           return (
             <button key={code}
               style={{ fontSize: 11, padding: '3px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}

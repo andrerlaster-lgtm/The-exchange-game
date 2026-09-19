@@ -1,6 +1,6 @@
-import { STOCK_BY_CODE } from '../data';
+import { IPO_RUN_BP, MARKET_RUN_MOVE_BY_RISK, STOCK_BY_CODE } from '../data';
 import type { Card, Effect } from '../data/types';
-import { eventPool, stepOf } from './rules';
+import { eventPool, priceOf } from './rules';
 import { netWorth } from './scoringEngine';
 import type { GameState, MarketSignal, MarketSignalImpact } from './types';
 
@@ -81,45 +81,50 @@ export function recordClaimTakeover(
 export function effectImpacts(s: GameState, effect: Effect): MarketSignalImpact[] {
   const pool = eventPool(s);
   const impacts = new Map<string, number>();
-  const add = (code: string, d: number) => impacts.set(code, (impacts.get(code) ?? 0) + d);
-  const sector = (sec: string, d: number) => pool.filter((item) => item.sec === sec).forEach((item) => add(item.code, d));
-  const risk = (level: string, d: number) => Object.values(STOCK_BY_CODE)
+  const add = (code: string, bp: number) => impacts.set(code, (impacts.get(code) ?? 0) + bp);
+  const sector = (sec: string, bp: number) => pool.filter((item) => item.sec === sec).forEach((item) => add(item.code, bp));
+  const risk = (level: string, bp: number) => Object.values(STOCK_BY_CODE)
     .filter((stock) => stock.risk === level)
-    .forEach((stock) => add(stock.code, d));
+    .forEach((stock) => add(stock.code, bp));
 
   switch (effect.k) {
     case 'sector':
-      sector(effect.sec, effect.d);
+      sector(effect.sec, effect.bp);
       break;
     case 'all':
-      pool.forEach((item) => add(item.code, effect.d));
+      pool.forEach((item) => add(item.code, effect.bp));
       break;
     case 'risk':
-      risk(effect.risk, effect.d);
+      risk(effect.risk, effect.bp);
       break;
     case 'multi':
       effect.m.forEach((move) => {
-        if (move.sec) sector(move.sec, move.d);
-        else if (move.risk) risk(move.risk, move.d);
+        if (move.sec) sector(move.sec, move.bp);
+        else if (move.risk) risk(move.risk, move.bp);
       });
       break;
-    case 'regime':
+    case 'regime': {
+      // Reads the shared Run table rather than restating it. This block used to
+      // hardcode its own copy, which had drifted: it still gave Low risk +1 in
+      // a Bear Run long after MARKET_RUN_MOVE_BY_RISK moved that to 0, so the
+      // forecast chips promised a gain the engine never delivered.
+      const runBp = MARKET_RUN_MOVE_BY_RISK[effect.regime];
       Object.values(STOCK_BY_CODE).forEach((stock) => {
-        const d = effect.regime === 'bull'
-          ? (stock.risk === 'High' ? 2 : stock.risk === 'Med' ? 1 : 0)
-          : (stock.risk === 'High' ? -2 : stock.risk === 'Med' ? -1 : 1);
-        if (d !== 0) add(stock.code, d);
+        const bp = runBp[stock.risk];
+        if (bp !== 0) add(stock.code, bp);
       });
-      s.ipos.filter((ipo) => ipo.revealed).forEach((ipo) => add(ipo.code, effect.regime === 'bull' ? 1 : -1));
+      s.ipos.filter((ipo) => ipo.revealed)
+        .forEach((ipo) => add(ipo.code, effect.regime === 'bull' ? IPO_RUN_BP : -IPO_RUN_BP));
       break;
+    }
     case 'lowest': {
-      const target = pool.slice().sort((a, b) => stepOf(s, a.code) - stepOf(s, b.code))[0];
-      if (target) add(target.code, effect.d);
+      const target = pool.slice().sort((a, b) => priceOf(s, a.code) - priceOf(s, b.code))[0];
+      if (target) add(target.code, effect.bp);
       break;
     }
     case 'highest': {
-      const target = pool.slice().sort((a, b) => stepOf(s, b.code) - stepOf(s, a.code))[0];
-      if (target) add(target.code, effect.d);
+      const target = pool.slice().sort((a, b) => priceOf(s, b.code) - priceOf(s, a.code))[0];
+      if (target) add(target.code, effect.bp);
       break;
     }
     // A player-selected target is not known when the card is drawn. Dividend,
@@ -134,9 +139,10 @@ export function effectImpacts(s: GameState, effect: Effect): MarketSignalImpact[
       break;
   }
 
+  // Basis points accumulate above; signals carry percentages (100 bp = 1%).
   return [...impacts.entries()]
-    .filter(([, d]) => d !== 0)
-    .map(([code, d]) => ({ code, d }));
+    .filter(([, bp]) => bp !== 0)
+    .map(([code, bp]) => ({ code, pct: bp / 100 }));
 }
 
 /**
@@ -174,9 +180,9 @@ export function fedSignalForStock(s: GameState, code: string): FedStockSignal {
   const moves = decisions.flatMap((signal) => signal.impacts
     .filter((impact) => impact.code === code)
     .map((impact) => ({ ...impact, title: signal.title })));
-  const net = moves.reduce((total, move) => total + move.d, 0);
-  const hasUp = moves.some((move) => move.d > 0);
-  const hasDown = moves.some((move) => move.d < 0);
+  const net = moves.reduce((total, move) => total + move.pct, 0);
+  const hasUp = moves.some((move) => move.pct > 0);
+  const hasDown = moves.some((move) => move.pct < 0);
   const tone: FedSignalTone = hasUp && hasDown
     ? 'mixed'
     : net > 0
@@ -207,8 +213,8 @@ export function playerSignalExposure(s: GameState, signal: MarketSignal, playerI
   if (!player) return 'No portfolio exposure.';
   const held = signal.impacts.filter((impact) => (player.shares[impact.code] ?? 0) > 0);
   if (held.length === 0) return 'No direct portfolio exposure.';
-  const up = held.filter((impact) => impact.d > 0).map((impact) => impact.code);
-  const down = held.filter((impact) => impact.d < 0).map((impact) => impact.code);
+  const up = held.filter((impact) => impact.pct > 0).map((impact) => impact.code);
+  const down = held.filter((impact) => impact.pct < 0).map((impact) => impact.code);
   const parts: string[] = [];
   if (up.length) parts.push(`Tailwind: ${up.join(', ')}`);
   if (down.length) parts.push(`Headwind: ${down.join(', ')}`);

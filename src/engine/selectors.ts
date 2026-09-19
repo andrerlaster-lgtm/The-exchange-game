@@ -1,14 +1,14 @@
 // Low-level read-only selectors. Re-export rules and scoring for a unified public surface.
 // Import from this file (or engine/index.ts) rather than from rules/scoringEngine directly.
 
-export { clampStep, ipoOf, stepOf, priceOf, sellBackPrice, companyBuyoutCost, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked, shortPayout } from './rules';
+export { clampPrice, ipoOf, priceOf, sellBackPrice, canFall, canRise, companyBuyoutCost, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked, shortPayout } from './rules';
 export { sharesValue, netWorth, isDiversified } from './scoringEngine';
 export { holdingGainLoss, stockGainLoss, marketGain, marketReturnPct, lapReturnPct, rankingScore } from './gainLoss';
 export { topOwner, recomputeClaim, claimPayout } from './soldOut';
 export { completedSectors, hasSectorPortfolio, distinctSectors, diversificationTier, diversificationBonus } from './sector';
 export type { DiversificationTier } from './sector';
 
-import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR, LADDER, STOCK_BY_CODE, IPO_BY_CODE, etfValue, isIpoCode } from '../data';
+import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, CONTROL_THRESHOLD_REGULAR, STOCK_BY_CODE, IPO_BY_CODE, etfValue, isIpoCode } from '../data';
 import type { GameState, Player } from './types';
 
 /**
@@ -78,7 +78,10 @@ export function holdingDividendInfo(s: GameState, p: Player, code: string): Hold
 export interface StockMovementStatus {
   direction: 'up' | 'down' | 'flat';
   label: 'Up' | 'Down' | 'Flat';
-  stepDifference: number;
+  // Dollars. Was named `stepDifference` under the ladder model, but
+  // getPlayerNetWorthMovement below always put a dollar amount here, so the
+  // "step" in the old name only ever described one of its two producers.
+  difference: number;
 }
 
 // Extends the shared StockMovementStatus (also used by getPlayerNetWorthMovement
@@ -89,15 +92,13 @@ export interface StockPriceMovement extends StockMovementStatus {
 }
 
 export function getStockMovementStatus(code: string, s: GameState): StockPriceMovement {
-  const startStep = STOCK_BY_CODE[code]?.step ?? 0;
-  const currentStep = s.prices[code] ?? startStep;
-  const diff = currentStep - startStep;
-  const openingPrice = LADDER[startStep];
-  const currentPrice = LADDER[currentStep];
-  const pctFromOpen = openingPrice > 0 ? ((currentPrice - openingPrice) / openingPrice) * 100 : 0;
-  if (diff > 0) return { direction: 'up', label: 'Up', stepDifference: diff, pctFromOpen };
-  if (diff < 0) return { direction: 'down', label: 'Down', stepDifference: diff, pctFromOpen };
-  return { direction: 'flat', label: 'Flat', stepDifference: 0, pctFromOpen: 0 };
+  const openingPrice = STOCK_BY_CODE[code]?.base ?? 0;
+  const currentPrice = s.prices[code] ?? openingPrice;
+  const diff = currentPrice - openingPrice;
+  const pctFromOpen = openingPrice > 0 ? (diff / openingPrice) * 100 : 0;
+  if (diff > 0) return { direction: 'up', label: 'Up', difference: diff, pctFromOpen };
+  if (diff < 0) return { direction: 'down', label: 'Down', difference: diff, pctFromOpen };
+  return { direction: 'flat', label: 'Flat', difference: 0, pctFromOpen: 0 };
 }
 
 import { MARGIN_INCREMENT, MARGIN_MAX } from '../data';
@@ -225,7 +226,7 @@ export function getPlayerNetWorthMovement(playerIdx: number, s: GameState): Stoc
   const p = s.players[playerIdx];
   const nw = netWorth(s, p);
   const diff = nw - s.opts.startCash;
-  if (diff > 0) return { direction: 'up', label: 'Up', stepDifference: diff };
-  if (diff < 0) return { direction: 'down', label: 'Down', stepDifference: diff };
-  return { direction: 'flat', label: 'Flat', stepDifference: 0 };
+  if (diff > 0) return { direction: 'up', label: 'Up', difference: diff };
+  if (diff < 0) return { direction: 'down', label: 'Down', difference: diff };
+  return { direction: 'flat', label: 'Flat', difference: 0 };
 }

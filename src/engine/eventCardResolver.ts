@@ -1,10 +1,10 @@
 // Card effect application and market-close trigger (called on Immer drafts).
 
-import { CARDS, CIRCUIT_BREAKER_INDEX, LADDER, MARKET_RUN_MOVE_BY_RISK, REGULAR_SUPPLY, STOCK_BY_CODE } from '../data';
-import { money } from '../utils/formatMoney';
+import { CARDS, CIRCUIT_BREAKER_INDEX, IPO_RUN_BP, MARKET_RUN_MOVE_BY_RISK, REGULAR_SUPPLY, STOCK_BY_CODE } from '../data';
+import { money, pct } from '../utils/formatMoney';
 import type { Card, Effect } from '../data/types';
 import type { GameState, LogKind, MarketSignalImpact } from './types';
-import { companyBuyoutCost, eventPool, stepOf } from './rules';
+import { canFall, canRise, companyBuyoutCost, eventPool, priceOf } from './rules';
 import { moveEventPrice } from './stockState';
 import { recordCardSignal, recordMarketSignal } from './marketSignals';
 import { marketStanceMeta, regimeCashDelta } from './marketRegime';
@@ -22,7 +22,6 @@ import type { Rng } from '../utils/rng';
 // meterDelta, etc.) were never in scope for a price ripple to begin with.
 const RIPPLE_EFFECT_KINDS: ReadonlySet<Effect['k']> = new Set(['sector', 'risk', 'multi', 'lowest', 'highest', 'pick']);
 
-const CEILING_STEP = LADDER.length - 1;
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -44,17 +43,17 @@ function negativeEffectCodes(s: GameState, e: Effect): string[] {
   let codes: string[] = [];
   switch (e.k) {
     case 'sector':
-      if (e.d < 0) codes = pool.filter((x) => x.sec === e.sec).map((x) => x.code);
+      if (e.bp < 0) codes = pool.filter((x) => x.sec === e.sec).map((x) => x.code);
       break;
     case 'all':
-      if (e.d < 0) codes = pool.map((x) => x.code);
+      if (e.bp < 0) codes = pool.map((x) => x.code);
       break;
     case 'risk':
-      if (e.d < 0) codes = Object.values(STOCK_BY_CODE).filter((x) => x.risk === e.risk).map((x) => x.code);
+      if (e.bp < 0) codes = Object.values(STOCK_BY_CODE).filter((x) => x.risk === e.risk).map((x) => x.code);
       break;
     case 'multi':
       for (const mv of e.m) {
-        if (mv.d >= 0) continue;
+        if (mv.bp >= 0) continue;
         if (mv.sec) codes.push(...pool.filter((x) => x.sec === mv.sec).map((x) => x.code));
         else codes.push(...Object.values(STOCK_BY_CODE).filter((x) => x.risk === mv.risk).map((x) => x.code));
       }
@@ -68,7 +67,7 @@ function negativeEffectCodes(s: GameState, e: Effect): string[] {
       }
       break;
   }
-  return [...new Set(codes)].filter((code) => stepOf(s, code) > 0);
+  return [...new Set(codes)].filter((code) => canFall(s, code));
 }
 
 /**
@@ -83,14 +82,14 @@ export function selectExtremeTarget(
   e: Extract<Effect, { k: 'lowest' | 'highest' }>,
   rng?: Rng,
 ): string | null {
-  const dir: 1 | -1 = e.d > 0 ? 1 : -1;
-  const eligible = eventPool(s).filter((x) => (dir === 1 ? stepOf(s, x.code) < CEILING_STEP : stepOf(s, x.code) > 0));
+  const dir: 1 | -1 = e.bp > 0 ? 1 : -1;
+  const eligible = eventPool(s).filter((x) => (dir === 1 ? canRise(s, x.code) : canFall(s, x.code)));
   if (eligible.length === 0) return null;
-  const extremeStep = eligible.reduce((best, x) => {
-    const step = stepOf(s, x.code);
-    return (e.k === 'lowest' ? step < best : step > best) ? step : best;
-  }, stepOf(s, eligible[0].code));
-  const tied = eligible.filter((x) => stepOf(s, x.code) === extremeStep);
+  const extremePrice = eligible.reduce((best, x) => {
+    const price = priceOf(s, x.code);
+    return (e.k === 'lowest' ? price < best : price > best) ? price : best;
+  }, priceOf(s, eligible[0].code));
+  const tied = eligible.filter((x) => priceOf(s, x.code) === extremePrice);
   return (tied.length === 1 ? tied[0] : tied[rng ? rng.int(0, tied.length - 1) : 0]).code;
 }
 
@@ -157,16 +156,14 @@ export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng, 
       return [];
     }
     const holder = s.circuitBreakerHolder;
-    if (effect.d < 0 && holder != null && (s.players[holder].shares[target] ?? 0) > 0) {
+    if (effect.bp < 0 && holder != null && (s.players[holder].shares[target] ?? 0) > 0) {
       s.circuitBreakerPrompt = { player: holder, effect, targetCode: target, card };
       addLog(s, `${s.players[holder].name} may play Circuit Breaker on ${target} before it moves.`, 'y');
       return null;
     }
-    const before = stepOf(s, target);
-    moveEventPrice(s, target, effect.d);
-    const after = stepOf(s, target);
-    addLog(s, `${target} (${effect.k}) moves ${effect.d > 0 ? '+' : ''}${effect.d}`);
-    return after !== before ? [{ code: target, d: after - before }] : [];
+    const r = moveEventPrice(s, target, effect.bp);
+    addLog(s, `${target} (${effect.k}) moves ${pct(r.pct)} to ${money(r.after)}`);
+    return r.delta !== 0 ? [{ code: target, pct: r.pct }] : [];
   }
   const holder = s.circuitBreakerHolder;
   if (holder == null) return applyEffect(s, effect, [], rng);
@@ -208,10 +205,8 @@ export function resolveCircuitBreaker(s: GameState, code: string | null, rng: Rn
     let impacts: MarketSignalImpact[] = [];
     if (code == null) {
       addLog(s, `${s.players[holder].name} keeps Circuit Breaker for a future Market Event.`);
-      const before = stepOf(s, target);
-      moveEventPrice(s, target, targetEffect.d);
-      const after = stepOf(s, target);
-      if (after !== before) impacts = [{ code: target, d: after - before }];
+      const r = moveEventPrice(s, target, targetEffect.bp);
+      if (r.delta !== 0) impacts = [{ code: target, pct: r.pct }];
     } else {
       s.circuitBreakerHolder = null;
       s.discard.ME.push(CIRCUIT_BREAKER_INDEX);
@@ -280,33 +275,31 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
   const pool = eventPool(s);
   const protectedSet = new Set(protectedCodes);
   const impacts: MarketSignalImpact[] = [];
-  const move = (code: string, d: number): boolean => {
-    if (d < 0 && protectedSet.has(code)) {
+  const move = (code: string, bp: number): boolean => {
+    if (bp < 0 && protectedSet.has(code)) {
       addLog(s, `Circuit Breaker shields ${code} from this card's price drop.`, 'g');
       return false;
     }
-    const before = stepOf(s, code);
-    moveEventPrice(s, code, d);
-    const after = stepOf(s, code);
-    if (after !== before) impacts.push({ code, d: after - before });
+    const r = moveEventPrice(s, code, bp);
+    if (r.delta !== 0) impacts.push({ code, pct: r.pct });
     return true;
   };
   switch (e.k) {
     case 'sector':
-      pool.filter((x) => x.sec === e.sec).forEach((x) => move(x.code, e.d));
+      pool.filter((x) => x.sec === e.sec).forEach((x) => move(x.code, e.bp));
       break;
     case 'all':
-      pool.forEach((x) => move(x.code, e.d));
+      pool.forEach((x) => move(x.code, e.bp));
       break;
     case 'risk':
       Object.values(STOCK_BY_CODE).filter((x) => x.risk === e.risk)
-        .forEach((x) => move(x.code, e.d));
+        .forEach((x) => move(x.code, e.bp));
       break;
     case 'multi':
       e.m.forEach((mv) => {
-        if (mv.sec) pool.filter((x) => x.sec === mv.sec).forEach((x) => move(x.code, mv.d));
+        if (mv.sec) pool.filter((x) => x.sec === mv.sec).forEach((x) => move(x.code, mv.bp));
         else Object.values(STOCK_BY_CODE).filter((x) => x.risk === mv.risk)
-          .forEach((x) => move(x.code, mv.d));
+          .forEach((x) => move(x.code, mv.bp));
       });
       break;
     // Fair automatic targets (see selectExtremeTarget): only reached here
@@ -320,22 +313,22 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
         addLog(s, `No eligible company can move — no effect.`, 'y');
         break;
       }
-      if (move(target, e.d)) addLog(s, `${target} (${e.k}) moves ${e.d > 0 ? '+' : ''}${e.d}`);
+      if (move(target, e.bp)) addLog(s, `${target} (${e.k}) moves ${e.bp > 0 ? '+' : ''}${e.bp}`);
       break;
     }
     case 'pick': {
       // Only offer companies that can actually move in this direction. A
       // required target is never presented with an impossible choice, and
       // never needs a Skip — every listed code is legal.
-      const dir: 1 | -1 = e.d > 0 ? 1 : -1;
+      const dir: 1 | -1 = e.bp > 0 ? 1 : -1;
       const eligible = pool
-        .filter((x) => (dir === 1 ? stepOf(s, x.code) < CEILING_STEP : stepOf(s, x.code) > 0))
+        .filter((x) => (dir === 1 ? canRise(s, x.code) : canFall(s, x.code)))
         .map((x) => x.code);
       if (eligible.length === 0) {
         addLog(s, `${e.label} finds no eligible company that can move — no effect.`, 'y');
         break;
       }
-      s.pick = { d: e.d, label: e.label, codes: eligible, source: 'card' };
+      s.pick = { bp: e.bp, label: e.label, codes: eligible, source: 'card' };
       break;
     }
     case 'dividend':
@@ -343,7 +336,7 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
       break;
     case 'cyberattack': {
       const p = s.players[s.cur];
-      const codes = Object.keys(p.shares).filter((code) => (p.shares[code] ?? 0) > 0 && stepOf(s, code) > 0);
+      const codes = Object.keys(p.shares).filter((code) => (p.shares[code] ?? 0) > 0 && canFall(s, code));
       const fee = cyberattackFee(s, s.cur);
       if (codes.length === 0) {
         const paid = Math.min(Math.max(0, p.cash), fee);
@@ -379,7 +372,7 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
     }
     case 'regulatoryInvestigation': {
       const p = s.players[s.cur];
-      const codes = Object.keys(p.shares).filter((code) => (p.shares[code] ?? 0) > 0 && stepOf(s, code) > 0);
+      const codes = Object.keys(p.shares).filter((code) => (p.shares[code] ?? 0) > 0 && canFall(s, code));
       const fee = 5_000;
       if (codes.length === 0) {
         const paid = Math.min(Math.max(0, p.cash), fee);
@@ -399,7 +392,7 @@ export function applyEffect(s: GameState, e: Effect, protectedCodes: string[] = 
         const d = regularMove[stock.risk];
         if (d !== 0) move(stock.code, d);
       });
-      s.ipos.filter((ipo) => ipo.revealed).forEach((ipo) => move(ipo.code, e.regime === 'bull' ? 1 : -1));
+      s.ipos.filter((ipo) => ipo.revealed).forEach((ipo) => move(ipo.code, e.regime === 'bull' ? IPO_RUN_BP : -IPO_RUN_BP));
 
       const runLabel = e.regime === 'bull' ? 'Bull Run' : 'Bear Run';
       s.players.forEach((player) => {

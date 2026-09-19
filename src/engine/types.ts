@@ -105,8 +105,8 @@ export interface CompanyLoanOffer {
 
 export interface IpoState {
   code: string;
-  startStep: number;
-  step: number;       // current ladder step
+  startPrice: number;
+  price: number;      // current live price in dollars
   supply: number;     // shares remaining
   revealed: boolean;
 }
@@ -116,7 +116,7 @@ export interface Short {
   ownerName: string;
   pcolor: string;
   code: string;
-  entryStep: number;
+  entryPrice: number;
 }
 
 export interface TradeContext {
@@ -143,7 +143,7 @@ export interface OutstandingBuyContext {
 }
 
 export interface PickContext {
-  d: number;
+  bp: number;   // basis-point move applied to the chosen target
   label: string;
   codes?: string[];   // optional restrict to these codes (UI hint)
   source?: 'card' | 'investor';
@@ -197,7 +197,7 @@ export type MarketSignalKind = 'fed' | 'market' | 'regime' | 'soldout' | 'claim'
 
 export interface MarketSignalImpact {
   code: string;
-  d: number;
+  pct: number;   // realized (or, for a forecast, intended) percentage price move
 }
 
 /** Curated, persistent market-moving information. Routine turns and trades stay in Log. */
@@ -416,7 +416,7 @@ export interface GameState {
   rolling: boolean;
   bonusRollPending: boolean;           // current landing came from doubles and earns one more roll
   bonusRollUsed: boolean;              // current player already used the turn's one allowed bonus roll
-  prices: Record<string, number>;      // regular stock code -> ladder step
+  prices: Record<string, number>;      // regular stock code -> live share price in dollars
   supply: Record<string, number>;      // regular stock code -> shares remaining
   skips: Record<string, number>;       // code -> weak-demand marker count (0-3), untouched companies only
   demand: Record<string, number>;      // code -> strong-demand marker count (0-3), sold-out companies only

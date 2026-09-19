@@ -1,4 +1,4 @@
-import { LADDER, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { getStockMovementStatus, sectorPairOwner } from '../../engine';
 import { useGameState, useDispatch } from '../../store';
 import { LandingResultBanner } from './ActionPanel';
@@ -188,7 +188,7 @@ export default function BoardTrack() {
 
           if (sp.type === 'stock') {
             const stock = STOCK_BY_CODE[sp.code!];
-            const price = LADDER[s.prices[sp.code!]];
+            const price = s.prices[sp.code!];
             const weakCount = s.skips[sp.code!] ?? 0;
             const soldOut = s.soldOut[sp.code!];
             const outstanding = s.bankPool[sp.code!] ?? 0;

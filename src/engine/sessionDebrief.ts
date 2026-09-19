@@ -217,7 +217,7 @@ function buildTape(s: GameState): TapeEntry[] {
   };
 
   for (const signal of [...importantMarketSignals(s)].reverse()) {
-    const impact = signal.impacts.reduce((sum, item) => sum + item.d, 0);
+    const impact = signal.impacts.reduce((sum, item) => sum + item.pct, 0);
     add(signal.lap, `${signal.title} — ${signal.summary}`, impact > 0 ? 'up' : impact < 0 ? 'down' : 'neutral');
   }
 

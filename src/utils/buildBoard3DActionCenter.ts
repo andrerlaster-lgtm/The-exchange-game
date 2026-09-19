@@ -1,5 +1,5 @@
 import {
-  ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, IPO_PRESENTATION, LADDER, MARGIN_DEFAULT_PENALTY,
+  ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, IPO_PRESENTATION, MARGIN_DEFAULT_PENALTY,
   MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, STOCKS, isIpoCode, stockOpportunityFor,
 } from '../data';
 import type { GameState } from '../engine';
@@ -226,7 +226,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
       accent: s.pick.source === 'investor' ? '#c4b5fd' : '#ef4444', urgent: true,
       description: s.pick.label,
       rows: codes.map((code) => ({
-        key: code, title: `${code} · ${codeName(code)}`, value: s.pick!.d === 0 ? undefined : money(priceOf(s, code)),
+        key: code, title: `${code} · ${codeName(code)}`, value: s.pick!.bp === 0 ? undefined : money(priceOf(s, code)),
         buttons: [button('Choose', { t: 'pickTarget', code }, 'primary')],
       })),
     });
@@ -244,7 +244,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
           key: ipo.code,
           title: `${presentation.icon} ${ipo.code} · ${def.name}`,
           detail: `${SECTORS[def.sector].name} · ${presentation.volatilityLabel} · ${dividend} · ${ipo.supply} available · “${presentation.flavor}”`,
-          value: money(LADDER[ipo.step]),
+          value: money(ipo.price),
           color: def.color,
           buttons: [button(`Select ${ipo.code}`, { t: 'pickKnownIpo', code: ipo.code }, 'primary')],
         };

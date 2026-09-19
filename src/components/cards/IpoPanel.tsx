@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { IPO_BY_CODE, IPO_PRESENTATION, LADDER, SECTORS } from '../../data';
+import { IPO_BY_CODE, IPO_PRESENTATION, SECTORS } from '../../data';
 import type { IpoDef } from '../../data';
 import { useDispatch, useGameState } from '../../store';
 
@@ -7,7 +7,7 @@ interface IpoCardProps {
   def: IpoDef;
   price: number;
   supply: number;
-  stepDiff: number;
+  pctDiff: number;
   children?: ReactNode;
 }
 
@@ -15,13 +15,13 @@ function money(value: number) {
   return `$${value.toLocaleString()}`;
 }
 
-function IpoCard({ def, price, supply, stepDiff, children }: IpoCardProps) {
+function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
   const presentation = IPO_PRESENTATION[def.code];
   const sector = SECTORS[def.sector];
-  const moveClass = stepDiff > 0 ? 'up' : stepDiff < 0 ? 'down' : 'flat';
-  const moveLabel = stepDiff > 0 ? `↑ ${stepDiff} step${stepDiff === 1 ? '' : 's'}`
-    : stepDiff < 0 ? `↓ ${Math.abs(stepDiff)} step${stepDiff === -1 ? '' : 's'}`
-      : 'Opening price';
+  const moveClass = pctDiff > 0 ? 'up' : pctDiff < 0 ? 'down' : 'flat';
+  const moveLabel = pctDiff === 0
+    ? 'Opening price'
+    : `${pctDiff > 0 ? '↑' : '↓'} ${Math.abs(pctDiff).toFixed(1)}%`;
 
   return (
     <article className="ipo-card holo-card" style={{ '--ipo-color': def.color } as CSSProperties}
@@ -107,9 +107,9 @@ export default function IpoPanel() {
         <div className="ipo-market__list">
           {listed.map((ip) => {
             const def = IPO_BY_CODE[ip.code];
-            const price = LADDER[ip.step];
+            const price = ip.price;
             return (
-              <IpoCard key={ip.code} def={def} price={price} supply={ip.supply} stepDiff={ip.step - def.startStep}>
+              <IpoCard key={ip.code} def={def} price={price} supply={ip.supply} pctDiff={((ip.price - ip.startPrice) / ip.startPrice) * 100}>
                 <button className="ipo-card__primary" onClick={() => dispatch({ t: 'pickKnownIpo', code: ip.code })}>
                   Select {ip.code}
                 </button>
@@ -137,7 +137,7 @@ export default function IpoPanel() {
               <strong>{actor.name}</strong>
               <small>ONLY BUYER · {offer.bought}/{offer.max} PURCHASED</small>
             </div>
-            <IpoCard def={def} price={offer.price} supply={supply} stepDiff={(ipo?.step ?? def.startStep) - def.startStep}>
+            <IpoCard def={def} price={offer.price} supply={supply} pctDiff={(((ipo?.price ?? def.start) - def.start) / def.start) * 100}>
               <button className="ipo-card__primary" disabled={disabled} onClick={() => dispatch({ t: 'ipoBuyShare' })}>
                 Buy 1 Share · {money(offer.price)}
               </button>

@@ -3,20 +3,20 @@
 
 import {
   AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE, TAX_RATE,
-  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, LADDER,
+  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
   PLAYER_LOAN_MAX_RATE, SECTOR_PAIR_BY_CODE, SECTOR_PAIRS,
 } from '../data';
 import type { Effect } from '../data/types';
-import { money } from '../utils/formatMoney';
+import { money, pct } from '../utils/formatMoney';
 import { toBps } from '../utils/formatRate';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
-import { bankSellRemaining, canTradeNow, canMarketSell, blocked, companyBuyoutCost, ipoOf, priceOf, sellBackPrice, stepOf } from './rules';
+import { bankSellRemaining, canRise, canTradeNow, canMarketSell, blocked, companyBuyoutCost, ipoOf, priceOf, sellBackPrice } from './rules';
 import { freshDecks, freshIpos, resetPlayers } from './gameState';
 import { payMarketOpen } from './playerState';
-import { moveTradePrice, moveEventPrice, settleShorts } from './stockState';
+import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
 import { advanceMeterOnRoll, repriceRoundBoundary } from './marketMeter';
 import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, finalizeCard, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
@@ -185,9 +185,9 @@ function resolveLanding(s: GameState, pi: number): void {
           const sectorComplete = hasSectorPortfolio(holder, STOCK_BY_CODE[code].sector);
           const landingShares = p.shares[code] || 0;
           const stock = STOCK_BY_CODE[code];
-          const multiplier = landingValueMultiplier(LADDER[s.prices[code]], LADDER[stock.step]);
+          const multiplier = landingValueMultiplier(s.prices[code], stock.base);
           const discount = shareholderLandingDiscount(landingShares);
-          const baseClaimOwed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.step, landingShares);
+          const baseClaimOwed = claimPayoutForLanding(holder.shares[code] || 0, sectorComplete, s.prices[code], stock.base, landingShares);
           const conditionAdjustment = marketConditionClaimAdjustment(s, rec.claimHolder, code);
           const claimOwed = Math.max(50, baseClaimOwed + conditionAdjustment);
           // Sector Control: if the claim holder also exclusively owns BOTH
@@ -250,14 +250,14 @@ function resolveLanding(s: GameState, pi: number): void {
           s.demand[code] = (s.demand[code] ?? 0) + 1;
           addLog(s, `Strong demand marker on ${code}: ${s.demand[code]}/${STRONG_DEMAND_THRESHOLD}.`, 'g');
           if (s.demand[code] >= STRONG_DEMAND_THRESHOLD) {
-            moveTradePrice(s, code, 1);
+            const r = applyPriceMove(s, code, MOVE_BP.strongDemand, 'strongDemand');
             s.demand[code] = 0;
-            addLog(s, `Strong demand: ${code} rises 1 step (${STRONG_DEMAND_THRESHOLD} landings).`, 'g');
+            addLog(s, `Strong demand: ${code} rises ${pct(r.pct)} to ${money(r.after)} (${STRONG_DEMAND_THRESHOLD} landings).`, 'g');
             recordMarketSignal(s, {
               kind: 'strongDemand',
               title: `Strong Demand · ${code}`,
-              summary: `${code} rose one price step after ${STRONG_DEMAND_THRESHOLD} consecutive Payout Claim landings.`,
-              impacts: [{ code, d: 1 }],
+              summary: `${code} rose ${pct(r.pct)} to ${money(r.after)} after ${STRONG_DEMAND_THRESHOLD} consecutive Payout Claim landings.`,
+              impacts: [{ code, pct: r.pct }],
             });
           }
         } else if (rec.claimHolder !== null && rec.claimHolder !== pi && p.hasCompletedLap === false) {
@@ -294,7 +294,7 @@ function resolveLanding(s: GameState, pi: number): void {
       break;
     case 'investor': {
       const eligible = Object.keys(p.shares).filter((code) =>
-        !isIpoCode(code) && (p.shares[code] ?? 0) > 0 && s.prices[code] < LADDER.length - 1,
+        !isIpoCode(code) && (p.shares[code] ?? 0) > 0 && canRise(s, code),
       );
       s.investorDay = { eligibleCodes: eligible };
       addLog(s, `${p.name} lands on Investor Day — choose Company Growth or Insider Information.`, 'g');
@@ -308,16 +308,16 @@ function resolveLanding(s: GameState, pi: number): void {
         // players must land on an IPO space on a later turn to buy IPO shares.
         const i = hiddenIdx[0];
         const ip = s.ipos[i];
-        ip.revealed = true; ip.step = ip.startStep;
+        ip.revealed = true; ip.price = ip.startPrice;
         s.lastDraw = { deck: 'IPO', title: IPO_DEFS[i].name, seq: (s.lastDraw?.seq ?? 0) + 1 };
-        addLog(s, `Launched IPO: ${IPO_DEFS[i].name} @ ${money(LADDER[ip.startStep])}`, 'g');
+        addLog(s, `Launched IPO: ${IPO_DEFS[i].name} @ ${money(ip.startPrice)}`, 'g');
         recordMarketSignal(s, {
           kind: 'ipo',
           title: `IPO Launch · ${ip.code}`,
-          summary: `${IPO_DEFS[i].name} entered the market at ${money(LADDER[ip.startStep])} per share.`,
+          summary: `${IPO_DEFS[i].name} entered the market at ${money(ip.startPrice)} per share.`,
           impacts: [],
         });
-        s.ipoBuy = { code: ip.code, max: 2, bought: 0, price: LADDER[ip.step], actor: pi };
+        s.ipoBuy = { code: ip.code, max: 2, bought: 0, price: ip.price, actor: pi };
         addLog(s, `${p.name} may buy ${ip.code} (up to 2 shares).`, 'g');
         break;
       }
@@ -480,7 +480,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'startGame': {
       resetPlayers(s);
       for (const st of Object.values(STOCK_BY_CODE)) {
-        s.prices[st.code] = st.step;
+        s.prices[st.code] = st.base;
         s.supply[st.code] = REGULAR_SUPPLY;
       }
       s.skips = {}; s.demand = {}; s.soldOut = {}; s.bankPool = {}; s.lap = 1; s.log = []; s.tradeLog = []; s.feeLog = [];
@@ -819,14 +819,14 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
           s.skips[code] = (s.skips[code] || 0) + 1;
           addLog(s, `${p.name} skips ${code} — weak-demand marker ${s.skips[code]}/${WEAK_DEMAND_THRESHOLD}.`, 'r');
           if (s.skips[code] >= WEAK_DEMAND_THRESHOLD) {
-            moveTradePrice(s, code, -1);
+            const r = applyPriceMove(s, code, MOVE_BP.weakDemand, 'weakDemand');
             s.skips[code] = 0;
-            addLog(s, `Weak demand: ${code} drops 1 step (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
+            addLog(s, `Weak demand: ${code} drops ${pct(r.pct)} to ${money(r.after)} (${WEAK_DEMAND_THRESHOLD} markers).`, 'r');
             recordMarketSignal(s, {
               kind: 'weakDemand',
               title: `Weak Demand · ${code}`,
-              summary: `${code} fell one price step after ${WEAK_DEMAND_THRESHOLD} consecutive skips.`,
-              impacts: [{ code, d: -1 }],
+              summary: `${code} fell ${pct(r.pct)} to ${money(r.after)} after ${WEAK_DEMAND_THRESHOLD} consecutive skips.`,
+              impacts: [{ code, pct: r.pct }],
             });
           }
         }
@@ -1127,7 +1127,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (isIpoCode(code)) break;
       if (s.shorts.some((sh) => sh.owner === s.cur)) break;
       const p = s.players[s.cur];
-      s.shorts.push({ owner: s.cur, ownerName: p.name, pcolor: p.color, code, entryStep: s.prices[code] });
+      s.shorts.push({ owner: s.cur, ownerName: p.name, pcolor: p.color, code, entryPrice: priceOf(s, code) });
       setMarketStance(p, 'bearish');
       addLog(s, `${p.name} shorts ${code} @ ${money(priceOf(s, code))}`, 'r');
       addTradeLog(s, 'short', `Short ${code} @ ${money(priceOf(s, code))}`, 0, p.name);
@@ -1142,7 +1142,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'pickKnownIpo': {
       const ip = ipoOf(s, action.code);
       if (!ip.revealed || ip.supply <= 0) break;
-      const price = LADDER[ip.step];
+      const price = ip.price;
       s.ipoListPick = false;
       s.ipoBuy = { code: action.code, max: 2, bought: 0, price, actor: s.cur };
       addLog(s, `Buying IPO ${action.code} @ ${money(price)} (up to 2 shares).`, 'g');
@@ -1183,12 +1183,12 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         addLog(s, `${p.name} chooses Company Growth with no company able to rise — collects ${money(500)}.`, 'g');
       } else {
         s.pick = {
-          d: 1,
-          label: 'Company Growth — choose one company you own to move UP 1 step',
+          bp: MOVE_BP.investorDay,
+          label: 'Company Growth — choose one company you own to grow 5%',
           codes: prompt.eligibleCodes,
           source: 'investor',
         };
-        addLog(s, `${p.name} chooses Company Growth — select one owned company to move up 1 step.`, 'g');
+        addLog(s, `${p.name} chooses Company Growth — select one owned company to grow 5%.`, 'g');
       }
       break;
     }
@@ -1258,8 +1258,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (!s.pick) break;
       if (s.pick.codes && !s.pick.codes.includes(action.code)) break;
       if (s.pick.source === 'investor') {
-        moveTradePrice(s, action.code, s.pick.d);
-        addLog(s, `${action.code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
+        const r = applyPriceMove(s, action.code, s.pick.bp, 'investorDay');
+        addLog(s, `${action.code} moves ${pct(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
         s.pick = null;
         break;
       }
@@ -1268,17 +1268,15 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // hasn't been targeted yet.
       const code = action.code;
       const holder = s.circuitBreakerHolder;
-      if (s.pick.d < 0 && holder != null && (s.players[holder].shares[code] ?? 0) > 0) {
+      if (s.pick.bp < 0 && holder != null && (s.players[holder].shares[code] ?? 0) > 0) {
         s.pick = { ...s.pick, codes: [code] };
-        s.circuitBreakerPrompt = { player: holder, effect: { k: 'pick', d: s.pick.d, label: s.pick.label }, targetCode: code, card: s.pick.card };
+        s.circuitBreakerPrompt = { player: holder, effect: { k: 'pick', bp: s.pick.bp, label: s.pick.label }, targetCode: code, card: s.pick.card };
         addLog(s, `${s.players[holder].name} may play Circuit Breaker on ${code} before it moves.`, 'y');
         break;
       }
-      const before = stepOf(s, code);
-      moveEventPrice(s, code, s.pick.d);
-      const after = stepOf(s, code);
-      const impacts = after !== before ? [{ code, d: after - before }] : [];
-      addLog(s, `${code} moves ${s.pick.d > 0 ? '+' : ''}${s.pick.d} step`, s.pick.d > 0 ? 'g' : 'r');
+      const r = moveEventPrice(s, code, s.pick.bp);
+      const impacts = r.delta !== 0 ? [{ code, pct: r.pct }] : [];
+      addLog(s, `${code} moves ${pct(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
       const pickedCard = s.pick.card;
       s.pick = null;
       if (pickedCard) finalizeCard(s, pickedCard, impacts, rng);

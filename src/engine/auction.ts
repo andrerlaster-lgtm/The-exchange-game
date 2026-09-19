@@ -4,10 +4,9 @@
 // share. Runs on Immer drafts. Payout Claim is frozen until a stock's auction
 // fully closes, then recomputed once (rulebook §10/§11).
 
-import { LADDER } from '../data';
+import { MOVE_BP, applyBasisPoints } from '../data';
 import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
-import { clampStep } from './rules';
 import { recomputeClaim } from './soldOut';
 import { recordClaimTakeover } from './marketSignals';
 import { addStockCostBasis } from './gainLoss';
@@ -50,7 +49,8 @@ function openNextAuction(s: GameState): void {
   while (s.auctionQueue.length > 0) {
     const code = s.auctionQueue.shift()!;
     if ((s.bankPool[code] || 0) <= 0) continue;
-    const startPrice = LADDER[clampStep(s.prices[code] - 1)];
+    // Auctions open one standard market step below the live price.
+    const startPrice = applyBasisPoints(s.prices[code], -MOVE_BP.cardStep);
     s.auction = {
       code,
       poolLeft: s.bankPool[code],

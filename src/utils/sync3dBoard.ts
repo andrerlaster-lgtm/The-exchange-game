@@ -46,7 +46,7 @@ export interface TradeInfo3D {
   risk: string;          // 'Low' | 'Med' | 'High'
   dividend: number;      // printed dividend per share
   opportunity: StockOpportunity;
-  stepDiff: number;      // current step − starting step (signed)
+  priceDiff: number;     // current price − opening price, in dollars (signed)
   tier: string;          // Starter | Growth | Premium
   buyoutPrice: number;   // fixed whole-company acquisition price
   fedSignal: {

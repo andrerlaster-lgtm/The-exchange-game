@@ -19,12 +19,13 @@ function impactStyle(color: string, background: string): CSSProperties {
   };
 }
 
-/** Up/down step-delta pills for a resolved set of price impacts. Renders
+/** Up/down percentage pills for a resolved set of price impacts. Renders
     nothing for an empty list (a card that had no eligible target, or whose
     entire move was shielded by Circuit Breaker). */
 export function ImpactChips({ impacts, style }: { impacts: MarketSignalImpact[]; style?: CSSProperties }) {
-  const up = impacts.filter((impact) => impact.d > 0).map((impact) => `${impact.code} +${impact.d}`);
-  const down = impacts.filter((impact) => impact.d < 0).map((impact) => `${impact.code} ${impact.d}`);
+  const pct = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
+  const up = impacts.filter((impact) => impact.pct > 0).map((impact) => `${impact.code} ${pct(impact.pct)}`);
+  const down = impacts.filter((impact) => impact.pct < 0).map((impact) => `${impact.code} ${pct(impact.pct)}`);
   if (!up.length && !down.length) return null;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, ...style }}>

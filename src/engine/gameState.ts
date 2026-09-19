@@ -31,7 +31,7 @@ export function freshDecks(rng: Rng, closeMode: GameState['opts']['closeMode'] =
 
 export function freshIpos(): GameState['ipos'] {
   return IPO_DEFS.map((ip) => ({
-    code: ip.code, startStep: ip.startStep, step: ip.startStep,
+    code: ip.code, startPrice: ip.start, price: ip.start,
     supply: IPO_SUPPLY, revealed: false,
   }));
 }
@@ -40,7 +40,7 @@ export function initialState(rng: Rng): GameState {
   const prices: Record<string, number> = {};
   const supply: Record<string, number> = {};
   for (const s of Object.values(STOCK_BY_CODE)) {
-    prices[s.code] = s.step;
+    prices[s.code] = s.base;
     supply[s.code] = REGULAR_SUPPLY;
   }
   return {

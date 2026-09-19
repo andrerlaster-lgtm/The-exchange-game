@@ -1,5 +1,5 @@
 import type { CompanyTier, Risk, Sector, SectorId, SectorPair, SectorPairId, Stock } from './types';
-import { ladderStep } from './priceTrack';
+import { RUN_BP } from './priceModel';
 
 export const START_CASH = 35_000; // default starting cash — must match DEFAULT_OPTIONS.startCash (engine/types.ts)
 export const SALARY = 2_000; // Market Open salary; landing exactly on Market Open pays double
@@ -89,14 +89,19 @@ export const PAYOUT_MULT_CONTROL_SECTOR = 6;
     Claim, shareholder discount, Market Condition adjustment, and Sector Rent. */
 export const PAYOUT_CLAIM_TOTAL_CAP = 10_000;
 
+/**
+ * Bull/Bear Run movement by risk tier, in basis points (100 bp = 1%).
+ *
+ * 2026-09-18 balance pass (Option 1): Low risk's Bear Run move was +1 step —
+ * strictly better than "no change," so a Low-risk holding could never lose
+ * value to either Run while simultaneously earning the highest dividend yield
+ * in the game (see DIV_BY_RISK below). "Low risk" is now genuinely stable —
+ * zero Run exposure in both directions — rather than risk-free. The
+ * percentage redesign keeps exactly that shape, restated as 0/±1,000/±2,000 bp.
+ */
 export const MARKET_RUN_MOVE_BY_RISK = {
-  bull: { Low: 0, Med: 1, High: 2 },
-  // 2026-09-18 balance pass (Option 1): Low risk's Bear Run move was +1 —
-  // strictly better than "no change," so a Low-risk holding could never lose
-  // value to either Run while simultaneously earning the highest dividend
-  // yield in the game (see DIV_BY_RISK below). "Low risk" is now genuinely
-  // stable — zero Run exposure in both directions — rather than risk-free.
-  bear: { Low: 0, Med: -1, High: -2 },
+  bull: { Low: RUN_BP.Low, Med: RUN_BP.Med, High: RUN_BP.High },
+  bear: { Low: -RUN_BP.Low, Med: -RUN_BP.Med, High: -RUN_BP.High },
 } satisfies Record<'bull' | 'bear', Record<Risk, number>>;
 
 export interface StockOpportunity {
@@ -208,7 +213,6 @@ export const STOCKS: Stock[] = RAW_STOCKS.map(([space, name, sector, base, risk,
   const openingPrice = COMPANY_SHARE_PRICE_BY_TIER[tier];
   return {
     code, name, sector, base: openingPrice, risk, space,
-    step: ladderStep(openingPrice),
     color: SECTORS[sector].color,
     div: DIV_BY_RISK[risk],
     tier,
