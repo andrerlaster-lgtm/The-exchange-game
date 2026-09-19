@@ -91,6 +91,7 @@ export function initialState(rng: Rng): GameState {
     ipoGrowthThisTurn: false,
     ipoBoughtThisTurn: [],
     ipoSharesAtTurnStart: {},
+    rateDecisionPrompt: null,
     regimeRollPrompt: null,
     playerDebts: [],
     playerDebtSeq: 0,

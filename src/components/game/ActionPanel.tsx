@@ -1,5 +1,5 @@
 import { ETF_BY_CODE, ETF_DEFS, ETF_PRICE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, distinctEtfFunds, etfDiversificationBonus, projectedEtfIncome, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, MARGIN_DEFAULT_PENALTY, IPO_BY_CODE, MOVE_BP, isIpoCode } from '../../data';
-import { gameProgressLabel, minNextBid, playerLoanRateText, priceOf, sellBackPrice } from '../../engine';
+import { bankRateBp, gameProgressLabel, minNextBid, playerLoanRateText, priceOf, sellBackPrice } from '../../engine';
 import type { Action, GameState, MarketOpenIncome } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -123,6 +123,7 @@ export default function ActionPanel() {
       {s.loanRatePrompt && <LoanRatePanel s={s} dispatch={dispatch} />}
 
       {/* Market Swing landing — roll a d6 to decide Bull Run vs. Bear Run */}
+      {s.rateDecisionPrompt && <RateDecisionPanel s={s} dispatch={dispatch} />}
       {s.regimeRollPrompt && <RegimeRollPanel s={s} dispatch={dispatch} />}
 
       {/* Payout Claim shortfall — forced sale to pay the other player */}
@@ -663,6 +664,27 @@ function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) =>
       <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800, alignSelf: 'flex-start' }}
         onClick={() => dispatch({ t: 'rollLoanRate' })}>
         🎲 Roll for Rate
+      </button>
+    </div>
+  );
+}
+
+function RateDecisionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
+  const player = s.players[s.rateDecisionPrompt!.player];
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 9,
+      padding: '13px 15px', borderRadius: 10,
+      background: 'linear-gradient(105deg, rgba(232,180,76,0.18), rgba(232,180,76,0.06))',
+      border: '2px solid rgba(232,180,76,0.65)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: '#E8B44C' }}>% {player.name} — ROLL FOR THE RATE DECISION</div>
+      <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+        {player.name} landed on Rate Decision. Roll a d6 — 1-2 cuts the Bank Rate 25 bp, 3-4 holds, 5-6 raises it 25 bp. A change moves Finance one way and Real Estate and High-Risk companies the other, and every loan reprices. The Bank Rate is {bankRateBp(s) / 100}%.
+      </div>
+      <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800, alignSelf: 'flex-start' }}
+        onClick={() => dispatch({ t: 'rollRateDecision' })}>
+        🎲 Roll
       </button>
     </div>
   );

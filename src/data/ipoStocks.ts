@@ -1,7 +1,7 @@
 import type { IpoDef, SectorId } from './types';
 import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, SECTORS } from './stocks';
 
-// A single shared reveal queue of 4 IPOs, all entering the game at the same
+// A single shared reveal queue of 3 IPOs, all entering the game at the same
 // fixed $3,000 price (rulebook §16) — no tiered starting prices.
 export const IPO_FIXED_PRICE = 3_000;
 
@@ -39,7 +39,7 @@ export interface IpoPresentation {
   flavor: string;
 }
 
-/** Player-facing copy for the four IPO cards. Game values still come from IPO_DEFS/state. */
+/** Player-facing copy for the IPO cards. Game values still come from IPO_DEFS/state. */
 export const IPO_PRESENTATION: Record<string, IpoPresentation> = {
   NDRV: {
     icon: '⚡',
@@ -79,7 +79,6 @@ const RAW_IPOS: Array<[string, string, SectorId, number, IpoDef['vol']]> = [
   ['NDRV', 'NovaDrive EV',        'tech',        0,  'spec'],
   ['QCRT', 'QuickCart Delivery',  'consumer',    0,  'high'],
   ['RNST', 'RentNest Homes',      'realestate',  50, 'mod'],
-  ['BBPY', 'BlockBridge Pay',     'finance',     0,  'high'],
 ];
 
 export const IPO_DEFS: IpoDef[] = RAW_IPOS.map(([code, name, sector, div, vol]) => ({

@@ -46,6 +46,10 @@ export function rateShockMoves(rateBp: number): Array<{ sec?: SectorId; risk?: R
     Neutral rounds leave it alone. */
 export const METER_RATE_NUDGE_BP = 25;
 
+/** Rate Decision space (board 28): the landing player rolls a d6 and the Fed
+    follows it — a low roll eases, a high roll tightens, the middle holds. */
+export const RATE_DECISION_BY_ROLL_BP = [0, -25, -25, 0, 0, 25, 25]; // index = roll 1-6
+
 /** Outstanding Fees and emergency company loans charge this much over the
     Bank Rate: 5% per turn at the starting 3% rate, as before. */
 export const FEE_DEBT_SPREAD_BP = 200;

@@ -73,7 +73,7 @@ The setup screen offers two winning-score modes:
 - 1 game board with 36 spaces
 - 22 regular stock spaces/cards, organized into 8 sectors (see Section 16)
 - 4 ETF spaces/cards
-- 2 IPO spaces and 4 IPO cards (shared reveal queue — see Section 19)
+- 1 IPO space, 1 Rate Decision space, and 3 IPO cards (shared reveal queue — see Section 19)
 - 1 The Fed space and Fed cards
 - 1 Market Swing space (combined Bull Run / Bear Run — resolved by a d6 roll on landing)
 - 2 Market Event spaces and the combined Market Event deck
@@ -100,8 +100,8 @@ The setup screen offers two winning-score modes:
 - Place all player tokens on Market Open.
 - Set each regular stock to its starting market price from the app or its printed stock card. Every price is a multiple of $25 and never below the $100 floor.
 - Place 11 market shares in supply for each regular stock.
-- Shuffle the combined Market Event deck and The Fed deck separately. Shuffle the 4 IPO cards into their own shared reveal queue.
-- Set all 4 IPO cards face down in a single shared reveal queue (see Section 19). None are available for purchase until revealed.
+- Shuffle the combined Market Event deck and The Fed deck separately. Shuffle the 3 IPO cards into their own shared reveal queue.
+- Set all 3 IPO cards face down in a single shared reveal queue (see Section 19). None are available for purchase until revealed.
 - Set up ETF spaces/cards according to current app data.
 - Place Payout Claim cards/markers, Weak Demand markers, Strong Demand markers, Sector Portfolio badges, Sector Control pair markers, and Diversification badges near the bank.
 - Set the Market Meter needle to 0 (Neutral).
@@ -119,7 +119,8 @@ The board has 36 spaces. The current rule direction preserves the board count an
 | ETF | 4 | Diversification-style investment route that pays at Market Open and can charge a landing fee |
 | The Fed | 1 | Draw and resolve a Fed card; space 7 |
 | Market Swing | 1 | Roll a d6 to decide Bull Run or Bear Run, then resolve it and every player's locked stance; space 19 |
-| IPO | 2 | Reveal and access IPO opportunities (shared queue of 4) |
+| IPO | 1 | Reveal and access IPO opportunities (shared queue of 3); space 10 |
+| Rate Decision | 1 | Roll a d6 to set the Fed's move on the Bank Rate (Section 21); space 28 |
 | Market Event | 2 | Draw and resolve a Market Event card; spaces 16 and 26 |
 | Market Open | 1 | Payday, Market Condition roll, then Market Open Trading Window |
 | Portfolio Tax | 1 | Penalty space based on net worth |
@@ -535,17 +536,17 @@ IPOs are limited new-stock opportunities. They are more volatile and have smalle
 | Payout Claim | Regular stocks only by default; IPO Payout Claim can be tested later if desired |
 
 **IPO reveal mechanic**
-- All 4 IPOs start face down in a single shared queue at setup — not tied to either specific board space.
+- All 3 IPOs start face down in a single shared queue at setup.
 - When a player lands on either IPO space, the next unrevealed IPO in the queue flips face up and becomes active.
 - Once revealed, that IPO stays available for purchase at both IPO spaces for the rest of the game.
 - Only the player who landed on the IPO space may buy during that landing. No other player receives a buy-in turn.
 - The landing player may buy a maximum of 2 IPO shares during that landing.
 - After the reveal turn, any player landing on either IPO space may buy available shares of any already-revealed IPO normally.
-- Once all 4 IPOs are revealed, landing on either IPO space simply allows buying from whichever IPOs are already out — no further reveals occur.
+- Once all 3 IPOs are revealed, landing on the IPO space simply allows buying from whichever IPOs are already out — no further reveals occur.
 
 **IPO Pricing**
 
-All 4 IPOs start at a fixed price of $3,000 per share. There is no tiered starting-price structure; every IPO enters the game at the same price point and differentiates only through reveal order and Market Event effects.
+All 3 IPOs start at a fixed price of $3,000 per share. There is no tiered starting-price structure; every IPO enters the game at the same price point and differentiates only through reveal order and Market Event effects.
 
 **IPO Price Movement**
 - IPO share prices do not move from buying or selling. They move with the market — Market Event and Fed cards, Bull/Bear Runs, the Market Meter (Section 21) — and through growth investments (below).
@@ -654,6 +655,7 @@ Two rates run in the background and set the basis points behind loans and part o
 - Starts at **3.00% (300 bp)**; always between 1% and 8%.
 - Two things move it:
   - **Fed cards.** Jumbo Hike +100 bp, Emergency Cut −100 bp, Rate Hike +50 bp, Rate Cut −50 bp, Tight Money +25 bp, Easy Money −25 bp, Inflation Warning +25 bp, Bond Yields Rise +25 bp, Cut Hopes Rally −25 bp. Rate Hold and the rest leave it alone.
+  - **The Rate Decision space (board 28).** The landing player rolls a d6: 1-2 cuts the rate 25 bp, 3-4 holds it, 5-6 raises it 25 bp. A change applies the same price shock a rate card would; a hold does nothing. If the rate is already at its floor or ceiling, the roll simply does not move it.
   - **The Market Meter, at every round boundary.** A Bullish round raises it 25 bp and a Bearish round lowers it 25 bp; a Neutral round leaves it alone. This nudge changes borrowing costs only — it does not move share prices.
 - A **rate card's** change moves the rate-sensitive stocks by **10 bp of price per 1 bp of rate**: Finance moves *with* the rate; Real Estate and High-Risk stocks move *against* it. A +50 bp hike is Finance +5%, Real Estate −5%, High-Risk −5% (a High-Risk Real Estate company takes both). These moves are the whole price effect of a pure rate card (Jumbo Hike, Emergency Cut, Rate Hike, Rate Cut, Tight Money, Easy Money). Inflation Warning, Bond Yields Rise and Cut Hopes Rally keep their own printed price effect and simply move the rate as well.
 - If the rate is at its floor or ceiling, it moves only as far as it can, and the stock moves shrink to match (none at all if it cannot move).
@@ -679,6 +681,7 @@ Two rates run in the background and set the basis points behind loans and part o
 | The Fed | Draw and resolve 1 Fed card. |
 | Market Swing — space 19 | Roll a d6: 1-3 resolves as a Bear Run, 4-6 resolves as a Bull Run. Then resolve that Run's stock movements and every player's current stance, and reset all players to Balanced. Circuit Breaker may protect one affected owned company from a Bear Run roll. |
 | IPO | Resolve IPO reveal/purchase per Section 19. |
+| Rate Decision | Roll a d6: 1-2 cuts the Bank Rate 25 bp, 3-4 holds, 5-6 raises it 25 bp. A change applies the usual rate shock to prices (Section 21). |
 | Investor Day — space 31 | Choose Company Growth or Insider Information. Company Growth raises 1 owned regular company by 5%; crossing $5,000 triggers a Market Event. If you own no regular company, collect $500. Insider Information reveals the title and effect of the next Market Event without drawing, resolving, or removing that card from the top of the deck. |
 | Portfolio Tax | Charge equals 10% of current net worth. Choose Pay Now or Carry as Debt under Outstanding Fees. |
 | Audit Notice | Charge equals 5% of current net worth, rounded to the nearest $100, with a $500 minimum. Outstanding Margin raises the rate to 7.5% with a $750 minimum. Choose Pay Now or Carry as Debt. |

@@ -1,4 +1,4 @@
-// IPO model — a single shared reveal queue of 4 IPOs, all at a fixed $3,000,
+// IPO model — a single shared reveal queue of 3 IPOs, all at a fixed $3,000,
 // no price movement from buying/selling, and only the player who lands on an
 // IPO space may buy during that landing.
 
@@ -89,23 +89,21 @@ describe('IPO reveal — shared queue, fixed price', () => {
 });
 
 describe('IPO — after reveal, normal buy-list flow resumes', () => {
-  it('both IPO spaces draw from the same shared queue, not independent decks', () => {
+  it('repeat landings draw the next entry from the one shared queue', () => {
     let s = started(2);
-    s = rollTo(s, IPO_SPACE); // space 10 reveals IPO #1
+    s = rollTo(s, IPO_SPACE); // reveals IPO #1
     const firstCode = s.ipos.find((ip) => ip.revealed)!.code;
     s = dispatch(s, { t: 'ipoBuyDone' }, rng());
     expect(s.ipoBuy).toBeNull();
 
-    // Landing on the OTHER IPO space reveals the next queue entry, not the
-    // same one again — proving it's one shared queue, not per-space decks.
-    s = patch(s, (d) => { d.turnPhase = 'preRoll'; d.players[d.cur].pos = IPO_SPACE; });
-    s = rollTo(s, 28);
-    const revealedNow = s.ipos.filter((ip) => ip.revealed);
-    expect(revealedNow).toHaveLength(2);
+    // Coming round to the same space again reveals the NEXT queue entry.
+    s = patch(s, (d) => { d.turnPhase = 'preRoll'; d.players[d.cur].pos = IPO_SPACE - 4; });
+    s = rollTo(s, IPO_SPACE);
+    expect(s.ipos.filter((ip) => ip.revealed)).toHaveLength(2);
     expect(s.ipoBuy!.code).not.toBe(firstCode);
   });
 
-  it('once all 4 IPOs are revealed, landing opens the general buy list for the landing player', () => {
+  it('once every IPO is revealed, landing opens the general buy list for the landing player', () => {
     let s = started(2);
     s = patch(s, (d) => { d.ipos.forEach((ip) => { ip.revealed = true; }); });
     s = rollTo(s, IPO_SPACE);
@@ -126,8 +124,9 @@ describe('IPO — supply, control, and market isolation', () => {
     expect(s.players[0].cash).toBe(cash);
   });
 
-  it('exactly 4 IPOs exist in the shared queue', () => {
+  it('exactly 3 IPOs exist in the shared queue', () => {
+    // Cut from 4 on 2026-09-19 when board space 28 became Rate Decision.
     const s = started(2);
-    expect(s.ipos).toHaveLength(4);
+    expect(s.ipos).toHaveLength(3);
   });
 });

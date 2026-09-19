@@ -6,7 +6,7 @@ import {
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isEtfCode, isIpoCode,
-  SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, rateShockMoves,
+  SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, RATE_DECISION_BY_ROLL_BP, rateShockMoves,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money, pctBp } from '../utils/formatMoney';
@@ -432,6 +432,11 @@ function resolveLanding(s: GameState, pi: number): void {
       s.pendingDraws.push('ME');
       addLog(s, `${p.name} landed on Market Event — draw a card.`, 'r');
       break;
+    case 'rateDecision': {
+      s.rateDecisionPrompt = { player: pi };
+      addLog(s, `${p.name} lands on Rate Decision — roll to set the Fed's move.`, 'y');
+      break;
+    }
     case 'regime': {
       s.regimeRollPrompt = { player: pi };
       addLog(s, `${p.name} lands on Market Swing — roll to see if it's a Bull or Bear Run.`, 'y');
@@ -1062,6 +1067,36 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'investIpoGrowth':
       investIpoGrowth(s, action.code, action.size);
       break;
+    case 'rollRateDecision': {
+      const prompt = s.rateDecisionPrompt;
+      if (!prompt || prompt.player !== s.cur) break;
+      const roll = rng.int(1, 6);
+      s.rateDecisionPrompt = null;
+      const before = bankRateBp(s);
+      const want = RATE_DECISION_BY_ROLL_BP[roll];
+      const actual = want === 0 ? 0 : changeBankRate(s, want);
+      const name = s.players[s.cur].name;
+      if (actual === 0) {
+        addLog(s, want === 0
+          ? `${name} rolls ${roll} — the Fed holds at ${before / 100}%.`
+          : `${name} rolls ${roll}, but the Bank Rate is already at its ${want > 0 ? 'ceiling' : 'floor'} (${before / 100}%).`, 'y');
+        recordMarketSignal(s, {
+          kind: 'fed', title: 'Rate Decision · Hold', stance: 'neutral',
+          summary: `${name} landed on Rate Decision and rolled ${roll}. The Bank Rate stays at ${before / 100}%.`,
+          impacts: [],
+        });
+        break;
+      }
+      const effect: Effect = { k: 'multi', m: rateShockMoves(actual) };
+      addLog(s, `${name} rolls ${roll} — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${bankRateBp(s) / 100}%. Loans now cost ${actual > 0 ? 'more' : 'less'}.`, 'y');
+      const impacts = applyEffect(s, effect, [], undefined, 'fedCard');
+      recordMarketSignal(s, {
+        kind: 'fed', title: `Rate Decision · ${actual > 0 ? 'Hike' : 'Cut'}`, stance: actual > 0 ? 'hawkish' : 'dovish',
+        summary: `${name} landed on Rate Decision and rolled ${roll}. The Bank Rate moves ${before / 100}% → ${bankRateBp(s) / 100}%, so Finance gains while Real Estate and High-Risk companies fall (or the reverse on a cut).`,
+        impacts,
+      });
+      break;
+    }
     case 'rollRegime': {
       const prompt = s.regimeRollPrompt;
       if (!prompt || prompt.player !== s.cur) break;

@@ -176,6 +176,15 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
+  if (s.rateDecisionPrompt) {
+    const player = s.players[s.rateDecisionPrompt.player];
+    required.push({
+      id: 'rate-decision', title: `${player.name} — Roll for the Rate Decision`, accent: '#E8B44C', urgent: true,
+      description: `${player.name} landed on Rate Decision. Roll a d6 — 1-2 cuts the Bank Rate 25 bp, 3-4 holds, 5-6 raises it 25 bp. A change moves Finance one way and Real Estate and High-Risk companies the other, and every loan reprices. The Bank Rate is ${bankRateBp(s) / 100}%.`,
+      buttons: [button('Roll', { t: 'rollRateDecision' }, 'primary')],
+    });
+  }
+
   if (s.regimeRollPrompt) {
     const prompt = s.regimeRollPrompt;
     const player = s.players[prompt.player];

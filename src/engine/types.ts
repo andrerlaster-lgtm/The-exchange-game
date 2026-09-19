@@ -497,6 +497,7 @@ export interface GameState {
   ipoGrowthThisTurn: boolean;                        // one IPO growth investment per player turn
   ipoBoughtThisTurn: string[];                       // IPO codes the current player bought shares of this turn
   ipoSharesAtTurnStart: Record<number, Record<string, number>>; // player -> IPO code -> shares held when this turn began (milestone eligibility)                          // one permanent upgrade per player turn (survives doubles re-rolls)
+  rateDecisionPrompt: { player: number } | null;    // pending d6 roll on the Rate Decision space (board 28)
   regimeRollPrompt: { player: number } | null;         // pending d6 roll on the combined Market Swing space to decide Bull vs. Bear
   playerDebts: PlayerDebt[];                            // active negotiated Payout Claim loans
   playerDebtSeq: number;                                // id source for playerDebts
@@ -551,6 +552,7 @@ export type Action =
   | { t: 'choosePayoutLoan' }
   | { t: 'rollLoanRate' }
   | { t: 'rollRegime' }
+  | { t: 'rollRateDecision' }
   | { t: 'upgradeCompany'; code: string }
   | { t: 'buyMarketProtection'; code: string }
   | { t: 'investIpoGrowth'; code: string; size: 'standard' | 'major' }

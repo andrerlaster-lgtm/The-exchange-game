@@ -118,6 +118,7 @@ export function blocked(s: GameState): boolean {
   if (s.insolvency) return true; // forced-sale payment shortfall must be resolved first
   if (s.payoutShortfallChoice) return true; // debtor must choose force-sell or negotiate a loan
   if (s.loanRatePrompt) return true; // creditor must roll the loan's rate premium
+  if (s.rateDecisionPrompt) return true; // Rate Decision landing must roll before ending the turn
   if (s.regimeRollPrompt) return true; // Market Swing landing must roll for Bull/Bear before ending the turn
   if (s.landingNotice) return true; // cardless financial result must be acknowledged
   if (s.auction) return true; // Bank Auction variant — bidding must resolve before ending the turn

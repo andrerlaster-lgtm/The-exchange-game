@@ -12,7 +12,7 @@ const SPECIAL: Record<number, [BoardSpace['type'], string, string, string]> = {
   22: ['etf',         'PROPERTY FUND',    '⌂', '#A78BFA'],
   25: ['tax',         'PORTFOLIO TAX',    '$', '#9AA5B1'],
   26: ['event',       'MARKET EVENT',     '◈', '#FF5C5C'],
-  28: ['ipo',         'IPO',              '↑', '#3ED598'],
+  28: ['rateDecision', 'RATE DECISION',  '%', '#E8B44C'],
   30: ['etf',         'ENERGY FUND',      '▲', '#FF9442'],
   31: ['investor',    'INVESTOR DAY',     '★', '#C4B5FD'],
   34: ['audit',       'AUDIT NOTICE',     '⚑', '#E8B44C'],
