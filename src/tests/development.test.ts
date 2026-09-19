@@ -113,6 +113,23 @@ describe('upgrade purchase and control', () => {
     expect(s.development[CODE]).toMatchObject({ level: 1, shieldActive: true });
   });
 
+  it('requires $10,000 in cash left over after paying for the upgrade', () => {
+    // Level I costs $2,000: $12,000 is exactly enough, $11,999 is not.
+    const exact = up(controlled(11, 12_000));
+    expect(exact.development[CODE].level).toBe(1);
+    expect(exact.players[0].cash).toBe(10_000);
+
+    const short = controlled(11, 11_999);
+    expect(upgradeBlockReason(short, CODE)).toMatch(/must keep \$10,000 in cash after upgrading/);
+    expect(up(short).development[CODE].level).toBe(0);
+    expect(up(short).players[0].cash).toBe(11_999);
+  });
+
+  it('the cash rule does not apply to shields', () => {
+    const s = shield(controlled(11, 2_000));
+    expect(s.development[CODE].shieldActive).toBe(true);
+  });
+
   it('cannot upgrade before rolling or with a required action open', () => {
     const preRoll = patch(controlled(), (d) => { d.turnPhase = 'preRoll'; });
     expect(up(preRoll).development[CODE].level).toBe(0);

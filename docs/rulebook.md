@@ -717,7 +717,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 A player who **controls** a regular company (6+ shares) may invest in it. ETFs and IPOs cannot be developed.
 
-**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order.
+**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. You must still hold at least **$10,000 in cash after paying** for an upgrade — this keeps enough on hand to cover opponents' Payout Claims. (Shields are not limited by this rule.)
 
 | Level | Cost | Total spent | Payout Claim bonus | Market Open bonus | Downside reduction |
 |---|---:|---:|---:|---:|---:|
