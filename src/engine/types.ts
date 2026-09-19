@@ -109,6 +109,7 @@ export interface IpoState {
   code: string;
   startPrice: number;
   price: number;      // current live price in dollars
+  milestonesPaid: number; // how many IPO_MILESTONES have paid out (one-time each)
   supply: number;     // shares remaining
   revealed: boolean;
 }
@@ -491,7 +492,10 @@ export interface GameState {
   loanRatePrompt: LoanRatePrompt | null;               // creditor's pending 1-5% rate choice
   lastMove: Record<string, LastPriceMove>;          // code -> the most recent real price change (board tiles)
   development: Record<string, CompanyDevelopment>;    // regular stock code -> upgrade level, shield, funder
-  upgradedThisTurn: boolean;                          // one permanent upgrade per player turn (survives doubles re-rolls)
+  upgradedThisTurn: boolean;
+  ipoGrowthThisTurn: boolean;                        // one IPO growth investment per player turn
+  ipoBoughtThisTurn: string[];                       // IPO codes the current player bought shares of this turn
+  ipoSharesAtTurnStart: Record<number, Record<string, number>>; // player -> IPO code -> shares held when this turn began (milestone eligibility)                          // one permanent upgrade per player turn (survives doubles re-rolls)
   regimeRollPrompt: { player: number } | null;         // pending d6 roll on the combined Market Swing space to decide Bull vs. Bear
   playerDebts: PlayerDebt[];                            // active negotiated Payout Claim loans
   playerDebtSeq: number;                                // id source for playerDebts
@@ -547,6 +551,7 @@ export type Action =
   | { t: 'rollRegime' }
   | { t: 'upgradeCompany'; code: string }
   | { t: 'buyMarketProtection'; code: string }
+  | { t: 'investIpoGrowth'; code: string; size: 'standard' | 'major' }
   | { t: 'dismissMarketOpenReport' }
   | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }

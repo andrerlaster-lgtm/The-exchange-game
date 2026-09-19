@@ -37,7 +37,7 @@ export function freshDevelopment(): GameState['development'] {
 
 export function freshIpos(): GameState['ipos'] {
   return IPO_DEFS.map((ip) => ({
-    code: ip.code, startPrice: ip.start, price: ip.start,
+    code: ip.code, startPrice: ip.start, price: ip.start, milestonesPaid: 0,
     supply: IPO_SUPPLY, revealed: false,
   }));
 }
@@ -88,6 +88,9 @@ export function initialState(rng: Rng): GameState {
     lastMove: {},
     development: freshDevelopment(),
     upgradedThisTurn: false,
+    ipoGrowthThisTurn: false,
+    ipoBoughtThisTurn: [],
+    ipoSharesAtTurnStart: {},
     regimeRollPrompt: null,
     playerDebts: [],
     playerDebtSeq: 0,

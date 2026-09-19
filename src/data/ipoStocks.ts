@@ -5,6 +5,32 @@ import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, SECTORS } from './s
 // fixed $3,000 price (rulebook §16) — no tiered starting prices.
 export const IPO_FIXED_PRICE = 3_000;
 
+// ── IPO growth & milestones (2026-09-19 redesign) ───────────────────────────
+// IPO prices move with the market like any stock, but in a 20-round game that
+// alone almost never carries one past +25% (3-10% of revealed IPOs) and never
+// to +100%. Shareholders can therefore fund growth directly, and milestones
+// reward the climb.
+
+/** A shareholder's growth investment: cash in, a basis-point price rise out. */
+export const IPO_GROWTH_INVESTMENTS = {
+  standard: { label: 'Growth Investment', cost: 500, bp: 250 },
+  major: { label: 'Major Growth Investment', cost: 1_000, bp: 500 },
+} as const;
+export type IpoGrowthSize = keyof typeof IPO_GROWTH_INVESTMENTS;
+
+/**
+ * One-time rewards as an IPO climbs from its launch price, paid per share to
+ * every holder (shares held before that turn began only). The +100% "Breakout"
+ * is meant to graduate the IPO into an off-board Listed Company; graduation is
+ * NOT implemented yet — the plan leaves a Listed Company's income undecided —
+ * so Breakout currently pays its cash and the IPO stays an IPO.
+ */
+export const IPO_MILESTONES = [
+  { name: 'Early Growth', pct: 25, perShare: 250 },
+  { name: 'Expansion', pct: 50, perShare: 500 },
+  { name: 'Breakout', pct: 100, perShare: 750 },
+] as const;
+
 export interface IpoPresentation {
   icon: string;
   volatilityLabel: string;

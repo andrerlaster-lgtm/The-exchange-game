@@ -1,7 +1,7 @@
 import {
   ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, IPO_PRESENTATION, MARGIN_DEFAULT_PENALTY,
   MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, projectedEtfIncome, SECTORS, SHIELD_COST, STOCK_BY_CODE, STOCKS, UPGRADE_LEVELS,
-  developmentRefund, isIpoCode, stockOpportunityFor,
+  developmentRefund, isIpoCode, stockOpportunityFor, IPO_GROWTH_INVESTMENTS,
 } from '../data';
 import type { GameState } from '../engine';
 import {
@@ -9,10 +9,19 @@ import {
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss, holdingsReturnPct, marketReturnPct,
   developmentOf, isController, shieldBlockReason, upgradeBlockReason,
+  ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
 import { marketRegimeInfo } from './marketRegime';
 import { moveSize, pct } from './formatMoney';
+
+/** "+12.5% (+1,250 bp) from launch · next: Early Growth +25% pays $250/share". */
+function ipoMilestoneText(s: GameState, code: string): string {
+  const pctNow = ipoPctFromLaunch(s, code);
+  const next = nextIpoMilestone(s, code);
+  const from = `${pct(pctNow)} (${Math.round(pctNow * 100).toLocaleString()} bp) from launch`;
+  return next ? `${from} · next: ${next.name} +${next.pct}% pays $${next.perShare.toLocaleString()}/share` : `${from} · all milestones reached`;
+}
 
 function money(value: number): string {
   return `$${value.toLocaleString()}`;
@@ -360,10 +369,15 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
         key: code,
         title: `${code}${devLevel ? ` ${devLevel.numeral}` : ''}${dev.shieldActive ? ' 🛡️' : ''} · ${codeName(code)}`,
         detail: ipo
-          ? `IPO · Own ${qty} · Basis ${money(gl.costBasis)} · Unrealized G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%)`
+          ? `IPO · Own ${qty} · Basis ${money(gl.costBasis)} · Unrealized G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%) · ${ipoMilestoneText(s, code)}${ipoGrowthBlockReason(s, code, 'standard') && gameActive ? ` · Growth: ${ipoGrowthBlockReason(s, code, 'standard')}` : ''}`
           : `Own ${qty} · Basis ${money(gl.costBasis)} · G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%) · ${remaining} of ${limit} bank-sale shares left · ${fedSignalForStock(s, code).label}${devDetail}`,
         value: ipo ? `Market ${money(priceOf(s, code))}` : `Sell at ${money(sellBackPrice(s, code))}`,
-        buttons: ipo ? undefined : [...sellButtons, ...devButtons],
+        buttons: ipo
+          ? (gameActive ? (['standard', 'major'] as const).map((size) => button(
+            `${IPO_GROWTH_INVESTMENTS[size].label.replace(' Investment', '')} · ${money(IPO_GROWTH_INVESTMENTS[size].cost)}`,
+            { t: 'investIpoGrowth', code, size }, 'gold', !!ipoGrowthBlockReason(s, code, size),
+          )) : undefined)
+          : [...sellButtons, ...devButtons],
       };
     });
   const repayAmount = Math.min(MARGIN_INCREMENT, current.margin);

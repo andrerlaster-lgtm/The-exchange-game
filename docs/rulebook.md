@@ -548,10 +548,36 @@ IPOs are limited new-stock opportunities. They are more volatile and have smalle
 All 4 IPOs start at a fixed price of $3,000 per share. There is no tiered starting-price structure; every IPO enters the game at the same price point and differentiates only through reveal order and Market Event effects.
 
 **IPO Price Movement**
-- IPO share prices do not move from buying or selling. IPO prices change only through Market Event cards, the Market Meter (Section 21), and other card effects.
-- IPOs are more exposed to market volatility than regular stocks: their value is driven by Market Events and the Market Meter rather than by buy/sell price moves.
-- The $100 floor and $5,000 ceiling still apply to IPO prices.
+- IPO share prices do not move from buying or selling. They move with the market — Market Event and Fed cards, Bull/Bear Runs, the Market Meter (Section 21) — and through growth investments (below).
+- Moves are percentages, like regular stocks (Section 23). The $100 floor applies; there is no ceiling.
 - IPO prices do not move before being revealed.
+
+**IPO growth investment**
+Any player who owns at least 1 share of a revealed IPO may fund its growth after rolling, once every required action is resolved:
+
+| Investment | Cost | Price effect |
+|---|---:|---:|
+| Growth Investment | $500 | +2.5% (+250 bp) |
+| Major Growth Investment | $1,000 | +5% (+500 bp) |
+
+- One IPO growth investment per player turn (a doubles re-roll is the same turn).
+- Several shareholders may each fund the same IPO on their own turns.
+- It grants no shares or ownership, and the cash is spent — it is not an asset.
+- You may not buy shares of an IPO and fund its growth on the same turn.
+- Crossing $5,000 upward this way triggers a Market Event, as other player-driven rises do.
+
+**IPO milestones**
+Measured from the IPO's launch price ($3,000). Each pays once per IPO, to every holder, per share:
+
+| Milestone | Price vs launch | Reward |
+|---|---:|---:|
+| Early Growth | +25% ($3,750) | $250 per share |
+| Expansion | +50% ($4,500) | $500 per share |
+| Breakout | +100% ($6,000) | $750 per share |
+
+- Only shares held **before the turn began** count — shares bought during the turn in which a milestone is reached don't qualify (nor do shares sold during it).
+- A move that clears several milestones at once pays each in turn. A milestone never pays twice, even if the price falls and climbs back.
+- *Not yet implemented:* at Breakout the plan graduates the IPO into an off-board Listed Company. That rule is pending a decision on how a Listed Company earns income; for now the IPO simply stays an IPO.
 
 **Confirmed**
 - IPO shares count toward final portfolio value.

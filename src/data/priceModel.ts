@@ -79,14 +79,15 @@ export type PriceMoveSource =
   | 'voluntarySale'
   | 'cyberattackChoice'
   | 'regulatoryChoice'
-  | 'investorDay';
+  | 'investorDay'
+  | 'ipoGrowth';
 
 /** Player-facing name for each price-move source (logs, tooltips). */
 export const PRICE_MOVE_SOURCE_LABEL: Record<PriceMoveSource, string> = {
   weakDemand: 'Weak Demand', strongDemand: 'Strong Demand', marketMeter: 'Market Meter',
   marketEvent: 'Market Event', fedCard: 'Fed card', bullRun: 'Bull Run', bearRun: 'Bear Run',
   bankSale: 'bank sale', voluntarySale: 'sale', cyberattackChoice: 'Cyberattack penalty',
-  regulatoryChoice: 'Regulatory penalty', investorDay: 'Investor Day',
+  regulatoryChoice: 'Regulatory penalty', investorDay: 'Investor Day', ipoGrowth: 'IPO growth investment',
 };
 
 /**

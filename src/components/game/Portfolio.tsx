@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, FEE_DEBT_INTEREST_RATE, PIECE_BY_KEY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
+import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, FEE_DEBT_INTEREST_RATE, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
 import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
   feeDebtBalance, holdingDividendInfo, holdingGainLoss, holdingsReturnPct, lapReturnPct, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
-  projectedDividend, sharesValue, stockGainLoss,
+  projectedDividend, sharesValue, stockGainLoss, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
   playerDebtBalance, playerDebtInstallment,
 } from '../../engine';
+import type { Action, GameState } from '../../engine';
 import { toBps } from '../../utils/formatRate';
 import { useDispatch, useGameState } from '../../store';
-import { pctBp } from '../../utils/formatMoney';
+import { moveSize, pctBp } from '../../utils/formatMoney';
 
 export default function Portfolio() {
   const s = useGameState();
@@ -514,6 +515,7 @@ export default function Portfolio() {
                     {div.sharesToControl} more share{div.sharesToControl === 1 ? '' : 's'} → Controller ({CONTROL_DIVIDEND_MULTIPLIER}× dividend)
                   </div>
                 )}
+                {isIpoCode(code) && <IpoGrowthRow code={code} s={s} isOwnTurn={isOwnTurn} dispatch={dispatch} />}
               </div>
             );
           })}
@@ -651,6 +653,47 @@ function FinRow({ label, value, color, bold, title }: { label: string; value: st
     <div title={title} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
       <span style={{ color: 'var(--muted)' }}>{label}</span>
       <span className="mono" style={{ color, fontWeight: bold ? 700 : 400 }}>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * An IPO holding's climb toward its milestones, plus the growth-investment
+ * buttons on the owner's own turn. Every disabled button says why.
+ */
+function IpoGrowthRow({ code, s, isOwnTurn, dispatch }: {
+  code: string; s: GameState; isOwnTurn: boolean; dispatch: (a: Action) => void;
+}) {
+  const fromLaunch = ipoPctFromLaunch(s, code);
+  const next = nextIpoMilestone(s, code);
+  const sizes = ['standard', 'major'] as const;
+  return (
+    <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ fontSize: 9, color: 'var(--muted)' }}>
+        {pctBp(fromLaunch)} from launch
+        {next
+          ? <> · next: <strong>{next.name}</strong> at +{next.pct}% pays ${next.perShare.toLocaleString()}/share</>
+          : <> · all milestones reached</>}
+      </div>
+      {isOwnTurn && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {sizes.map((size) => {
+            const inv = IPO_GROWTH_INVESTMENTS[size];
+            const block = ipoGrowthBlockReason(s, code, size);
+            return (
+              <button key={size} disabled={!!block} title={block ?? undefined}
+                style={{ fontSize: 9, padding: '2px 6px' }}
+                onClick={() => dispatch({ t: 'investIpoGrowth', code, size })}>
+                {inv.label.replace(' Investment', '')} · ${inv.cost.toLocaleString()} → {moveSize(inv.bp)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {isOwnTurn && (() => {
+        const block = ipoGrowthBlockReason(s, code, 'standard');
+        return block ? <div style={{ fontSize: 9, color: 'var(--muted)', fontStyle: 'italic' }}>{block}</div> : null;
+      })()}
     </div>
   );
 }

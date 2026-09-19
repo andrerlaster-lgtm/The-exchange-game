@@ -5,10 +5,10 @@
 // MARKET model rather than a bot's cleverness. Every decision goes through the
 // seeded Rng, so a given seed replays identically.
 
-import { blocked, reduce, shieldBlockReason, upgradeBlockReason } from '../../engine';
+import { blocked, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone, reduce, shieldBlockReason, upgradeBlockReason } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import type { Rng } from '../../utils/rng';
-import { SHIELD_COST, UPGRADE_LEVELS, isIpoCode } from '../../data';
+import { ETF_PRICE, IPO_GROWTH_INVESTMENTS, SHIELD_COST, UPGRADE_LEVELS, isIpoCode } from '../../data';
 
 /** Codes the current player owns at least one share of. */
 function owned(s: GameState, player = s.cur): string[] {
@@ -81,10 +81,25 @@ function nextAction(s: GameState, rng: Rng): Action | null {
     return code ? { t: 'pickTarget', code } : { t: 'skipPick' };
   }
 
-  if (s.ipoChoice || s.ipoListPick) return { t: 'skipIpo' };
-  if (s.ipoBuy) return { t: 'ipoBuyDone' };
+  // IPOs: buy when offered and the purchase keeps the cash cushion.
+  const affordsWithCushion = (cost: number) => s.players[s.cur].cash - cost >= markets.reserve;
+  const active = markets.onlyPlayers === null || markets.onlyPlayers.includes(s.cur);
+  if (s.ipoListPick) {
+    const options = s.ipos.filter((ip) => ip.revealed && ip.supply > 0 && affordsWithCushion(ip.price));
+    const choice = markets.ipos && active ? pick(rng, options) : null;
+    return choice ? { t: 'pickKnownIpo', code: choice.code } : { t: 'skipIpo' };
+  }
+  if (s.ipoChoice) return { t: 'skipIpo' };
+  if (s.ipoBuy) {
+    const b = s.ipoBuy;
+    const supply = s.ipos.find((ip) => ip.code === b.code)?.supply ?? 0;
+    return markets.ipos && active && b.bought < b.max && supply > 0 && affordsWithCushion(b.price)
+      ? { t: 'ipoBuyShare' } : { t: 'ipoBuyDone' };
+  }
   if (s.outstandingBuy) return { t: 'outstandingBuyDone' };
-  if (s.etfPick) return { t: 'skipEtf' };
+  if (s.etfPick) {
+    return markets.etfs && active && !s.landingNotice && affordsWithCushion(ETF_PRICE) ? { t: 'buyEtf', code: s.etfPick } : { t: 'skipEtf' };
+  }
   if (s.companyLoanOffer) return { t: 'takeCompanyLoan' };
   if (s.shortPick) return { t: 'skipShort' };
   if (s.auction) return { t: 'auctionPass' };
@@ -118,9 +133,42 @@ function nextAction(s: GameState, rng: Rng): Action | null {
     }
   }
 
+  // IPO growth: fund the held IPO closest to its next milestone, if the
+  // investment keeps the cash cushion. One per turn (the engine enforces it).
+  const growthActive = markets.growthPlayers === null || markets.growthPlayers.includes(s.cur);
+  if (!blocked(s) && markets.ipoGrowth && active && growthActive) {
+    const held = owned(s).filter((c) => isIpoCode(c) && !ipoGrowthBlockReason(s, c, 'major'));
+    const target = held
+      .map((c) => ({ c, gap: (nextIpoMilestone(s, c)?.pct ?? Infinity) - ipoPctFromLaunch(s, c) }))
+      .filter((x) => Number.isFinite(x.gap))
+      .sort((a, b) => a.gap - b.gap)[0];
+    // `growthOnlyToTrigger`: invest only when one Major investment's +5% would
+    // reach the next milestone — the way a player would use it to cash one in.
+    const worthIt = target && (!markets.growthOnlyToTrigger || target.gap <= IPO_GROWTH_INVESTMENTS.major.bp / 100);
+    if (target && worthIt && affordsWithCushion(IPO_GROWTH_INVESTMENTS.major.cost)) {
+      return { t: 'investIpoGrowth', code: target.c, size: 'major' };
+    }
+  }
+
   if (!blocked(s)) return { t: 'endTurn' };
   return null;
 }
+
+/** Buying policy for IPOs, ETFs, and IPO growth (switchable for sweeps). */
+export const markets = {
+  etfs: true,
+  ipos: true,
+  ipoGrowth: true,
+  reserve: 6_000,
+  // Restrict ETF/IPO/growth activity to these seats (null = everyone), for
+  // paired "does this pay for the player who does it" runs.
+  onlyPlayers: null as number[] | null,
+  // Separately restrict IPO growth investing, so a run can compare growth vs
+  // no growth for a player who buys IPOs either way.
+  growthPlayers: null as number[] | null,
+  // Invest in IPO growth only when it would tip the IPO over its next milestone.
+  growthOnlyToTrigger: false,
+};
 
 /** Development policy for a simulation run. */
 export const development = {

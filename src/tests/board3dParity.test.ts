@@ -175,7 +175,14 @@ describe('3D Action Center parity', () => {
     const ipoHolding = buildActionCenter(s).portfolio.rows?.find((entry) => entry.key === code);
     expect(ipoHolding?.detail).toContain('Basis $3,000');
     expect(ipoHolding?.detail).toContain('Unrealized G/L $0');
-    expect(ipoHolding?.buttons).toBeUndefined();
+    // IPOs can't be sold to the bank, but holders can fund growth — except in
+    // an IPO bought this same turn, so both growth buttons start disabled.
+    expect(ipoHolding?.buttons?.map((entry) => entry.action)).toEqual([
+      { t: 'investIpoGrowth', code, size: 'standard' },
+      { t: 'investIpoGrowth', code, size: 'major' },
+    ]);
+    expect(ipoHolding?.buttons?.every((entry) => entry.disabled)).toBe(true);
+    expect(ipoHolding?.detail).toContain('bought');
   });
 
   it('keeps final standings and new-game setup reachable from 3D after Market Close', () => {

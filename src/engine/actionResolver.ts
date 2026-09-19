@@ -16,6 +16,7 @@ import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './
 import { bankSellRemaining, canRise, canTradeNow, canMarketSell, blocked, companyBuyoutCost, ipoOf, priceOf, sellBackPrice } from './rules';
 import { freshDecks, freshDevelopment, freshIpos, resetPlayers } from './gameState';
 import { buyMarketProtection, developmentClaimBonus, developmentOf, upgradeCompany } from './development';
+import { investIpoGrowth, snapshotIpoHoldings } from './ipoGrowth';
 import { payMarketOpen } from './playerState';
 import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
 import { advanceMeterOnRoll, repriceRoundBoundary } from './marketMeter';
@@ -507,6 +508,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.companyMarketOpen = false; s.marketHeat = 0; s.marketHaltUntilLap = null; s.companyLoanOffer = null;
       s.playerDebts = []; s.playerDebtSeq = 0;
       s.development = freshDevelopment(); s.upgradedThisTurn = false; s.lastMove = {};
+      s.ipoGrowthThisTurn = false; s.ipoBoughtThisTurn = []; s.ipoSharesAtTurnStart = {};
       clearTurnState(s);
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;
@@ -1050,6 +1052,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'buyMarketProtection':
       buyMarketProtection(s, action.code);
       break;
+    case 'investIpoGrowth':
+      investIpoGrowth(s, action.code, action.size);
+      break;
     case 'rollRegime': {
       const prompt = s.regimeRollPrompt;
       if (!prompt || prompt.player !== s.cur) break;
@@ -1178,6 +1183,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       p.shares[b.code] = (p.shares[b.code] || 0) + 1;
       addStockCostBasis(p, b.code, b.price);
       ip.supply -= 1; b.bought += 1;
+      // Buying and funding growth in the same IPO on the same turn is not allowed.
+      if (!s.ipoBoughtThisTurn.includes(b.code)) s.ipoBoughtThisTurn.push(b.code);
       // IPO prices never move from buying/selling (rulebook §16) — only card
       // effects move them, via moveEventPrice.
       addLog(s, `${p.name} buys 1 ${b.code} (IPO) @ ${money(b.price)}`, 'g');
@@ -1514,8 +1521,11 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // Reset here, not in clearTurnState: a doubles re-roll also clears turn
       // state, and must not grant a second upgrade in the same turn.
       s.upgradedThisTurn = false;
+      s.ipoGrowthThisTurn = false;
+      s.ipoBoughtThisTurn = [];
       clearTurnState(s);
       settleShorts(s);
+      snapshotIpoHoldings(s); // the new turn's "held before this turn began" for IPO milestones
       addLog(s, `— ${s.players[s.cur].name}'s turn —`);
       break;
     }
