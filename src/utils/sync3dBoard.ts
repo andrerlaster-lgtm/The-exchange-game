@@ -151,12 +151,14 @@ export interface ActionCenter3D {
 /** Live per-stock price snapshot for board tiles/tooltips. */
 export interface PriceInfo3D {
   p: number;        // current dollar price
-  d: -1 | 0 | 1;    // direction vs printed starting step
-  delta: number;    // signed ladder-step difference from opening
+  d: -1 | 0 | 1;    // direction vs opening price
+  delta: number;    // signed dollar difference from opening
   s: number;        // shares remaining in supply
   o?: number;       // outstanding sold-back shares available on landing
   so?: boolean;     // sold out (permanent)
   claim?: number | null; // Payout Claim holder player index; null = Contested
+  lv?: number;      // company development level (0 = Base)
+  sh?: boolean;     // Market Protection shield active
 }
 
 export interface Board3DPayload {

@@ -860,7 +860,7 @@
 
     // Stock tile top face: parchment certificate — sector strip, letterpress ticker,
     // live price, sector glyph + risk chip, sold-out claim band.
-    function makeStockLabel(code, color, price, dir, soldOut=false, claimColor=null, sector=null, risk=0, w=256) {
+    function makeStockLabel(code, color, price, dir, soldOut=false, claimColor=null, sector=null, risk=0, w=256, dev=0, shield=false) {
       const spaceN = Object.keys(STOCKS).find(k => STOCKS[k].code===code);
       const sec = sector || (spaceN && STOCKS[spaceN].sector);
       const rk  = risk || (spaceN && STOCKS[spaceN].risk) || 0;
@@ -874,6 +874,12 @@
       ctx.font = `700 ${w*0.20}px Marcellus, 'IBM Plex Mono', serif`;
       ctx.fillStyle='rgba(255,250,235,0.7)'; ctx.fillText(code, w/2+1.5, w*0.375+1.5);
       ctx.fillStyle=ink; ctx.fillText(code, w/2, w*0.375);
+      // Company development marker (upper-right): level numeral + shield.
+      if (dev > 0 || shield) {
+        const mark = `${['','Ⅰ','Ⅱ','Ⅲ'][dev] || ''}${shield ? '🛡' : ''}`;
+        ctx.font=`700 ${w*0.11}px Marcellus, serif`;
+        ctx.fillStyle='#8a5a12'; ctx.fillText(mark, w*0.82, w*0.20);
+      }
       // Sector glyph badge (upper-left) in sector color
       if (sec) {
         ctx.font=`${w*0.11}px 'IBM Plex Mono',monospace`;
@@ -883,7 +889,8 @@
       if (price != null) {
         ctx.fillStyle=ink;
         ctx.font=`700 ${w*0.155}px 'IBM Plex Mono',monospace`;
-        const pTxt = price >= 1000 ? `$${price/1000}k` : `$${price}`;
+        // Live prices are no longer round ladder values; show the real dollars.
+        const pTxt = `$${price.toLocaleString()}`;
         ctx.fillText(pTxt, w/2, w*0.60);
         if (dir) {
           ctx.fillStyle = dir>0 ? '#1e7a4a' : '#b03a2c';
@@ -1223,7 +1230,7 @@
         const color = SECTOR_COLORS[STOCKS[spaceN].sector];
         const claimColor = (info.so && info.claim != null) ? playerColor(info.claim) : null;
         const old = mat.map;
-        mat.map = makeStockLabel(code, color, info.p, info.d, !!info.so, claimColor);
+        mat.map = makeStockLabel(code, color, info.p, info.d, !!info.so, claimColor, null, 0, 256, info.lv || 0, !!info.sh);
         mat.needsUpdate = true;
         if (old) old.dispose();
         updateClaimRing(code, claimColor);

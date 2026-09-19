@@ -1,9 +1,9 @@
 // Trading Market — sits at the top of the board. Lets the current player sell any
 // stock they own on their own turn, without having to land on that stock's space.
-// Sell-back economy (rulebook §11): the seller receives one price step below the
-// current market price. A player may sell up to half of each holding per turn,
-// rounded down; selling 3+ shares at once drops the price one step. IPO shares are
-// sold player-to-player, not here.
+// Sell-back economy (rulebook §11): the seller receives market price less the 20%
+// bank haircut. A player may sell up to half of each holding per turn, rounded
+// down; selling 3+ shares at once drops the price 5%. IPO shares are sold
+// player-to-player, not here.
 
 import { useState } from 'react';
 import { STOCK_BY_CODE, isIpoCode } from '../../data';
@@ -51,7 +51,7 @@ export default function TradingMarket() {
       )}
 
       <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.7, lineHeight: 1.4 }}>
-        Sell up to half of each holding per turn (rounded down) · 3+ shares at once drops the price one step.
+        Sell up to half of each holding per turn (rounded down) · 3+ shares at once drops the price 5%.
       </div>
     </div>
   );

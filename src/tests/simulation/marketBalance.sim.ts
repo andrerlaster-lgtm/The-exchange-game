@@ -1,167 +1,182 @@
-// Balance simulation for the percentage-based market model (2026-09-18).
+// Balance simulation for the percentage market + company development
+// (2026-09-18 / 2026-09-19).
 //
-// Required by the redesign brief before any bp constant is tuned. Runs real
-// games through the real engine at 2-6 players on fixed seeds and reports price
-// volatility by risk tier, Payout Claim sizes, cash stress, income mix, and how
-// often the $10,000 claim cap binds.
-//
-// Run with:  npx vitest run src/tests/simulation/marketBalance.sim.ts --reporter=basic
+// Plays real games through the real reducer at 2-6 players on fixed seeds,
+// once with development disabled (baseline) and once enabled, and measures by
+// observing state transitions — not by parsing log text — so every number is
+// exact. Run with `npm run sim`.
 
 import { describe, it } from 'vitest';
-import {
-  PAYOUT_CLAIM_TOTAL_CAP, PRICE_FLOOR, CEILING_TRIGGER, STOCK_BY_CODE,
-} from '../../data';
+import { PAYOUT_CLAIM_TOTAL_CAP, STOCK_BY_CODE, developmentRefund } from '../../data';
 import type { GameState } from '../../engine';
 import { makeRng } from '../../utils/rng';
 import { started } from '../helpers';
-import { playTurn } from './bot';
+import { development, playTurn } from './bot';
+import type { Observer } from './bot';
 
 const TURNS_PER_GAME = 400;
 const GAMES_PER_SIZE = 12;
 const PLAYER_COUNTS = [2, 3, 4, 5, 6];
+const SAMPLE_EVERY = 20;
+
+type Tier = 'Low' | 'Med' | 'High';
+
+interface Claim { owed: number; level: number; capped: boolean; bonusLostToCap: number }
 
 interface Stats {
-  priceSamples: Record<'Low' | 'Med' | 'High', number[]>;
-  claims: number[];
-  cappedClaims: number;
-  nearZeroCashPlayers: number;
-  totalPlayers: number;
-  salary: number;
-  investmentIncome: number;
-  shareSaleInflow: number;
+  claims: Claim[];
+  upgradesBought: [number, number, number];
+  shieldsBought: number;
+  shieldsConsumed: number;
+  refunds: number[];
+  pctByTier: Record<Tier, number[]>;
+  pctByLevel: number[][];
+  insolvencies: number;
+  shortfalls: number;
+  endUnder500: number;
+  players: number;
+  income: { salary: number; dividends: number; etf: number; development: number; other: number; claimsReceived: number; shareSales: number };
   maxPrice: number;
-  minPrice: number;
-  frozen: number;
-  observed: number;
 }
 
-function emptyStats(): Stats {
-  return {
-    priceSamples: { Low: [], Med: [], High: [] },
-    claims: [], cappedClaims: 0,
-    nearZeroCashPlayers: 0, totalPlayers: 0,
-    salary: 0, investmentIncome: 0, shareSaleInflow: 0,
-    maxPrice: 0, minPrice: Infinity, frozen: 0, observed: 0,
+const empty = (): Stats => ({
+  claims: [], upgradesBought: [0, 0, 0], shieldsBought: 0, shieldsConsumed: 0, refunds: [],
+  pctByTier: { Low: [], Med: [], High: [] }, pctByLevel: [[], [], [], []],
+  insolvencies: 0, shortfalls: 0, endUnder500: 0, players: 0,
+  income: { salary: 0, dividends: 0, etf: 0, development: 0, other: 0, claimsReceived: 0, shareSales: 0 },
+  maxPrice: 0,
+});
+
+function observer(st: Stats): Observer {
+  return (before, action, after) => {
+    // Payout Claims — a new payout notice appeared.
+    const notice = after.landingNotice;
+    if (notice && notice.kind === 'payout' && notice !== before.landingNotice) {
+      const code = notice.title.split('· ').pop()!.trim();
+      const lost = /only \$([\d,]+) applies/.exec(notice.detail);
+      const bonus = [0, 750, 1_500, 2_500][after.development[code]?.level ?? 0];
+      st.claims.push({
+        owed: notice.amount,
+        level: after.development[code]?.level ?? 0,
+        capped: notice.amount >= PAYOUT_CLAIM_TOTAL_CAP,
+        bonusLostToCap: lost ? bonus - Number(lost[1].replace(/,/g, '')) : 0,
+      });
+      st.income.claimsReceived += notice.amount;
+    }
+    if (!before.payoutShortfallChoice && after.payoutShortfallChoice && after.players[after.cur].cash < after.payoutShortfallChoice.owed) st.shortfalls += 1;
+    if (!before.insolvency && after.insolvency) st.insolvencies += 1;
+
+    // Development transitions.
+    let refundThisAction = 0;
+    for (const code of Object.keys(after.development ?? {})) {
+      const b = before.development[code]; const a = after.development[code];
+      if (!b || !a) continue;
+      if (a.level > b.level) st.upgradesBought[a.level - 1] += 1;
+      if (!b.shieldActive && a.shieldActive) st.shieldsBought += 1;
+      if (b.fundedBy != null && a.fundedBy == null) {
+        if (b.totalInvested > 0) { const r = developmentRefund(b.totalInvested); st.refunds.push(r); refundThisAction += r; }
+      } else if (b.shieldActive && !a.shieldActive) {
+        st.shieldsConsumed += 1;
+      }
+    }
+
+    // Income: the Market Open report is the exact breakdown.
+    const report = after.marketOpenReport;
+    if (report && report !== before.marketOpenReport) {
+      const inc = report.income;
+      st.income.salary += inc.salary;
+      st.income.dividends += inc.dividends + inc.conditionDividend;
+      st.income.etf += inc.etfPayout + inc.etfDiversificationBonus + inc.conditionEtf;
+      st.income.development += inc.developmentBonus;
+      st.income.other += inc.diversificationBonus + inc.recoveryBonus;
+    }
+    if (action.t === 'sell' || action.t === 'forcedSell' || action.t === 'marginSell' || action.t === 'choosePayoutForceSell') {
+      const gained = after.players[before.cur].cash - before.players[before.cur].cash - refundThisAction;
+      if (gained > 0) st.income.shareSales += gained;
+    }
   };
 }
 
-/** Percentage move of every company from its own opening price. */
-function samplePrices(s: GameState, stats: Stats): void {
+function sample(s: GameState, st: Stats): void {
   for (const stock of Object.values(STOCK_BY_CODE)) {
     const price = s.prices[stock.code];
-    if (price == null) continue;
-    stats.priceSamples[stock.risk].push(((price - stock.base) / stock.base) * 100);
-    stats.maxPrice = Math.max(stats.maxPrice, price);
-    stats.minPrice = Math.min(stats.minPrice, price);
-    stats.observed += 1;
-    if (price === stock.base) stats.frozen += 1;
+    const pct = ((price - stock.base) / stock.base) * 100;
+    st.pctByTier[stock.risk].push(pct);
+    st.pctByLevel[s.development[stock.code]?.level ?? 0].push(pct);
+    st.maxPrice = Math.max(st.maxPrice, price);
   }
 }
 
-function scanLog(s: GameState, stats: Stats, seen: Set<string>): void {
-  for (const entry of s.log) {
-    const key = `${s.lap}|${entry.t}|${entry.text}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const money = /\$([\d,]+)/.exec(entry.text);
-    const amount = money ? Number(money[1].replace(/,/g, '')) : 0;
-    if (/Payout Claim|claim of/i.test(entry.text) && amount > 0) {
-      stats.claims.push(amount);
-      if (amount >= PAYOUT_CLAIM_TOTAL_CAP) stats.cappedClaims += 1;
-    }
-    if (/salary|Market Open/i.test(entry.text) && amount > 0) stats.salary += amount;
-    if (/dividend|ETF|payout/i.test(entry.text) && amount > 0) stats.investmentIncome += amount;
-    if (/sells \d+/i.test(entry.text) && amount > 0) stats.shareSaleInflow += amount;
-  }
-}
-
-function mean(xs: number[]): number {
-  return xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
-}
-
-function stdev(xs: number[]): number {
-  if (xs.length < 2) return 0;
-  const m = mean(xs);
-  return Math.sqrt(mean(xs.map((x) => (x - m) ** 2)));
-}
-
-function pctl(xs: number[], p: number): number {
-  if (xs.length === 0) return 0;
-  const sorted = [...xs].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
-}
-
-function runSize(numPlayers: number): Stats {
-  const stats = emptyStats();
+function run(numPlayers: number, upgrades: boolean): Stats {
+  development.enabled = upgrades;
+  const st = empty();
+  const observe = observer(st);
   for (let game = 0; game < GAMES_PER_SIZE; game += 1) {
     const seed = `sim-${numPlayers}p-${game}`;
     const rng = makeRng(seed);
     let s = started(numPlayers, makeRng(seed));
-    const seen = new Set<string>();
     for (let turn = 0; turn < TURNS_PER_GAME; turn += 1) {
-      const next = playTurn(s, rng);
+      const next = playTurn(s, rng, observe);
       if (next === s || next.phase === 'over') { s = next; break; }
       s = next;
-      if (turn % 20 === 0) samplePrices(s, stats);
-      scanLog(s, stats, seen);
+      if (turn % SAMPLE_EVERY === 0) sample(s, st);
     }
-    samplePrices(s, stats);
-    for (const p of s.players) {
-      stats.totalPlayers += 1;
-      if (p.cash < 500) stats.nearZeroCashPlayers += 1;
-    }
+    sample(s, st);
+    for (const p of s.players) { st.players += 1; if (p.cash < 500) st.endUnder500 += 1; }
   }
-  return stats;
+  return st;
 }
 
-describe('percentage market model — balance simulation', () => {
-  it('reports price volatility, claim sizes, and cash stress at 2-6 players', () => {
-    const lines: string[] = [];
-    const push = (l = '') => lines.push(l);
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+const sd = (xs: number[]) => { const m = mean(xs); return Math.sqrt(mean(xs.map((x) => (x - m) ** 2))); };
+const $ = (n: number) => `$${Math.round(n).toLocaleString()}`;
+const share = (part: number, whole: number) => `${whole ? ((part / whole) * 100).toFixed(0) : 0}%`;
 
-    push('='.repeat(78));
-    push('PERCENTAGE MARKET MODEL — BALANCE SIMULATION');
-    push(`${GAMES_PER_SIZE} games x up to ${TURNS_PER_GAME} turns per player count, fixed seeds`);
-    push('='.repeat(78));
+describe('percentage market + company development — balance simulation', () => {
+  it('reports 2-6 player results with development off and on', () => {
+    const out: string[] = [];
+    const w = (l = '') => out.push(l);
+    w('='.repeat(84));
+    w(`BALANCE SIMULATION · ${GAMES_PER_SIZE} games × up to ${TURNS_PER_GAME} turns per player count · fixed seeds`);
+    w('='.repeat(84));
 
-    for (const numPlayers of PLAYER_COUNTS) {
-      const st = runSize(numPlayers);
-      push();
-      push(`── ${numPlayers} PLAYERS ${'─'.repeat(60)}`);
+    for (const n of PLAYER_COUNTS) {
+      const base = run(n, false);
+      const dev = run(n, true);
+      w();
+      w(`── ${n} PLAYERS ${'─'.repeat(68)}`);
 
-      push('  Price volatility by risk tier (% from opening price):');
+      w('  Payout Claims (development ON), by upgrade level:');
+      for (let lv = 0; lv <= 3; lv += 1) {
+        const cs = dev.claims.filter((c) => c.level === lv);
+        if (!cs.length) { w(`    ${['Base', 'Ⅰ', 'Ⅱ', 'Ⅲ'][lv].padEnd(4)} none`); continue; }
+        w(`    ${['Base', 'Ⅰ', 'Ⅱ', 'Ⅲ'][lv].padEnd(4)} n=${String(cs.length).padStart(4)}  avg ${$(mean(cs.map((c) => c.owed))).padStart(7)}  max ${$(Math.max(...cs.map((c) => c.owed))).padStart(7)}`);
+      }
+      const capped = dev.claims.filter((c) => c.capped);
+      w(`  Claims at the ${$(PAYOUT_CLAIM_TOTAL_CAP)} cap: ${capped.length} of ${dev.claims.length} (value ${$(capped.reduce((a, c) => a + c.owed, 0))}; upgrade bonus lost to cap ${$(capped.reduce((a, c) => a + c.bonusLostToCap, 0))})`);
+      w(`  Baseline (dev OFF): claims n=${base.claims.length} avg ${$(mean(base.claims.map((c) => c.owed)))} · at cap ${base.claims.filter((c) => c.capped).length}`);
+
+      w(`  Upgrades bought: Ⅰ ${dev.upgradesBought[0]} · Ⅱ ${dev.upgradesBought[1]} · Ⅲ ${dev.upgradesBought[2]}`);
+      w(`  Shields: bought ${dev.shieldsBought} · consumed ${dev.shieldsConsumed}`);
+      w(`  Refunds: ${dev.refunds.length}${dev.refunds.length ? ` · avg ${$(mean(dev.refunds))}` : ''}`);
+
+      w('  Price volatility, sd of % from opening (OFF → ON):');
       for (const tier of ['Low', 'Med', 'High'] as const) {
-        const xs = st.priceSamples[tier];
-        push(`    ${tier.padEnd(5)} mean ${mean(xs).toFixed(1).padStart(7)}%  `
-          + `sd ${stdev(xs).toFixed(1).padStart(6)}  `
-          + `p5 ${pctl(xs, 5).toFixed(1).padStart(7)}%  p95 ${pctl(xs, 95).toFixed(1).padStart(7)}%`);
+        w(`    ${tier.padEnd(5)} ${sd(base.pctByTier[tier]).toFixed(1).padStart(5)} → ${sd(dev.pctByTier[tier]).toFixed(1).padStart(5)}   mean ${mean(dev.pctByTier[tier]).toFixed(1).padStart(6)}%`);
       }
+      w(`  By upgrade level (ON): ${dev.pctByLevel.map((xs, lv) => `${['Base', 'Ⅰ', 'Ⅱ', 'Ⅲ'][lv]} mean ${mean(xs).toFixed(1)}% sd ${sd(xs).toFixed(1)} (n=${xs.length})`).join(' · ')}`);
+      w(`  Max price observed: ${$(dev.maxPrice)}`);
 
-      push(`  Price range observed: ${st.minPrice === Infinity ? 'n/a' : `$${st.minPrice.toLocaleString()}`}`
-        + ` – $${st.maxPrice.toLocaleString()}`
-        + `   (floor $${PRICE_FLOOR}, event mark $${CEILING_TRIGGER.toLocaleString()})`);
-      push(`  Never moved from opening: ${((st.frozen / Math.max(1, st.observed)) * 100).toFixed(1)}% of samples`);
+      w(`  Cash stress (OFF → ON): insolvencies ${base.insolvencies} → ${dev.insolvencies} · claim shortfalls ${base.shortfalls} → ${dev.shortfalls} · players ending < $500: ${base.endUnder500}/${base.players} → ${dev.endUnder500}/${dev.players}`);
 
-      if (st.claims.length > 0) {
-        push(`  Payout Claims: n=${st.claims.length}  avg $${Math.round(mean(st.claims)).toLocaleString()}`
-          + `  median $${Math.round(pctl(st.claims, 50)).toLocaleString()}`
-          + `  max $${Math.round(Math.max(...st.claims)).toLocaleString()}`);
-        push(`  Claims at the $${PAYOUT_CLAIM_TOTAL_CAP.toLocaleString()} cap: ${st.cappedClaims}`
-          + ` (${((st.cappedClaims / st.claims.length) * 100).toFixed(1)}%)`);
-      } else {
-        push('  Payout Claims: none recorded');
-      }
-
-      push(`  Players ending under $500 cash: ${st.nearZeroCashPlayers}/${st.totalPlayers}`
-        + ` (${((st.nearZeroCashPlayers / Math.max(1, st.totalPlayers)) * 100).toFixed(1)}%)`);
-      push(`  Income mix: salary/Market Open $${Math.round(st.salary).toLocaleString()}`
-        + `  ·  dividends+ETF $${Math.round(st.investmentIncome).toLocaleString()}`
-        + `  ·  share sales $${Math.round(st.shareSaleInflow).toLocaleString()}`);
+      const i = dev.income;
+      const total = i.salary + i.dividends + i.etf + i.development + i.other + i.claimsReceived + i.shareSales;
+      w(`  Income mix (ON): salary ${share(i.salary, total)} · dividends ${share(i.dividends, total)} · ETF ${share(i.etf, total)} · development ${share(i.development, total)} · claims received ${share(i.claimsReceived, total)} · share sales ${share(i.shareSales, total)} · other ${share(i.other, total)}`);
     }
-
-    push();
-    push('='.repeat(78));
+    w();
+    w('='.repeat(84));
+    development.enabled = true;
     // eslint-disable-next-line no-console
-    console.log(lines.join('\n'));
-  }, 600_000);
+    console.log(out.join('\n'));
+  }, 900_000);
 });

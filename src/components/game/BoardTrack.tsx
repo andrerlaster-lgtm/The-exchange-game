@@ -1,5 +1,5 @@
-import { PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
-import { getStockMovementStatus, sectorPairOwner } from '../../engine';
+import { UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { developmentOf, getStockMovementStatus, sectorPairOwner } from '../../engine';
 import { useGameState, useDispatch } from '../../store';
 import { LandingResultBanner } from './ActionPanel';
 import investabearImg from '../../assets/investabear.png';
@@ -194,6 +194,7 @@ export default function BoardTrack() {
             const outstanding = s.bankPool[sp.code!] ?? 0;
             const claimIdx = soldOut?.claimHolder ?? null;
             const claimColor = claimIdx !== null ? PLAYER_COLORS[claimIdx] : null;
+            const dev = developmentOf(s, sp.code!);
             const mv = getStockMovementStatus(sp.code!, s);
             const mvColor = mv.direction === 'up' ? '#1e7a4a' : mv.direction === 'down' ? '#b03a2c' : '#8a795e';
             const mvGlyph = mv.direction === 'up' ? '▲' : mv.direction === 'down' ? '▼' : '';
@@ -255,7 +256,15 @@ export default function BoardTrack() {
                   textAlign: 'center', fontSize: 11, fontWeight: 700,
                   color: INK, lineHeight: 1, letterSpacing: 0.3,
                   textShadow: LETTERPRESS,
-                }}>{sp.code}</div>
+                }}>
+                  {sp.code}
+                  {dev.level > 0 && (
+                    <span title={`Development Level ${UPGRADE_LEVELS[dev.level - 1].numeral}`} style={{ fontSize: 8, marginLeft: 2, color: '#8a5a12' }}>
+                      {UPGRADE_LEVELS[dev.level - 1].numeral}
+                    </span>
+                  )}
+                  {dev.shieldActive && <span title="Market Protection active" style={{ fontSize: 7, marginLeft: 1 }}>🛡️</span>}
+                </div>
 
                 {/* Price + movement arrow — centered */}
                 <div style={{
@@ -263,7 +272,7 @@ export default function BoardTrack() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, lineHeight: 1,
                 }}>
                   <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 8, fontWeight: 700, color: INK }}>
-                    ${price >= 1000 ? `${price / 1000}k` : price}
+                    ${price.toLocaleString('en-US')}
                   </span>
                   {mvGlyph && <span style={{ fontSize: 7, color: mvColor, fontWeight: 700, lineHeight: 1 }}>{mvGlyph}</span>}
                 </div>

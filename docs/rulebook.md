@@ -713,6 +713,28 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 **Per-action price movement:** A full-company purchase does not move the share price. A qualifying bank sell-back is one market action regardless of the number of shares sold in that action.
 
+### Company Development (Upgrades)
+
+A player who **controls** a regular company (6+ shares) may invest in it. ETFs and IPOs cannot be developed.
+
+**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order.
+
+| Level | Cost | Total spent | Payout Claim bonus | Market Open bonus | Downside reduction |
+|---|---:|---:|---:|---:|---:|
+| Ⅰ | $2,000 | $2,000 | +$750 | +$100 | 200 bp (2%) |
+| Ⅱ | $4,000 | $6,000 | +$1,500 | +$200 | 400 bp (4%) |
+| Ⅲ | $5,000 | $11,000 | +$2,500 | +$300 | 600 bp (6%) |
+
+- **Payout Claim bonus:** a flat amount added after the normal claim and any Market Condition adjustment, then Sector Rent is added, then the $10,000 total cap applies. The landing result shows how much of the bonus survived the cap.
+- **Market Open bonus:** flat cash to the investor at their own Market Open. It is not a dividend and is never multiplied.
+- **Downside reduction:** shrinks declines from Weak Demand, the Market Meter, Market Event cards, Fed cards, and Bear Runs. It can reduce a decline to zero but never turns it into a rise. It does not apply to bank-sale drops, a player's own sales, or Cyberattack/Regulatory Investigation penalties the player chose.
+
+**Market Protection shield ($750):** one per company, Controller only, does not use the turn's upgrade. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
+
+**Losing control:** if the investor drops below 6 shares — including when another player takes control or ownership becomes contested — the company resets to Base, its shield is removed, and the investor is immediately refunded 40% of their upgrade spending ($800 / $2,400 / $4,400). Upgrades never transfer. Regaining control starts again from Base.
+
+**Rounding:** reductions are applied in basis points before prices round to the $25 grid. At lower prices a reduced decline can round to the same $25 drop as an unprotected one.
+
 ## 24. Endgame and Scoring
 
 The default game is a net-worth race, not a bankruptcy-elimination game.

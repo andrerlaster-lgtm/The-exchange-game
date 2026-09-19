@@ -5,9 +5,10 @@
 // MARKET model rather than a bot's cleverness. Every decision goes through the
 // seeded Rng, so a given seed replays identically.
 
-import { blocked, reduce } from '../../engine';
+import { blocked, reduce, shieldBlockReason, upgradeBlockReason } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import type { Rng } from '../../utils/rng';
+import { SHIELD_COST, UPGRADE_LEVELS } from '../../data';
 
 /** Codes the current player owns at least one share of. */
 function owned(s: GameState, player = s.cur): string[] {
@@ -90,12 +91,35 @@ function nextAction(s: GameState, rng: Rng): Action | null {
     return affordable ? { t: 'buy', code } : { t: 'skipStock', code };
   }
 
+  // Company development, once everything required is resolved: upgrade a
+  // controlled company when the purchase still leaves a cash cushion, and
+  // sometimes buy a shield. The cushion keeps the bot from upgrading itself
+  // into the very Payout Claim shortfalls the simulation is measuring.
+  if (!blocked(s) && development.enabled) {
+    const cash = s.players[s.cur].cash;
+    for (const code of owned(s)) {
+      if (!upgradeBlockReason(s, code)) {
+        const cost = UPGRADE_LEVELS[s.development[code].level].cost;
+        if (cash - cost >= development.reserve) return { t: 'upgradeCompany', code };
+      }
+      if (!shieldBlockReason(s, code) && cash - SHIELD_COST >= development.reserve && rng.int(0, 3) === 0) {
+        return { t: 'buyMarketProtection', code };
+      }
+    }
+  }
+
   if (!blocked(s)) return { t: 'endTurn' };
   return null;
 }
 
+/** Development policy for a simulation run. */
+export const development = { enabled: true, reserve: 6_000 };
+
+/** Called after every accepted action, for measurement. */
+export type Observer = (before: GameState, action: Action, after: GameState) => void;
+
 /** Play one turn to completion. Returns the state after End Turn. */
-export function playTurn(s: GameState, rng: Rng): GameState {
+export function playTurn(s: GameState, rng: Rng, observe?: Observer): GameState {
   let state = s;
   const startingPlayer = state.cur;
   // Generous guard: a single turn can chain several prompts (card -> pick ->
@@ -107,6 +131,7 @@ export function playTurn(s: GameState, rng: Rng): GameState {
     // A no-op means the bot asked for something the engine rejected; stop
     // rather than spinning, so a run can never hang silently.
     if (next === state) break;
+    observe?.(state, action, next);
     state = next;
     if (state.cur !== startingPlayer || state.phase === 'over') break;
   }

@@ -1,6 +1,7 @@
 import BoardTrack from './BoardTrack';
 import TradeHistory from './TradeHistory';
 import TradingMarket from './TradingMarket';
+import CompanyDevelopment from './CompanyDevelopment';
 import StockTradeCard from './StockTradeCard';
 import PlayerCards from './PlayerCards';
 import DeckStatus from './DeckStatus';
@@ -57,6 +58,7 @@ export default function GameScreen() {
         <BoardTrack />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <TradingMarket />
+          <CompanyDevelopment />
           <TradeHistory />
         </div>
       </div>

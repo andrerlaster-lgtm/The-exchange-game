@@ -1,12 +1,14 @@
 import {
   ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, IPO_PRESENTATION, MARGIN_DEFAULT_PENALTY,
-  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, SECTORS, STOCK_BY_CODE, STOCKS, isIpoCode, stockOpportunityFor,
+  MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, SECTORS, SHIELD_COST, STOCK_BY_CODE, STOCKS, UPGRADE_LEVELS,
+  developmentRefund, isIpoCode, stockOpportunityFor,
 } from '../data';
 import type { GameState } from '../engine';
 import {
   bankSellLimit, bankSellRemaining, blocked, canMarketSell, circuitBreakerOptions, companyBuyoutCost, getRankedPlayers,
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss,
+  developmentOf, isController, shieldBlockReason, upgradeBlockReason,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
 import { marketRegimeInfo } from './marketRegime';
@@ -332,17 +334,33 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
       const limit = bankSellLimit(s, code);
       const remaining = bankSellRemaining(s, code);
       const gl = holdingGainLoss(s, current, code);
+      // Company development (parity with the 2D Company Development panel):
+      // only for regular companies this player controls.
+      const controls = !ipo && gameActive && isController(s, s.cur, code);
+      const dev = developmentOf(s, code);
+      const devLevel = dev.level === 0 ? null : UPGRADE_LEVELS[dev.level - 1];
+      const nextLevel = UPGRADE_LEVELS[dev.level] ?? null;
+      const upBlock = controls ? upgradeBlockReason(s, code) : null;
+      const shBlock = controls ? shieldBlockReason(s, code) : null;
+      const devDetail = controls
+        ? ` · ${devLevel ? `Level ${devLevel.numeral} (+${money(devLevel.claimBonus)} claim, +${money(devLevel.marketOpenBonus)} Market Open, ${devLevel.downsideBp} bp protection)` : 'Base level'}${dev.shieldActive ? ' · 🛡️ shield' : ''}${dev.totalInvested > 0 ? ` · ${money(developmentRefund(dev.totalInvested))} refund if control is lost` : ''}${upBlock && nextLevel ? ` · Upgrade: ${upBlock}` : ''}`
+        : '';
+      const sellButtons = ipo ? [] : Array.from({ length: limit }, (_, index) => {
+        const amount = index + 1;
+        return button(`Sell ${amount}`, { t: 'sell', code, qty: amount }, 'danger', !sellable || amount > remaining);
+      });
+      const devButtons = controls ? [
+        ...(nextLevel ? [button(`Upgrade ${nextLevel.numeral} · ${money(nextLevel.cost)}`, { t: 'upgradeCompany', code }, 'gold', !!upBlock)] : []),
+        button(`Shield · ${money(SHIELD_COST)}`, { t: 'buyMarketProtection', code }, 'neutral', !!shBlock),
+      ] : [];
       return {
         key: code,
-        title: `${code} · ${codeName(code)}`,
+        title: `${code}${devLevel ? ` ${devLevel.numeral}` : ''}${dev.shieldActive ? ' 🛡️' : ''} · ${codeName(code)}`,
         detail: ipo
           ? `IPO · Own ${qty} · Basis ${money(gl.costBasis)} · Unrealized G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%)`
-          : `Own ${qty} · Basis ${money(gl.costBasis)} · G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%) · ${remaining} of ${limit} bank-sale shares left · ${fedSignalForStock(s, code).label}`,
+          : `Own ${qty} · Basis ${money(gl.costBasis)} · G/L ${money(gl.unrealized)} (${gl.returnPct.toFixed(1)}%) · ${remaining} of ${limit} bank-sale shares left · ${fedSignalForStock(s, code).label}${devDetail}`,
         value: ipo ? `Market ${money(priceOf(s, code))}` : `Sell at ${money(sellBackPrice(s, code))}`,
-        buttons: ipo ? undefined : Array.from({ length: limit }, (_, index) => {
-          const amount = index + 1;
-          return button(`Sell ${amount}`, { t: 'sell', code, qty: amount }, 'danger', !sellable || amount > remaining);
-        }),
+        buttons: ipo ? undefined : [...sellButtons, ...devButtons],
       };
     });
   const repayAmount = Math.min(MARGIN_INCREMENT, current.margin);
