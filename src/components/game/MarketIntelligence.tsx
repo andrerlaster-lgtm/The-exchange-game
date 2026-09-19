@@ -3,6 +3,7 @@ import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
 import MarketRegimeBadge from './MarketRegimeBadge';
+import PriceMovementGuide from './PriceMovementGuide';
 
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   fed: 'FED',
@@ -34,11 +35,14 @@ export default function MarketIntelligence() {
           <div className="slabel">Market Intelligence</div>
           <div style={{ color: 'var(--muted)', fontSize: 10, marginTop: 2 }}>Fed Watch + events worth acting on</div>
         </div>
-        <span style={{
-          borderRadius: 999, padding: '3px 8px',
-          background: stance.bg, color: stance.color,
-          fontSize: 9, fontWeight: 900, letterSpacing: 0.8, textTransform: 'uppercase',
-        }}>{latestFed ? stance.label : 'Waiting on Fed'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <PriceMovementGuide />
+          <span style={{
+            borderRadius: 999, padding: '3px 8px',
+            background: stance.bg, color: stance.color,
+            fontSize: 9, fontWeight: 900, letterSpacing: 0.8, textTransform: 'uppercase',
+          }}>{latestFed ? stance.label : 'Waiting on Fed'}</span>
+        </div>
       </div>
 
       {(() => {
