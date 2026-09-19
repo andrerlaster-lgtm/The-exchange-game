@@ -19,10 +19,10 @@ const QUICK_RULES = [
   'IPOs: 4 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',
   'Audit Notice charges 5% of net worth, rounded to the nearest $100, with a $500 minimum. Carrying Margin raises it to 7.5% with a $750 minimum.',
   'Portfolio Tax and Audit Notice can be paid now or carried as Outstanding Fees. Debt adds 5% at the start of your turn and lowers your score until paid. A Payout Claim owed to another player still uses forced sale.',
-  'Margin trading and Short Selling are advanced options, off by default.',
+  'Margin trading is an advanced option, off by default.',
   'An Extended Hours card, if drawn before Market Close is triggered, delays the game end by exactly one more round.',
   'Circuit Breaker is a single held Market Event card. Play it during a later negative Market Event or Bear Run to protect 1 affected company you own from that effect’s entire price drop, or keep it for later.',
-  'Market Stance: buying a company or using Margin makes you Bullish; selling 3+ shares or opening a Short makes you Bearish. The latest qualifying action sets your position for the next Bull or Bear Run, then everyone resets to Balanced.',
+  'Market Stance: buying a company or using Margin makes you Bullish; selling 3+ shares makes you Bearish. The latest qualifying action sets your position for the next Bull or Bear Run, then everyone resets to Balanced.',
   `Investor Day: choose Company Growth (grow 1 owned company ${moveSize(MOVE_BP.investorDay)}, or collect $500 if you own none) or Insider Information (preview the next Market Event without drawing it).`,
   'Standard Mode: build the highest net worth. Gain/Loss Mode: win with the highest Market Gain (Net Worth − Starting Cash − Salary Collected).',
   'Every stock and IPO holding tracks cost basis, unrealized gain/loss while held, and realized gain/loss when shares are sold.',
@@ -202,11 +202,6 @@ export default function SetupScreen() {
           <OptRow label="Margin Trading">
             <TBtn active={opts.margin} onClick={() => setOpt('margin', true)}>On</TBtn>
             <TBtn active={!opts.margin} onClick={() => setOpt('margin', false)}>Off</TBtn>
-          </OptRow>
-
-          <OptRow label="Short Selling">
-            <TBtn active={opts.shorts} onClick={() => setOpt('shorts', true)}>On</TBtn>
-            <TBtn active={!opts.shorts} onClick={() => setOpt('shorts', false)}>Off</TBtn>
           </OptRow>
 
           <OptRow label="IPOs">
