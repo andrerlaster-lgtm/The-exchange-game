@@ -493,7 +493,7 @@ ETFs are a diversification route and Market Open income source. They should not 
 - There are 4 ETF spaces/cards in the current board structure.
 - ETFs pay at Market Open according to the distribution table below.
 - ETFs do not have ownership tiers, Controllers, Sector Portfolio status, or Weak/Strong Demand. They do have their own landing fee, described below — a separate mechanic from the regular-stock Payout Claim system, not a duplicate of it.
-- ETFs may be traded during legal trading windows unless a card or app setting says otherwise.
+- ETFs cannot be sold back to the bank. They may be traded **player-to-player** during legal trading windows (Section 13), on their own or as either side of a swap, at whatever price the two players agree. A trade can change who controls a fund's landing fee.
 - ETF payouts should remain clear and simple so they act as a lower-conflict strategy path.
 - ETFs have no live market price. For all net-worth calculations (Final Portfolio Value and Portfolio Tax), owned ETF holdings are valued at their fixed purchase/card price.
 

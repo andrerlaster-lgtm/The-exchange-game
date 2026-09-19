@@ -184,11 +184,14 @@ describe('Player-to-player trading', () => {
     expect(s.players[1].cash).toBe(p1CashBefore); // no transfer happened
   });
 
-  it('rejects ETF codes and self-trades at propose time', () => {
+  it('accepts ETF codes but rejects unknown codes and self-trades at propose time', () => {
     let s = started();
     const before = s.p2pOffers.length;
+    s = dispatch(s, { t: 'proposeP2POffer', from: 0, to: 1, code: 'NOPE', qty: 1, direction: 'sell', price: 1000 }, rng());
+    expect(s.p2pOffers).toHaveLength(before); // unknown code rejected
     s = dispatch(s, { t: 'proposeP2POffer', from: 0, to: 1, code: 'GRW', qty: 1, direction: 'sell', price: 1000 }, rng());
-    expect(s.p2pOffers).toHaveLength(before); // ETF code rejected
+    expect(s.p2pOffers).toHaveLength(before + 1); // ETFs trade player-to-player (2026-09-19)
+    s = dispatch(s, { t: 'cancelP2POffer', id: s.p2pOffers[0].id }, rng());
     s = dispatch(s, { t: 'proposeP2POffer', from: 0, to: 0, code: 'MEDI', qty: 1, direction: 'sell', price: 100 }, rng());
     expect(s.p2pOffers).toHaveLength(before); // from === to rejected
   });
@@ -277,7 +280,7 @@ describe('Player-to-player trading', () => {
     expect(s.players[1].shares.OILW).toBe(1);
   });
 
-  it('rejects a counter offer for an ETF code or the same code being traded', () => {
+  it('accepts an ETF counter code but rejects the same code being traded', () => {
     let s = started();
     s = patch(s, (d) => { d.players[0].shares.MEDI = 2; });
     const before = s.p2pOffers.length;
@@ -285,7 +288,8 @@ describe('Player-to-player trading', () => {
       t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 0,
       counterCode: 'GRW', counterQty: 1,
     }, rng());
-    expect(s.p2pOffers).toHaveLength(before); // ETF counter code rejected
+    expect(s.p2pOffers).toHaveLength(before + 1); // ETF counter code allowed (2026-09-19)
+    s = dispatch(s, { t: 'cancelP2POffer', id: s.p2pOffers[0].id }, rng());
     s = dispatch(s, {
       t: 'proposeP2POffer', from: 0, to: 1, code: 'MEDI', qty: 1, direction: 'sell', price: 0,
       counterCode: 'MEDI', counterQty: 1,

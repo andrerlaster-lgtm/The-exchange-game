@@ -375,7 +375,7 @@ export interface P2POffer {
   id: number;
   from: number;                 // proposing player index
   to: number;                   // counterparty player index
-  code: string;                 // regular stock or IPO code (never an ETF)
+  code: string;                 // regular stock, IPO, or ETF code
   qty: number;                  // shares changing hands
   direction: 'sell' | 'buy';    // from the proposer's perspective
   price: number;                // cash the paying side hands over (can be 0)

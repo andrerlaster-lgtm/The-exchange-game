@@ -1,7 +1,7 @@
 import {
   ETF_BY_CODE, ETF_PRICE, FEE_DEBT_INSTALLMENT, IPO_BY_CODE, IPO_PRESENTATION, MARGIN_DEFAULT_PENALTY,
   MARGIN_INCREMENT, MARGIN_MAX, REGULAR_SUPPLY, projectedEtfIncome, SECTORS, SHIELD_COST, STOCK_BY_CODE, STOCKS, UPGRADE_LEVELS,
-  developmentRefund, isIpoCode, stockOpportunityFor, IPO_GROWTH_INVESTMENTS,
+  developmentRefund, isEtfCode, isIpoCode, stockOpportunityFor, IPO_GROWTH_INVESTMENTS,
 } from '../data';
 import type { GameState } from '../engine';
 import {
@@ -9,7 +9,7 @@ import {
   feeDebtBalance, fedSignalForStock, holdingGainLoss, importantMarketSignals, marketGain, marketStanceMeta,
   playerSignalExposure, priceOf, sellBackPrice, stockGainLoss, holdingsReturnPct, marketReturnPct,
   developmentOf, isController, shieldBlockReason, upgradeBlockReason,
-  ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
+  ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone, tradableHoldings, heldQty,
 } from '../engine';
 import type { ActionCenter3D, ActionPanel3D, Board3DAction, MarketCondition3D } from './sync3dBoard';
 import { marketRegimeInfo } from './marketRegime';
@@ -30,6 +30,7 @@ function money(value: number): string {
 }
 
 function codeName(code: string): string {
+  if (isEtfCode(code)) return `${ETF_BY_CODE[code]?.name ?? code} (ETF)`;
   return isIpoCode(code) ? (IPO_BY_CODE[code]?.name ?? code) : (STOCK_BY_CODE[code]?.name ?? code);
 }
 
@@ -403,7 +404,8 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
 
   const tradePlayers = (gameActive ? s.players : []).map((player, index) => ({
     index, name: player.name, color: player.color, cash: player.cash,
-    holdings: Object.entries(player.shares).filter(([, qty]) => qty > 0).map(([code, qty]) => ({ code, name: codeName(code), qty })),
+    // Stocks, IPOs, and ETFs — ETFs can't be sold to the bank but can be traded.
+    holdings: tradableHoldings(player).map(({ code, qty }) => ({ code, name: codeName(code), qty })),
   }));
   const offers = (gameActive ? s.p2pOffers : []).map((offer) => {
     const from = s.players[offer.from];
@@ -412,8 +414,8 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     const seller = offer.direction === 'sell' ? from : to;
     const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
     const canAfford = buyer.cash >= offer.price;
-    const hasShares = (seller.shares[offer.code] ?? 0) >= offer.qty;
-    const hasCounterShares = !hasCounter || (buyer.shares[offer.counterCode!] ?? 0) >= offer.counterQty!;
+    const hasShares = heldQty(seller, offer.code) >= offer.qty;
+    const hasCounterShares = !hasCounter || heldQty(buyer, offer.counterCode!) >= offer.counterQty!;
     const considerationParts: string[] = [];
     if (offer.price > 0) considerationParts.push(money(offer.price));
     if (hasCounter) considerationParts.push(`${offer.counterQty}× ${offer.counterCode}`);

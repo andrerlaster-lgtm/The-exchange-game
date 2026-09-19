@@ -5,7 +5,7 @@ import {
   AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE, TAX_RATE,
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
-  REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isIpoCode,
+  REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isEtfCode, isIpoCode,
   PLAYER_LOAN_MAX_RATE, SECTOR_PAIR_BY_CODE, SECTOR_PAIRS,
 } from '../data';
 import type { Effect } from '../data/types';
@@ -17,6 +17,7 @@ import { bankSellRemaining, canRise, canTradeNow, canMarketSell, blocked, compan
 import { freshDecks, freshDevelopment, freshIpos, resetPlayers } from './gameState';
 import { buyMarketProtection, developmentClaimBonus, developmentOf, upgradeCompany } from './development';
 import { investIpoGrowth, snapshotIpoHoldings } from './ipoGrowth';
+import { heldQty, setHeld, unitValue } from './holdings';
 import { payMarketOpen } from './playerState';
 import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
 import { advanceMeterOnRoll, repriceRoundBoundary } from './marketMeter';
@@ -72,52 +73,56 @@ function offerCompanyLoanIfNeeded(s: GameState, rng: Rng, player: number): void 
 function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): boolean {
   const seller = offer.direction === 'sell' ? s.players[offer.from] : s.players[offer.to];
   const buyer = offer.direction === 'sell' ? s.players[offer.to] : s.players[offer.from];
-  const owned = seller.shares[offer.code] || 0;
+  const owned = heldQty(seller, offer.code);
   const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
-  const counterOwned = hasCounter ? (buyer.shares[offer.counterCode!] || 0) : 0;
+  const counterOwned = hasCounter ? heldQty(buyer, offer.counterCode!) : 0;
   if (owned < offer.qty || buyer.cash < offer.price) return false;
   if (hasCounter && counterOwned < offer.counterQty!) return false;
 
   // The counter leg (shares paid back the other way) has no negotiated cash
-  // figure to value it by, so it's booked at current market price. It must be
-  // valued BEFORE either leg is booked: the shares handed back are part of what
-  // each side paid, and rulebook §11 books private trades at "the actual amount
-  // paid". Pricing the primary leg on cash alone gave the buyer a $0 basis on a
-  // pure share-for-share swap — inventing unrealized gain — while charging the
-  // seller a realized loss on an even exchange.
-  const counterValue = hasCounter ? priceOf(s, offer.counterCode!) * offer.counterQty! : 0;
+  // figure to value it by, so it's booked at its value: market price for a
+  // stock or IPO, the fixed $3,000 for an ETF. It must be valued BEFORE either
+  // leg is booked: the shares handed back are part of what each side paid,
+  // and rulebook §11 books private trades at "the actual amount paid". Pricing
+  // the primary leg on cash alone gave the buyer a $0 basis on a pure share-
+  // for-share swap — inventing unrealized gain — while charging the seller a
+  // realized loss on an even exchange.
+  const counterValue = hasCounter ? unitValue(s, offer.counterCode!) * offer.counterQty! : 0;
   const totalConsideration = offer.price + counterValue;
 
-  const realized = recordStockSale(seller, offer.code, offer.qty, totalConsideration, owned);
-  seller.shares[offer.code] = owned - offer.qty;
-  if (seller.shares[offer.code] === 0) delete seller.shares[offer.code];
-  buyer.shares[offer.code] = (buyer.shares[offer.code] || 0) + offer.qty;
-  addStockCostBasis(buyer, offer.code, totalConsideration);
+  // ETFs carry no cost basis or gain/loss (they sit at a fixed $3,000), so an
+  // ETF leg just moves the fund shares; stock and IPO legs book as before.
+  const primaryIsEtf = isEtfCode(offer.code);
+  const realized = primaryIsEtf ? null : recordStockSale(seller, offer.code, offer.qty, totalConsideration, owned);
+  setHeld(seller, offer.code, owned - offer.qty);
+  setHeld(buyer, offer.code, heldQty(buyer, offer.code) + offer.qty);
+  if (!primaryIsEtf) addStockCostBasis(buyer, offer.code, totalConsideration);
   buyer.cash -= offer.price;
   seller.cash += offer.price;
-  if (offer.qty >= 3) setMarketStance(seller, 'bearish');
+  if (!primaryIsEtf && offer.qty >= 3) setMarketStance(seller, 'bearish');
 
   if (hasCounter) {
     const counterCode = offer.counterCode!;
     const counterQty = offer.counterQty!;
-    recordStockSale(buyer, counterCode, counterQty, counterValue, counterOwned);
-    buyer.shares[counterCode] = counterOwned - counterQty;
-    if (buyer.shares[counterCode] === 0) delete buyer.shares[counterCode];
-    seller.shares[counterCode] = (seller.shares[counterCode] || 0) + counterQty;
-    addStockCostBasis(seller, counterCode, counterValue);
-    if (counterQty >= 3) setMarketStance(buyer, 'bearish');
+    const counterIsEtf = isEtfCode(counterCode);
+    if (!counterIsEtf) recordStockSale(buyer, counterCode, counterQty, counterValue, counterOwned);
+    setHeld(buyer, counterCode, counterOwned - counterQty);
+    setHeld(seller, counterCode, heldQty(seller, counterCode) + counterQty);
+    if (!counterIsEtf) addStockCostBasis(seller, counterCode, counterValue);
+    if (!counterIsEtf && counterQty >= 3) setMarketStance(buyer, 'bearish');
   }
 
   const considerationParts: string[] = [];
   if (offer.price > 0) considerationParts.push(money(offer.price));
   if (hasCounter) considerationParts.push(`${offer.counterQty}× ${offer.counterCode}`);
   const considerationLabel = considerationParts.length > 0 ? considerationParts.join(' + ') : '$0';
+  const gainNote = realized == null ? '' : ` · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`;
 
-  addLog(s, `${seller.name} trades ${offer.qty}× ${offer.code} to ${buyer.name} for ${considerationLabel} (private trade · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)})`, 'b');
-  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, totalConsideration, seller.name);
-  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} from ${seller.name} · basis ${money(totalConsideration)}`, -totalConsideration, buyer.name);
-  recomputeAndLogClaim(s, offer.code);
-  if (hasCounter) recomputeAndLogClaim(s, offer.counterCode!);
+  addLog(s, `${seller.name} trades ${offer.qty}× ${offer.code} to ${buyer.name} for ${considerationLabel} (private trade${gainNote})`, 'b');
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} ↔ ${buyer.name}${gainNote}`, totalConsideration, seller.name);
+  addTradeLog(s, 'p2p', `${offer.qty}× ${offer.code} from ${seller.name} · ${primaryIsEtf ? 'fund' : `basis ${money(totalConsideration)}`}`, -totalConsideration, buyer.name);
+  if (!primaryIsEtf) recomputeAndLogClaim(s, offer.code);
+  if (hasCounter && !isEtfCode(offer.counterCode!)) recomputeAndLogClaim(s, offer.counterCode!);
   return true;
 }
 
@@ -1389,10 +1394,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (from === to) break;
       if (from < 0 || from >= s.players.length || to < 0 || to >= s.players.length) break;
       if (qty < 1 || price < 0) break;
-      if (!STOCK_BY_CODE[code] && !IPO_BY_CODE[code]) break; // regular stock or IPO only — never ETFs
+      if (!STOCK_BY_CODE[code] && !IPO_BY_CODE[code] && !isEtfCode(code)) break; // stock, IPO, or ETF
       let counter: { code: string; qty: number } | null = null;
       if (counterCode) {
-        if (!STOCK_BY_CODE[counterCode] && !IPO_BY_CODE[counterCode]) break; // never ETFs
+        if (!STOCK_BY_CODE[counterCode] && !IPO_BY_CODE[counterCode] && !isEtfCode(counterCode)) break; // stock, IPO, or ETF
         if (!counterQty || counterQty < 1) break;
         if (counterCode === code) break; // trading a code for itself is meaningless
         counter = { code: counterCode, qty: counterQty };

@@ -24,3 +24,4 @@ export {
   developmentMarketOpenBonus, developmentClaimBonus,
 } from './development';
 export { ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone } from './ipoGrowth';
+export { heldQty, tradableHoldings, unitValue } from './holdings';

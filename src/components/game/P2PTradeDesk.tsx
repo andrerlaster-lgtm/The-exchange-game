@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { IPO_BY_CODE, STOCK_BY_CODE, isIpoCode } from '../../data';
+import { ETF_BY_CODE, IPO_BY_CODE, STOCK_BY_CODE, isEtfCode, isIpoCode } from '../../data';
+import { heldQty, tradableHoldings } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
 function codeName(code: string): string {
+  if (isEtfCode(code)) return `${ETF_BY_CODE[code]?.name ?? code} (ETF)`;
   return isIpoCode(code) ? (IPO_BY_CODE[code]?.name ?? code) : (STOCK_BY_CODE[code]?.name ?? code);
 }
 
-/** Stock/IPO codes a player actually holds (ETFs are never P2P-tradeable). */
+/** Stock, IPO, and ETF codes a player holds. ETFs can't be sold to the bank,
+    but they can change hands between players. */
 function holdingsOf(s: GameState, idx: number): string[] {
-  return Object.keys(s.players[idx]?.shares ?? {}).filter((c) => (s.players[idx].shares[c] ?? 0) > 0);
+  const p = s.players[idx];
+  return p ? tradableHoldings(p).map((h) => h.code) : [];
 }
 
 export default function P2PTradeDesk() {
@@ -45,8 +49,8 @@ export default function P2PTradeDesk() {
             const seller = offer.direction === 'sell' ? from : to;
             const hasCounter = !!offer.counterCode && (offer.counterQty ?? 0) > 0;
             const canAfford = buyer.cash >= offer.price;
-            const hasShares = (seller.shares[offer.code] ?? 0) >= offer.qty;
-            const hasCounterShares = !hasCounter || (buyer.shares[offer.counterCode!] ?? 0) >= offer.counterQty!;
+            const hasShares = heldQty(seller, offer.code) >= offer.qty;
+            const hasCounterShares = !hasCounter || heldQty(buyer, offer.counterCode!) >= offer.counterQty!;
             const canAccept = canAfford && hasShares && hasCounterShares;
             return (
               <div key={offer.id} style={{
@@ -143,7 +147,7 @@ function ProposeForm({ s, dispatch, onDone }: {
   const buyer = s.players[toIdx];
   const codes = holdingsOf(s, fromIdx);
   const effCode = codes.includes(code) ? code : (codes[0] ?? '');
-  const maxQty = effCode ? (seller?.shares[effCode] ?? 0) : 0;
+  const maxQty = effCode ? (seller ? heldQty(seller, effCode) : 0) : 0;
   const effQty = Math.min(qty, Math.max(maxQty, 1));
   const buyerCash = buyer?.cash ?? 0;
   const priceTooHigh = price > buyerCash;
@@ -151,7 +155,7 @@ function ProposeForm({ s, dispatch, onDone }: {
   // Shares the buyer can pay with — never the same code being bought.
   const counterCodes = holdingsOf(s, toIdx).filter((c) => c !== effCode);
   const effCounterCode = counterCodes.includes(counterCode) ? counterCode : (counterCodes[0] ?? '');
-  const maxCounterQty = effCounterCode ? (buyer?.shares[effCounterCode] ?? 0) : 0;
+  const maxCounterQty = effCounterCode ? (buyer ? heldQty(buyer, effCounterCode) : 0) : 0;
   const effCounterQty = Math.min(counterQty, Math.max(maxCounterQty, 1));
   const counterValid = !wantShares || (effCounterCode !== '' && effCounterQty >= 1 && effCounterQty <= maxCounterQty);
 
@@ -190,11 +194,11 @@ function ProposeForm({ s, dispatch, onDone }: {
         </Field>
       </div>
 
-      <Field label={`Stock / IPO — ${seller?.name}'s holdings`}>
+      <Field label={`Stock / IPO / ETF — ${seller?.name}'s holdings`}>
         {codes.length > 0 ? (
           <select value={effCode} onChange={(e) => setCode(e.target.value)}>
             {codes.map((c) => (
-              <option key={c} value={c}>{c} — {codeName(c)} (×{seller?.shares[c] ?? 0})</option>
+              <option key={c} value={c}>{c} — {codeName(c)} (×{seller ? heldQty(seller, c) : 0})</option>
             ))}
           </select>
         ) : (
@@ -236,10 +240,10 @@ function ProposeForm({ s, dispatch, onDone }: {
 
       {wantShares && counterCodes.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <Field label={`Stock / IPO — ${buyer?.name}'s holdings`}>
+          <Field label={`Stock / IPO / ETF — ${buyer?.name}'s holdings`}>
             <select value={effCounterCode} onChange={(e) => setCounterCode(e.target.value)}>
               {counterCodes.map((c) => (
-                <option key={c} value={c}>{c} — {codeName(c)} (×{buyer?.shares[c] ?? 0})</option>
+                <option key={c} value={c}>{c} — {codeName(c)} (×{buyer ? heldQty(buyer, c) : 0})</option>
               ))}
             </select>
           </Field>
