@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ME_CARDS } from '../data';
+import { ME_CARDS, MOVE_BP, applyBasisPoints } from '../data';
 import { reduce } from '../engine';
 import { patch, rng, started } from './helpers';
 
 describe('Cyberattack card', () => {
-  it('pauses for a choice and drops an owned holding one price step', () => {
+  it('pauses for a choice and drops an owned holding by one standard step', () => {
     const cardIndex = ME_CARDS.findIndex((card) => card.title === 'Cyberattack');
     expect(cardIndex).toBeGreaterThanOrEqual(0);
     const r = rng('cyberattack-choice');
@@ -27,7 +27,7 @@ describe('Cyberattack card', () => {
 
     s = reduce(s, { t: 'chooseCyberattackStock', code: 'MEDI' }, r);
     expect(s.cyberattackPrompt).toBeNull();
-    expect(s.prices.MEDI).toBe(before - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(before, -MOVE_BP.cardStep));
   });
 
   it('can be resolved by paying the fee instead', () => {

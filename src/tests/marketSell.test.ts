@@ -2,7 +2,7 @@
 // having to land on that stock's space (moves price on block sales of 3+).
 
 import { describe, expect, it } from 'vitest';
-import { SALARY, STOCK_BY_CODE } from '../data';
+import { MOVE_BP, SALARY, STOCK_BY_CODE, applyBasisPoints } from '../data';
 import { bankSellLimit, bankSellRemaining, canMarketSell, priceOf, projectedDividend, sellBackPrice } from '../engine';
 
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
@@ -28,7 +28,7 @@ describe('Trading Market — sell without landing', () => {
     expect(canMarketSell(s)).toBe(true);
 
     const cash = s.players[0].cash;
-    // Sell-back pays one price step below market (rulebook §11), not full market.
+    // Sell-back pays market less the bank haircut (rulebook §11), not full market.
     const proceeds = sellBackPrice(s, 'MEDI');
     expect(proceeds).toBeLessThan(priceOf(s, 'MEDI'));
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 1 }, rng());
@@ -36,7 +36,7 @@ describe('Trading Market — sell without landing', () => {
     expect(s.players[0].cash).toBe(cash + proceeds);
   });
 
-  it('selling 2 does not move the price, while selling 3 at once drops it one step', () => {
+  it('selling 2 does not move the price, while selling 3 at once drops it by the bank-sale percentage', () => {
     let s = started();
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
@@ -46,7 +46,7 @@ describe('Trading Market — sell without landing', () => {
     expect(s.prices.MEDI).toBe(base);
     expect(s.players[0].shares.MEDI).toBe(9);
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
-    expect(s.prices.MEDI).toBe(base - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(base, MOVE_BP.bankSale));
     expect(s.players[0].shares.MEDI).toBe(6);
   });
 

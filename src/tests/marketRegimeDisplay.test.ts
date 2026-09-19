@@ -6,6 +6,7 @@ import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
 import { METER_MAX, METER_MIN, repriceRoundBoundary } from '../engine/marketMeter';
 import { DEFAULT_OPTIONS } from '../engine/types';
 import { initialState } from '../engine';
+import { PRICE_FLOOR } from '../data';
 import { makeRng } from '../utils/rng';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -117,24 +118,27 @@ describe('End-of-round Bull/Bear decay (2026-09-18 — was a hard reset to 0)', 
     expect(s.meter).toBe(0);
   });
 
-  it('decays even when every eligible company is already clamped and nothing actually moves', () => {
+  it('decays even when every eligible company is already at the floor and nothing actually moves', () => {
+    // A BEAR meter is used deliberately: the percentage redesign removed the
+    // hard ceiling, so a company can always rise and a bull round can never be
+    // fully clamped. The floor is now the only bound that can block a move.
     let s = withMeter(started(2));
     s = patch(s, (d) => {
-      d.meter = 2; // bull
-      for (const code of Object.keys(d.prices)) d.prices[code] = 11; // every regular stock at the ceiling
+      d.meter = -2; // bear — the only direction that can be fully blocked
+      for (const code of Object.keys(d.prices)) d.prices[code] = PRICE_FLOOR;
       d.ipos.forEach((ip) => { ip.revealed = false; }); // no revealed IPO left to move either
     });
     const before = { ...s.prices };
     repriceRoundBoundary(s, rng('clamped'));
     expect(s.prices).toEqual(before); // genuinely nothing moved
-    expect(s.meter).toBe(1); // decay happens anyway
+    expect(s.meter).toBe(-1); // decay happens anyway
   });
 
   it('the decay creates no additional Important Event, price move, card draw, or stance payout', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => {
-      d.meter = 2;
-      for (const code of Object.keys(d.prices)) d.prices[code] = 11;
+      d.meter = -2; // bear — see the clamped-floor note above
+      for (const code of Object.keys(d.prices)) d.prices[code] = PRICE_FLOOR;
       d.ipos.forEach((ip) => { ip.revealed = false; });
     });
     const signalsBefore = s.marketSignals.length;

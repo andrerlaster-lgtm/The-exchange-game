@@ -115,9 +115,11 @@ export const MOVE_BP = {
  */
 export const RUN_BP: Record<Risk, number> = { Low: 0, Med: 1_000, High: 2_000 };
 
-/** Signed Run move for a risk tier. */
+/** Signed Run move for a risk tier. The `|| 0` keeps a zero tier as +0 rather
+    than JavaScript's -0, which is not Object.is-equal to 0 and would surface
+    in the UI as "-0.0%". */
 export function runBasisPoints(risk: Risk, regime: 'bull' | 'bear'): number {
-  return RUN_BP[risk] * (regime === 'bull' ? 1 : -1);
+  return (regime === 'bull' ? RUN_BP[risk] : -RUN_BP[risk]) || 0;
 }
 
 /** Revealed IPOs move with the market at the standard one-step magnitude. */

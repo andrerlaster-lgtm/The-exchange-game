@@ -17,7 +17,7 @@ describe('Session Debrief', () => {
         title: 'Bull Run',
         summary: 'Risk woke up optimistic.',
         lap: 3,
-        impacts: [{ code: 'CCAI', d: 2 }],
+        impacts: [{ code: 'CCAI', pct: 10 }],
       });
     });
 

@@ -5,7 +5,7 @@ import type { Effect } from '../data/types';
 function effectSignature(effect: Effect): string {
   if (effect.k !== 'multi') return JSON.stringify(effect);
   const moves = effect.m
-    .map((move) => `${move.sec ?? `risk:${move.risk}`}:${move.d}`)
+    .map((move) => `${move.sec ?? `risk:${move.risk}`}:${move.bp}`)
     .sort();
   return JSON.stringify({ k: effect.k, moves });
 }
@@ -24,11 +24,11 @@ describe('card pool', () => {
   it('gives the revised Fed cards distinct market roles', () => {
     expect(FED_CARDS.find((card) => card.title === 'Mortgage Pressure')?.eff).toEqual({
       k: 'multi',
-      m: [{ sec: 'realestate', d: -1 }, { sec: 'consumer', d: -1 }],
+      m: [{ sec: 'realestate', bp: -500 }, { sec: 'consumer', bp: -500 }],
     });
     expect(FED_CARDS.find((card) => card.title === 'Bond Yields Rise')?.eff).toEqual({
       k: 'multi',
-      m: [{ risk: 'Low', d: 1 }, { risk: 'High', d: -1 }],
+      m: [{ risk: 'Low', bp: 500 }, { risk: 'High', bp: -500 }],
     });
   });
 });

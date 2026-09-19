@@ -99,9 +99,13 @@ export const PAYOUT_CLAIM_TOTAL_CAP = 10_000;
  * zero Run exposure in both directions — rather than risk-free. The
  * percentage redesign keeps exactly that shape, restated as 0/±1,000/±2,000 bp.
  */
+// `|| 0` keeps a zero tier as +0 rather than JavaScript's -0, which is not
+// Object.is-equal to 0 and would surface in equality assertions and displays.
+const down = (bp: number) => -bp || 0;
+
 export const MARKET_RUN_MOVE_BY_RISK = {
   bull: { Low: RUN_BP.Low, Med: RUN_BP.Med, High: RUN_BP.High },
-  bear: { Low: -RUN_BP.Low, Med: -RUN_BP.Med, High: -RUN_BP.High },
+  bear: { Low: down(RUN_BP.Low), Med: down(RUN_BP.Med), High: down(RUN_BP.High) },
 } satisfies Record<'bull' | 'bear', Record<Risk, number>>;
 
 export interface StockOpportunity {

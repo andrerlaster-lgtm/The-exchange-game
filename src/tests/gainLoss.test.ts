@@ -40,7 +40,7 @@ describe('stock cost basis and gain/loss', () => {
     let s = rollTo(started(2), 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     s = patch(s, (draft) => {
-      draft.prices.MEDI += 1; // $750 -> $1,000
+      draft.prices.MEDI = 1_000; // $750 -> $1,000
       draft.trade = null;
       draft.turnPhase = 'acted';
     });
@@ -51,24 +51,25 @@ describe('stock cost basis and gain/loss', () => {
       unrealized: 2_750,
     });
 
-    // Sell 2 back one step below market: 2 × $750 = $1,500 proceeds. Basis
-    // removed proportionally: 8,250 × 2/11 = 1,500 exactly — proceeds equal
-    // removed basis, so this particular sale is itself gain-neutral.
+    // Sell 2 back to the bank at the 20% haircut: 2 × $800 = $1,600 proceeds.
+    // Basis removed proportionally: 8,250 × 2/11 = $1,500, so this sale books
+    // a $100 realized gain — the stock had risen enough that even after the
+    // haircut the seller comes out ahead of what those shares cost.
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 2 }, rng());
     const holding = holdingGainLoss(s, s.players[0], 'MEDI');
     const total = stockGainLoss(s, s.players[0]);
     expect(s.players[0].shares.MEDI).toBe(9);
-    expect(s.players[0].realizedStockGain).toBe(0);
+    expect(s.players[0].realizedStockGain).toBe(100);
     expect(holding.costBasis).toBe(6_750);
     expect(holding.unrealized).toBe(2_250);
-    expect(total.total).toBe(2_250);
-    expect(marketGain(s, s.players[0])).toBe(2_250);
+    expect(total.total).toBe(2_350); // 2,250 unrealized + 100 realized
+    expect(marketGain(s, s.players[0])).toBe(2_350);
   });
 
   it('shows an unrealized loss when the share price falls below the purchase basis', () => {
     let s = rollTo(started(2), 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
-    s = patch(s, (draft) => { draft.prices.MEDI -= 1; }); // $750 -> $500
+    s = patch(s, (draft) => { draft.prices.MEDI = 500; }); // $750 -> $500
 
     const gl = holdingGainLoss(s, s.players[0], 'MEDI');
     expect(gl.marketValue).toBe(5_500);
@@ -101,7 +102,7 @@ describe('stock cost basis and gain/loss', () => {
     // price, so cost basis always equals market value at the moment of
     // purchase, no matter what the price did beforehand.
     let s = rollTo(started(2), 5); // MEDI · Growth, opens at $750
-    s = patch(s, (draft) => { draft.prices.MEDI -= 1; }); // price already fell to $500 BEFORE buying
+    s = patch(s, (draft) => { draft.prices.MEDI = 500; }); // price already fell to $500 BEFORE buying
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
 
     const gl = holdingGainLoss(s, s.players[0], 'MEDI');
@@ -113,7 +114,7 @@ describe('stock cost basis and gain/loss', () => {
 
   it('a company buy-out is also value-neutral when the price had already risen before the purchase', () => {
     let s = rollTo(started(2), 5);
-    s = patch(s, (draft) => { draft.prices.MEDI += 1; }); // price already rose to $1,000
+    s = patch(s, (draft) => { draft.prices.MEDI = 1_000; }); // price already rose to $1,000
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
 
     const gl = holdingGainLoss(s, s.players[0], 'MEDI');
@@ -131,7 +132,7 @@ describe('stock cost basis and gain/loss', () => {
       draft.decks.ME = [cardIndex];
       draft.discard.ME = [];
       draft.cur = 0;
-      draft.prices.MEDI -= 1; // MEDI already at a discount before the card is even drawn
+      draft.prices.MEDI = 500; // MEDI already at a discount before the card is even drawn
       // Make MEDI the only untouched company so the card's random pick is
       // forced onto it, instead of leaving this test's outcome to seed luck.
       for (const code of Object.keys(draft.supply)) {

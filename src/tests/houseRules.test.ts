@@ -87,19 +87,21 @@ describe('Risk-specific stock card benefits', () => {
     // 2026-08-21 Market Overhaul: High risk earns a small but nonzero
     // dividend now (was $0) so it isn't a strictly dominated strategy —
     // its case is still made mostly on price movement, not income.
+    // Run moves are basis points since the percentage redesign: High risk is
+    // +/-2,000 bp (20%), Medium +/-1,000 bp (10%), Low zero.
     // 2026-09-18 balance pass: CCAI is Growth tier ($750/share), so its
     // Payout Claim rent is now 4x/6x THAT price ($3,000/$4,500), not the old
     // flat $2,000/$3,000 (which was only ever accurate for a Starter company).
     expect(stockOpportunityFor(STOCK_BY_CODE.CCAI)).toMatchObject({
       title: 'GROWTH POTENTIAL', tone: 'growth', dividendPerLap: 495,
-      bullMove: 2, bearMove: -2, landingPayout: 3_000, sectorPayout: 4_500,
+      bullMove: 2_000, bearMove: -2_000, landingPayout: 3_000, sectorPayout: 4_500,
     });
   });
 
   it('explains medium-risk income and balanced movement', () => {
     expect(stockOpportunityFor(STOCK_BY_CODE.MEDI)).toMatchObject({
       title: 'BALANCED OPPORTUNITY', tone: 'balanced', dividendPerLap: 1_155,
-      bullMove: 1, bearMove: -1,
+      bullMove: 1_000, bearMove: -1_000,
     });
   });
 

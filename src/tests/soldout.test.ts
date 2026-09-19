@@ -107,8 +107,8 @@ describe('Landing rent on a sold-out stock', () => {
     expect(landingValueMultiplier(1_500, 750)).toBe(2);
     expect(shareholderLandingDiscount(3)).toBeCloseTo(0.3);
     expect(shareholderLandingDiscount(8)).toBe(0.5);
-    expect(claimPayoutForLanding(2, false, 3, 2, 0)).toBe(750); // $500 × 1.5
-    expect(claimPayoutForLanding(2, false, 3, 2, 3)).toBe(550); // 30% shareholder discount
+    expect(claimPayoutForLanding(2, false, 750, 500, 0)).toBe(750); // $500 × 1.5
+    expect(claimPayoutForLanding(2, false, 750, 500, 3)).toBe(550); // 30% shareholder discount
   });
 
   function landOn(holderShares: number) {

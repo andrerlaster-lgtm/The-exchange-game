@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { MOVE_BP, applyBasisPoints } from '../data';
 import { fedSignalForStock, importantMarketSignals, recordMarketSignal } from '../engine';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 describe('Market Intelligence signals', () => {
   it('records a Fed decision with exact company impacts and plain-language guidance', () => {
-    let s = patch(started(2), (draft) => {
+    const opening = patch(started(2), (draft) => {
       draft.pendingDraws = ['FED'];
       draft.decks.FED = [0]; // Rate Hike
     });
-    s = dispatch(s, { t: 'draw', deck: 'FED' }, rng());
+    const before = { ...opening.prices };
+    const s = dispatch(opening, { t: 'draw', deck: 'FED' }, rng());
 
     // Found by kind rather than trusting index 0 — Option A (2026-09-18) can
     // now ALSO record a "Market Ripple" signal right after this one (Rate
@@ -23,12 +25,22 @@ describe('Market Intelligence signals', () => {
       stance: 'hawkish',
     });
     expect(fedSignal.insight).toContain('borrowing costs');
-    expect(fedSignal.impacts).toEqual(expect.arrayContaining([
-      { code: 'FTRB', d: 1 },
-      { code: 'PAYW', d: 1 },
-      { code: 'MTRO', d: -1 },
-      { code: 'RENT', d: -1 },
-    ]));
+    // Impacts are REALIZED percentages, so each company's own figure depends on
+    // its own price: the $25 grid makes a nominal 5% land a little above or
+    // below 5% depending on where the price sits. Assert the direction and the
+    // real post-move price rather than one shared hardcoded percentage.
+    for (const code of ['FTRB', 'PAYW'] as const) {
+      expect(s.prices[code]).toBe(applyBasisPoints(before[code], MOVE_BP.cardStep));
+      expect(fedSignal.impacts).toContainEqual({
+        code, pct: ((s.prices[code] - before[code]) / before[code]) * 100,
+      });
+    }
+    for (const code of ['MTRO', 'RENT'] as const) {
+      expect(s.prices[code]).toBe(applyBasisPoints(before[code], -MOVE_BP.cardStep));
+      expect(fedSignal.impacts).toContainEqual({
+        code, pct: ((s.prices[code] - before[code]) / before[code]) * 100,
+      });
+    }
     expect(fedSignalForStock(s, 'FTRB').tone).toBe('tailwind');
     expect(fedSignalForStock(s, 'MTRO').tone).toBe('headwind');
     expect(fedSignalForStock(s, 'MEDI').tone).toBe('neutral');
@@ -36,10 +48,10 @@ describe('Market Intelligence signals', () => {
 
   it('uses only the last three Fed decisions and calls conflicting effects mixed', () => {
     const s = patch(started(2), (draft) => {
-      recordMarketSignal(draft, { kind: 'fed', title: 'Old Hike', summary: '', impacts: [{ code: 'CCAI', d: -3 }] });
-      recordMarketSignal(draft, { kind: 'fed', title: 'Cut', summary: '', impacts: [{ code: 'CCAI', d: 1 }] });
+      recordMarketSignal(draft, { kind: 'fed', title: 'Old Hike', summary: '', impacts: [{ code: 'CCAI', pct: -30 }] });
+      recordMarketSignal(draft, { kind: 'fed', title: 'Cut', summary: '', impacts: [{ code: 'CCAI', pct: 30 }] });
       recordMarketSignal(draft, { kind: 'fed', title: 'Hold', summary: '', impacts: [] });
-      recordMarketSignal(draft, { kind: 'fed', title: 'Warning', summary: '', impacts: [{ code: 'CCAI', d: -1 }] });
+      recordMarketSignal(draft, { kind: 'fed', title: 'Warning', summary: '', impacts: [{ code: 'CCAI', pct: -30 }] });
     });
 
     const signal = fedSignalForStock(s, 'CCAI');
@@ -61,6 +73,7 @@ describe('Market Intelligence signals', () => {
     expect(s.marketSignals.some((signal) => signal.kind === 'soldout')).toBe(false);
     expect(importantMarketSignals(s)).toEqual([]);
 
+    const safeBefore = s.prices.SAFE;
     for (let i = 0; i < 2; i++) {
       s = patch(s, (draft) => {
         draft.turnPhase = 'acted';
@@ -69,8 +82,11 @@ describe('Market Intelligence signals', () => {
       s = dispatch(s, { t: 'skipStock', code: 'SAFE' }, rng());
     }
     expect(s.marketSignals[0]).toMatchObject({
-      kind: 'weakDemand', title: 'Weak Demand · SAFE', impacts: [{ code: 'SAFE', d: -1 }],
+      kind: 'weakDemand',
+      title: 'Weak Demand · SAFE',
+      impacts: [{ code: 'SAFE', pct: ((s.prices.SAFE - safeBefore) / safeBefore) * 100 }],
     });
+    expect(s.prices.SAFE).toBe(applyBasisPoints(safeBefore, MOVE_BP.weakDemand));
     expect(importantMarketSignals(s)).toEqual([]);
   });
 
@@ -111,7 +127,7 @@ describe('Market Intelligence signals', () => {
   it('keeps the Market Meter ambient signals OUT — the persistent display covers those', () => {
     const s = patch(started(2), (draft) => {
       recordMarketSignal(draft, {
-        kind: 'market', title: 'Market Meter — Bullish', summary: 'Ambient move.', impacts: [{ code: 'CCAI', d: 1 }],
+        kind: 'market', title: 'Market Meter — Bullish', summary: 'Ambient move.', impacts: [{ code: 'CCAI', pct: 30 }],
       });
     });
     expect(importantMarketSignals(s)).toEqual([]);
@@ -123,10 +139,10 @@ describe('Market Intelligence signals', () => {
       recordMarketSignal(draft, {
         kind: 'fed', title: 'Rate Hike', summary: 'Finance up; real estate down.',
         stance: 'hawkish', insight: 'Banks gain a lending tailwind.',
-        impacts: [{ code: 'FTRB', d: 1 }, { code: 'MTRO', d: -1 }],
+        impacts: [{ code: 'FTRB', pct: 30 }, { code: 'MTRO', pct: -30 }],
       });
       recordMarketSignal(draft, {
-        kind: 'regime', title: 'Bear Run', summary: 'The broad market fell.', impacts: [{ code: 'CCAI', d: -2 }],
+        kind: 'regime', title: 'Bear Run', summary: 'The broad market fell.', impacts: [{ code: 'CCAI', pct: -30 }],
       });
     });
     const center = buildActionCenter(s);

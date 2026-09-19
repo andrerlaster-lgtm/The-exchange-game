@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ME_CARDS, SALARY } from '../data';
+import { ME_CARDS, MOVE_BP, SALARY, applyBasisPoints } from '../data';
 import { reduce } from '../engine';
 import { payMarketOpen } from '../engine/playerState';
 import { patch, rng, started } from './helpers';
@@ -27,7 +27,7 @@ describe('Regulatory Investigation card', () => {
     const beforePrice = s.prices.MEDI;
     s = reduce(s, { t: 'chooseRegulatoryInvestigationStock', code: 'MEDI' }, r);
     expect(s.regulatoryInvestigationPrompt).toBeNull();
-    expect(s.prices.MEDI).toBe(beforePrice - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(beforePrice, -MOVE_BP.cardStep));
     expect(s.players[0].dividendCuts.MEDI).toBe(1);
 
     const beforeCash = s.players[0].cash;

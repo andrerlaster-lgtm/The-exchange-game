@@ -3,7 +3,7 @@
 // "Rebuild The Exchange Market Event Deck".
 
 import { describe, it, expect } from 'vitest';
-import { CARDS, CORE_ME_CARDS, ME_CARDS, MARKET_CLOSE_INDEX } from '../data';
+import { CARDS, CORE_ME_CARDS, MARKET_CLOSE_INDEX, ME_CARDS, MOVE_BP, applyBasisPoints } from '../data';
 import { circuitBreakerOptions } from '../engine';
 import { dispatch, patch, rng, started } from './helpers';
 
@@ -55,7 +55,7 @@ describe('Deck Rebuild — meter sentiment applies exactly once', () => {
     let s = patch(started(2), (d) => { d.meter = 0; });
     const before = s.prices.SAFE;
     s = drawCard(s, 'Melt-Up Rally');
-    expect(s.prices.SAFE).toBe(before + 1);
+    expect(s.prices.SAFE).toBe(applyBasisPoints(before, MOVE_BP.cardStep));
     expect(s.meter).toBe(2);
   });
 
@@ -80,6 +80,7 @@ describe('Deck Rebuild — actual-impact accounting', () => {
       d.players[0].shares.CCAI = 11;
       d.players[0].shares.CYBS = 11;
     });
+    const cybsBefore = s.prices.CYBS;
     s = drawCard(s, 'Flash Crash');
     s = dispatch(s, { t: 'playCircuitBreaker', code: 'CCAI' }, rng());
 
@@ -88,9 +89,14 @@ describe('Deck Rebuild — actual-impact accounting', () => {
     const ccaiImpact = signal!.impacts.find((imp) => imp.code === 'CCAI');
     const cybsImpact = signal!.impacts.find((imp) => imp.code === 'CYBS');
     // CCAI was shielded — no impact recorded for it at all, not a
-    // predicted -1 that never actually happened.
+    // predicted drop that never actually happened.
     expect(ccaiImpact).toBeUndefined();
-    expect(cybsImpact?.d).toBe(-1);
+    // The REALIZED percentage, which the $25 grid can pull away from the
+    // card's nominal -5% at lower prices — the signal must report what the
+    // price actually did, not what was requested.
+    expect(s.prices.CYBS).toBe(applyBasisPoints(cybsBefore, -MOVE_BP.cardStep));
+    expect(cybsImpact?.pct).toBeCloseTo(((s.prices.CYBS - cybsBefore) / cybsBefore) * 100, 10);
+    expect(cybsImpact!.pct).toBeLessThan(0);
   });
 
   it('records the real, resolved impact for a pick card only after its target is locked in', () => {
@@ -105,7 +111,7 @@ describe('Deck Rebuild — actual-impact accounting', () => {
 
     const signal = s.marketSignals.find((sig) => sig.title === 'Earnings Miss');
     expect(signal).toBeDefined();
-    expect(signal!.impacts).toEqual([{ code: target, d: s.prices[target] - before }]);
+    expect(signal!.impacts).toEqual([{ code: target, pct: ((s.prices[target] - before) / before) * 100 }]);
   });
 
   it('still records a signal for a pick card that finds no eligible target at all', () => {
@@ -137,11 +143,14 @@ describe('Deck Rebuild — actual-impact accounting', () => {
     expect(s.pick).not.toBeNull(); // the original pick survives the interleaved draw
 
     const target = s.pick!.codes![0];
+    const targetBefore = s.prices[target];
     s = dispatch(s, { t: 'pickTarget', code: target }, rng());
 
     const earningsMissSignal = s.marketSignals.find((sig) => sig.title === 'Earnings Miss');
     expect(earningsMissSignal).toBeDefined();
-    expect(earningsMissSignal!.impacts).toEqual([{ code: target, d: -2 }]);
+    expect(earningsMissSignal!.impacts).toEqual([
+      { code: target, pct: ((s.prices[target] - targetBefore) / targetBefore) * 100 },
+    ]);
   });
 
   it('re-validates ownership before honoring a Circuit Breaker play on a locked pick target', () => {
@@ -183,7 +192,7 @@ describe('Deck Rebuild — fair automatic lowest/highest targeting', () => {
     let s = patch(started(2), (d) => {
       d.circuitBreakerHolder = 0;
       // Make MTRO the unique highest price so Bad Press's target is deterministic.
-      d.prices.MTRO = 9; // clearly above every other company's default step, still within ladder range
+      d.prices.MTRO = 3_000; // clearly above every other company's opening price
       d.players[0].shares.MTRO = 11;
     });
     const before = s.prices.MTRO;
@@ -201,13 +210,13 @@ describe('Deck Rebuild — fair automatic lowest/highest targeting', () => {
   it('never pauses for Circuit Breaker when the holder does not own the auto-selected target', () => {
     let s = patch(started(2), (d) => {
       d.circuitBreakerHolder = 0;
-      d.prices.MTRO = 9; // clearly above every other company's default step, still within ladder range
+      d.prices.MTRO = 3_000; // clearly above every other company's opening price
       // Holder owns nothing at all — no company to protect.
     });
     const before = s.prices.MTRO;
     s = drawCard(s, 'Bad Press');
 
     expect(s.circuitBreakerPrompt).toBeNull();
-    expect(s.prices.MTRO).toBe(before - 2);
+    expect(s.prices.MTRO).toBe(applyBasisPoints(before, -MOVE_BP.meterAmplified));
   });
 });

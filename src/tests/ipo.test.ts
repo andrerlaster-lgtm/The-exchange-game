@@ -3,7 +3,7 @@
 // IPO space may buy during that landing.
 
 import { describe, expect, it } from 'vitest';
-import { IPO_DEFS, IPO_FIXED_PRICE, IPO_PRESENTATION, LADDER } from '../data';
+import { IPO_DEFS, IPO_FIXED_PRICE, IPO_PRESENTATION } from '../data';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
 const IPO_SPACE = 10;
@@ -24,7 +24,7 @@ describe('IPO reveal — shared queue, fixed price', () => {
     s = rollTo(s, IPO_SPACE);
     const revealed = s.ipos.filter((ip) => ip.revealed);
     expect(revealed).toHaveLength(1);
-    expect(LADDER[revealed[0].step]).toBe(IPO_FIXED_PRICE);
+    expect(revealed[0].price).toBe(IPO_FIXED_PRICE);
   });
 
   it('offers the revealed IPO only to the player who landed on the space', () => {
@@ -40,17 +40,17 @@ describe('IPO reveal — shared queue, fixed price', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);
     const code = s.ipoBuy!.code;
-    const stepBefore = s.ipos.find((ip) => ip.code === code)!.step;
+    const priceBefore = s.ipos.find((ip) => ip.code === code)!.price;
     s = dispatch(s, { t: 'ipoBuyShare' }, rng());
     expect(s.players[0].shares[code]).toBe(1);
-    expect(s.ipos.find((ip) => ip.code === code)!.step).toBe(stepBefore); // unchanged
+    expect(s.ipos.find((ip) => ip.code === code)!.price).toBe(priceBefore); // unchanged
     s = dispatch(s, { t: 'ipoBuyShare' }, rng());
     expect(s.players[0].shares[code]).toBe(2);
     const cash = s.players[0].cash;
     s = dispatch(s, { t: 'ipoBuyShare' }, rng()); // 3rd blocked (max 2)
     expect(s.players[0].cash).toBe(cash);
     expect(s.players[0].shares[code]).toBe(2);
-    expect(s.ipos.find((ip) => ip.code === code)!.step).toBe(stepBefore);
+    expect(s.ipos.find((ip) => ip.code === code)!.price).toBe(priceBefore);
   });
 
   it('closes the purchase after the landing player finishes', () => {

@@ -1,7 +1,7 @@
 // Rules 8, 9, 11 — Market Open income, Diversified Portfolio, net worth.
 
 import { describe, expect, it } from 'vitest';
-import { CARDS, SALARY, STOCK_BY_CODE } from '../data';
+import { CARDS, MOVE_BP, SALARY, STOCK_BY_CODE, applyBasisPoints } from '../data';
 import { isDiversified, netWorth, priceOf, sharesValue } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
@@ -65,10 +65,11 @@ describe('Rule 9 — Diversified Portfolio status', () => {
     });
     s = dispatch(s, { t: 'draw', deck: 'ME' }, rng());
     expect(s.pick).toBeNull();
-    // 2026-08-21 Deck Rebuild: Flash Crash is now -1 (the meter already adds
-    // ambient movement every round; stacking a -2 broad-market card on top
-    // was not validated as safe — see marketEventDeck.ts's Broad Market note).
-    expect(s.prices.SAFE).toBe(STOCK_BY_CODE.SAFE.step - 1);
+    // 2026-08-21 Deck Rebuild: Flash Crash is now one standard step down (the
+    // meter already adds ambient movement every round; stacking a double-step
+    // broad-market card on top was not validated as safe — see
+    // marketEventDeck.ts's Broad Market note). One step is -500 bp.
+    expect(s.prices.SAFE).toBe(applyBasisPoints(STOCK_BY_CODE.SAFE.base, -MOVE_BP.cardStep));
   });
 });
 

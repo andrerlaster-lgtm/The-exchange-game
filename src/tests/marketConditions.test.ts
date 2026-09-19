@@ -196,7 +196,7 @@ describe('Market Conditions — personal, per-player', () => {
     });
     s = rollTo(s, 11); // IRON (CODE_B)
     const stock = STOCK_BY_CODE[CODE_B];
-    const claimOwed = claimPayoutForLanding(11, false, stock.step, stock.step, 0);
+    const claimOwed = claimPayoutForLanding(11, false, stock.base, stock.base, 0);
     expect(s.landingNotice).toMatchObject({
       title: `Payout Claim + Sector Rent · ${CODE_B}`,
       amount: claimOwed + PAIR.rent * 2,

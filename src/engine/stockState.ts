@@ -57,9 +57,13 @@ export function applyPriceMove(
   return { before, after, delta: after - before, pct: before === 0 ? 0 : ((after - before) / before) * 100 };
 }
 
-/** Trade-driven move (Rule 2): regular stocks only, after a buy or sell. */
-export function moveTradePrice(s: GameState, code: string, bp: number): PriceMoveResult {
-  const r = applyPriceMove(s, code, bp, bp >= 0 ? 'strongDemand' : 'voluntarySale');
+/**
+ * Trade-driven move (Rule 2): regular stocks only, after a buy or sell. The
+ * only mover that can queue a Market Event, and only on an upward crossing of
+ * the $5,000 mark.
+ */
+export function moveTradePrice(s: GameState, code: string, bp: number, source: PriceMoveSource): PriceMoveResult {
+  const r = applyPriceMove(s, code, bp, source);
   if (r.before < CEILING_TRIGGER && r.after >= CEILING_TRIGGER) triggerCeiling(s, code);
   return r;
 }

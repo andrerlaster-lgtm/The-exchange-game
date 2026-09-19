@@ -2,7 +2,7 @@
 // stock-space scope, and Market Event triggers.
 
 import { describe, expect, it } from 'vitest';
-import { COMPANY_SHARE_PRICE_BY_TIER, LADDER, REGULAR_SUPPLY, START_CASH, STOCK_BY_CODE } from '../data';
+import { COMPANY_SHARE_PRICE_BY_TIER, MOVE_BP, PRICE_FLOOR, REGULAR_SUPPLY, SELL_BACK_HAIRCUT_BP, START_CASH, STOCK_BY_CODE, applyBasisPoints } from '../data';
 import { companyBuyoutCost } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -87,36 +87,37 @@ describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-n
     expect(s.players[1].cash).toBe(cashBefore); // no purchase possible — rent already resolved on landing
   });
 
-  it('sell-back pays one price step below market, not the market price (rulebook §11)', () => {
+  it('sell-back pays market less the bank haircut, not the market price (rulebook §11)', () => {
     let s = started();
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
-    const step = s.prices.MEDI;
+    const price = s.prices.MEDI;
+    const expected = applyBasisPoints(price, -SELL_BACK_HAIRCUT_BP);
     const cash = s.players[0].cash;
     s = patch(s, (d) => { d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 1 }, rng());
-    expect(s.players[0].cash).toBe(cash + LADDER[step - 1]);
-    expect(LADDER[step - 1]).toBeLessThan(LADDER[step]);
+    expect(s.players[0].cash).toBe(cash + expected);
+    expect(expected).toBeLessThan(price);
   });
 
-  it('sell-back at the $100 floor pays the floor price (no negative step)', () => {
+  it('sell-back at the $100 floor pays the floor price (never below it)', () => {
     let s = started();
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     const cash = s.players[0].cash;
-    s = patch(s, (d) => { d.prices.MEDI = 0; d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
+    s = patch(s, (d) => { d.prices.MEDI = PRICE_FLOOR; d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 1 }, rng());
-    expect(s.players[0].cash).toBe(cash + LADDER[0]);
+    expect(s.players[0].cash).toBe(cash + PRICE_FLOOR);
   });
 
-  it('selling 3+ shares back moves the price down one step', () => {
+  it('selling 3+ shares back moves the price down by the bank-sale percentage', () => {
     let s = started();
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     const base = s.prices.MEDI;
     s = patch(s, (d) => { d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
     s = dispatch(s, { t: 'sell', code: 'MEDI', qty: 3 }, rng());
-    expect(s.prices.MEDI).toBe(base - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(base, MOVE_BP.bankSale));
   });
 
   it('sold-back shares become outstanding on the company, not normal supply', () => {
@@ -129,12 +130,12 @@ describe('Rule 2 — buying a company is all-or-nothing (rulebook §10, all-or-n
     expect(s.bankPool.MEDI).toBe(3);      // available only on a later MEDI landing
   });
 
-  it('leaves a company already at the top of the ladder unchanged on buy-out', () => {
+  it('a whole-company buy-out never moves the live share price', () => {
     let s = started();
-    s = patch(s, (d) => { d.prices.MEDI = LADDER.length - 1; });
+    s = patch(s, (d) => { d.prices.MEDI = 2_000; d.players[0].cash = 1_000_000; });
     s = rollTo(s, 5);
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
-    expect(s.prices.MEDI).toBe(LADDER.length - 1);
+    expect(s.prices.MEDI).toBe(2_000);
   });
 });
 

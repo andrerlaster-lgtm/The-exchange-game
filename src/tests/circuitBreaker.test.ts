@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CIRCUIT_BREAKER_INDEX, ME_CARDS } from '../data';
+import { CIRCUIT_BREAKER_INDEX, ME_CARDS, MOVE_BP, applyBasisPoints } from '../data';
 import { blocked, circuitBreakerOptions } from '../engine';
 import { dispatch, patch, rng, started } from './helpers';
 
@@ -58,7 +58,7 @@ describe('Circuit Breaker hold card', () => {
     expect(s.circuitBreakerHolder).toBeNull();
     expect(s.discard.ME).toContain(CIRCUIT_BREAKER_INDEX);
     expect(s.prices.CCAI).toBe(protectedBefore);
-    expect(s.prices.CYBS).toBe(unprotectedBefore - 1);
+    expect(s.prices.CYBS).toBe(applyBasisPoints(unprotectedBefore, -MOVE_BP.cardStep));
   });
 
   it('lets the holder pass and keep the card for later', () => {
@@ -72,7 +72,7 @@ describe('Circuit Breaker hold card', () => {
 
     expect(s.circuitBreakerPrompt).toBeNull();
     expect(s.circuitBreakerHolder).toBe(0);
-    expect(s.prices.CCAI).toBe(before - 1);
+    expect(s.prices.CCAI).toBe(applyBasisPoints(before, -MOVE_BP.cardStep));
   });
 
   it('also shields a chosen company from a targeted negative Market Event, once a target is locked in', () => {
@@ -111,6 +111,6 @@ describe('Circuit Breaker hold card', () => {
 
     expect(s.circuitBreakerPrompt).toBeNull();
     expect(s.circuitBreakerHolder).toBe(0);
-    expect(s.prices.CCAI).toBe(before + 1);
+    expect(s.prices.CCAI).toBe(applyBasisPoints(before, MOVE_BP.cardStep));
   });
 });

@@ -6,7 +6,7 @@
 // explicitly opt out for the same reason.
 
 import { describe, expect, it } from 'vitest';
-import { LADDER, SECTOR_CODES, STOCK_BY_CODE } from '../data';
+import { CEILING_TRIGGER, MOVE_BP, PRICE_FLOOR, SECTOR_CODES, STOCK_BY_CODE, applyBasisPoints } from '../data';
 import type { SectorId } from '../data/types';
 import { blocked } from '../engine/rules';
 import { moveEventPrice } from '../engine/stockState';
@@ -16,7 +16,7 @@ import {
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
 const SECTORS = Object.keys(SECTOR_CODES) as SectorId[];
-const CEIL = LADDER.length - 1;
+const CEIL = CEILING_TRIGGER;
 
 function withMeter(s: ReturnType<typeof started>) {
   return patch(s, (d) => { d.opts.marketMeter = true; });
@@ -36,11 +36,11 @@ describe('meterZone', () => {
 
 describe('marketMeterForecast', () => {
   it('explains the exact round-end scope without naming a sector before it is selected', () => {
-    expect(marketMeterForecast(0).headline).toBe('One random sector will move 1 step.');
-    expect(marketMeterForecast(2).headline).toBe('One random sector will rise 2 steps.');
-    expect(marketMeterForecast(-2).headline).toBe('One random sector will fall 2 steps.');
-    expect(marketMeterForecast(3).headline).toBe('Two random sectors will rise 1 step each.');
-    expect(marketMeterForecast(-3).headline).toBe('Two random sectors will fall 1 step each.');
+    expect(marketMeterForecast(0).headline).toBe('One random sector will move 5%.');
+    expect(marketMeterForecast(2).headline).toBe('One random sector will rise 10%.');
+    expect(marketMeterForecast(-2).headline).toBe('One random sector will fall 10%.');
+    expect(marketMeterForecast(3).headline).toBe('Two random sectors will rise 5% each.');
+    expect(marketMeterForecast(-3).headline).toBe('Two random sectors will fall 5% each.');
     expect(marketMeterForecast(2).detail).toContain('selected when the round ends');
   });
 });
@@ -78,13 +78,22 @@ describe('advanceMeterOnRoll', () => {
 });
 
 describe('eligibleSectors', () => {
-  it('excludes a sector only once every company in it is clamped at that bound', () => {
+  it('excludes a sector only once every company in it is pinned at the floor', () => {
+    // The floor is now the only bound: the percentage redesign removed the
+    // hard ceiling, so nothing is ever ineligible to RISE (see rules.canRise).
     let s = withMeter(started(2));
     const sec = SECTORS[0];
     const codes = SECTOR_CODES[sec];
-    s = patch(s, (d) => { for (const code of codes) d.prices[code] = CEIL; });
-    expect(eligibleSectors(s, 1)).not.toContain(sec); // all clamped at ceiling -> ineligible to rise
-    expect(eligibleSectors(s, -1)).toContain(sec);    // still eligible to fall
+    s = patch(s, (d) => { for (const code of codes) d.prices[code] = PRICE_FLOOR; });
+    expect(eligibleSectors(s, -1)).not.toContain(sec); // all at the floor -> cannot fall
+    expect(eligibleSectors(s, 1)).toContain(sec);      // always eligible to rise
+  });
+
+  it('a sector far above the old $5,000 ceiling is still eligible to rise', () => {
+    let s = withMeter(started(2));
+    const sec = SECTORS[0];
+    s = patch(s, (d) => { for (const code of SECTOR_CODES[sec]) d.prices[code] = CEIL * 2; });
+    expect(eligibleSectors(s, 1)).toContain(sec);
   });
 
   it('every sector is eligible both ways from a fresh game (nothing starts clamped)', () => {
@@ -194,10 +203,10 @@ describe('repriceRoundBoundary', () => {
     s = patch(s, (d) => { d.ipos[0].revealed = true; d.ipos[1].revealed = false; d.meter = METER_MAX; });
     let revealedMoved = false;
     for (let i = 0; i < 50; i++) {
-      const before = s.ipos.map((ip) => ip.step);
+      const before = s.ipos.map((ip) => ip.price);
       repriceRoundBoundary(s, rng(`ipo-${i}`));
-      if (s.ipos[0].step !== before[0]) revealedMoved = true;
-      expect(s.ipos[1].step).toBe(before[1]); // unrevealed never moves, ever
+      if (s.ipos[0].price !== before[0]) revealedMoved = true;
+      expect(s.ipos[1].price).toBe(before[1]); // unrevealed never moves, ever
     }
     expect(revealedMoved).toBe(true);
     void ipoRevealed; void ipoUnrevealed;
@@ -286,8 +295,8 @@ describe('end-to-end wiring: endTurn hook fires the round-boundary reprice', () 
     const before = s.prices.CCAI;
     // Directly exercise the same price-move primitive a Bull Run card uses
     // (moveEventPrice) to confirm it's untouched by the meter being on.
-    s = patch(s, (d) => { moveEventPrice(d, 'CCAI', 2); });
-    expect(s.prices.CCAI).toBe(before + 2);
+    s = patch(s, (d) => { moveEventPrice(d, 'CCAI', MOVE_BP.meterAmplified); });
+    expect(s.prices.CCAI).toBe(applyBasisPoints(before, MOVE_BP.meterAmplified));
   });
 });
 
@@ -333,7 +342,7 @@ describe('sector selection balance', () => {
 });
 
 describe('Option C — amplitude scales with |meter| (2026-09-18)', () => {
-  it('|meter|==1 (or 0) moves exactly one sector one step — identical to the original rule', () => {
+  it('|meter|==1 (or 0) moves exactly one sector by the standard percentage', () => {
     for (const meter of [0, 1, -1]) {
       let s = withMeter(started(2));
       s = patch(s, (d) => { d.meter = meter; });
@@ -342,21 +351,24 @@ describe('Option C — amplitude scales with |meter| (2026-09-18)', () => {
       const moved = SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
       expect(moved).toHaveLength(1);
       for (const code of SECTOR_CODES[moved[0]]) {
-        const stepDelta = s.prices[code] - before[code];
-        expect(Math.abs(stepDelta)).toBeLessThanOrEqual(1); // 1 step, or 0 if already clamped
+        const dir = Math.sign(s.prices[code] - before[code]);
+        // Each company moves the standard amount from its OWN price, so the
+        // dollar deltas differ across a sector even though the percentage does not.
+        expect(s.prices[code]).toBe(applyBasisPoints(before[code], dir * MOVE_BP.meterStandard));
       }
     }
   });
 
-  it('|meter|==2 ("amplified") moves exactly one sector, up to two steps deep', () => {
+  it('|meter|==2 ("amplified") moves exactly one sector by the amplified percentage', () => {
     let s = withMeter(started(2));
     s = patch(s, (d) => { d.meter = 2; });
     const before = { ...s.prices };
     repriceRoundBoundary(s, rng('mag2'));
     const moved = SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => s.prices[code] !== before[code]));
     expect(moved).toHaveLength(1);
-    const deltas = SECTOR_CODES[moved[0]].map((code) => s.prices[code] - before[code]);
-    expect(Math.max(...deltas.map(Math.abs))).toBe(2); // a fresh game has room for the full 2 steps
+    for (const code of SECTOR_CODES[moved[0]]) {
+      expect(s.prices[code]).toBe(applyBasisPoints(before[code], MOVE_BP.meterAmplified));
+    }
   });
 
   it('|meter|==3 ("pinned/broad") can move a second, different sector one step each', () => {

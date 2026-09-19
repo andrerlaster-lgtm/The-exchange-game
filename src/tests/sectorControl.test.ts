@@ -7,7 +7,7 @@
 // untouched one.
 
 import { describe, expect, it } from 'vitest';
-import { ladderStep, PAYOUT_CLAIM_TOTAL_CAP, SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
+import { PAYOUT_CLAIM_TOTAL_CAP, SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
 import { claimPayoutForLanding } from '../engine/soldOut';
 import { controlledSectorPairs, sectorPairOwner } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
@@ -23,7 +23,7 @@ const LANDING_SPACE = 11; // IRON
 
 function expectedClaimOwed(holderShares: number, landingShares = 0) {
   const stock = STOCK_BY_CODE[CODE_B];
-  return claimPayoutForLanding(holderShares, false, stock.step, stock.step, landingShares);
+  return claimPayoutForLanding(holderShares, false, stock.base, stock.base, landingShares);
 }
 
 describe('Sector Control ownership', () => {
@@ -105,7 +105,7 @@ describe('Sector Rent stacks on the Payout Claim', () => {
       // at 2× opening value, before the pair's $350 Sector Rent is added.
       d.players[1].shares.FTRB = 1;
       d.players[1].shares.PAYW = 1;
-      d.prices.APEX = ladderStep(2_000);
+      d.prices.APEX = 2_000;
       d.cur = 0;
     });
     s = rollTo(s, STOCK_BY_CODE.APEX.space);

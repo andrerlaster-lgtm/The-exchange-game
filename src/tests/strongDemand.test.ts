@@ -4,6 +4,7 @@
 // two never apply to the same company at the same time.
 
 import { describe, expect, it } from 'vitest';
+import { MOVE_BP, applyBasisPoints } from '../data';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
 // MEDI is at board space 5 (safe for rollTo, which needs space >= 4).
@@ -25,7 +26,7 @@ function landOnce(s: ReturnType<typeof started>, holderShares = 6) {
 }
 
 describe('Strong Demand markers — 2-landing threshold', () => {
-  it('two Payout Claim landings raise the price one step and reset the counter to 0', () => {
+  it('two Payout Claim landings raise the price by the Strong Demand percentage and reset the counter to 0', () => {
     let s = started(2);
     const base = s.prices.MEDI;
     s = landOnce(s);
@@ -35,7 +36,7 @@ describe('Strong Demand markers — 2-landing threshold', () => {
     s = patch(s, (d) => { d.players[0].pos = SPACE - 4; d.turnPhase = 'preRoll'; });
     s = rollTo(s, SPACE);
     expect(s.demand.MEDI).toBe(0);
-    expect(s.prices.MEDI).toBe(base + 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(base, MOVE_BP.strongDemand));
   });
 
   it('counter increments to 1 without rising until the second landing', () => {
@@ -129,17 +130,23 @@ describe('Strong Demand markers — 2-landing threshold', () => {
     const base = s.prices.MEDI;
     s = landOnce(s);
     expect(s.demand.MEDI).toBe(0);
-    expect(s.prices.MEDI).toBe(base + 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(base, MOVE_BP.strongDemand));
   });
 
   it('records a Strong Demand market signal when the threshold hits', () => {
     let s = started(2);
     s = patch(s, (d) => { d.demand.MEDI = 1; });
     const signalsBefore = s.marketSignals.length;
+    const priceBefore = s.prices.MEDI;
     s = landOnce(s);
     expect(s.marketSignals.length).toBe(signalsBefore + 1);
+    // The signal reports the REALIZED percentage, which the $25 grid can pull
+    // away from the nominal +5% at lower prices.
     expect(s.marketSignals[0]).toMatchObject({
-      kind: 'strongDemand', title: 'Strong Demand · MEDI', impacts: [{ code: 'MEDI', d: 1 }],
+      kind: 'strongDemand',
+      title: 'Strong Demand · MEDI',
+      impacts: [{ code: 'MEDI', pct: ((s.prices.MEDI - priceBefore) / priceBefore) * 100 }],
     });
+    expect(s.prices.MEDI).toBe(applyBasisPoints(priceBefore, MOVE_BP.strongDemand));
   });
 });

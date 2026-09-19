@@ -1,17 +1,18 @@
 // Weak Demand — 2-marker threshold with no automatic ownership protection.
 
 import { describe, expect, it } from 'vitest';
+import { MOVE_BP, applyBasisPoints } from '../data';
 import { dispatch, patch, rng, started } from './helpers';
 
 describe('Weak Demand markers — 2-marker threshold', () => {
-  it('two skips drop the price one step and reset the counter to 0', () => {
+  it('two skips drop the price by the Weak Demand percentage and reset the counter to 0', () => {
     let s = started(3);
     const base = s.prices.MEDI;
     for (let pi = 0; pi < 2; pi++) {
       s = patch(s, (d) => { d.cur = pi; d.turnPhase = 'acted'; d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
       s = dispatch(s, { t: 'skipStock', code: 'MEDI' }, rng());
     }
-    expect(s.prices.MEDI).toBe(base - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(base, MOVE_BP.weakDemand));
     expect(s.skips.MEDI).toBe(0);
   });
 
@@ -73,10 +74,10 @@ describe('Weak Demand markers — 2-marker threshold', () => {
     let s = started(2);
     s = patch(s, (d) => { d.skips.MEDI = 1; d.cur = 1; d.turnPhase = 'acted'; });
     s = dispatch(s, { t: 'endTurn' }, rng()); // lap 2 — the marker survives
-    const stepBefore = s.prices.MEDI;
+    const priceBefore = s.prices.MEDI;
     s = patch(s, (d) => { d.turnPhase = 'acted'; d.trade = { scope: 'stock', code: 'MEDI', actionsLeft: 1 }; });
     s = dispatch(s, { t: 'skipStock', code: 'MEDI' }, rng());
-    expect(s.prices.MEDI).toBe(stepBefore - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(priceBefore, MOVE_BP.weakDemand));
     expect(s.skips.MEDI).toBe(0);
   });
 });
@@ -91,7 +92,7 @@ describe('Weak Demand — ownership grants no automatic protection', () => {
       s = dispatch(s, { t: 'skipStock', code: 'MEDI' }, rng());
     }
     expect(s.skips.MEDI ?? 0).toBe(0);
-    expect(s.prices.MEDI).toBe(base - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(base, MOVE_BP.weakDemand));
     expect(s.log.some((l) => /protected/i.test(l.text))).toBe(false);
   });
 

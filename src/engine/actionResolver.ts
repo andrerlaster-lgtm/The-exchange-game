@@ -250,7 +250,7 @@ function resolveLanding(s: GameState, pi: number): void {
           s.demand[code] = (s.demand[code] ?? 0) + 1;
           addLog(s, `Strong demand marker on ${code}: ${s.demand[code]}/${STRONG_DEMAND_THRESHOLD}.`, 'g');
           if (s.demand[code] >= STRONG_DEMAND_THRESHOLD) {
-            const r = applyPriceMove(s, code, MOVE_BP.strongDemand, 'strongDemand');
+            const r = moveTradePrice(s, code, MOVE_BP.strongDemand, 'strongDemand');
             s.demand[code] = 0;
             addLog(s, `Strong demand: ${code} rises ${pct(r.pct)} to ${money(r.after)} (${STRONG_DEMAND_THRESHOLD} landings).`, 'g');
             recordMarketSignal(s, {
@@ -795,9 +795,9 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       else s.supply[code] = (s.supply[code] || 0) + qty;
       s.bankSoldThisTurn[code] = (s.bankSoldThisTurn[code] || 0) + qty;
       if (qty >= 3) setMarketStance(p, 'bearish');
-      if (qty >= 3) moveTradePrice(s, code, -1);
+      const bulkSale = qty >= 3 ? moveTradePrice(s, code, MOVE_BP.bankSale, 'bankSale') : null;
       if (tradeStepSell && !isFinancingSell) t!.actionsLeft -= 1;
-      const moved = qty >= 3 ? ' (▼1 step)' : '';
+      const moved = bulkSale ? ` (▼${pct(bulkSale.pct)})` : '';
       addLog(s, `${p.name} sells ${qty} ${code} @ ${money(price)}${moved} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, 'r');
       addTradeLog(s, 'sell', `${qty}× ${code} @ ${money(price)} · ${realized >= 0 ? 'gain' : 'loss'} ${money(realized)}`, proceeds, p.name);
       recomputeAndLogClaim(s, code);
@@ -1258,7 +1258,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (!s.pick) break;
       if (s.pick.codes && !s.pick.codes.includes(action.code)) break;
       if (s.pick.source === 'investor') {
-        const r = applyPriceMove(s, action.code, s.pick.bp, 'investorDay');
+        const r = moveTradePrice(s, action.code, s.pick.bp, 'investorDay');
         addLog(s, `${action.code} moves ${pct(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
         s.pick = null;
         break;

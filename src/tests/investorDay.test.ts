@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LADDER } from '../data';
+import { CEILING_TRIGGER, MOVE_BP, applyBasisPoints } from '../data';
 import { blocked } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
@@ -35,14 +35,17 @@ describe('Investor Day — space 31', () => {
     expect(blocked(s)).toBe(true);
 
     s = dispatch(s, { t: 'pickTarget', code: 'MEDI' }, rng());
-    expect(s.prices.MEDI).toBe(before + 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(before, MOVE_BP.investorDay));
     expect(s.pick).toBeNull();
   });
 
-  it('pays $500 when every owned regular company is already at the ceiling', () => {
+  it('pays $500 when the player owns no regular company that can grow', () => {
+    // The percentage redesign removed the hard ceiling, so "every owned company
+    // is maxed out" is no longer reachable — a company can always rise. The
+    // remaining way to have nothing eligible is to own no regular company at
+    // all (IPOs are excluded from Company Growth).
     let s = patch(started(2), (d) => {
-      d.players[0].shares.MEDI = 11;
-      d.prices.MEDI = LADDER.length - 1;
+      d.players[0].shares = {};
     });
     const cash = s.players[0].cash;
     s = rollTo(s, 31);
@@ -53,16 +56,16 @@ describe('Investor Day — space 31', () => {
     expect(s.pick).toBeNull();
   });
 
-  it('queues a Market Event when the selected company reaches the ceiling', () => {
+  it('queues a Market Event when the selected company crosses the $5,000 mark', () => {
     let s = patch(started(2), (d) => {
       d.players[0].shares.MEDI = 11;
-      d.prices.MEDI = LADDER.length - 2;
+      d.prices.MEDI = CEILING_TRIGGER - 25;
     });
     s = rollTo(s, 31);
     s = dispatch(s, { t: 'chooseInvestorGrowth' }, rng());
     s = dispatch(s, { t: 'pickTarget', code: 'MEDI' }, rng());
 
-    expect(s.prices.MEDI).toBe(LADDER.length - 1);
+    expect(s.prices.MEDI).toBeGreaterThan(CEILING_TRIGGER);
     expect(s.pendingDraws).toContain('ME');
   });
 

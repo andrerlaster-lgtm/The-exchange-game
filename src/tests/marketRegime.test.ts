@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARDS, LADDER, SPACES } from '../data';
+import { CARDS, CEILING_TRIGGER, IPO_RUN_BP, RUN_BP, SPACES, applyBasisPoints } from '../data';
 import type { Effect } from '../data/types';
 import { circuitBreakerOptions, effectImpacts } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
@@ -20,15 +20,15 @@ describe('Bull and Bear Run market regimes', () => {
     const high = s.prices.CCAI;
     const medium = s.prices.MEDI;
     const low = s.prices.SAFE;
-    const ipo = s.ipos[0].step;
+    const ipo = s.ipos[0].price;
     const cash = s.players.map((player) => player.cash);
 
     s = landOnRegime(s, 'bull');
 
-    expect(s.prices.CCAI).toBe(high + 2);
-    expect(s.prices.MEDI).toBe(medium + 1);
+    expect(s.prices.CCAI).toBe(applyBasisPoints(high, RUN_BP.High));
+    expect(s.prices.MEDI).toBe(applyBasisPoints(medium, RUN_BP.Med));
     expect(s.prices.SAFE).toBe(low);
-    expect(s.ipos[0].step).toBe(ipo + 1);
+    expect(s.ipos[0].price).toBe(applyBasisPoints(ipo, IPO_RUN_BP));
     expect(s.players.map((player) => player.cash)).toEqual([cash[0] + 1_500, cash[1] + 500, cash[2] - 750]);
     expect(s.players.map((player) => player.marketStance)).toEqual(['balanced', 'balanced', 'balanced']);
   });
@@ -47,15 +47,15 @@ describe('Bull and Bear Run market regimes', () => {
     const high = s.prices.CCAI;
     const medium = s.prices.MEDI;
     const low = s.prices.SAFE;
-    const ipo = s.ipos[0].step;
+    const ipo = s.ipos[0].price;
     const cash = s.players.map((player) => player.cash);
 
     s = landOnRegime(s, 'bear');
 
-    expect(s.prices.CCAI).toBe(high - 2);
-    expect(s.prices.MEDI).toBe(medium - 1);
-    expect(s.prices.SAFE).toBe(low); // was low + 1
-    expect(s.ipos[0].step).toBe(ipo - 1);
+    expect(s.prices.CCAI).toBe(applyBasisPoints(high, -RUN_BP.High));
+    expect(s.prices.MEDI).toBe(applyBasisPoints(medium, -RUN_BP.Med));
+    expect(s.prices.SAFE).toBe(low); // was low + 1 step
+    expect(s.ipos[0].price).toBe(applyBasisPoints(ipo, -IPO_RUN_BP));
     expect(s.players.map((player) => player.cash)).toEqual([cash[0] - 1_500, cash[1] - 500, cash[2] + 1_500]);
   });
 
@@ -77,17 +77,21 @@ describe('Bull and Bear Run market regimes', () => {
 
     s = dispatch(s, { t: 'playCircuitBreaker', code: 'CCAI' }, rng());
     expect(s.prices.CCAI).toBe(high);
-    expect(s.prices.MEDI).toBe(medium - 1);
+    expect(s.prices.MEDI).toBe(applyBasisPoints(medium, -RUN_BP.Med));
     expect(s.players[0].cash).toBe(cash - 1_500);
     expect(s.players[0].marketStance).toBe('balanced');
   });
 
-  it('does not queue another Market Event when a Bull Run reaches the price ceiling', () => {
+  it('does not queue another Market Event when a Bull Run crosses the $5,000 mark', () => {
+    // A Run is card-driven, so it never queues a Market Event even though a
+    // trade-driven move across the same mark would (see ceiling.test.ts) —
+    // otherwise a Run could cascade into a card draw mid-resolution.
     let s = patch(started(2), (draft) => {
-      draft.prices.CCAI = LADDER.length - 2;
+      draft.prices.CCAI = CEILING_TRIGGER - 25;
+      draft.pendingDraws = [];
     });
     s = landOnRegime(s, 'bull');
-    expect(s.prices.CCAI).toBe(LADDER.length - 1);
+    expect(s.prices.CCAI).toBeGreaterThan(CEILING_TRIGGER);
     expect(s.pendingDraws).toEqual([]);
   });
 
@@ -96,11 +100,17 @@ describe('Bull and Bear Run market regimes', () => {
     const bull: Effect = { k: 'regime', regime: 'bull' };
     const bear: Effect = { k: 'regime', regime: 'bear' };
     expect(effectImpacts(s, bull)).toEqual(expect.arrayContaining([
-      { code: 'CCAI', d: 2 }, { code: 'MEDI', d: 1 }, { code: s.ipos[0].code, d: 1 },
+      { code: 'CCAI', pct: 20 }, { code: 'MEDI', pct: 10 }, { code: s.ipos[0].code, pct: 5 },
     ]));
+    // SAFE is deliberately absent from BOTH lists: Low risk has zero Run
+    // exposure in either direction. This assertion used to expect SAFE to GAIN
+    // in a Bear Run, because effectImpacts kept its own copy of the Run table
+    // that still had the pre-2026-09-18 +1 and had drifted from the engine's.
     expect(effectImpacts(s, bear)).toEqual(expect.arrayContaining([
-      { code: 'CCAI', d: -2 }, { code: 'MEDI', d: -1 }, { code: 'SAFE', d: 1 }, { code: s.ipos[0].code, d: -1 },
+      { code: 'CCAI', pct: -20 }, { code: 'MEDI', pct: -10 }, { code: s.ipos[0].code, pct: -5 },
     ]));
+    expect(effectImpacts(s, bear).some((i) => i.code === 'SAFE')).toBe(false);
+    expect(effectImpacts(s, bull).some((i) => i.code === 'SAFE')).toBe(false);
   });
 
   it('spaces 16 and 26 are plain Market Event spaces, and space 19 is the combined Market Swing space', () => {
