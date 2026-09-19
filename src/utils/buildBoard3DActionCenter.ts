@@ -343,7 +343,7 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
       const upBlock = controls ? upgradeBlockReason(s, code) : null;
       const shBlock = controls ? shieldBlockReason(s, code) : null;
       const devDetail = controls
-        ? ` · ${devLevel ? `Level ${devLevel.numeral} (+${money(devLevel.claimBonus)} claim, +${money(devLevel.marketOpenBonus)} Market Open, ${devLevel.downsideBp} bp protection)` : 'Base level'}${dev.shieldActive ? ' · 🛡️ shield' : ''}${dev.totalInvested > 0 ? ` · ${money(developmentRefund(dev.totalInvested))} refund if control is lost` : ''}${upBlock && nextLevel ? ` · Upgrade: ${upBlock}` : ''}`
+        ? ` · ${devLevel ? `Level ${devLevel.numeral} (+${money(devLevel.claimBonus)} claim, +${money(devLevel.marketOpenBonus)} Market Open, declines cut ${devLevel.downsidePct}%)` : 'Base level'}${dev.shieldActive ? ' · 🛡️ shield' : ''}${dev.totalInvested > 0 ? ` · ${money(developmentRefund(dev.totalInvested))} refund if control is lost` : ''}${upBlock && nextLevel ? ` · Upgrade: ${upBlock}` : ''}`
         : '';
       const sellButtons = ipo ? [] : Array.from({ length: limit }, (_, index) => {
         const amount = index + 1;

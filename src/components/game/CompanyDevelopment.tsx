@@ -64,7 +64,7 @@ function DevRow({ code, s, dispatch }: { code: string; s: GameState; dispatch: (
       </div>
       {line('Payout Claim bonus', current ? `+${money(current.claimBonus)}` : '—')}
       {line('Market Open bonus', current ? `+${money(current.marketOpenBonus)}` : '—')}
-      {line('Downside reduction', current ? bpLabel(current.downsideBp) : 'none')}
+      {line('Downside reduction', current ? `${current.downsidePct}% of each decline` : 'none')}
       {line('Market Protection', dev.shieldActive ? `Active · absorbs up to ${bpLabel(SHIELD_ABSORB_BP)}` : 'None')}
       {dev.totalInvested > 0 && line('Refund if control is lost', money(refund))}
 
@@ -89,7 +89,7 @@ function DevRow({ code, s, dispatch }: { code: string; s: GameState; dispatch: (
       {next && upBlock && <div style={{ fontSize: 10, color: 'var(--muted)' }}>{upBlock}</div>}
       {next && !upBlock && (
         <div style={{ fontSize: 10, color: 'var(--muted)' }}>
-          Level {next.numeral}: +{money(next.claimBonus)} claim · +{money(next.marketOpenBonus)} Market Open · {bpLabel(next.downsideBp)} protection
+          Level {next.numeral}: +{money(next.claimBonus)} claim · +{money(next.marketOpenBonus)} Market Open · {next.downsidePct}% smaller declines
         </div>
       )}
     </div>

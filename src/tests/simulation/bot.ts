@@ -102,7 +102,7 @@ function nextAction(s: GameState, rng: Rng): Action | null {
         const cost = UPGRADE_LEVELS[s.development[code].level].cost;
         if (cash - cost >= development.reserve) return { t: 'upgradeCompany', code };
       }
-      if (!shieldBlockReason(s, code) && cash - SHIELD_COST >= development.reserve && rng.int(0, 3) === 0) {
+      if (development.shields && !shieldBlockReason(s, code) && cash - SHIELD_COST >= development.reserve && rng.int(0, 3) === 0) {
         return { t: 'buyMarketProtection', code };
       }
     }
@@ -113,7 +113,7 @@ function nextAction(s: GameState, rng: Rng): Action | null {
 }
 
 /** Development policy for a simulation run. */
-export const development = { enabled: true, reserve: 6_000 };
+export const development = { enabled: true, shields: true, reserve: 6_000 };
 
 /** Called after every accepted action, for measurement. */
 export type Observer = (before: GameState, action: Action, after: GameState) => void;

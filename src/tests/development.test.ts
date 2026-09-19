@@ -253,14 +253,20 @@ describe('control loss resets and refunds', () => {
 // ── Percentage-market protection ────────────────────────────────────────────
 
 describe('downside protection', () => {
-  it.each([[1, 200], [2, 400], [3, 600]] as const)('Level %i reduces an eligible decline by %i bp', (level, reduction) => {
-    const s = moveWith(atLevel(level), -1_000, 'marketEvent');
-    expect(s.prices[CODE]).toBe(applyBasisPoints(P, -1_000 + reduction));
+  it.each([[1, 20], [2, 40], [3, 60]] as const)('Level %i removes %i%% of an eligible decline', (level, share) => {
+    // A standard -5% and a large -10% decline, each shrunk proportionally.
+    for (const bp of [-500, -1_000, -2_000]) {
+      const s = moveWith(atLevel(level), bp, 'marketEvent');
+      expect(s.prices[CODE]).toBe(applyBasisPoints(P, bp * (1 - share / 100)));
+    }
   });
 
-  it('a decline can never become a rise', () => {
+  it('every protected decline still lowers the price — no ratchet', () => {
+    // The flat 600 bp version erased every standard -500 bp decline at Level
+    // III. Proportional protection must leave a real (smaller) decline.
     const s = moveWith(atLevel(3), -500, 'weakDemand');
-    expect(s.prices[CODE]).toBe(P);
+    expect(s.prices[CODE]).toBe(applyBasisPoints(P, -200));
+    expect(s.prices[CODE]).toBeLessThan(P);
   });
 
   it.each(['weakDemand', 'marketMeter', 'marketEvent', 'fedCard', 'bearRun'] as const)('%s is protected', (source) => {
@@ -286,21 +292,24 @@ describe('Market Protection shield', () => {
   });
 
   // The plan's own worked examples, with Level III resilience applied first.
-  it('Level III + shield: Weak Demand -500 bp → 0, shield stays active', () => {
+  // Level III now leaves 40% of each decline, so the shield always has
+  // something to absorb in these examples (under the flat rule, Weak Demand
+  // was fully erased before the shield was reached and the shield survived).
+  it('Level III + shield: Weak Demand -500 bp → -200 bp → shield absorbs it all and is consumed', () => {
     const s = moveWith(atLevel(3, { shield: true }), -500, 'weakDemand');
     expect(s.prices[CODE]).toBe(P);
-    expect(s.development[CODE].shieldActive).toBe(true);
+    expect(s.development[CODE].shieldActive).toBe(false);
   });
 
-  it('Level III + shield: Market Event -1,000 bp → 0, shield consumed', () => {
+  it('Level III + shield: Market Event -1,000 bp → -400 bp → 0, shield consumed', () => {
     const s = moveWith(atLevel(3, { shield: true }), -1_000, 'marketEvent');
     expect(s.prices[CODE]).toBe(P);
     expect(s.development[CODE].shieldActive).toBe(false);
   });
 
-  it('Level III + shield: Bear Run -2,000 bp → -900 bp, shield consumed', () => {
+  it('Level III + shield: Bear Run -2,000 bp → -800 bp → -300 bp, shield consumed', () => {
     const s = moveWith(atLevel(3, { shield: true }), -2_000, 'bearRun');
-    expect(s.prices[CODE]).toBe(applyBasisPoints(P, -900));
+    expect(s.prices[CODE]).toBe(applyBasisPoints(P, -300));
     expect(s.development[CODE].shieldActive).toBe(false);
   });
 
@@ -331,7 +340,8 @@ describe('protection through the real game flow', () => {
       d.turnPhase = 'acted'; d.cur = 0; d.regimeRollPrompt = { player: 0 };
     });
     s = dispatch(s, { t: 'rollRegime' }, scriptedRng([1]));
-    expect(s.prices.CCAI).toBe(applyBasisPoints(2_000, -1_600));
+    // Level II removes 40% of the High-risk -2,000 bp Bear Run: -1,200 bp.
+    expect(s.prices.CCAI).toBe(applyBasisPoints(2_000, -1_200));
     expect(s.log.some((l) => /through Level Ⅱ resilience/.test(l.text))).toBe(true);
   });
 
@@ -346,18 +356,16 @@ describe('protection through the real game flow', () => {
 
 describe('$25 grid interaction (documents a known limitation)', () => {
   it('at low prices a reduced decline can round to the same price as an unprotected one', () => {
-    // $750 -5% = -$37.50 → $725. Level I leaves -3% = -$22.50 → $727.50,
-    // which the grid also rounds to $725. The reduction is real in basis
-    // points but invisible in dollars at this price.
-    const unprotected = moveWith(atLevel(0, { price: 750 }), -500, 'weakDemand').prices[CODE];
-    const levelOne = moveWith(atLevel(1, { price: 750 }), -500, 'weakDemand').prices[CODE];
-    expect(unprotected).toBe(725);
-    expect(levelOne).toBe(725);
-    // Level II leaves -1% (-$7.50), which rounds to no move — and the
-    // min-one-step rule then forces a full -$25. Same $725 again.
-    expect(moveWith(atLevel(2, { price: 750 }), -500, 'weakDemand').prices[CODE]).toBe(725);
-    // Only Level III, which cancels the move outright, protects at this price.
-    expect(moveWith(atLevel(3, { price: 750 }), -500, 'weakDemand').prices[CODE]).toBe(750);
+    // $750 -5% = -$37.50 → $725. Every level's smaller decline (-4%, -3%,
+    // -2%: -$30, -$22.50, -$15) also rounds — or is forced by the
+    // min-one-step rule — to a -$25 move. The reduction is real in basis
+    // points but invisible in dollars for a standard move at this price.
+    for (const level of [0, 1, 2, 3] as const) {
+      expect(moveWith(atLevel(level, { price: 750 }), -500, 'weakDemand').prices[CODE]).toBe(725);
+    }
+    // A larger decline at the same price does show the protection.
+    expect(moveWith(atLevel(0, { price: 750 }), -2_000, 'bearRun').prices[CODE]).toBe(600);
+    expect(moveWith(atLevel(3, { price: 750 }), -2_000, 'bearRun').prices[CODE]).toBe(700);
     expect(developmentOf(atLevel(2), CODE).level).toBe(2);
   });
 });

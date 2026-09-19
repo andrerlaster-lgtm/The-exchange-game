@@ -14,13 +14,19 @@ export interface UpgradeLevelDef {
   totalInvested: number;   // cumulative spend once this level is reached
   claimBonus: number;      // total flat Payout Claim bonus at this level
   marketOpenBonus: number; // total flat Market Open bonus at this level
-  downsideBp: number;      // total external-decline reduction at this level
+  downsidePct: number;     // share of each eligible external decline removed at this level
 }
 
+// Downside protection is PROPORTIONAL (2026-09-19 rebalance). The first pass
+// subtracted a flat 200/400/600 bp; Level III's 600 bp exceeded every standard
+// 500 bp decline, so Weak Demand, normal Meter moves, and single-step cards
+// could never lower a Level III company while every rise still landed — a
+// one-way ratchet that drove those companies 60-132% above opening in the
+// simulation. Removing a share of each decline keeps every decline real.
 export const UPGRADE_LEVELS: readonly UpgradeLevelDef[] = [
-  { level: 1, numeral: 'Ⅰ', cost: 2_000, totalInvested: 2_000, claimBonus: 750, marketOpenBonus: 100, downsideBp: 200 },
-  { level: 2, numeral: 'Ⅱ', cost: 4_000, totalInvested: 6_000, claimBonus: 1_500, marketOpenBonus: 200, downsideBp: 400 },
-  { level: 3, numeral: 'Ⅲ', cost: 5_000, totalInvested: 11_000, claimBonus: 2_500, marketOpenBonus: 300, downsideBp: 600 },
+  { level: 1, numeral: 'Ⅰ', cost: 2_000, totalInvested: 2_000, claimBonus: 750, marketOpenBonus: 100, downsidePct: 20 },
+  { level: 2, numeral: 'Ⅱ', cost: 4_000, totalInvested: 6_000, claimBonus: 1_500, marketOpenBonus: 200, downsidePct: 40 },
+  { level: 3, numeral: 'Ⅲ', cost: 5_000, totalInvested: 11_000, claimBonus: 2_500, marketOpenBonus: 300, downsidePct: 60 },
 ];
 
 export const MAX_DEVELOPMENT_LEVEL = 3;

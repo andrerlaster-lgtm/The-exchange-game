@@ -158,7 +158,8 @@ export function protectMove(s: GameState, code: string, before: number, bp: numb
   let result = bp;
   const def = upgradeLevel(dev.level as DevelopmentLevel);
   if (def) {
-    result = Math.min(0, bp + def.downsideBp); // a decline can never become a rise
+    // Remove a share of the decline; a decline shrinks but never flips to a rise.
+    result = Math.min(0, Math.round(bp * (1 - def.downsidePct / 100)));
     const label = SOURCE_LABEL[source];
     addLog(s, result === 0
       ? `${code} Level ${def.numeral} resilience fully absorbs a ${pct(bp / 100)} ${label}.`
