@@ -10,11 +10,16 @@ import { describe, it } from 'vitest';
 import { PAYOUT_CLAIM_TOTAL_CAP, STOCK_BY_CODE, developmentRefund } from '../../data';
 import type { GameState } from '../../engine';
 import { makeRng } from '../../utils/rng';
-import { started } from '../helpers';
+import { initialState, reduce } from '../../engine';
+import { resolveOrderRoll } from '../helpers';
 import { development, playTurn } from './bot';
 import type { Observer } from './bot';
 
-const TURNS_PER_GAME = 400;
+// Rounds mode at a realistic table length. Card mode ran 45-200 rounds per game
+// (and often hit the turn cap before Market Close was drawn), which let every
+// compounding effect — upgrade drift especially — run far past a real game.
+const ROUNDS_PER_GAME = 20;
+const TURN_SAFETY_CAP = 2_000; // only guards against a stuck game
 const GAMES_PER_SIZE = 12;
 const PLAYER_COUNTS = [2, 3, 4, 5, 6];
 const SAMPLE_EVERY = 20;
@@ -37,6 +42,8 @@ interface Stats {
   players: number;
   income: { salary: number; dividends: number; etf: number; development: number; other: number; claimsReceived: number; shareSales: number };
   maxPrice: number;
+  rounds: number[];
+  completed: number;
 }
 
 const empty = (): Stats => ({
@@ -44,7 +51,7 @@ const empty = (): Stats => ({
   pctByTier: { Low: [], Med: [], High: [] }, pctByLevel: [[], [], [], []],
   insolvencies: 0, shortfalls: 0, endUnder500: 0, players: 0,
   income: { salary: 0, dividends: 0, etf: 0, development: 0, other: 0, claimsReceived: 0, shareSales: 0 },
-  maxPrice: 0,
+  maxPrice: 0, rounds: [], completed: 0,
 });
 
 function observer(st: Stats): Observer {
@@ -107,6 +114,17 @@ function sample(s: GameState, st: Stats): void {
   }
 }
 
+/** A started game set to end after ROUNDS_PER_GAME rounds. Options must be set
+    before startGame: the deck is built for the close mode at that point. */
+function startedInRoundsMode(numPlayers: number, seed: string): GameState {
+  const r = makeRng(seed);
+  let s = initialState(r);
+  s = reduce(s, { t: 'setNum', n: numPlayers }, r);
+  s = reduce(s, { t: 'setOpt', opt: { closeMode: 'rounds', closeRounds: ROUNDS_PER_GAME } }, r);
+  s = reduce(s, { t: 'startGame' }, r);
+  return resolveOrderRoll(s, numPlayers);
+}
+
 function run(numPlayers: number, upgrades: boolean): Stats {
   development.enabled = upgrades;
   const st = empty();
@@ -114,14 +132,16 @@ function run(numPlayers: number, upgrades: boolean): Stats {
   for (let game = 0; game < GAMES_PER_SIZE; game += 1) {
     const seed = `sim-${numPlayers}p-${game}`;
     const rng = makeRng(seed);
-    let s = started(numPlayers, makeRng(seed));
-    for (let turn = 0; turn < TURNS_PER_GAME; turn += 1) {
+    let s = startedInRoundsMode(numPlayers, seed);
+    for (let turn = 0; turn < TURN_SAFETY_CAP; turn += 1) {
       const next = playTurn(s, rng, observe);
       if (next === s || next.phase === 'over') { s = next; break; }
       s = next;
       if (turn % SAMPLE_EVERY === 0) sample(s, st);
     }
     sample(s, st);
+    st.rounds.push(s.lap);
+    if (s.phase === 'over') st.completed += 1;
     for (const p of s.players) { st.players += 1; if (p.cash < 500) st.endUnder500 += 1; }
   }
   return st;
@@ -137,7 +157,7 @@ describe('percentage market + company development — balance simulation', () =>
     const out: string[] = [];
     const w = (l = '') => out.push(l);
     w('='.repeat(84));
-    w(`BALANCE SIMULATION · ${GAMES_PER_SIZE} games × up to ${TURNS_PER_GAME} turns per player count · fixed seeds`);
+    w(`BALANCE SIMULATION · ${GAMES_PER_SIZE} games × ${ROUNDS_PER_GAME} rounds (rounds mode) per player count · fixed seeds`);
     w('='.repeat(84));
 
     for (const n of PLAYER_COUNTS) {
@@ -145,6 +165,7 @@ describe('percentage market + company development — balance simulation', () =>
       const dev = run(n, true);
       w();
       w(`── ${n} PLAYERS ${'─'.repeat(68)}`);
+      w(`  Games reaching Market Close: ${dev.completed}/${GAMES_PER_SIZE} · rounds played avg ${mean(dev.rounds).toFixed(1)}`);
 
       w('  Payout Claims (development ON), by upgrade level:');
       for (let lv = 0; lv <= 3; lv += 1) {
