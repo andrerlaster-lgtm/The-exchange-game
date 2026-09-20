@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { PRICE_MOVE_SOURCE_LABEL, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { developmentOf, getStockMovementStatus, sectorPairOwner } from '../../engine';
 import { pctBp } from '../../utils/formatMoney';
@@ -47,6 +48,22 @@ const SPECIAL_3D: Record<number, { color: string; label: string; glyph: string; 
 
 
 /** Routed inner keyline at 5% inset — mirrors the 3D tile's strokeRect. */
+/** The sector band, Monopoly-style: a solid stripe along the tile's OUTER
+    edge. Drawn as a thick border rather than an overlay, so the tile's
+    absolutely-positioned contents are inset by it instead of running under
+    it. Which edge is "outer" depends on the side of the board. */
+function sectorBandStyle(color: string, col: number, row: number, edge: string): CSSProperties {
+  const band = `6px solid ${color}`;
+  const hairline = `1px solid ${edge}`;
+  const side = row === 1 ? 'top' : row === 10 ? 'bottom' : col === 1 ? 'left' : 'right';
+  return {
+    borderTop: side === 'top' ? band : hairline,
+    borderBottom: side === 'bottom' ? band : hairline,
+    borderLeft: side === 'left' ? band : hairline,
+    borderRight: side === 'right' ? band : hairline,
+  };
+}
+
 function Keyline({ color = 'rgba(43,32,22,0.18)', inset = '5%' }: { color?: string; inset?: string }) {
   return (
     <div style={{
@@ -256,7 +273,7 @@ export default function BoardTrack() {
                 // reads as eight groups at a glance. A Payout Claim holder's
                 // colour still wins the border — who is owed outranks which
                 // sector — and the sector then shows as the inner keyline.
-                border: claimColor ? `1px solid ${claimColor}` : `1.5px solid ${theme === 'dark' ? sc : sc}`,
+                ...sectorBandStyle(sc, col, row, claimColor ?? pal.edge),
                 borderRadius: 4,
                 position: 'relative',
                 overflow: 'hidden',
@@ -265,7 +282,9 @@ export default function BoardTrack() {
                   ? `0 0 10px ${claimColor}66, inset 0 0 0 1px ${claimColor}55`
                   : isCur ? '0 0 0 1px #c9a24f, 0 0 12px rgba(201,162,79,0.5)' : 'inset 0 1px 0 rgba(255,255,255,0.5)',
               }}>
-                <Keyline color={claimColor ? `${sc}cc` : `${sc}${theme === 'dark' ? '77' : '55'}`} />
+                {/* A Payout Claim holder's colour rides as the inner keyline,
+                    so the sector band can keep the tile's outer edge. */}
+                <Keyline color={claimColor ? `${claimColor}dd` : pal.keyline} inset="3%" />
 
                 {/* Sector glyph — upper-left, sector color. A colored ring
                     appears around it when a player controls this stock's
