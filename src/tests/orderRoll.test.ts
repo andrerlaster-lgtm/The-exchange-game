@@ -1,101 +1,63 @@
-// Pre-game "roll for order" ceremony: startGame lands in phase 'orderRoll'
-// instead of 'play'; players roll 2d6 one at a time; ties re-roll among just
-// the tied players; finishOrderRoll reorders players highest-to-lowest and
-// starts play.
+// Turn order settles itself inside startGame (2026-09-20): every player's 2d6
+// is rolled in the background, ties re-roll among just the tied players, the
+// table is seated highest first, and play begins. Nobody clicks a roll.
 
 import { describe, expect, it } from 'vitest';
 import { initialState } from '../engine';
-import { dispatch, rng, scriptedRng } from './helpers';
+import { settleTurnOrder } from '../engine/actionResolver';
+import { dispatch, patch, rng, scriptedRng } from './helpers';
 
-// setNum/startGame consume the shared rng internally (deck shuffling), so
-// setup uses a plain rng and every test scripts its own separate rng just
-// for the rollForOrder dice it cares about — same pattern as resolveOrderRoll.
 function setup(numPlayers: number) {
   const r = rng();
   let s = initialState(r);
   s = dispatch(s, { t: 'setNum', n: numPlayers }, r);
-  s = dispatch(s, { t: 'startGame' }, r);
-  return s;
+  return dispatch(s, { t: 'startGame' }, r);
 }
 
-describe('Roll for turn order', () => {
-  it('enters phase "orderRoll" after startGame, one pending roll per player', () => {
+describe('Turn order settles on startGame', () => {
+  it('goes straight to play, with nothing left to roll', () => {
     const s = setup(3);
-    expect(s.phase).toBe('orderRoll');
-    expect(s.orderRoll).toEqual({ rolls: [null, null, null], pending: [0, 1, 2] });
-  });
-
-  it('rolls one player at a time, recording the 2d6 sum and advancing pending', () => {
-    let s = setup(2);
-    const r = scriptedRng([6, 6, 3, 2]); // p0: 6+6=12, p1: 3+2=5
-
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    expect(s.orderRoll?.rolls[0]).toBe(12);
-    expect(s.orderRoll?.pending).toEqual([1]);
-
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    expect(s.orderRoll?.rolls[1]).toBe(5);
-    expect(s.orderRoll?.pending).toEqual([]);
-  });
-
-  it('finishOrderRoll reorders players highest-to-lowest and starts play', () => {
-    let s = setup(3);
-    const r = scriptedRng([2, 1, 6, 6, 4, 3]); // p0: 3, p1: 12, p2: 7
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    expect(s.orderRoll?.pending).toEqual([]);
-
-    const namesBefore = s.players.map((p) => p.name);
-    s = dispatch(s, { t: 'finishOrderRoll' }, r);
-
     expect(s.phase).toBe('play');
     expect(s.orderRoll).toBeNull();
     expect(s.cur).toBe(0);
     expect(s.turnPhase).toBe('preRoll');
-    expect(s.players.map((p) => p.name)).toEqual([namesBefore[1], namesBefore[2], namesBefore[0]]);
   });
 
-  it('a tie re-rolls only the tied players; everyone else stays locked in', () => {
-    let s = setup(3);
-    // Round 1 — p0: 4+3=7, p1: 5+2=7 (tie), p2: 1+2=3.
-    // Round 2 (only p0 and p1 roll again) — p0: 2+2=4, p1: 6+6=12.
-    const r = scriptedRng([4, 3, 5, 2, 1, 2, 2, 2, 6, 6]);
-
-    s = dispatch(s, { t: 'rollForOrder' }, r); // p0 -> 7
-    s = dispatch(s, { t: 'rollForOrder' }, r); // p1 -> 7
-    s = dispatch(s, { t: 'rollForOrder' }, r); // p2 -> 3, round complete, tie detected, p0/p1 requeued
-    expect(s.orderRoll?.pending).toEqual([0, 1]);
-    expect(s.orderRoll?.rolls).toEqual([null, null, 3]);
-    expect(s.log.some((l) => /tie/i.test(l.text))).toBe(true);
-
-    s = dispatch(s, { t: 'rollForOrder' }, r); // p0 re-rolls -> 4
-    s = dispatch(s, { t: 'rollForOrder' }, r); // p1 re-rolls -> 12, no more ties
-    expect(s.orderRoll?.rolls).toEqual([4, 12, 3]);
-    expect(s.orderRoll?.pending).toEqual([]);
-
+  it('seats the table highest roll first', () => {
+    const s = setup(3);
     const namesBefore = s.players.map((p) => p.name);
-    s = dispatch(s, { t: 'finishOrderRoll' }, r);
-    expect(s.players.map((p) => p.name)).toEqual([namesBefore[1], namesBefore[0], namesBefore[2]]);
+    // p0: 1+2=3, p1: 6+6=12, p2: 4+3=7 → p1, p2, p0.
+    const seated = patch(s, (d) => { settleTurnOrder(d, scriptedRng([1, 2, 6, 6, 4, 3])); });
+    expect(seated.players.map((p) => p.name)).toEqual([namesBefore[1], namesBefore[2], namesBefore[0]]);
+    expect(seated.phase).toBe('play');
   });
 
-  it('finishOrderRoll is a no-op while rolls are still pending', () => {
-    let s = setup(2);
-    const r = scriptedRng([6, 6]);
-    s = dispatch(s, { t: 'rollForOrder' }, r); // only p0 has rolled; p1 still pending
-    s = dispatch(s, { t: 'finishOrderRoll' }, r);
-    expect(s.phase).toBe('orderRoll');
-    expect(s.orderRoll?.pending).toEqual([1]);
+  it('re-rolls only the tied players, and keeps everyone else where they are', () => {
+    const s = setup(3);
+    const namesBefore = s.players.map((p) => p.name);
+    // Round 1 — p0: 2+3=5, p1: 1+4=5 (tie), p2: 6+6=12.
+    // Round 2 — only p0 and p1 roll again: p0: 4+5=9, p1: 1+3=4.
+    // Final order: p2 (12), p0 (9), p1 (4).
+    const seated = patch(s, (d) => {
+      settleTurnOrder(d, scriptedRng([2, 3, 1, 4, 6, 6, 4, 5, 1, 3]));
+    });
+    expect(seated.players.map((p) => p.name)).toEqual([namesBefore[2], namesBefore[0], namesBefore[1]]);
+    expect(seated.log.some((l) => /Tie — .* roll again/.test(l.text))).toBe(true);
   });
 
-  it('rollForOrder is a no-op once the ceremony is over', () => {
-    let s = setup(2);
-    const r = scriptedRng([6, 6, 5, 5]);
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    s = dispatch(s, { t: 'finishOrderRoll' }, r);
-    const before = s;
-    s = dispatch(s, { t: 'rollForOrder' }, r);
-    expect(s).toEqual(before);
+  it('records every roll in the log, so the order can be read back', () => {
+    const s = setup(4);
+    const rollLines = s.log.filter((l) => /rolls \d+ for turn order/.test(l.text));
+    expect(rollLines.length).toBeGreaterThanOrEqual(4);
+    expect(s.log.some((l) => /Market open\. .* starts\./.test(l.text))).toBe(true);
+  });
+
+  it('never loops on dice that always tie — it just seats the table', () => {
+    const s = setup(2);
+    // scriptedRng runs out immediately and then returns 0 forever, so every
+    // re-roll ties again; the limit has to end it.
+    const seated = patch(s, (d) => { settleTurnOrder(d, scriptedRng([])); });
+    expect(seated.phase).toBe('play');
+    expect(seated.players).toHaveLength(2);
   });
 });

@@ -23,16 +23,10 @@ export function scriptedRng(ints: number[]): Rng {
  * with rolls strictly descending in original seat order (player 0 highest) so
  * no ties occur and every test's assumptions about player indices still hold.
  */
-export function resolveOrderRoll(s: GameState, numPlayers: number): GameState {
-  const ints: number[] = [];
-  for (let i = 0; i < numPlayers; i++) {
-    const target = 12 - i; // 12, 11, 10, ... — distinct for up to 6 players
-    ints.push(6, target - 6);
-  }
-  const orderRng = scriptedRng(ints);
-  let out = s;
-  for (let i = 0; i < numPlayers; i++) out = reduce(out, { t: 'rollForOrder' }, orderRng);
-  return reduce(out, { t: 'finishOrderRoll' }, orderRng);
+/** Turn order settles inside startGame (2026-09-20), so there is nothing
+    left to resolve. Kept so the many tests that call it read the same. */
+export function resolveOrderRoll(s: GameState, _numPlayers: number): GameState {
+  return s;
 }
 
 export function started(numPlayers = 4, r: Rng = rng()): GameState {

@@ -28,7 +28,7 @@ describe('Session Debrief', () => {
     expect(summary.companiesUntouched).toBe(22); // 24 companies, 2 cornered
     expect(summary.outstandingFees).toBe(3_200);
     expect(summary.interestStillOwed).toBe(200);
-    expect(summary.biggestSwingPlayer).toBe('Morgan');
+    expect(summary.biggestSwingPlayer).toBe(s.players[0].name); // seat 0 — the order is rolled, so read the name
     expect(summary.marketEvents).toBe(1);
   });
 

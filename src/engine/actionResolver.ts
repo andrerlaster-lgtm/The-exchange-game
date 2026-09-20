@@ -39,6 +39,48 @@ import { ensureMarketCondition, marketConditionBlocksMargin, marketConditionClai
 import { bankRateBp, changeBankRate, companyLoanRatePct, feeDebtRatePct, marginRatePct, playerLoanPremiumBp } from './rates';
 import { companyMarketTradingOpen, companySharePrice, companySharesHeld, companyValue, companyLoanBalance, companyPublicSharesRemaining } from './companyMode';
 
+/**
+ * Roll every player's 2d6 for turn order, re-roll any tie until it breaks,
+ * then seat the table highest first and start play. Ties are re-rolled at
+ * most TIE_BREAK_LIMIT times; a table that somehow ties that often (a fixed
+ * test RNG, say) is seated in its existing order rather than looping.
+ */
+const TIE_BREAK_LIMIT = 20;
+
+export function settleTurnOrder(s: GameState, rng: Rng): void {
+  const rolls = s.players.map(() => 0);
+  let pending = s.players.map((_, i) => i);
+
+  for (let round = 0; pending.length > 0 && round <= TIE_BREAK_LIMIT; round++) {
+    for (const i of pending) {
+      rolls[i] = rng.int(1, 6) + rng.int(1, 6);
+      addLog(s, `${s.players[i].name} rolls ${rolls[i]} for turn order.`, 'y');
+    }
+    const byValue = new Map<number, number[]>();
+    pending.forEach((i) => {
+      const group = byValue.get(rolls[i]) ?? [];
+      group.push(i);
+      byValue.set(rolls[i], group);
+    });
+    // Only players tied with each other roll again, and only against each other.
+    const tied = Array.from(byValue.values()).filter((idxs) => idxs.length > 1);
+    pending = tied.flat().sort((a, b) => a - b);
+    if (pending.length > 0 && round < TIE_BREAK_LIMIT) {
+      const names = pending.map((i) => s.players[i].name).join(', ');
+      addLog(s, `Tie — ${names} roll again to break it.`, 'y');
+    }
+  }
+
+  const order = s.players.map((_, i) => i).sort((a, b) => rolls[b] - rolls[a]);
+  s.players = order.map((i) => s.players[i]);
+  s.orderRoll = null;
+  s.phase = 'play';
+  s.cur = 0;
+  s.turnPhase = 'preRoll';
+  addLog(s, `Market open. ${s.players[0].name} starts.`, 'g');
+  if (s.opts.closeMode === 'rounds' && s.opts.closeRounds <= 1) triggerClose(s);
+}
+
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
   if (s.log.length > 40) s.log.pop();
@@ -527,12 +569,15 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.dice = [null, null]; s.rolling = false;
       s.bonusRollPending = false; s.bonusRollUsed = false;
       s.cur = 0; s.turnPhase = 'preRoll';
-      s.phase = 'orderRoll';
-      s.orderRoll = { rolls: s.players.map(() => null), pending: s.players.map((_, i) => i) };
+      // Turn order settles itself (2026-09-20). Every player's 2d6 is rolled
+      // here, ties are re-rolled until they break, and play begins — nobody
+      // clicks through a roll each. The rolls are in the log if anyone wants
+      // to see why the order came out as it did.
+      settleTurnOrder(s, rng);
       break;
     }
 
-    // ---- pre-game "roll for order" ceremony ----
+    // ---- pre-game "roll for order" ceremony (kept for save compatibility) ----
     case 'rollForOrder': {
       const or = s.orderRoll;
       if (!or || or.pending.length === 0) break;
