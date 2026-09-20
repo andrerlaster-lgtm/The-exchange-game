@@ -37,7 +37,7 @@ const SPECIAL_3D: Record<number, { color: string; label: string; glyph: string; 
   22: { color: '#a78bfa', label: 'PROP\nFUND',     glyph: '◆', etf: true },
   25: { color: '#9aa5b1', label: 'PORT\nTAX',      glyph: '$' },
   26: { color: '#FF5C5C', label: 'MARKET\nEVENT',  glyph: '◈' },
-  28: { color: '#4ade80', label: 'IPO',            glyph: '↑', corner: true },
+  28: { color: '#e8b44c', label: 'RATE\nDECISION', glyph: '%', corner: true },
   30: { color: '#ff9442', label: 'ENERGY\nFUND',   glyph: '◆', etf: true },
   31: { color: '#c4b5fd', label: 'INVESTOR\nDAY',  glyph: '★' },
   34: { color: '#e8b44c', label: 'AUDIT\nNOTICE',  glyph: '⚑' },
@@ -59,26 +59,52 @@ function Keyline({ color = 'rgba(43,32,22,0.18)', inset = '5%' }: { color?: stri
   );
 }
 
+/** Who is standing on a space. Sits along the bottom edge rather than the
+    corner: a token there covered the outstanding-shares badge, and at four
+    or more players on one space the row wrapped over the ticker. */
 function PlayerTokens({ players, s }: { players: number[]; s: ReturnType<typeof useGameState> }) {
   if (players.length === 0) return null;
   return (
     <div style={{
-      position: 'absolute', top: 2, right: 2, zIndex: 3,
-      display: 'flex', gap: 1,
-      flexWrap: 'wrap', justifyContent: 'flex-end',
-      maxWidth: 18,
+      position: 'absolute', left: 0, right: 0, bottom: 1, zIndex: 4,
+      display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center',
     }}>
-      {players.map((pi) => (
-        <div key={pi} style={{
-          width: 10, height: 10, borderRadius: '50%',
-          background: `radial-gradient(circle at 35% 35%, ${PLAYER_COLORS[pi]}ff, ${PLAYER_COLORS[pi]}88)`,
-          boxShadow: `0 0 5px ${PLAYER_COLORS[pi]}`,
-          border: '1px solid rgba(255,255,255,0.35)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 7, lineHeight: 1,
-        }}>
-          {PIECE_BY_KEY[s.players[pi]?.piece]?.emoji ?? ''}
-        </div>
+      {players.map((pi) => {
+        const color = PLAYER_COLORS[pi];
+        const isTurn = pi === s.cur;
+        return (
+          <div key={pi} title={`${s.players[pi]?.name}${isTurn ? ' — to act' : ''}`} style={{
+            width: 12, height: 12, borderRadius: '50%',
+            background: `radial-gradient(circle at 35% 30%, ${color}ff, ${color}99)`,
+            // The player whose turn it is gets a white ring and a stronger
+            // glow, so "where everyone is" and "who is moving" read apart.
+            border: `1.5px solid ${isTurn ? '#fffdf6' : 'rgba(255,255,255,0.45)'}`,
+            boxShadow: isTurn ? `0 0 7px ${color}, 0 0 0 1px ${color}` : `0 0 4px ${color}aa`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 8, lineHeight: 1,
+          }}>
+            {PIECE_BY_KEY[s.players[pi]?.piece]?.emoji ?? ''}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The eight sector colours, so a tile's outline can be read off the board. */
+function SectorLegend() {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 8 }}>
+      {Object.values(SECTORS).map((sec) => (
+        <span key={sec.id} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: 2,
+            background: `${sec.color}33`, border: `1.5px solid ${sec.color}`,
+          }} />
+          <span style={{ fontSize: 8, letterSpacing: 0.4, color: 'rgba(224,193,132,0.85)', textTransform: 'uppercase' }}>
+            {sec.name}
+          </span>
+        </span>
       ))}
     </div>
   );
@@ -106,6 +132,8 @@ export default function BoardTrack() {
       <div className="display" style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, color: 'rgba(224,193,132,0.9)', textTransform: 'uppercase', marginBottom: 8 }}>
         The Exchange · Board
       </div>
+
+      <SectorLegend />
 
       <div style={{
         display: 'grid',
@@ -221,7 +249,11 @@ export default function BoardTrack() {
               <div key={sp.n} style={{
                 gridColumn: col, gridRow: row,
                 background: `${TILE_VIGNETTE}, ${isCur ? 'linear-gradient(160deg, #fdf6e6, ' + PARCH + ')' : PARCH}`,
-                border: claimColor ? `1px solid ${claimColor}` : '1px solid rgba(43,32,22,0.22)',
+                // The tile is outlined in its sector's colour, so the board
+                // reads as eight groups at a glance. A Payout Claim holder's
+                // colour still wins the border — who is owed outranks which
+                // sector — and the sector then shows as the inner keyline.
+                border: claimColor ? `1px solid ${claimColor}` : `1.5px solid ${sc}`,
                 borderRadius: 4,
                 position: 'relative',
                 overflow: 'hidden',
@@ -230,7 +262,7 @@ export default function BoardTrack() {
                   ? `0 0 10px ${claimColor}66, inset 0 0 0 1px ${claimColor}55`
                   : isCur ? '0 0 0 1px #c9a24f, 0 0 12px rgba(201,162,79,0.5)' : 'inset 0 1px 0 rgba(255,255,255,0.5)',
               }}>
-                <Keyline />
+                <Keyline color={claimColor ? `${sc}cc` : `${sc}55`} />
 
                 {/* Sector glyph — upper-left, sector color. A colored ring
                     appears around it when a player controls this stock's
