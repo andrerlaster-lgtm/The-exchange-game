@@ -44,6 +44,7 @@ describe('Bank Rate — balance simulation', () => {
       let feeInterest = 0; let loans = 0; let loanRateSum = 0; let loanInterest = 0;
       let shortfalls = 0; let insolvencies = 0; let worth = 0;
       const drift: Record<Group, number[]> = { rateUp: [], rateDown: [], other: [] };
+      const absMove: number[] = []; const lows: number[] = []; const highs: number[] = [];
       for (let g = 0; g < GAMES; g++) {
         const seed = `rates-${n}p-${g}`;
         const rng = makeRng(seed); const bot = makeRng(`${seed}:bot`);
@@ -64,7 +65,13 @@ describe('Bank Rate — balance simulation', () => {
           s = nx;
         }
         endRates.push(s.bankRateBp ?? 300);
-        for (const code of Object.keys(STOCK_BY_CODE)) drift[group(code)].push((s.prices[code] - open[code]) / open[code] * 100);
+        for (const code of Object.keys(STOCK_BY_CODE)) {
+          const pct = (s.prices[code] - open[code]) / open[code] * 100;
+          drift[group(code)].push(pct);
+          absMove.push(Math.abs(pct));
+        }
+        const ends = Object.keys(STOCK_BY_CODE).map((c) => s.prices[c]);
+        lows.push(Math.min(...ends)); highs.push(Math.max(...ends));
         worth += s.players.reduce((a, p) => a + netWorth(s, p), 0) / n;
       }
       const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
@@ -72,6 +79,7 @@ describe('Bank Rate — balance simulation', () => {
       out.push(`── ${n} PLAYERS`);
       out.push(`  End Bank Rate: mean ${(avg(endRates) / 100).toFixed(2)}% · min ${sorted[0] / 100}% · median ${sorted[Math.floor(sorted.length / 2)] / 100}% · max ${sorted[sorted.length - 1] / 100}% · rate changes/game ${(rateChanges / GAMES).toFixed(1)}`);
       out.push(`  Price change open→end: Finance ${avg(drift.rateUp).toFixed(1)}% · Real Estate/High-Risk ${avg(drift.rateDown).toFixed(1)}% · others ${avg(drift.other).toFixed(1)}%`);
+      out.push(`  Movement: mean |change| per company ${avg(absMove).toFixed(1)}% · cheapest company at end $${Math.round(avg(lows)).toLocaleString()} · dearest $${Math.round(avg(highs)).toLocaleString()}`);
       out.push(`  Borrowing: fee interest $${Math.round(feeInterest / GAMES).toLocaleString()}/game · player loans ${loans} (avg rate ${loans ? (loanRateSum / loans).toFixed(2) : '—'}%) · loan interest $${Math.round(loanInterest / GAMES).toLocaleString()}/game`);
       out.push(`  Cash stress: shortfalls ${shortfalls} · insolvencies ${insolvencies} · mean end net worth $${Math.round(worth / GAMES).toLocaleString()}`);
     }
