@@ -6,8 +6,7 @@ import {
 } from '../data';
 import type { GameState } from '../engine';
 import { accrueFeeDebt, bankRateBp, feeDebtRatePct, marketRateBp, rateSpreadBp } from '../engine';
-import { makeRng } from '../utils/rng';
-import { resolveRoundEndMarket } from '../engine/roundMarket';
+import { resolveRoundEndMarket, tallyRoundDice } from '../engine/roundMarket';
 import { dispatch, patch, rng, started } from './helpers';
 
 const fedIndex = (title: string) => FED_CARDS.findIndex((c) => c.title === title);
@@ -33,11 +32,11 @@ describe('Bank Rate and Market Rate', () => {
   });
 
   it('reads the Market Rate from the round that just closed', () => {
-    const s = patch(started(2), (d) => { d.marketRound = { direction: 'bull', sector: 'tech', bp: 500, lap: 1 }; });
+    const s = patch(started(2), (d) => { d.marketRound = { direction: 'bull', bloc: 'Tech & Communications', sectors: ['tech', 'comm'], bp: 500, sectorTotal: 1, moveAvg: 5, lap: 1 }; });
     expect(marketRateBp(s)).toBe(800);
     expect(rateSpreadBp(s)).toBe(500);
     const bearish = patch(s, (d) => {
-      d.marketRound = { direction: 'bear', sector: 'finance', bp: 250, lap: 2 };
+      d.marketRound = { direction: 'bear', bloc: 'Finance', sectors: ['finance'], bp: 250, sectorTotal: 5, moveAvg: 3, lap: 2 };
       d.bankRateBp = 400;
     });
     expect(marketRateBp(bearish)).toBe(50);
@@ -109,13 +108,10 @@ describe('Bank Rate and Market Rate', () => {
   });
 
   it('a resolved round nudges the rate 25 bp with its marker, every other round', () => {
-    for (const seed of ['n1', 'n2', 'n3']) {
-      const even = patch(started(2), (d) => { d.lap = 4; });
-      const t = patch(even, (d) => { resolveRoundEndMarket(d, makeRng(seed)); });
-      expect(t.bankRateBp).toBe(300 + (t.marketRound!.direction === 'bull' ? 25 : -25));
-      const odd = patch(started(2), (d) => { d.lap = 5; });
-      expect(patch(odd, (d) => { resolveRoundEndMarket(d, makeRng(seed)); }).bankRateBp).toBe(300);
-    }
+    const even = patch(started(2), (d) => { d.lap = 4; tallyRoundDice(d, 5, 6); });
+    expect(patch(even, (d) => { resolveRoundEndMarket(d); }).bankRateBp).toBe(325);
+    const odd = patch(started(2), (d) => { d.lap = 5; tallyRoundDice(d, 5, 6); });
+    expect(patch(odd, (d) => { resolveRoundEndMarket(d); }).bankRateBp).toBe(300);
   });
 });
 

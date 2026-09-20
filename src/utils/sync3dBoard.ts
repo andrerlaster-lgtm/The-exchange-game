@@ -125,7 +125,7 @@ export interface P2POffer3D {
     rather than show a stale marker. */
 export interface MarketCondition3D {
   enabled: boolean;
-  zone: 'bear' | 'bull' | 'none';
+  zone: 'bear' | 'bull' | 'flat' | 'none';
   label: string;
   detail: string;       // what the last round actually did
   color: string;

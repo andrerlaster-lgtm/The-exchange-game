@@ -7,14 +7,14 @@ import type { GameState } from '../engine/types';
 import { SECTORS } from '../data';
 import { moveSize } from './formatMoney';
 
-export type MarketMarkerZone = 'bull' | 'bear' | 'none';
+export type MarketMarkerZone = 'bull' | 'bear' | 'flat' | 'none';
 
 export interface MarketRegimeInfo {
   zone: MarketMarkerZone;
   // Deliberately NOT "BULL RUN"/"BEAR RUN" — those name the board spaces at
   // 16/26, a different mechanic entirely. The marker is how the last round
   // closed, so it reads as an adjective; a "Run" is always the board space.
-  label: 'BULLISH' | 'BEARISH' | 'MARKET OPEN';
+  label: 'BULLISH' | 'BEARISH' | 'FLAT' | 'MARKET OPEN';
   detail: string;       // what the last round actually did
   color: string;
   glyph: string;        // a non-color signal, so meaning never depends on color alone
@@ -24,6 +24,7 @@ export interface MarketRegimeInfo {
 const ZONE_META: Record<MarketMarkerZone, { label: MarketRegimeInfo['label']; color: string; glyph: string }> = {
   bull: { label: 'BULLISH', color: '#3ed598', glyph: '▲' },
   bear: { label: 'BEARISH', color: '#ef4444', glyph: '▼' },
+  flat: { label: 'FLAT', color: '#d4a535', glyph: '■' },
   none: { label: 'MARKET OPEN', color: '#d4a535', glyph: '●' },
 };
 
@@ -33,9 +34,11 @@ export function marketRegimeInfo(round: GameState['marketRound']): MarketRegimeI
   const meta = ZONE_META[zone];
   const detail = !round
     ? 'No round has closed yet'
-    : round.sector
-      ? `${SECTORS[round.sector].name} ${round.direction === 'bull' ? 'up' : 'down'} ${moveSize(round.bp)}`
-      : 'Every sector was already at its limit';
+    : round.direction === 'flat'
+      ? 'The round\'s dice held the market flat'
+      : round.sectors.length > 0
+        ? `${round.sectors.map((sec) => SECTORS[sec].name).join(' & ')} ${round.direction === 'bull' ? 'up' : 'down'} ${moveSize(round.bp)}`
+        : `${round.bloc ?? 'That bloc'} was already at its limit`;
   return {
     zone,
     label: meta.label,

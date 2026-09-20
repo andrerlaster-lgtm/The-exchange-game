@@ -60,3 +60,39 @@ export const COMPANY_LOAN_SPREAD_BP = 200;
 /** Player Loan premium over the Bank Rate, by the creditor's d6 roll. */
 export const PLAYER_LOAN_PREMIUM_BY_ROLL_BP = [0, 100, 100, 200, 200, 300, 300]; // index = roll 1-6
 
+
+// ── Dice-driven round-end market (2026-09-19) ───────────────────────────────
+//
+// Every movement roll in a round is tallied: the first die feeds the sector,
+// the second feeds the move. Neither does anything on its own — they are read
+// once, together, when the round closes.
+
+/** The six market blocs the sector die picks from, one per face. Eight
+    sectors, so the two thinnest pairs share a face with their nearest
+    neighbour and move together. */
+export const MARKET_BLOCS = [
+  { face: 1, name: 'Tech & Communications', sectors: ['tech', 'comm'] },
+  { face: 2, name: 'Consumer', sectors: ['consumer'] },
+  { face: 3, name: 'Healthcare', sectors: ['health'] },
+  { face: 4, name: 'Energy & Industrials', sectors: ['energy', 'industrials'] },
+  { face: 5, name: 'Finance', sectors: ['finance'] },
+  { face: 6, name: 'Real Estate', sectors: ['realestate'] },
+] as const;
+
+/** The move die reads against the midpoint of a d6. Exactly 3.5 holds. */
+export const MOVE_DIE_MIDPOINT = 3.5;
+
+/** Spread of a single d6 (standard deviation, √(35/12)). A round of n rolls
+    has an average that typically sits this far over √n from the midpoint, so
+    the bands below are measured in those units — otherwise a six-player table
+    would almost never pay a big move, since more dice average out flatter. */
+export const DIE_SPREAD = Math.sqrt(35 / 12);
+
+/** How lopsided the round was, in units of its own typical wander, and what
+    that pays. Scaled this way, 2.5% / 5% / 7.5% stay roughly as likely at a
+    two-player table as at a six-player one. */
+export const MOVE_DIE_BANDS = [
+  { minZ: 1.0, bp: 750 },
+  { minZ: 0.4, bp: 500 },
+  { minZ: 0, bp: 250 },
+] as const;

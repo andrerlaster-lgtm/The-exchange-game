@@ -6,17 +6,17 @@
 import { describe, it, expect } from 'vitest';
 import { marketRegimeInfo } from '../utils/marketRegime';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
-import { resolveRoundEndMarket } from '../engine/roundMarket';
+import { resolveRoundEndMarket, tallyRoundDice } from '../engine/roundMarket';
 import { DEFAULT_OPTIONS } from '../engine/types';
 import { initialState } from '../engine';
 import type { GameState } from '../engine';
 import { SECTORS } from '../data';
 import { makeRng } from '../utils/rng';
-import { dispatch, patch, rng, scriptedRng, started } from './helpers';
+import { dispatch, patch, scriptedRng, started } from './helpers';
 
-const bull: GameState['marketRound'] = { direction: 'bull', sector: 'tech', bp: 500, lap: 1 };
-const bear: GameState['marketRound'] = { direction: 'bear', sector: 'finance', bp: 250, lap: 2 };
-const clamped: GameState['marketRound'] = { direction: 'bear', sector: null, bp: 750, lap: 3 };
+const bull: GameState['marketRound'] = { direction: 'bull', bloc: 'Tech & Communications', sectors: ['tech', 'comm'], bp: 500, sectorTotal: 7, moveAvg: 5.0, lap: 1 };
+const bear: GameState['marketRound'] = { direction: 'bear', bloc: 'Finance', sectors: ['finance'], bp: 250, sectorTotal: 5, moveAvg: 3.0, lap: 2 };
+const clamped: GameState['marketRound'] = { direction: 'bear', bloc: 'Finance', sectors: [], bp: 750, sectorTotal: 5, moveAvg: 1.0, lap: 3 };
 
 describe('marketRegimeInfo — single source of truth for all three surfaces', () => {
   it('labels the marker by how the last round closed, and MARKET OPEN before any', () => {
@@ -35,7 +35,7 @@ describe('marketRegimeInfo — single source of truth for all three surfaces', (
   });
 
   it('spells out what the round actually did', () => {
-    expect(marketRegimeInfo(bull).detail).toBe(`${SECTORS.tech.name} up 5% (500 bp)`);
+    expect(marketRegimeInfo(bull).detail).toBe(`${SECTORS.tech.name} & ${SECTORS.comm.name} up 5% (500 bp)`);
     expect(marketRegimeInfo(bear).detail).toBe(`${SECTORS.finance.name} down 2.5% (250 bp)`);
     expect(marketRegimeInfo(clamped).detail).toMatch(/already at its limit/);
     expect(marketRegimeInfo(null).detail).toMatch(/No round has closed yet/);
@@ -73,7 +73,7 @@ describe('marketRegimeInfo — single source of truth for all three surfaces', (
     expect(marketRegimeInfo(s.marketRound).zone).toBe('none');
     s = dispatch(patch(s, (d) => { d.turnPhase = 'preRoll'; }), { t: 'roll' }, scriptedRng([6, 6]));
     expect(s.marketRound).toBeNull();
-    s = patch(s, (d) => { resolveRoundEndMarket(d, rng('marker')); });
+    s = patch(s, (d) => { tallyRoundDice(d, 5, 6); resolveRoundEndMarket(d); });
     expect(['bull', 'bear']).toContain(marketRegimeInfo(s.marketRound).zone);
     // No second field tracks the regime — marketRound is the only source.
     expect((s as unknown as Record<string, unknown>).marketRegime).toBeUndefined();
@@ -96,7 +96,7 @@ describe('Round boundary', () => {
   it('records exactly one market signal for a round that moved something', () => {
     const s = started(2);
     const signalsBefore = s.marketSignals.length;
-    const t = patch(s, (d) => { resolveRoundEndMarket(d, rng('one-signal')); });
+    const t = patch(s, (d) => { tallyRoundDice(d, 5, 6); resolveRoundEndMarket(d); });
     expect(t.marketSignals.length).toBe(signalsBefore + 1);
     expect(t.marketSignals[0].title).toMatch(/^Round-End Market/);
   });

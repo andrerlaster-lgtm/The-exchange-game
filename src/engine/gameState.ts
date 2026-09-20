@@ -100,6 +100,7 @@ export function initialState(rng: Rng): GameState {
     p2pOffers: [],
     p2pSeq: 0,
     marketRound: null,
+    roundDice: { aSum: 0, bSum: 0, rolls: 0 },
     bankRateBp: BANK_RATE_START_BP,
     companyMarketOpen: false,
     marketHeat: 0,

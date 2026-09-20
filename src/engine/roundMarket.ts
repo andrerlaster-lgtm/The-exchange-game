@@ -1,27 +1,37 @@
 // THE ROUND-END MARKET (2026-09-19 rules) — the only source of broad market
-// movement, and it fires exactly once per completed round.
+// movement, and it resolves exactly once per completed round.
 //
-// This replaced the dice-driven Market Meter. A player's dice roll now moves
-// their piece and nothing else: it does not push a bull/bear needle, and no
-// card triggers an extra random "ripple". At the end of every non-final round
-// the market resolves once:
+// This replaced the dice-driven Market Meter, then took the dice back in a
+// different shape. A single roll still does nothing to prices: it moves the
+// player's piece, and its two dice are tallied. When the round closes, the
+// whole round's dice are read together:
 //
-//   1. the marker is set Bullish or Bearish, 50/50;
-//   2. one eligible sector is drawn;
-//   3. one move size is drawn — 2.5%, 5% or 7.5% (250/500/750 bp);
-//   4. every regular company in that sector moves by it, up on Bullish and
-//      down on Bearish, and so does every REVEALED IPO in that sector.
+//   1. the FIRST dice are TOTALLED and wrapped to six, which picks the market
+//      bloc (see MARKET_BLOCS). Totalling keeps every bloc equally likely at
+//      any table size; averaging did not — the average of six dice sits in
+//      the middle nearly every round, so faces 3 and 4 took 84% of rounds at
+//      six players and faces 1 and 6 never came up at all.
+//   2. the SECOND dice's average sets the move: below 3.5 is Bearish, above is
+//      Bullish, exactly 3.5 holds the market flat, and how lopsided the round
+//      was — measured against how far a round of that many dice usually
+//      wanders — chooses 2.5%, 5% or 7.5% (see MOVE_DIE_BANDS);
+//   3. every regular company in that bloc moves by it, and so does every
+//      REVEALED IPO in it.
 //
-// The marker then stays visible as the result of the round just finished,
-// until the next round-end resolution replaces it.
+// So no one roll decides anything, but every roll counts toward what the
+// market does — and the running averages are visible all round, so the table
+// can see where the market is heading. The marker then stays visible as the
+// result of the round just finished.
 //
 // Cards, Weak/Strong Demand, bank sales and every other company-specific rule
 // still work exactly as written — they move only what they name. The board's
 // Bull Run and Bear Run spaces stay a separate mechanic.
 
-import { IPO_BY_CODE, METER_RATE_NUDGE_BP, RATE_NUDGE_EVERY_N_ROUNDS, ROUND_MARKET_BP, SECTOR_CODES, SECTORS } from '../data';
+import {
+  DIE_SPREAD, IPO_BY_CODE, MARKET_BLOCS, METER_RATE_NUDGE_BP, MOVE_DIE_BANDS, MOVE_DIE_MIDPOINT,
+  RATE_NUDGE_EVERY_N_ROUNDS, SECTOR_CODES, SECTORS,
+} from '../data';
 import type { SectorId } from '../data/types';
-import type { Rng } from '../utils/rng';
 import { moveSize } from '../utils/formatMoney';
 import { moveRoundMarketPrice } from './stockState';
 import { canFall, canRise } from './rules';
@@ -34,98 +44,158 @@ function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   if (s.log.length > 40) s.log.pop();
 }
 
-export type MarketDirection = 'bull' | 'bear';
+export type MarketDirection = 'bull' | 'bear' | 'flat';
 
-const ALL_SECTORS = Object.keys(SECTOR_CODES) as SectorId[];
+/** What the round's dice so far say the market will do. Everything here is
+    derived — the tally is the only state. */
+export interface RoundMarketReading {
+  rolls: number;
+  sectorTotal: number;        // total of the first dice
+  moveAvg: number | null;     // average of the second dice
+  face: number | null;        // sectorTotal wrapped to a d6 face
+  z: number;                  // how lopsided the move dice were, in typical wanders
+  blocName: string | null;
+  sectors: SectorId[];
+  direction: MarketDirection;
+  bp: number;
+}
 
 function isAtBound(s: GameState, code: string, dir: 1 | -1): boolean {
   return dir === 1 ? !canRise(s, code) : !canFall(s, code);
 }
 
 /**
- * Every code that takes part in a sector's round-end move: the regular
- * companies (always) plus any REVEALED IPO whose own sector matches.
+ * Every code that takes part in a bloc's round-end move: the regular
+ * companies in its sectors (always) plus any REVEALED IPO in them.
  * Unrevealed IPOs never move — the same rule card effects already follow.
  */
-function sectorParticipants(s: GameState, sec: SectorId): string[] {
-  const revealedIpos = s.ipos.filter((ip) => ip.revealed && IPO_BY_CODE[ip.code]?.sector === sec).map((ip) => ip.code);
-  return [...SECTOR_CODES[sec], ...revealedIpos];
+function blocParticipants(s: GameState, sectors: readonly SectorId[]): string[] {
+  const regular = sectors.flatMap((sec) => SECTOR_CODES[sec]);
+  const revealedIpos = s.ipos
+    .filter((ip) => ip.revealed && sectors.includes(IPO_BY_CODE[ip.code]?.sector))
+    .map((ip) => ip.code);
+  return [...regular, ...revealedIpos];
 }
 
-/** A sector is eligible in a direction when at least one of its companies
-    (regular or revealed IPO) is not already clamped at that bound. */
-export function eligibleSectors(s: GameState, dir: 1 | -1): SectorId[] {
-  return ALL_SECTORS.filter((sec) =>
-    sectorParticipants(s, sec).some((code) => !isAtBound(s, code, dir)));
+/** Whether anything in these sectors can still move in this direction. */
+export function blocCanMove(s: GameState, sectors: readonly SectorId[], dir: 1 | -1): boolean {
+  return blocParticipants(s, sectors).some((code) => !isAtBound(s, code, dir));
 }
 
-/** Move every participant in a sector, each individually clamped, and return
-    the REAL post-clamp change per code — a company one step from the floor
-    moves less than the rest, and what is reported must be what happened. */
-function moveSector(s: GameState, sec: SectorId, dir: 1 | -1, bp: number): Array<{ code: string; pct: number }> {
+/** Move every participant, each individually clamped, and return the REAL
+    post-clamp change per code — a company one step from the floor moves less
+    than the rest, and what is reported must be what happened. */
+function moveBloc(s: GameState, sectors: readonly SectorId[], dir: 1 | -1, bp: number): Array<{ code: string; pct: number }> {
   const moved: Array<{ code: string; pct: number }> = [];
-  for (const code of sectorParticipants(s, sec)) {
+  for (const code of blocParticipants(s, sectors)) {
     const r = moveRoundMarketPrice(s, code, dir * bp);
     if (r.delta !== 0) moved.push({ code, pct: r.pct });
   }
   return moved;
 }
 
-function pick<T>(rng: Rng, arr: readonly T[]): T {
-  return arr[rng.int(0, arr.length - 1)];
+/** Read the round's dice tally: what the market will do if the round ended
+    now. Used by the engine to resolve, and by the UI to show it coming. */
+export function readRoundDice(s: GameState): RoundMarketReading {
+  const { aSum, bSum, rolls } = s.roundDice;
+  if (rolls === 0) {
+    return { rolls: 0, sectorTotal: 0, moveAvg: null, face: null, z: 0, blocName: null, sectors: [], direction: 'flat', bp: 0 };
+  }
+  // Wrapped, not averaged: a sum of dice is uniform modulo six however many
+  // were rolled, so every bloc stays equally likely at every table size.
+  const face = ((aSum - 1) % 6) + 1;
+  const bloc = MARKET_BLOCS.find((b) => b.face === face)!;
+  const moveAvg = bSum / rolls;
+  const deviation = moveAvg - MOVE_DIE_MIDPOINT;
+  const z = deviation / (DIE_SPREAD / Math.sqrt(rolls));
+  const direction: MarketDirection = deviation > 0 ? 'bull' : deviation < 0 ? 'bear' : 'flat';
+  const band = MOVE_DIE_BANDS.find((b) => Math.abs(z) >= b.minZ)!;
+  return {
+    rolls, sectorTotal: aSum, moveAvg, face, z,
+    blocName: bloc.name,
+    sectors: [...bloc.sectors],
+    direction,
+    bp: direction === 'flat' ? 0 : band.bp,
+  };
 }
 
-/** What the next round-end resolution can do. Nothing is decided in advance:
-    direction, sector and size are all drawn when the round completes. */
-export function roundMarketForecast(): { headline: string; detail: string } {
+/** Add one movement roll to the round's tally. The dice do nothing else. */
+export function tallyRoundDice(s: GameState, a: number, b: number): void {
+  s.roundDice = { aSum: s.roundDice.aSum + a, bSum: s.roundDice.bSum + b, rolls: s.roundDice.rolls + 1 };
+}
+
+/** Clear the tally as a new round begins. */
+export function resetRoundDice(s: GameState): void {
+  s.roundDice = { aSum: 0, bSum: 0, rolls: 0 };
+}
+
+/** How the round's dice read right now, for the table to see it coming. */
+export function roundMarketForecast(s: GameState): { headline: string; detail: string } {
+  const r = readRoundDice(s);
+  if (r.rolls === 0) {
+    return {
+      headline: 'The round\'s dice decide the market.',
+      detail: 'Every roll counts: the first dice are totalled to pick the market bloc, the second dice averaged to set the move. Nothing happens until the round closes.',
+    };
+  }
+  const where = `${r.blocName} (sector dice total ${r.sectorTotal} → face ${r.face})`;
+  const what = r.direction === 'flat'
+    ? 'the market holds flat'
+    : `${r.blocName} ${r.direction === 'bull' ? 'rises' : 'falls'} ${moveSize(r.bp)}`;
   return {
-    headline: `One random sector will move ${ROUND_MARKET_BP.map((bp) => moveSize(bp)).join(', ')} — up or down.`,
-    detail: 'Bullish or Bearish is a coin flip, and the sector and size are drawn when the round ends, after every player has taken a turn. Your dice roll moves your piece only.',
+    headline: `As it stands: ${what}.`,
+    detail: `After ${r.rolls} roll${r.rolls === 1 ? '' : 's'} — ${where}, move dice averaging ${r.moveAvg!.toFixed(2)} against a 3.50 midpoint. Every roll left in the round still changes both.`,
   };
 }
 
 /**
- * Resolve the market for a completed round. Called at the round boundary for
- * every non-final round. Makes exactly three random draws — direction, size,
- * sector — so a seeded game stays reproducible.
+ * Resolve the market for a completed round, from the round's own dice. Called
+ * at the round boundary for every non-final round. Makes no random draws of
+ * its own — the dice already rolled are the whole input.
  */
-export function resolveRoundEndMarket(s: GameState, rng: Rng): void {
+export function resolveRoundEndMarket(s: GameState): void {
   if (!s.opts.roundMarket) return;
+  const reading = readRoundDice(s);
+  const { direction, sectors, blocName, bp } = reading;
 
-  const direction: MarketDirection = rng.int(0, 1) === 0 ? 'bull' : 'bear';
-  const bp = pick(rng, ROUND_MARKET_BP);
+  if (reading.rolls === 0 || direction === 'flat') {
+    s.marketRound = { direction: 'flat', bloc: blocName, sectors: [], bp: 0, sectorTotal: reading.sectorTotal, moveAvg: reading.moveAvg, lap: s.lap };
+    addLog(s, reading.rolls === 0
+      ? 'Round ends with no rolls — the market holds.'
+      : `Round ends flat — the move die averaged exactly ${MOVE_DIE_MIDPOINT.toFixed(2)}.`, 'y');
+    resetRoundDice(s);
+    return;
+  }
+
   const dir: 1 | -1 = direction === 'bull' ? 1 : -1;
+  const canMove = blocCanMove(s, sectors, dir);
+  const impacts = canMove ? moveBloc(s, sectors, dir, bp) : [];
 
-  // Every company in the drawn direction can be clamped (a Bearish round with
-  // the whole market already at the $100 floor). The marker still records the
-  // round's direction; no sector moves.
-  const elig = eligibleSectors(s, dir);
-  const sec = elig.length > 0 ? pick(rng, elig) : null;
-  const impacts = sec ? moveSector(s, sec, dir, bp) : [];
-
-  s.marketRound = { direction, sector: sec, bp, lap: s.lap };
+  s.marketRound = {
+    direction, bloc: blocName, sectors, bp,
+    sectorTotal: reading.sectorTotal, moveAvg: reading.moveAvg, lap: s.lap,
+  };
 
   const label = direction === 'bull' ? 'Bullish' : 'Bearish';
-  const sectorName = sec ? SECTORS[sec].name : null;
-  if (sec && impacts.length > 0) {
-    addLog(s, `Round ends ${label} — ${sectorName} ${direction === 'bull' ? 'rises' : 'falls'} ${moveSize(bp)}.`, direction === 'bull' ? 'g' : 'r');
+  const dice = `sector dice ${reading.sectorTotal} → face ${reading.face}, move dice averaged ${reading.moveAvg!.toFixed(2)} over ${reading.rolls} rolls`;
+  if (impacts.length > 0) {
+    addLog(s, `Round ends ${label} — ${blocName} ${direction === 'bull' ? 'rises' : 'falls'} ${moveSize(bp)} (${dice}).`, direction === 'bull' ? 'g' : 'r');
   } else {
-    addLog(s, `Round ends ${label} — no sector could move ${direction === 'bull' ? 'up' : 'down'} any further.`, 'y');
+    addLog(s, `Round ends ${label} — ${blocName} could not move ${direction === 'bull' ? 'up' : 'down'} any further (${dice}).`, 'y');
   }
   recordMarketSignal(s, {
     kind: 'market',
     title: `Round-End Market — ${label}`,
-    summary: sec
-      ? `The round closed ${label}. ${sectorName} ${direction === 'bull' ? 'up' : 'down'} ${moveSize(bp)}; every other sector is unchanged.`
-      : `The round closed ${label}, but every sector was already at its limit in that direction.`,
+    summary: impacts.length > 0
+      ? `The round's dice closed ${label}: ${sectors.map((sec) => SECTORS[sec].name).join(' and ')} ${direction === 'bull' ? 'up' : 'down'} ${moveSize(bp)}. Every other sector is unchanged.`
+      : `The round's dice closed ${label} on ${blocName}, but it was already at its limit in that direction.`,
     impacts,
   });
 
   // A hot round invites tightening and a cold one invites easing: the Bank
   // Rate follows the marker, but only on every RATE_NUDGE_EVERY_N_ROUNDS
-  // round (2026-09-19) — nudging every round moved it two to three times as
-  // often as the Fed cards did, which made the cards feel like noise.
-  // Borrowing costs only; no price moves either way.
+  // round — nudging every round moved it two to three times as often as the
+  // Fed cards did. Borrowing costs only; no price moves either way.
   if (s.lap % RATE_NUDGE_EVERY_N_ROUNDS === 0) {
     const before = s.bankRateBp;
     const actual = changeBankRate(s, direction === 'bull' ? METER_RATE_NUDGE_BP : -METER_RATE_NUDGE_BP);
@@ -133,4 +203,6 @@ export function resolveRoundEndMarket(s: GameState, rng: Rng): void {
       addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
     }
   }
+
+  resetRoundDice(s);
 }

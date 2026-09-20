@@ -1,187 +1,216 @@
-// THE ROUND-END MARKET (2026-09-19 rules). The market moves once per
-// completed round and nowhere else: dice move pieces, cards move only what
-// they name, and there is no bull/bear needle to push.
+// THE ROUND-END MARKET (2026-09-19 rules), decided by the round's own dice.
+// A single roll moves a piece and nothing else; the round's first dice are
+// averaged for the bloc and its second dice for the move, read once when the
+// round closes.
 
 import { describe, expect, it } from 'vitest';
 import {
-  FED_CARDS, IPO_BY_CODE, PRICE_FLOOR, ROUND_MARKET_BP, SECTOR_CODES, STOCK_BY_CODE, applyBasisPoints,
+  FED_CARDS, IPO_BY_CODE, MARKET_BLOCS, PRICE_FLOOR, STOCK_BY_CODE, applyBasisPoints,
 } from '../data';
-import type { SectorId } from '../data/types';
-import { eligibleSectors, resolveRoundEndMarket, roundMarketForecast } from '../engine/roundMarket';
+import { readRoundDice, resolveRoundEndMarket, roundMarketForecast, tallyRoundDice } from '../engine/roundMarket';
 import { bankRateBp, marketRateBp } from '../engine';
 import type { GameState } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
-const SECTORS = Object.keys(SECTOR_CODES) as SectorId[];
-
-/** Sectors whose regular companies changed price between two snapshots. */
-function movedSectors(before: Record<string, number>, after: Record<string, number>): SectorId[] {
-  return SECTORS.filter((sec) => SECTOR_CODES[sec].some((code) => after[code] !== before[code]));
+/** A state whose round tally holds exactly these rolls. */
+function withRolls(rolls: Array<[number, number]>, extra: (d: GameState) => void = () => {}): GameState {
+  return patch(started(2), (d) => {
+    for (const [a, b] of rolls) tallyRoundDice(d, a, b);
+    extra(d);
+  });
 }
 
-/** Resolve one round-end market on a copy, with a named seed. */
-function resolve(s: GameState, seed: string): GameState {
-  return patch(s, (d) => { resolveRoundEndMarket(d, rng(seed)); });
-}
+const resolve = (s: GameState) => patch(s, (d) => { resolveRoundEndMarket(d); });
+const blocOf = (face: number) => MARKET_BLOCS.find((b) => b.face === face)!;
 
-describe('round-end market resolution', () => {
-  it('moves exactly one sector, in one direction, by 2.5%, 5% or 7.5%', () => {
-    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
-      const s = started(2);
-      const before = { ...s.prices };
-      const t = resolve(s, seed);
-      const moved = movedSectors(before, t.prices);
-      expect(moved).toHaveLength(1);
+describe('reading the round\'s dice', () => {
+  it('totals the first dice for the bloc and averages the second for the move', () => {
+    // First dice 2 + 4 = 6 → face 6, Real Estate.
+    // Second dice 5, 6 → average 5.5 → well above the midpoint → 7.5%.
+    const r = readRoundDice(withRolls([[2, 5], [4, 6]]));
+    expect(r.rolls).toBe(2);
+    expect(r.sectorTotal).toBe(6);
+    expect(r.face).toBe(6);
+    expect(r.blocName).toBe(blocOf(6).name);
+    expect(r.sectors).toEqual(['realestate']);
+    expect(r.moveAvg).toBe(5.5);
+    expect(r.direction).toBe('bull');
+    expect(r.bp).toBe(750);
+  });
 
-      const round = t.marketRound!;
-      expect(round.sector).toBe(moved[0]);
-      expect(ROUND_MARKET_BP).toContain(round.bp);
-      const dir = round.direction === 'bull' ? 1 : -1;
-      for (const code of SECTOR_CODES[moved[0]]) {
-        expect(t.prices[code]).toBe(applyBasisPoints(before[code], dir * round.bp));
-      }
+  it('wraps the sector total to a face, so every bloc stays reachable', () => {
+    expect(readRoundDice(withRolls([[1, 1]])).face).toBe(1);
+    expect(readRoundDice(withRolls([[6, 1]])).face).toBe(6);
+    expect(readRoundDice(withRolls([[6, 1], [1, 1]])).face).toBe(1); // 7 wraps
+    expect(readRoundDice(withRolls([[6, 1], [6, 1]])).face).toBe(6); // 12 wraps
+    for (const bloc of MARKET_BLOCS) {
+      const r = readRoundDice(withRolls([[bloc.face, 1]]));
+      expect(r.blocName).toBe(bloc.name);
+      expect(r.sectors).toEqual([...bloc.sectors]);
     }
   });
 
-  it('is a coin flip between Bullish and Bearish, and draws all three sizes', () => {
-    const seen = { bull: 0, bear: 0 };
-    const sizes = new Set<number>();
-    for (let i = 0; i < 200; i++) {
-      const t = resolve(started(2), `flip-${i}`);
-      seen[t.marketRound!.direction] += 1;
-      sizes.add(t.marketRound!.bp);
+  it('every bloc comes up about as often, at any table size', () => {
+    for (const players of [2, 4, 6]) {
+      const hits: Record<number, number> = {};
+      // Every combination of that many first dice, counted exactly.
+      const walk = (left: number, total: number) => {
+        if (left === 0) {
+          const face = readRoundDice(withRolls([[total, 1]])).face!;
+          hits[face] = (hits[face] ?? 0) + 1;
+          return;
+        }
+        for (let die = 1; die <= 6; die++) walk(left - 1, total + die);
+      };
+      walk(players, 0);
+      const counts = Object.values(hits);
+      expect(counts).toHaveLength(6);
+      expect(Math.min(...counts)).toBe(Math.max(...counts)); // exactly uniform
     }
-    expect(seen.bull).toBeGreaterThan(70);
-    expect(seen.bear).toBeGreaterThan(70);
-    expect([...sizes].sort((a, b) => a - b)).toEqual([...ROUND_MARKET_BP]);
   });
 
-  it('moves revealed IPOs in the drawn sector, and never unrevealed ones', () => {
+  it('sizes the move by how lopsided the round was, in both directions', () => {
+    const sizeOf = (b: number) => readRoundDice(withRolls([[3, b]]));
+    // One roll: a single die wanders 1.71, so +0.5 is an ordinary round.
+    expect(sizeOf(4)).toMatchObject({ direction: 'bull', bp: 250 }); // +0.5
+    expect(sizeOf(5)).toMatchObject({ direction: 'bull', bp: 500 }); // +1.5
+    expect(sizeOf(6)).toMatchObject({ direction: 'bull', bp: 750 }); // +2.5
+    expect(sizeOf(3)).toMatchObject({ direction: 'bear', bp: 250 });
+    expect(sizeOf(2)).toMatchObject({ direction: 'bear', bp: 500 });
+    expect(sizeOf(1)).toMatchObject({ direction: 'bear', bp: 750 });
+    // A round whose move dice average exactly 3.5 holds flat.
+    expect(readRoundDice(withRolls([[3, 3], [3, 4]]))).toMatchObject({ direction: 'flat', bp: 0 });
+  });
+
+  it('scales those bands with the number of rolls', () => {
+    // The same 0.5 above the midpoint is an ordinary round for two rolls and
+    // a lopsided one for eight, so it pays more at the bigger table.
+    const two = readRoundDice(withRolls([[1, 3], [1, 5]]));           // avg 4.0
+    const twelve = readRoundDice(withRolls(Array.from({ length: 12 }, (_, i) => [1, i % 2 === 0 ? 3 : 5] as [number, number])));
+    expect(two.moveAvg).toBe(4);
+    expect(twelve.moveAvg).toBe(4);
+    expect(two.bp).toBe(500);
+    expect(twelve.bp).toBe(750);
+  });
+
+  it('reads as flat with no rolls at all', () => {
+    expect(readRoundDice(started(2))).toMatchObject({ rolls: 0, direction: 'flat', bp: 0, blocName: null });
+  });
+});
+
+describe('resolving a round', () => {
+  it('moves every company in the bloc, and nothing else', () => {
+    const s = withRolls([[5, 6]]); // total 5 → face 5, Finance; move +2.5 → 7.5% up
+    const before = { ...s.prices };
+    const t = resolve(s);
+    expect(t.marketRound).toMatchObject({ direction: 'bull', bloc: 'Finance', sectors: ['finance'], bp: 750 });
+    for (const [code, stock] of Object.entries(STOCK_BY_CODE)) {
+      const expected = stock.sector === 'finance' ? applyBasisPoints(before[code], 750) : before[code];
+      expect(t.prices[code], code).toBe(expected);
+    }
+  });
+
+  it('moves both sectors of a two-sector bloc', () => {
+    const s = withRolls([[1, 1]]); // face 1 → Tech & Communications, move −2.5 → 7.5% down
+    const before = { ...s.prices };
+    const t = resolve(s);
+    expect([...t.marketRound!.sectors].sort()).toEqual(['comm', 'tech']);
+    for (const [code, stock] of Object.entries(STOCK_BY_CODE)) {
+      const inBloc = stock.sector === 'tech' || stock.sector === 'comm';
+      expect(t.prices[code], code).toBe(inBloc ? applyBasisPoints(before[code], -750) : before[code]);
+    }
+  });
+
+  it('moves a revealed IPO in the drawn bloc, and never an unrevealed one', () => {
     const base = started(2);
-    const ipoSector = IPO_BY_CODE[base.ipos[0].code].sector;
-    const other = base.ipos.find((ip) => IPO_BY_CODE[ip.code].sector !== ipoSector)!;
-    // Only the drawn sector's companies may move, so force that sector by
-    // clamping every other sector's stocks to the floor and going Bearish.
-    let s = patch(base, (d) => {
+    const ipo = base.ipos[0];
+    const bloc = MARKET_BLOCS.find((b) => (b.sectors as readonly string[]).includes(IPO_BY_CODE[ipo.code].sector))!;
+    const s = withRolls([[bloc.face, 1]], (d) => {
+      d.ipos.forEach((ip) => { ip.revealed = false; });
       d.ipos[0].revealed = true;
-      const un = d.ipos.find((ip) => ip.code === other.code)!;
-      un.revealed = false;
-      for (const sec of SECTORS) {
-        if (sec === ipoSector) continue;
-        for (const code of SECTOR_CODES[sec]) d.prices[code] = PRICE_FLOOR;
-      }
     });
-    const ipoBefore = s.ipos[0].price;
-    const unrevealedBefore = other.price;
-    s = resolve(s, 'ipo-seed-bear');
-    // Every other sector is pinned at the floor, so a Bearish round can only
-    // pick this one; a Bullish round may pick any, so only assert on bear.
-    if (s.marketRound!.direction === 'bear') {
-      expect(s.marketRound!.sector).toBe(ipoSector);
-      expect(s.ipos[0].price).toBe(applyBasisPoints(ipoBefore, -s.marketRound!.bp));
-    }
-    expect(s.ipos.find((ip) => ip.code === other.code)!.price).toBe(unrevealedBefore);
+    const t = resolve(s);
+    expect(t.marketRound!.bloc).toBe(bloc.name);
+    expect(t.ipos[0].price).toBe(applyBasisPoints(ipo.price, -750));
+    expect(t.ipos[1].price).toBe(s.ipos[1].price); // unrevealed: untouched
+  });
+
+  it('holds the market when the move die averages the midpoint', () => {
+    const s = withRolls([[4, 3], [4, 4]]); // move avg exactly 3.5
+    const before = { ...s.prices };
+    const t = resolve(s);
+    expect(t.prices).toEqual(before);
+    expect(t.marketRound).toMatchObject({ direction: 'flat', bp: 0 });
+    expect(t.log.some((l) => /flat/.test(l.text))).toBe(true);
   });
 
   it('keeps prices on the $25 grid and never below the $100 floor', () => {
-    const atFloor = patch(started(2), (d) => {
+    const s = withRolls([[5, 1]], (d) => {
       for (const code of Object.keys(STOCK_BY_CODE)) d.prices[code] = PRICE_FLOOR;
     });
-    const t = resolve(atFloor, 'floor');
+    const t = resolve(s);
     for (const code of Object.keys(STOCK_BY_CODE)) {
       expect(t.prices[code]).toBeGreaterThanOrEqual(PRICE_FLOOR);
       expect(t.prices[code] % 25).toBe(0);
     }
   });
 
-  it('records the marker, and it stays until the next resolution', () => {
-    const first = resolve(started(2), 'first');
-    const marker = first.marketRound!;
-    expect(marker.lap).toBe(first.lap);
-    // Any number of other actions in between leave the marker alone.
-    const later = dispatch(first, { t: 'skipShort' }, rng());
-    expect(later.marketRound).toEqual(marker);
-    const second = resolve(first, 'second');
-    expect(second.marketRound).not.toEqual(marker);
-  });
-
-  it('still sets the marker when every sector is clamped in that direction', () => {
-    const atFloor = patch(started(2), (d) => {
-      for (const code of Object.keys(STOCK_BY_CODE)) d.prices[code] = PRICE_FLOOR;
-      d.ipos.forEach((ip) => { ip.revealed = false; });
-    });
-    const before = { ...atFloor.prices };
-    const t = resolve(atFloor, 'clamped-bear');
-    if (t.marketRound!.direction === 'bear') {
-      expect(t.marketRound!.sector).toBeNull();
-      expect(t.prices).toEqual(before);
-      expect(t.log.some((l) => /no sector could move/.test(l.text))).toBe(true);
-    }
+  it('records the marker with the dice that produced it, and clears the tally', () => {
+    const t = resolve(withRolls([[2, 6], [4, 5]]));
+    expect(t.marketRound).toMatchObject({ sectorTotal: 6, moveAvg: 5.5, lap: t.lap });
+    expect(t.roundDice).toEqual({ aSum: 0, bSum: 0, rolls: 0 });
   });
 
   it('nudges the Bank Rate with the marker every OTHER round', () => {
-    for (const seed of ['r1', 'r2', 'r3', 'r4']) {
-      const even = patch(started(2), (d) => { d.lap = 2; });
-      const t = resolve(even, seed);
-      expect(bankRateBp(t)).toBe(bankRateBp(even) + (t.marketRound!.direction === 'bull' ? 25 : -25));
-
-      // The round in between resolves the market but leaves the rate alone.
-      const odd = patch(started(2), (d) => { d.lap = 3; });
-      const u = resolve(odd, seed);
-      expect(bankRateBp(u)).toBe(bankRateBp(odd));
-      expect(u.marketRound).not.toBeNull();
-    }
+    const even = withRolls([[5, 6]], (d) => { d.lap = 2; });
+    expect(bankRateBp(resolve(even))).toBe(bankRateBp(even) + 25);
+    const odd = withRolls([[5, 6]], (d) => { d.lap = 3; });
+    expect(bankRateBp(resolve(odd))).toBe(bankRateBp(odd));
+    const bear = withRolls([[5, 1]], (d) => { d.lap = 2; });
+    expect(bankRateBp(resolve(bear))).toBe(bankRateBp(bear) - 25);
   });
 
-  it('feeds the Market Rate: neutral before any round, then last round\'s move', () => {
-    const fresh = started(2);
-    expect(marketRateBp(fresh)).toBe(300);
-    const t = resolve(fresh, 'rate');
-    const round = t.marketRound!;
-    expect(marketRateBp(t)).toBe(300 + (round.direction === 'bull' ? round.bp : -round.bp));
+  it('feeds the Market Rate: neutral before any round, then the round\'s move', () => {
+    expect(marketRateBp(started(2))).toBe(300);
+    expect(marketRateBp(resolve(withRolls([[5, 6]])))).toBe(300 + 750);
+    expect(marketRateBp(resolve(withRolls([[5, 1]])))).toBe(300 - 750);
+    expect(marketRateBp(resolve(withRolls([[4, 3], [4, 4]])))).toBe(300); // flat
   });
 
   it('does nothing when the round-end market rule is switched off', () => {
-    const off = patch(started(2), (d) => { d.opts.roundMarket = false; });
+    const off = withRolls([[5, 6]], (d) => { d.opts.roundMarket = false; });
     const before = { ...off.prices };
-    const t = resolve(off, 'off');
+    const t = resolve(off);
     expect(t.prices).toEqual(before);
     expect(t.marketRound).toBeNull();
   });
-
-  it('explains itself without naming anything before it is drawn', () => {
-    const forecast = roundMarketForecast();
-    expect(forecast.headline).toContain('2.5% (250 bp)');
-    expect(forecast.headline).toContain('7.5% (750 bp)');
-    expect(forecast.detail).toContain('moves your piece only');
-  });
-
-  it('lists a sector as eligible only while something in it can still move', () => {
-    const atFloor = patch(started(2), (d) => {
-      for (const code of SECTOR_CODES.tech) d.prices[code] = PRICE_FLOOR;
-      d.ipos.forEach((ip) => { ip.revealed = false; });
-    });
-    expect(eligibleSectors(atFloor, -1)).not.toContain('tech');
-    expect(eligibleSectors(atFloor, 1)).toContain('tech');
-  });
 });
 
-describe('nothing else moves the broad market', () => {
-  it('a dice roll moves the piece and no prices', () => {
+describe('the dice during a round', () => {
+  it('a roll tallies both dice and moves no prices', () => {
     const s = patch(started(2), (d) => {
       d.players[0].pos = 1;
       d.players[0].hasCompletedLap = true;
       d.turnPhase = 'preRoll';
     });
     const before = { ...s.prices };
-    const rolled = dispatch(s, { t: 'roll' }, scriptedRng([2, 1])); // to space 4, an ETF space
+    const rolled = dispatch(s, { t: 'roll' }, scriptedRng([2, 1])); // to space 4
     expect(rolled.players[0].pos).toBe(4);
     expect(rolled.prices).toEqual(before);
+    expect(rolled.roundDice).toEqual({ aSum: 2, bSum: 1, rolls: 1 });
     expect(rolled.marketRound).toBeNull();
   });
 
+  it('shows the table where the market stands, and says so before any roll', () => {
+    expect(roundMarketForecast(started(2)).headline).toMatch(/dice decide the market/);
+    const mid = roundMarketForecast(withRolls([[5, 6]]));
+    expect(mid.headline).toContain('Finance');
+    expect(mid.headline).toContain('rises');
+    expect(mid.detail).toContain('1 roll');
+    expect(mid.detail).toContain('3.50 midpoint');
+  });
+
   it('a narrow card moves only what it names — no extra random sector', () => {
-    // Rate Hike names Finance, Real Estate and High-Risk. Nothing else may move.
     const s = patch(started(2), (d) => {
       d.pendingDraws = ['FED'];
       d.decks.FED = [FED_CARDS.findIndex((c) => c.title === 'Rate Hike')];

@@ -20,7 +20,7 @@ import { investIpoGrowth, snapshotIpoHoldings } from './ipoGrowth';
 import { heldQty, setHeld, unitValue } from './holdings';
 import { payMarketOpen } from './playerState';
 import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
-import { resolveRoundEndMarket } from './roundMarket';
+import { resolveRoundEndMarket, tallyRoundDice } from './roundMarket';
 import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, finalizeCard, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
@@ -719,11 +719,12 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const a = rng.int(1, 6);
       const b = rng.int(1, 6);
       s.dice = [a, b];
-      // THE MARKET METER — the roll reads twice: once as movement, once as
-      // market. Advanced before applyMove so a landing trades at whatever
-      // price the needle already reflects this turn. Independent of Market
-      // Heat below: the meter reads every roll's sum, Heat only counts
-      // doubles under companiesMode — different trigger, no overlap.
+      // The roll reads twice: once as movement, once into the round's market
+      // tally (the first die feeds the sector, the second the move). The
+      // tally changes no price now — it is read when the round closes.
+      // Independent of Market Heat below, which only counts doubles under
+      // companiesMode.
+      tallyRoundDice(s, a, b);
       if (s.opts.companiesMode && a === b) {
         s.marketHeat += 1;
         addLog(s, `Market Heat +1 (${s.marketHeat}/3) after doubles.`, 'y');
@@ -1532,7 +1533,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // last one still gets its reprice. s.closing stays true for every
         // Extended Hours round after that point, so this naturally excludes
         // all of them without a separate "final round" flag.
-        if (!s.closing) resolveRoundEndMarket(s, rng);
+        if (!s.closing) resolveRoundEndMarket(s);
       }
       // These two checks are lap-number-based, not round-boundary-based —
       // they must keep evaluating on every turn (not only inside the

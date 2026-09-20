@@ -11,7 +11,7 @@ import {
   BANK_RATE_MAX_BP, BANK_RATE_MIN_BP, COMPANY_LOAN_SPREAD_BP, FED_CARDS, FEE_DEBT_SPREAD_BP,
   METER_RATE_NUDGE_BP, PLAYER_LOAN_PREMIUM_BY_ROLL_BP, RATE_DECISION_BY_ROLL_BP,
   RATE_NUDGE_EVERY_N_ROUNDS, RATE_SENSITIVITY_BY_RISK, RATE_SENSITIVITY_BY_SECTOR,
-  ROUND_MARKET_BP, SECTORS, applyBasisPoints, rateShockMoves,
+  SECTORS, applyBasisPoints, rateShockMoves,
 } from '../../data';
 import {
   bankRateBp, companyLoanRatePct, feeDebtRatePct, marginRatePct, marketRateBp,
@@ -136,10 +136,10 @@ export default function RatesGuide() {
           <Row left="Market Rate — 3% plus the round's move" right={pct(market)} />
           <Row left="Spread — Market Rate − Bank Rate" right={signed(spread)} />
           <div style={{ marginTop: 5, color: 'var(--muted)' }}>
-            A round closes Bullish or Bearish and one sector moves{' '}
-            {ROUND_MARKET_BP.map((bp) => moveSize(bp)).join(', ')}; the Market Rate is 3% plus that move on a
-            Bullish round, minus it on a Bearish one. The spread is a read on the game — the market beat cash
-            last round when it is positive — not a rule: the round-end direction is always an even coin flip.
+            The round&rsquo;s own dice close it Bullish or Bearish — the second die&rsquo;s average against a
+            3.50 midpoint — and the Market Rate is 3% plus that move on a Bullish round, minus it on a Bearish
+            one. The spread is a read on the game, not a rule: the market beat cash last round when it is
+            positive.
           </div>
         </Section>
       </div>

@@ -3,7 +3,7 @@ import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
 import MarketRegimeBadge from './MarketRegimeBadge';
-import { IPO_RUN_BP, MOVE_BP, ROUND_MARKET_BP, RUN_BP } from '../../data';
+import { IPO_RUN_BP, MOVE_BP, RUN_BP } from '../../data';
 import { moveSize } from '../../utils/formatMoney';
 
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
@@ -22,7 +22,7 @@ const KIND_LABEL: Record<MarketSignal['kind'], string> = {
 const PRICE_MOVEMENT_GUIDE = [
   {
     title: 'Round-end market',
-    text: `After every player has taken a turn, the market resolves once: the marker is set Bullish or Bearish with equal odds, one random sector is drawn, and it moves ${ROUND_MARKET_BP.map((bp) => moveSize(bp)).join(', ')}. Revealed IPOs in that sector move with it. Your dice roll moves your piece only — it never moves prices.`,
+    text: 'Your roll moves your piece — and both dice go into the round\'s tally. When every player has taken a turn, the first dice are totalled and wrapped to six to pick the market bloc, and the second dice averaged to set the move: below 3.5 is Bearish, above is Bullish, and the further from 3.5 the round strayed, the bigger the move — 2.5%, 5% or 7.5%. Revealed IPOs in that bloc move with it. No single roll decides anything, and the running tally is shown above all round.',
   },
   {
     title: 'Market Event & Fed cards',
@@ -88,7 +88,7 @@ export default function MarketIntelligence() {
     signal.kind === 'market' && signal.title.startsWith('Round-End Market'));
   const important = importantMarketSignals(s).slice(0, 6);
   const stance = latestFed?.stance ? STANCE_META[latestFed.stance] : STANCE_META.neutral;
-  const roundForecast = roundMarketForecast();
+  const roundForecast = roundMarketForecast(s);
 
   return (
     <section className="card-box" aria-label="Market Intelligence" style={{ padding: 10 }}>

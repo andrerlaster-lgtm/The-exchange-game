@@ -506,9 +506,19 @@ export interface GameState {
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
   p2pSeq: number;                    // monotonically increasing id source for p2pOffers
   // Result of the last completed round's market resolution — the visible
-  // Bull/Bear marker. Null until the first round ends. `sector` is null when
-  // every sector was already clamped in the drawn direction.
-  marketRound: { direction: 'bull' | 'bear'; sector: SectorId | null; bp: number; lap: number } | null;
+  // Bull/Bear marker. Null until the first round ends.
+  marketRound: {
+    direction: 'bull' | 'bear' | 'flat';
+    bloc: string | null;            // the market bloc the sector die picked
+    sectors: SectorId[];            // the sectors in it that moved
+    bp: number;
+    sectorTotal: number;            // the round's first-dice total
+    moveAvg: number | null;         // the round's second-die average
+    lap: number;
+  } | null;
+  // Running tally of this round's movement rolls: the first die feeds the
+  // sector, the second the move. Read once when the round closes, then reset.
+  roundDice: { aSum: number; bSum: number; rolls: number };
   bankRateBp: number;                // Bank Rate in bp per turn (data/rates.ts); Fed cards move it, loans price off it
   companyMarketOpen: boolean;         // opens after the first lap in Companies Mode
   marketHeat: number;                 // doubles-based shared Market Heat meter (0-3)

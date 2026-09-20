@@ -45,6 +45,7 @@ describe('Bank Rate — balance simulation', () => {
       let shortfalls = 0; let insolvencies = 0; let worth = 0;
       const drift: Record<Group, number[]> = { rateUp: [], rateDown: [], other: [] };
       const absMove: number[] = []; const lows: number[] = []; const highs: number[] = [];
+      const blocHits: Record<string, number> = {}; const sizeHits: Record<string, number> = {};
       for (let g = 0; g < GAMES; g++) {
         const seed = `rates-${n}p-${g}`;
         const rng = makeRng(seed); const bot = makeRng(`${seed}:bot`);
@@ -55,6 +56,12 @@ describe('Bank Rate — balance simulation', () => {
             if ((before.bankRateBp ?? 300) !== (after.bankRateBp ?? 300)) rateChanges++;
             if (!before.payoutShortfallChoice && after.payoutShortfallChoice && after.players[after.cur].cash < after.payoutShortfallChoice.owed) shortfalls++;
             if (!before.insolvency && after.insolvency) insolvencies++;
+            const mr = after.marketRound;
+            if (mr && mr !== before.marketRound) {
+              blocHits[mr.bloc ?? 'none'] = (blocHits[mr.bloc ?? 'none'] ?? 0) + 1;
+              const size = mr.direction === 'flat' ? 'flat' : `${mr.bp} bp`;
+              sizeHits[size] = (sizeHits[size] ?? 0) + 1;
+            }
             after.players.forEach((p, i) => { feeInterest += Math.max(0, p.feeDebtInterest - (before.players[i]?.feeDebtInterest ?? 0)); });
             for (const d of after.playerDebts) {
               const prev = before.playerDebts.find((x) => x.id === d.id);
@@ -81,6 +88,13 @@ describe('Bank Rate — balance simulation', () => {
       out.push(`  Price change open→end: Finance ${avg(drift.rateUp).toFixed(1)}% · Real Estate/High-Risk ${avg(drift.rateDown).toFixed(1)}% · others ${avg(drift.other).toFixed(1)}%`);
       out.push(`  Movement: mean |change| per company ${avg(absMove).toFixed(1)}% · cheapest company at end $${Math.round(avg(lows)).toLocaleString()} · dearest $${Math.round(avg(highs)).toLocaleString()}`);
       out.push(`  Borrowing: fee interest $${Math.round(feeInterest / GAMES).toLocaleString()}/game · player loans ${loans} (avg rate ${loans ? (loanRateSum / loans).toFixed(2) : '—'}%) · loan interest $${Math.round(loanInterest / GAMES).toLocaleString()}/game`);
+      const share = (hits: Record<string, number>) => {
+        const total = Object.values(hits).reduce((a, b) => a + b, 0) || 1;
+        return Object.entries(hits).sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `${k} ${Math.round(v / total * 100)}%`).join(' · ');
+      };
+      out.push(`  Blocs drawn: ${share(blocHits)}`);
+      out.push(`  Move sizes: ${share(sizeHits)}`);
       out.push(`  Cash stress: shortfalls ${shortfalls} · insolvencies ${insolvencies} · mean end net worth $${Math.round(worth / GAMES).toLocaleString()}`);
     }
     development.enabled = true;
