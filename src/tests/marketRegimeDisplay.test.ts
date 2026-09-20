@@ -1,178 +1,110 @@
-// 2026-08-21 Add Persistent Market Regime Display and Reset.
+// The persistent Bull/Bear marker display. 2026-09-19: the marker is the
+// result of the last completed round's market resolution, not a −3..+3
+// needle, and every surface (banner, 2D board, 3D action center) reads the
+// same presentation model.
 
 import { describe, it, expect } from 'vitest';
-import { marketRegimeInfo, formatSignedMeter } from '../utils/marketRegime';
+import { marketRegimeInfo } from '../utils/marketRegime';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
-import { METER_MAX, METER_MIN, repriceRoundBoundary } from '../engine/marketMeter';
+import { resolveRoundEndMarket } from '../engine/roundMarket';
 import { DEFAULT_OPTIONS } from '../engine/types';
 import { initialState } from '../engine';
-import { PRICE_FLOOR } from '../data';
+import type { GameState } from '../engine';
+import { SECTORS } from '../data';
 import { makeRng } from '../utils/rng';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
-function withMeter(s: ReturnType<typeof started>) {
-  return patch(s, (d) => { d.opts.marketMeter = true; });
-}
+const bull: GameState['marketRound'] = { direction: 'bull', sector: 'tech', bp: 500, lap: 1 };
+const bear: GameState['marketRound'] = { direction: 'bear', sector: 'finance', bp: 250, lap: 2 };
+const clamped: GameState['marketRound'] = { direction: 'bear', sector: null, bp: 750, lap: 3 };
 
 describe('marketRegimeInfo — single source of truth for all three surfaces', () => {
-  it('exact zone labels for all seven meter values', () => {
-    expect(marketRegimeInfo(-3).label).toBe('BEARISH');
-    expect(marketRegimeInfo(-2).label).toBe('BEARISH');
-    expect(marketRegimeInfo(-1).label).toBe('NEUTRAL');
-    expect(marketRegimeInfo(0).label).toBe('NEUTRAL');
-    expect(marketRegimeInfo(1).label).toBe('NEUTRAL');
-    expect(marketRegimeInfo(2).label).toBe('BULLISH');
-    expect(marketRegimeInfo(3).label).toBe('BULLISH');
+  it('labels the marker by how the last round closed, and MARKET OPEN before any', () => {
+    expect(marketRegimeInfo(bull).label).toBe('BULLISH');
+    expect(marketRegimeInfo(bear).label).toBe('BEARISH');
+    expect(marketRegimeInfo(null).label).toBe('MARKET OPEN');
   });
 
-  it('never reuses the Bull Run / Bear Run board-space names for a meter zone', () => {
+  it('never reuses the Bull Run / Bear Run board-space names', () => {
     // Those name spaces 16 and 26, a different mechanic (risk-tier price
     // moves + stance cash). Sharing the words made the banner read
     // "BEAR RUN" while a player landed on the "BULL RUN" space.
-    for (const meter of [-3, -2, -1, 0, 1, 2, 3]) {
-      expect(marketRegimeInfo(meter).label).not.toMatch(/RUN/i);
+    for (const round of [bull, bear, clamped, null]) {
+      expect(marketRegimeInfo(round).label).not.toMatch(/RUN/i);
     }
   });
 
-  it('formats the signed meter value with a true minus sign, never a bare hyphen', () => {
-    expect(formatSignedMeter(-3)).toBe('−3');
-    expect(formatSignedMeter(0)).toBe('0');
-    expect(formatSignedMeter(2)).toBe('+2');
+  it('spells out what the round actually did', () => {
+    expect(marketRegimeInfo(bull).detail).toBe(`${SECTORS.tech.name} up 5% (500 bp)`);
+    expect(marketRegimeInfo(bear).detail).toBe(`${SECTORS.finance.name} down 2.5% (250 bp)`);
+    expect(marketRegimeInfo(clamped).detail).toMatch(/already at its limit/);
+    expect(marketRegimeInfo(null).detail).toMatch(/No round has closed yet/);
   });
 
-  it('accessible text contains both the condition and the meter value, for every zone', () => {
-    for (const meter of [-3, -2, -1, 0, 1, 2, 3]) {
-      const info = marketRegimeInfo(meter);
+  it('accessible text contains both the label and what happened', () => {
+    for (const round of [bull, bear, clamped, null]) {
+      const info = marketRegimeInfo(round);
       expect(info.ariaLabel).toContain(info.label);
-      expect(info.ariaLabel).toContain(info.meterText);
+      expect(info.ariaLabel).toContain(info.detail);
     }
   });
 
-  it('the 3D action center exposes the exact same data the 2D banner/board use, for the same state', () => {
-    const s = withMeter(patch(started(2), (d) => { d.meter = 2; }));
-    const expected = marketRegimeInfo(s.meter);
-    const center = buildActionCenter(s);
-    expect(center.marketCondition).toMatchObject({
+  it('the 3D action center exposes the exact same data the 2D banner and board use', () => {
+    const s = patch(started(2), (d) => { d.marketRound = bull; });
+    const expected = marketRegimeInfo(s.marketRound);
+    expect(buildActionCenter(s).marketCondition).toMatchObject({
       enabled: true,
       zone: expected.zone,
       label: expected.label,
-      meter: expected.meter,
-      meterText: expected.meterText,
+      detail: expected.detail,
       color: expected.color,
       glyph: expected.glyph,
       ariaLabel: expected.ariaLabel,
     });
   });
 
-  it('the 3D action center reports enabled: false when the Market Meter option is off', () => {
-    const s = patch(started(2), (d) => { d.opts.marketMeter = false; });
+  it('the 3D action center reports enabled: false when the round-end market rule is off', () => {
+    const s = patch(started(2), (d) => { d.opts.roundMarket = false; });
     expect(buildActionCenter(s).marketCondition.enabled).toBe(false);
   });
 
-  it('roll-driven and card-driven meter changes are reflected immediately, with no extra gameplay state', () => {
-    let s = withMeter(started(2));
-    expect(marketRegimeInfo(s.meter).zone).toBe('neutral');
-    s = dispatch(s, { t: 'roll' }, scriptedRng([6, 6])); // sum 12 -> meter +1
-    expect(s.meter).toBe(1);
-    expect(marketRegimeInfo(s.meter).zone).toBe('neutral');
-    // No second field tracks the regime — meter is the only source of truth.
+  it('a dice roll changes no marker — only a completed round does', () => {
+    let s = started(2);
+    expect(marketRegimeInfo(s.marketRound).zone).toBe('none');
+    s = dispatch(patch(s, (d) => { d.turnPhase = 'preRoll'; }), { t: 'roll' }, scriptedRng([6, 6]));
+    expect(s.marketRound).toBeNull();
+    s = patch(s, (d) => { resolveRoundEndMarket(d, rng('marker')); });
+    expect(['bull', 'bear']).toContain(marketRegimeInfo(s.marketRound).zone);
+    // No second field tracks the regime — marketRound is the only source.
     expect((s as unknown as Record<string, unknown>).marketRegime).toBeUndefined();
-    expect((s as unknown as Record<string, unknown>).bullRun).toBeUndefined();
-    expect((s as unknown as Record<string, unknown>).bearRun).toBeUndefined();
+    expect((s as unknown as Record<string, unknown>).meter).toBeUndefined();
   });
 });
 
-describe('End-of-round Bull/Bear decay (2026-09-18 — was a hard reset to 0)', () => {
-  it('Bull at +2 reprices once, then decays to +1', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = 2; });
-    repriceRoundBoundary(s, rng('bull-2'));
-    expect(s.meter).toBe(1);
-  });
-
-  it('Bull at +3 (pinned) reprices once, then decays to +2 — still bullish next lap, not wiped clean', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = METER_MAX; });
-    repriceRoundBoundary(s, rng('bull-3'));
-    expect(s.meter).toBe(METER_MAX - 1);
-  });
-
-  it('Bear at −2 reprices once, then decays to −1', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = -2; });
-    repriceRoundBoundary(s, rng('bear-2'));
-    expect(s.meter).toBe(-1);
-  });
-
-  it('Bear at −3 (pinned) reprices once, then decays to −2', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = METER_MIN; });
-    repriceRoundBoundary(s, rng('bear-3'));
-    expect(s.meter).toBe(METER_MIN + 1);
-  });
-
-  it('Neutral at +1 also eases toward 0 now (every lap decays, not just Bull/Bear) — but never past it', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = 1; });
-    repriceRoundBoundary(s, rng('neutral-decay'));
-    expect(s.meter).toBe(0);
-  });
-
-  it('decays even when every eligible company is already at the floor and nothing actually moves', () => {
-    // A BEAR meter is used deliberately: the percentage redesign removed the
-    // hard ceiling, so a company can always rise and a bull round can never be
-    // fully clamped. The floor is now the only bound that can block a move.
-    let s = withMeter(started(2));
-    s = patch(s, (d) => {
-      d.meter = -2; // bear — the only direction that can be fully blocked
-      for (const code of Object.keys(d.prices)) d.prices[code] = PRICE_FLOOR;
-      d.ipos.forEach((ip) => { ip.revealed = false; }); // no revealed IPO left to move either
+describe('Round boundary', () => {
+  it('does not resolve the market once Market Close has been triggered', () => {
+    let s = patch(started(2), (d) => {
+      d.cur = 1; d.turnPhase = 'acted'; d.trade = null;
+      d.closing = true; d.closeDrawer = 0; d.extendedRoundsLeft = 1;
     });
     const before = { ...s.prices };
-    repriceRoundBoundary(s, rng('clamped'));
-    expect(s.prices).toEqual(before); // genuinely nothing moved
-    expect(s.meter).toBe(-1); // decay happens anyway
-  });
-
-  it('the decay creates no additional Important Event, price move, card draw, or stance payout', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => {
-      d.meter = -2; // bear — see the clamped-floor note above
-      for (const code of Object.keys(d.prices)) d.prices[code] = PRICE_FLOOR;
-      d.ipos.forEach((ip) => { ip.revealed = false; });
-    });
-    const signalsBefore = s.marketSignals.length;
-    const cashBefore = s.players.map((p) => p.cash);
-    repriceRoundBoundary(s, rng('no-dupe'));
-    expect(s.marketSignals.length).toBe(signalsBefore); // no signal at all — nothing moved to report
-    expect(s.players.map((p) => p.cash)).toEqual(cashBefore); // no stance payout
-    // The decay is represented in the ordinary log, not a curated signal.
-    expect(s.log[0]?.text).toContain('Market Meter eases toward Neutral');
-  });
-
-  it('a Bull round that DID move something records exactly one signal, then still decays', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => { d.meter = 2; });
-    const signalsBefore = s.marketSignals.length;
-    repriceRoundBoundary(s, rng('bull-signal'));
-    expect(s.marketSignals.length).toBe(signalsBefore + 1);
-    expect(s.meter).toBe(1);
-  });
-
-  it('does not reset (or reprice) once Market Close has already been triggered', () => {
-    let s = withMeter(started(2));
-    s = patch(s, (d) => {
-      d.cur = 1; d.turnPhase = 'acted'; d.trade = null;
-      d.meter = METER_MAX; d.closing = true; d.closeDrawer = 0; d.extendedRoundsLeft = 1;
-    });
     s = dispatch(s, { t: 'endTurn' }, scriptedRng([0]));
-    expect(s.meter).toBe(METER_MAX); // untouched — repriceRoundBoundary never runs while s.closing
+    expect(s.marketRound).toBeNull();
+    expect(s.prices).toEqual(before);
+  });
+
+  it('records exactly one market signal for a round that moved something', () => {
+    const s = started(2);
+    const signalsBefore = s.marketSignals.length;
+    const t = patch(s, (d) => { resolveRoundEndMarket(d, rng('one-signal')); });
+    expect(t.marketSignals.length).toBe(signalsBefore + 1);
+    expect(t.marketSignals[0].title).toMatch(/^Round-End Market/);
   });
 });
 
 describe('Default availability', () => {
-  it('the Market Meter is on by default — a core rule, not an experimental option', () => {
-    expect(DEFAULT_OPTIONS.marketMeter).toBe(true);
-    expect(initialState(makeRng('default-check')).opts.marketMeter).toBe(true);
+  it('the round-end market is on by default — a core rule, not an experimental option', () => {
+    expect(DEFAULT_OPTIONS.roundMarket).toBe(true);
+    expect(initialState(makeRng('default-check')).opts.roundMarket).toBe(true);
   });
 });

@@ -320,7 +320,7 @@ describe('downside protection', () => {
     expect(s.prices[CODE]).toBeLessThan(P);
   });
 
-  it.each(['weakDemand', 'marketMeter', 'marketEvent', 'fedCard', 'bearRun'] as const)('%s is protected', (source) => {
+  it.each(['weakDemand', 'roundMarket', 'marketEvent', 'fedCard', 'bearRun'] as const)('%s is protected', (source) => {
     expect(moveWith(atLevel(2), -1_000, source).prices[CODE]).toBe(applyBasisPoints(P, -600));
   });
 

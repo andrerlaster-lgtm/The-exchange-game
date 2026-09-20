@@ -20,7 +20,7 @@ import { investIpoGrowth, snapshotIpoHoldings } from './ipoGrowth';
 import { heldQty, setHeld, unitValue } from './holdings';
 import { payMarketOpen } from './playerState';
 import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
-import { advanceMeterOnRoll, repriceRoundBoundary } from './marketMeter';
+import { resolveRoundEndMarket } from './roundMarket';
 import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, finalizeCard, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
@@ -724,7 +724,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       // price the needle already reflects this turn. Independent of Market
       // Heat below: the meter reads every roll's sum, Heat only counts
       // doubles under companiesMode — different trigger, no overlap.
-      advanceMeterOnRoll(s, a, b);
       if (s.opts.companiesMode && a === b) {
         s.marketHeat += 1;
         addLog(s, `Market Heat +1 (${s.marketHeat}/3) after doubles.`, 'y');
@@ -1309,7 +1308,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // Circuit Breaker pause returns null here — finalizeCard runs later,
         // once pickTarget or resolveCircuitBreaker knows the true outcome.
         const impacts = beginMarketEventEffect(s, c.eff, rng, c);
-        if (impacts !== null) finalizeCard(s, c, impacts, rng);
+        if (impacts !== null) finalizeCard(s, c, impacts);
       } else {
         // FED cards are immediate and unprotectable — predicted == actual.
         // Routed through finalizeCard (rather than recordCardSignal directly)
@@ -1330,7 +1329,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
             : `Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${bankRateBp(s) / 100}%. Loans now cost ${actual > 0 ? 'more' : 'less'}.`, 'y');
         }
         const impacts = applyEffect(s, eff, [], undefined, 'fedCard');
-        finalizeCard(s, c, impacts, rng);
+        finalizeCard(s, c, impacts);
       }
       break;
     }
@@ -1359,7 +1358,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       addLog(s, `${code} moves ${pctBp(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
       const pickedCard = s.pick.card;
       s.pick = null;
-      if (pickedCard) finalizeCard(s, pickedCard, impacts, rng);
+      if (pickedCard) finalizeCard(s, pickedCard, impacts);
       break;
     }
     case 'skipPick':
@@ -1371,10 +1370,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.pick = null;
       break;
     case 'playCircuitBreaker':
-      resolveCircuitBreaker(s, action.code, rng);
+      resolveCircuitBreaker(s, action.code);
       break;
     case 'passCircuitBreaker':
-      resolveCircuitBreaker(s, null, rng);
+      resolveCircuitBreaker(s, null);
       break;
 
     // ---- ETF ----
@@ -1533,7 +1532,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // last one still gets its reprice. s.closing stays true for every
         // Extended Hours round after that point, so this naturally excludes
         // all of them without a separate "final round" flag.
-        if (!s.closing) repriceRoundBoundary(s, rng);
+        if (!s.closing) resolveRoundEndMarket(s, rng);
       }
       // These two checks are lap-number-based, not round-boundary-based —
       // they must keep evaluating on every turn (not only inside the

@@ -729,17 +729,11 @@
       marketConditionEl.style.color = mc.color;
       marketConditionGlyph.textContent = mc.glyph;
       marketConditionLabel.textContent = mc.label;
-      marketConditionValue.textContent = mc.meterText;
+      marketConditionValue.textContent = mc.detail;
       marketConditionEl.setAttribute('aria-label', mc.ariaLabel);
-
+      // The -3..+3 needle scale went with the Market Meter (2026-09-19): the
+      // marker is simply how the last round closed.
       marketConditionScale.replaceChildren();
-      for (let pos = mc.min; pos <= mc.max; pos++) {
-        const zoneOfPos = pos <= -2 ? 'bear' : pos >= 2 ? 'bull' : 'neutral';
-        const dot = document.createElement('span');
-        dot.className = `mc3d-dot ${zoneOfPos}${pos === mc.meter ? ' active' : ''}`;
-        if (pos === mc.meter) dot.style.background = mc.color;
-        marketConditionScale.appendChild(dot);
-      }
 
       // Non-blocking pulse only on an actual zone change — never on a bare
       // meter-value change within the same zone, and never on first paint.

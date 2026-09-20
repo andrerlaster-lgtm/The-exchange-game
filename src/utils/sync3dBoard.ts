@@ -118,21 +118,19 @@ export interface P2POffer3D {
   canAccept: boolean;
 }
 
-/** Persistent Market Condition — the same presentation data the 2D banner
-    and board render, via src/utils/marketRegime.ts's single source of truth.
-    `enabled: false` means the Market Meter option is off; the 3D page should
-    hide the display entirely rather than show a stale/meaningless zone. */
+/** The Bull/Bear marker from the last completed round — the same
+    presentation data the 2D banner and board render, via
+    src/utils/marketRegime.ts's single source of truth. `enabled: false` means
+    the round-end market rule is off; the 3D page should hide the display
+    rather than show a stale marker. */
 export interface MarketCondition3D {
   enabled: boolean;
-  zone: 'bear' | 'neutral' | 'bull';
+  zone: 'bear' | 'bull' | 'none';
   label: string;
-  meter: number;
-  meterText: string;
+  detail: string;       // what the last round actually did
   color: string;
   glyph: string;
   ariaLabel: string;
-  min: number;
-  max: number;
 }
 
 export interface ActionCenter3D {

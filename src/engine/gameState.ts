@@ -99,7 +99,7 @@ export function initialState(rng: Rng): GameState {
     lastDraw: null,
     p2pOffers: [],
     p2pSeq: 0,
-    meter: 0,
+    marketRound: null,
     bankRateBp: BANK_RATE_START_BP,
     companyMarketOpen: false,
     marketHeat: 0,

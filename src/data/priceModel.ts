@@ -70,7 +70,7 @@ export function pctChange(before: number, after: number): number {
 export type PriceMoveSource =
   | 'weakDemand'
   | 'strongDemand'
-  | 'marketMeter'
+  | 'roundMarket'
   | 'marketEvent'
   | 'fedCard'
   | 'bullRun'
@@ -84,7 +84,7 @@ export type PriceMoveSource =
 
 /** Player-facing name for each price-move source (logs, tooltips). */
 export const PRICE_MOVE_SOURCE_LABEL: Record<PriceMoveSource, string> = {
-  weakDemand: 'Weak Demand', strongDemand: 'Strong Demand', marketMeter: 'Market Meter',
+  weakDemand: 'Weak Demand', strongDemand: 'Strong Demand', roundMarket: 'round-end market move',
   marketEvent: 'Market Event', fedCard: 'Fed card', bullRun: 'Bull Run', bearRun: 'Bear Run',
   bankSale: 'bank sale', voluntarySale: 'sale', cyberattackChoice: 'Cyberattack penalty',
   regulatoryChoice: 'Regulatory penalty', investorDay: 'Investor Day', ipoGrowth: 'IPO growth investment',
@@ -99,7 +99,7 @@ export const PRICE_MOVE_SOURCE_LABEL: Record<PriceMoveSource, string> = {
  * place.
  */
 export const SHIELDABLE_SOURCES: ReadonlySet<PriceMoveSource> = new Set<PriceMoveSource>([
-  'weakDemand', 'marketMeter', 'marketEvent', 'fedCard', 'bearRun',
+  'weakDemand', 'roundMarket', 'marketEvent', 'fedCard', 'bearRun',
 ]);
 
 /**
@@ -107,6 +107,10 @@ export const SHIELDABLE_SOURCES: ReadonlySet<PriceMoveSource> = new Set<PriceMov
  * output rather than hunted down inline. One old ladder step maps to 500 bp
  * and two steps to 1,000 bp, per the redesign brief's initial mapping.
  */
+/** The three sizes a round-end market move can take (2026-09-19 round-end
+    market rules): one is drawn at random each time. */
+export const ROUND_MARKET_BP = [250, 500, 750] as const;
+
 export const MOVE_BP = {
   weakDemand: -500,
   strongDemand: 500,

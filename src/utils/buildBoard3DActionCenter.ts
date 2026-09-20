@@ -442,18 +442,15 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     };
   });
 
-  const regime = marketRegimeInfo(s.meter);
+  const regime = marketRegimeInfo(s.marketRound);
   const marketCondition: MarketCondition3D = {
-    enabled: s.opts.marketMeter,
+    enabled: s.opts.roundMarket,
     zone: regime.zone,
     label: regime.label,
-    meter: regime.meter,
-    meterText: regime.meterText,
+    detail: regime.detail,
     color: regime.color,
     glyph: regime.glyph,
     ariaLabel: regime.ariaLabel,
-    min: regime.min,
-    max: regime.max,
   };
 
   return {

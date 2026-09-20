@@ -165,9 +165,9 @@ export default function BoardTrack() {
             <span style={{ fontSize: 5, color: 'rgba(201,162,79,0.5)', letterSpacing: 2, fontFamily: 'IBM Plex Mono, monospace' }}>EST. 2025</span>
           </div>
 
-          {s.opts.marketMeter && (
+          {s.opts.roundMarket && (
             <div style={{ position: 'absolute', top: '30%', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 4 }}>
-              <MarketRegimeBadge meter={s.meter} variant="board" />
+              <MarketRegimeBadge round={s.marketRound} variant="board" />
             </div>
           )}
 

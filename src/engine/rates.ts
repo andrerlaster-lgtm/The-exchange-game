@@ -2,9 +2,8 @@
 
 import {
   BANK_RATE_MAX_BP, BANK_RATE_MIN_BP, BANK_RATE_START_BP, COMPANY_LOAN_SPREAD_BP, FEE_DEBT_SPREAD_BP,
-  MARKET_RATE_NEUTRAL_BP, MARKET_RATE_PER_METER_BP, PLAYER_LOAN_PREMIUM_BY_ROLL_BP, spreadUpChance,
+  MARKET_RATE_NEUTRAL_BP, PLAYER_LOAN_PREMIUM_BY_ROLL_BP,
 } from '../data';
-import type { Rng } from '../utils/rng';
 import type { GameState } from './types';
 import { marketConditionWaivesLoanPremium } from './marketConditions';
 
@@ -14,10 +13,13 @@ export function bankRateBp(s: GameState): number {
   return s.bankRateBp ?? BANK_RATE_START_BP;
 }
 
-/** The Market Rate in bp, read from the Market Meter needle. With the meter
-    off it sits at neutral. */
+/** The Market Rate in bp: the neutral rate plus what the market actually did
+    in the round just finished (up on a Bullish round, down on a Bearish one).
+    Sits at neutral before the first round resolves. */
 export function marketRateBp(s: GameState): number {
-  return MARKET_RATE_NEUTRAL_BP + (s.opts.marketMeter ? s.meter : 0) * MARKET_RATE_PER_METER_BP;
+  const last = s.marketRound;
+  if (!last || !s.opts.roundMarket) return MARKET_RATE_NEUTRAL_BP;
+  return MARKET_RATE_NEUTRAL_BP + (last.direction === 'bull' ? last.bp : -last.bp);
 }
 
 /** Market Rate − Bank Rate. */
@@ -52,13 +54,6 @@ export function marginRatePct(s: GameState): number {
 /** Premium, in bp, a creditor's d6 roll adds over the Bank Rate. */
 export function playerLoanPremiumBp(roll: number): number {
   return PLAYER_LOAN_PREMIUM_BY_ROLL_BP[Math.min(6, Math.max(1, roll))];
-}
-
-/** Direction of an undirected (Neutral-zone) market move: the spread tilts
-    the odds toward up when stocks beat cash, toward down when cash wins. Uses
-    one random draw, the same as the coin flip it replaces. */
-export function spreadDirection(s: GameState, rng: Rng): 1 | -1 {
-  return rng.next() < spreadUpChance(rateSpreadBp(s)) ? 1 : -1;
 }
 
 /** How the next Player Loan to `debtorIdx` will be priced, for the roll

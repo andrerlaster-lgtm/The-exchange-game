@@ -19,11 +19,13 @@ function drawCard(s: ReturnType<typeof started>, title: string) {
 }
 
 describe('Deck Rebuild — architecture', () => {
-  it('the core deck has exactly 24 cards', () => {
-    expect(CORE_ME_CARDS).toHaveLength(24);
+  it('the core deck has exactly 21 cards', () => {
+    // 24 until 2026-09-19, when the three meter-only cards were removed with
+    // the Market Meter (see the round-end market rules).
+    expect(CORE_ME_CARDS).toHaveLength(21);
   });
 
-  it('Market Close is not one of the 24 core cards', () => {
+  it('Market Close is not one of the core cards', () => {
     expect(CORE_ME_CARDS.some((c) => c.eff.k === 'close')).toBe(false);
   });
 
@@ -44,32 +46,14 @@ describe('Deck Rebuild — architecture', () => {
   });
 });
 
-describe('Deck Rebuild — meter sentiment applies exactly once', () => {
-  it('a sentiment card with meterSentiment moves the meter by that amount, once', () => {
-    let s = patch(started(2), (d) => { d.meter = 0; });
-    s = drawCard(s, 'Bullish Momentum');
-    expect(s.meter).toBe(2);
-  });
-
-  it('a price card with meterSentiment moves both price and meter from a single draw', () => {
-    let s = patch(started(2), (d) => { d.meter = 0; });
-    const before = s.prices.SAFE;
-    s = drawCard(s, 'Melt-Up Rally');
-    expect(s.prices.SAFE).toBe(applyBasisPoints(before, MOVE_BP.cardStep));
-    expect(s.meter).toBe(2);
-  });
-
-  it('never applies meter sentiment while a Circuit Breaker pause defers resolution', () => {
-    let s = patch(started(2), (d) => {
-      d.meter = 0;
-      d.circuitBreakerHolder = 0;
-      d.players[0].shares.CCAI = 11;
-    });
-    s = drawCard(s, 'Flash Crash');
-    expect(s.circuitBreakerPrompt).not.toBeNull();
-    expect(s.meter).toBe(0); // not yet applied — the price effect hasn't resolved
-    s = dispatch(s, { t: 'passCircuitBreaker' }, rng());
-    expect(s.meter).toBe(-2); // applied once resolution actually happens
+describe('Deck Rebuild — the meter-only cards are gone', () => {
+  // 2026-09-19 round-end market rules: Bullish Momentum, Bearish Momentum and
+  // Volatility Cools only nudged the Market Meter, which no longer exists.
+  it('no card moves a market mood instead of a price', () => {
+    for (const card of CARDS.ME) {
+      expect(['Bullish Momentum', 'Bearish Momentum', 'Volatility Cools']).not.toContain(card.title);
+      expect(card.effect).not.toMatch(/Market Meter/i);
+    }
   });
 });
 

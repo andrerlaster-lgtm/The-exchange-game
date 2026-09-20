@@ -1,7 +1,7 @@
 // Engine state + action types. State is a plain serializable object; the reducer
 // produces new state via Immer. No DOM, no React here.
 
-import type { Card, DeckId, Effect } from '../data/types';
+import type { Card, DeckId, Effect, SectorId } from '../data/types';
 import type { PriceMoveSource } from '../data/priceModel';
 
 export type Phase = 'setup' | 'orderRoll' | 'play' | 'over';
@@ -391,7 +391,7 @@ export interface GameOptions {
   ipos: boolean;              // IPO spaces active
   closeMode: 'card' | 'rounds';
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
-  marketMeter: boolean;       // ambient roll-driven market repricing (2026-08-21 Market Overhaul)
+  roundMarket: boolean;       // the once-per-round market resolution (2026-09-19 round-end market rules)
   companiesMode: boolean;     // optional player-owned company market
   companyUpgrades: boolean;   // Company Development (Levels I-III + Market Protection) — off by default pending review
   bankAuction: boolean;       // alternate resale mode: pooled shares go to a turn-order
@@ -407,7 +407,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   ipos: true,
   closeMode: 'card',
   closeRounds: 5,
-  marketMeter: true, // core rule as of the 2026-08-21 Market Regime Display task — approved Market Overhaul contract, not an experimental option
+  roundMarket: true, // core rule: the market moves once per completed round, never off a dice roll
   companiesMode: false,
   bankAuction: false, // standard mode uses Outstanding Shares (rulebook §11); this is the variant
   // Off by default while the percentage market is played on its own; the
@@ -505,7 +505,10 @@ export interface GameState {
   lastDraw: DrawEvent | null;        // most recent card draw / IPO reveal (for draw animations)
   p2pOffers: P2POffer[];             // pending player-to-player trade offers
   p2pSeq: number;                    // monotonically increasing id source for p2pOffers
-  meter: number;                     // Market Meter needle, METER_MIN..METER_MAX, starts at 0
+  // Result of the last completed round's market resolution — the visible
+  // Bull/Bear marker. Null until the first round ends. `sector` is null when
+  // every sector was already clamped in the drawn direction.
+  marketRound: { direction: 'bull' | 'bear'; sector: SectorId | null; bp: number; lap: number } | null;
   bankRateBp: number;                // Bank Rate in bp per turn (data/rates.ts); Fed cards move it, loans price off it
   companyMarketOpen: boolean;         // opens after the first lap in Companies Mode
   marketHeat: number;                 // doubles-based shared Market Heat meter (0-3)

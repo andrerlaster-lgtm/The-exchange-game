@@ -12,17 +12,11 @@ import { marketStanceMeta, regimeCashDelta } from './marketRegime';
 import { payDividendCard } from './playerState';
 import { netWorth } from './scoringEngine';
 import { addFeeDebt } from './feeDebt';
-import { applyMeterSentiment, moveMeterTowardNeutral, triggerCardRipple } from './marketMeter';
 import type { Rng } from '../utils/rng';
 
-// Option A (2026-09-18): card effect kinds narrow enough that they leave most
-// of the market untouched, so they ALSO get a bonus ripple via
-// triggerCardRipple when they resolve. 'all' is deliberately excluded — it
-// already moves every eligible company, so an extra ripple would be
-// redundant, not additive. Non-price kinds (dividend, cyberattack, close,
-// meterDelta, etc.) were never in scope for a price ripple to begin with.
-const RIPPLE_EFFECT_KINDS: ReadonlySet<Effect['k']> = new Set(['sector', 'risk', 'multi', 'lowest', 'highest', 'pick']);
-
+// A card's bonus "ripple" — one extra random sector move on top of the card's
+// own effect — was removed with the 2026-09-19 round-end market rules. A card
+// now moves only the companies, sectors or risk groups it names.
 
 function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
   s.log.unshift({ text, kind, t: s.lap });
@@ -117,10 +111,8 @@ export function circuitBreakerOptions(s: GameState): string[] {
  * signal, skip the sentiment, or skip the ripple because it took a different
  * route to resolution.
  */
-export function finalizeCard(s: GameState, card: Card, impacts: MarketSignalImpact[], rng: Rng): void {
+export function finalizeCard(s: GameState, card: Card, impacts: MarketSignalImpact[]): void {
   recordCardSignal(s, card, impacts);
-  if (card.meterSentiment) applyMeterSentiment(s, card.meterSentiment);
-  if (RIPPLE_EFFECT_KINDS.has(card.eff.k)) triggerCardRipple(s, rng);
 }
 
 /** Begin resolving a freshly-drawn Market Event effect. The target must be
@@ -186,7 +178,7 @@ export function beginMarketEventEffect(s: GameState, effect: Effect, rng?: Rng, 
     for the pre-existing board-space Bull/Bear Run effect, which is not a
     Card and records its own (pre-existing, unchanged) signal before this
     pause ever begins. */
-export function resolveCircuitBreaker(s: GameState, code: string | null, rng: Rng): void {
+export function resolveCircuitBreaker(s: GameState, code: string | null): void {
   const prompt = s.circuitBreakerPrompt;
   if (!prompt) return;
   const holder = prompt.player;
@@ -214,7 +206,7 @@ export function resolveCircuitBreaker(s: GameState, code: string | null, rng: Rn
       addLog(s, `${s.players[holder].name} plays Circuit Breaker on ${target}.`, 'g');
     }
     if (prompt.effect.k === 'pick') s.pick = null;
-    if (prompt.card) finalizeCard(s, prompt.card, impacts, rng);
+    if (prompt.card) finalizeCard(s, prompt.card, impacts);
     return;
   }
 
@@ -224,14 +216,14 @@ export function resolveCircuitBreaker(s: GameState, code: string | null, rng: Rn
   if (code == null) {
     addLog(s, `${s.players[holder].name} keeps Circuit Breaker for a future Market Event.`);
     const impacts = applyEffect(s, effect);
-    if (prompt.card) finalizeCard(s, prompt.card, impacts, rng);
+    if (prompt.card) finalizeCard(s, prompt.card, impacts);
     return;
   }
   s.circuitBreakerHolder = null;
   s.discard.ME.push(CIRCUIT_BREAKER_INDEX);
   addLog(s, `${s.players[holder].name} plays Circuit Breaker on ${code}.`, 'g');
   const impacts = applyEffect(s, effect, [code]);
-  if (prompt.card) finalizeCard(s, prompt.card, impacts, rng);
+  if (prompt.card) finalizeCard(s, prompt.card, impacts);
 }
 
 export function triggerClose(s: GameState): void {
@@ -431,14 +423,6 @@ export function applyEffect(
       break;
     case 'close':
       triggerClose(s);
-      break;
-    case 'meterDelta':
-      applyMeterSentiment(s, e.delta);
-      addLog(s, `Market Meter moves ${e.delta > 0 ? '+' : ''}${e.delta} — no price change.`, e.delta > 0 ? 'g' : 'r');
-      break;
-    case 'meterTowardNeutral':
-      moveMeterTowardNeutral(s, e.amount);
-      addLog(s, `Market Meter cools ${e.amount} toward Neutral — no price change.`, 'y');
       break;
     case 'insiderPreview': {
       // A real, non-blocking peek: read the next card without shifting it out

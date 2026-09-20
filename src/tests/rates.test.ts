@@ -2,12 +2,12 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  BANK_RATE_MAX_BP, BANK_RATE_START_BP, FED_CARDS, STOCK_BY_CODE, applyBasisPoints, spreadUpChance,
+  BANK_RATE_MAX_BP, BANK_RATE_START_BP, FED_CARDS, STOCK_BY_CODE, applyBasisPoints,
 } from '../data';
 import type { GameState } from '../engine';
-import { accrueFeeDebt, bankRateBp, feeDebtRatePct, marketRateBp, rateSpreadBp, spreadDirection } from '../engine';
+import { accrueFeeDebt, bankRateBp, feeDebtRatePct, marketRateBp, rateSpreadBp } from '../engine';
 import { makeRng } from '../utils/rng';
-import { repriceRoundBoundary } from '../engine/marketMeter';
+import { resolveRoundEndMarket } from '../engine/roundMarket';
 import { dispatch, patch, rng, started } from './helpers';
 
 const fedIndex = (title: string) => FED_CARDS.findIndex((c) => c.title === title);
@@ -16,7 +16,7 @@ const codesWhere = (f: (st: (typeof STOCK_BY_CODE)[string]) => boolean) => Objec
 /** Draw one Fed card with the Market Meter off, so no ripple muddies prices. */
 function drawFed(s: GameState, title: string): GameState {
   const ready = patch(s, (d) => {
-    d.opts.marketMeter = false;
+    d.opts.roundMarket = false;
     d.pendingDraws = ['FED'];
     d.decks.FED = [fedIndex(title)];
     d.turnPhase = 'acted';
@@ -32,11 +32,16 @@ describe('Bank Rate and Market Rate', () => {
     expect(rateSpreadBp(s)).toBe(0);
   });
 
-  it('reads the Market Rate from the Market Meter: 100 bp per point', () => {
-    const s = patch(started(2), (d) => { d.meter = 2; });
-    expect(marketRateBp(s)).toBe(500);
-    expect(rateSpreadBp(s)).toBe(200);
-    expect(rateSpreadBp(patch(s, (d) => { d.meter = -3; d.bankRateBp = 400; }))).toBe(-400);
+  it('reads the Market Rate from the round that just closed', () => {
+    const s = patch(started(2), (d) => { d.marketRound = { direction: 'bull', sector: 'tech', bp: 500, lap: 1 }; });
+    expect(marketRateBp(s)).toBe(800);
+    expect(rateSpreadBp(s)).toBe(500);
+    const bearish = patch(s, (d) => {
+      d.marketRound = { direction: 'bear', sector: 'finance', bp: 250, lap: 2 };
+      d.bankRateBp = 400;
+    });
+    expect(marketRateBp(bearish)).toBe(50);
+    expect(rateSpreadBp(bearish)).toBe(-350);
   });
 
   it('a Rate Hike raises the Bank Rate 50 bp and moves the rate-sensitive stocks', () => {
@@ -103,16 +108,12 @@ describe('Bank Rate and Market Rate', () => {
     expect(t.prices[fin]).toBe(s.prices[fin]);
   });
 
-  it('a Bullish round nudges the rate up and a Bearish round nudges it down', () => {
-    const bull = patch(started(2), (d) => { d.meter = 2; });
-    const afterBull = patch(bull, (d) => { repriceRoundBoundary(d, makeRng('bull')); });
-    expect(afterBull.bankRateBp).toBe(325);
-
-    const bear = patch(started(2), (d) => { d.meter = -2; });
-    expect(patch(bear, (d) => { repriceRoundBoundary(d, makeRng('bear')); }).bankRateBp).toBe(275);
-
-    const flat = patch(started(2), (d) => { d.meter = 0; });
-    expect(patch(flat, (d) => { repriceRoundBoundary(d, makeRng('flat')); }).bankRateBp).toBe(300);
+  it('a resolved round nudges the rate 25 bp with its marker', () => {
+    for (const seed of ['n1', 'n2', 'n3']) {
+      const s = started(2);
+      const t = patch(s, (d) => { resolveRoundEndMarket(d, makeRng(seed)); });
+      expect(t.bankRateBp).toBe(300 + (t.marketRound!.direction === 'bull' ? 25 : -25));
+    }
   });
 });
 
@@ -146,24 +147,5 @@ describe('loans follow the Bank Rate', () => {
     });
     s = dispatch(s, { t: 'endTurn' }, rng());
     expect(s.players[1].margin).toBe(4_160);
-  });
-});
-
-describe('the spread tilts undirected market moves', () => {
-  it('is 50/50 at a zero spread and leans with it, held between 20% and 80%', () => {
-    expect(spreadUpChance(0)).toBe(0.5);
-    expect(spreadUpChance(200)).toBe(0.75);
-    expect(spreadUpChance(-200)).toBe(0.25);
-    expect(spreadUpChance(2_000)).toBe(0.8);
-    expect(spreadUpChance(-2_000)).toBe(0.2);
-  });
-
-  it('a positive spread sends most Neutral moves up', () => {
-    const bull = patch(started(2), (d) => { d.meter = 1; d.bankRateBp = 100; }); // spread +300 → 80% up
-    const r = makeRng('spread');
-    let ups = 0;
-    for (let i = 0; i < 2_000; i++) if (spreadDirection(bull, r) === 1) ups++;
-    expect(ups / 2_000).toBeGreaterThan(0.76);
-    expect(ups / 2_000).toBeLessThan(0.84);
   });
 });

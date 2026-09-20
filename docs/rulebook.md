@@ -29,7 +29,7 @@ Consolidated Rules — Reconciled September 18, 2026
 18. ETFs
 19. IPOs
 20. Margin System
-21. Market Meter
+21. Round-End Market
 22. Special Spaces
 23. Price Movement
 24. Endgame and Scoring
@@ -85,7 +85,7 @@ The setup screen offers two winning-score modes:
 - Cash or digital bank balances
 - Share supply trackers
 - Market price tracker, including the $100 floor marker and the $5,000 Market Event mark
-- A single shared Market Meter needle (see Section 21)
+- A single shared Bull/Bear market marker (see Section 21)
 - Weak Demand markers and Strong Demand markers
 - Payout Claim cards or markers
 - Sector Portfolio badges (8 sectors) and Sector Control pair markers (11 pairs, see Section 12)
@@ -104,7 +104,7 @@ The setup screen offers two winning-score modes:
 - Set all 3 IPO cards face down in a single shared reveal queue (see Section 19). None are available for purchase until revealed.
 - Set up ETF spaces/cards according to current app data.
 - Place Payout Claim cards/markers, Weak Demand markers, Strong Demand markers, Sector Portfolio badges, Sector Control pair markers, and Diversification badges near the bank.
-- Set the Market Meter needle to 0 (Neutral).
+- Leave the Bull/Bear marker unset; the first round-end resolution sets it.
 - Determine the first player by the app, by highest dice roll, or by table agreement.
 
 **Note:** Starting cash, salary amount, opening share prices, dividend per-share amount, and any fixed ETF purchase prices should use the current app defaults until playtesting locks the final values.
@@ -137,7 +137,7 @@ The board has 36 spaces. The current rule direction preserves the board count an
 
 Each turn follows the same order unless a card or special rule changes it.
 
-1. Roll dice. The Market Meter needle (Section 21) is nudged by the roll.
+1. Roll dice. The roll moves your piece only — it does not move prices or the market marker (Section 21).
 2. Move the active player token.
 3. If the player passes or lands on Market Open, resolve Market Open before continuing the landing result as applicable.
 4. Resolve the landed space completely.
@@ -149,7 +149,7 @@ Each turn follows the same order unless a card or special rule changes it.
 9. End the Trade Step. All unresolved offers expire.
 10. If the player's first roll was doubles, that player takes exactly 1 bonus roll after the landing and all required actions are fully resolved.
     - Doubles rolled on the bonus roll do not earn another roll.
-11. If the round just completed (every player has taken a turn), the Market Meter forces one guaranteed reprice (Section 21).
+11. If the round just completed (every player has taken a turn), resolve the round-end market: the marker is set Bullish or Bearish, one sector is drawn, and it moves 2.5%, 5% or 7.5% (Section 21).
 12. Pass play to the next player.
 
 **First-lap grace:** Any Payout Claim (Section 11), Sector Rent (Section 12), or ETF landing fee (Section 18) that would otherwise be owed is skipped entirely for a player who has not yet completed one full lap of the board — no charge, no marker, no effect on the claim/fee holder. The purchase or other option that space offers is unaffected; only the payment to another player is waived. Once a player completes their first lap, every later landing is charged normally.
@@ -549,7 +549,7 @@ IPOs are limited new-stock opportunities. They are more volatile and have smalle
 All 3 IPOs start at a fixed price of $3,000 per share. There is no tiered starting-price structure; every IPO enters the game at the same price point and differentiates only through reveal order and Market Event effects.
 
 **IPO Price Movement**
-- IPO share prices do not move from buying or selling. They move with the market — Market Event and Fed cards, Bull/Bear Runs, the Market Meter (Section 21) — and through growth investments (below).
+- IPO share prices do not move from buying or selling. They move with the market — Market Event and Fed cards, Bull/Bear Runs, the round-end market (Section 21) — and through growth investments (below).
 - Moves are percentages, like regular stocks (Section 23). The $100 floor applies; there is no ceiling.
 - IPO prices do not move before being revealed.
 
@@ -611,41 +611,42 @@ Audit Notice, Portfolio Tax, and ETF landing fees are bank/player fees a player 
 - Outstanding Fees are subtracted from Net Worth and therefore reduce both Standard Mode and Gain/Loss Mode scoring. Any balance left at Market Close remains deducted from the final score.
 - A Sold-Out Payout Claim is different because another player is owed immediately. If the landing player cannot cover it, they may negotiate a Player Loan (Section 13) instead of an immediate forced sale. If a forced sale is used instead, the bank forces sales of regular shares at the normal sell-back price until it is covered or regular shares are exhausted. IPOs and ETFs cannot be force-sold; any remaining Payout Claim shortfall is waived. Cash never goes negative, and no player is eliminated.
 
-## 21. Market Meter
+## 21. Round-End Market
 
-The Market Meter is the game's ambient, round-guaranteed source of market movement — on by default in standard mode, not an advanced toggle like Margin or Short Sell. It exists so prices can drift meaningfully even in a round with no qualifying Market Event or Fed card.
+The market moves **once per completed round**, and that is the only broad market movement in the game. A player's dice roll moves their piece; it does not move prices and does not set the Bull/Bear marker.
 
-**The needle**
-- The Market Meter is a single needle ranging from −3 (fully Bearish) to +3 (fully Bullish), shared by the whole game — not per-player, not per-stock.
-- Every roll nudges the needle: a roll summing 8 or higher nudges it +1 (toward Bullish); a roll summing 6 or lower nudges it −1 (toward Bearish); a roll of exactly 7 holds it in place.
-- A drawn Market Event or Fed card may also nudge the needle toward its own sentiment as part of resolving.
-- Its current position is always visible to all players.
+**End-of-round resolution**
 
-**Zone**
+At the end of every non-final round — once every player has taken one turn:
 
-| Needle position | Zone |
-|---|---|
-| −3 to −2 | Bearish |
-| −1 to +1 | Neutral |
-| +2 to +3 | Bullish |
+1. Set the market marker **Bullish or Bearish**, with equal odds.
+2. Draw **one eligible sector** at random.
+3. Draw the **move size** at random: **2.5% (250 bp)**, **5% (500 bp)** or **7.5% (750 bp)**.
+4. Move every regular company in that sector by it — up on Bullish, down on Bearish.
+5. Every **revealed** IPO in that sector moves by the same percentage. Unrevealed IPOs do not move.
 
-**Guaranteed round-boundary reprice**
-- At the end of every non-final round, the Market Meter forces exactly one reprice, using its zone and magnitude at that moment:
-  - Neutral zone (magnitude 1): 1 random eligible sector moves 1 step. Its direction is random, tilted by the rate spread (see Bank Rate and Market Rate below): 50/50 at a zero spread.
-  - Bullish/Bearish zone, magnitude 2 (needle at ±2): the *same* sector moves, but 2 steps instead of 1 — direction is fixed by the zone (Bullish only moves sectors up, Bearish only down).
-  - Pinned at the extreme, magnitude 3 (needle at ±3): 2 different random eligible sectors each move 1 step, in the zone's fixed direction.
-- A sector already at the price floor or ceiling in the required direction is not eligible; if every sector is clamped, no reprice happens that round.
-- This reprice is independent of, and does not replace or consume, a Market Event or Fed card draw.
-- After each round-boundary reprice, the needle eases 1 step back toward Neutral instead of resetting to 0 — a strong trend can persist and compound across a few rounds instead of vanishing the moment it triggers a reprice.
+The marker stays visible as the result of the round just finished, until the next round-end resolution replaces it.
 
-**Card-triggered ripple**
-- A Market Event or Fed card that affects only part of the market (a single sector, a single risk tier, or a single company — never a whole-market card) also stirs 1 additional random eligible sector by 1 step when it resolves, using the same zone-driven direction logic as the round-boundary reprice above.
-- This ripple is its own trigger, independent of the round boundary — the market can move mid-round, between any two players' turns, whenever a qualifying card is drawn.
-- A whole-market card does not also trigger a ripple, since it already moves everything.
+**Price rules**
+- Moves use the percentage price system, rounded to the **$25 grid**, with the **$100 floor** (Section 23). There is no maximum price.
+- A sector is eligible only while at least one of its companies can still move in the drawn direction. If every sector is clamped that way — a Bearish round with the whole market at the floor — the marker still records the direction and no prices move.
+- Exactly one sector moves each round.
 
-**Interaction with other systems**
-- The round-boundary reprice and card ripple both move real stock (and revealed IPO) prices using the normal price floor/ceiling and Weak/Strong Demand rules — they do not bypass them.
-- They are unrelated to, and do not double up with, the Market Swing space's Bull Run / Bear Run resolution (Section 22) or the temporary Market Conditions (Section 6).
+**What does not move the broad market**
+- A player's dice roll.
+- Buying shares, or buying a whole company.
+- Private player-to-player trades.
+- Cards: no card triggers an extra random sector move.
+
+**Card effects still work exactly as written**
+
+Market Event cards, Fed cards, Weak Demand, Strong Demand, large bank sales and every other company-specific rule work as printed. They move only the companies, sectors or risk groups they name, and never add a random market move on top.
+
+**Kept separate**
+
+The board's **Bull Run** and **Bear Run** (the Market Swing space, Section 22) are a different mechanic — risk-tier moves and stance cash on landing — and are not merged into this marker.
+
+**In play:** "After every player takes a turn, the market resolves one round-end move. The Bull/Bear marker randomly chooses the direction, one sector is selected, and that sector moves 2.5%, 5%, or 7.5%. Your dice roll only moves your piece — it does not move stock prices."
 
 ### Bank Rate and Market Rate
 
@@ -656,7 +657,7 @@ Two rates run in the background and set the basis points behind loans and part o
 - Two things move it:
   - **Fed cards.** Jumbo Hike +100 bp, Emergency Cut −100 bp, Rate Hike +50 bp, Rate Cut −50 bp, Tight Money +25 bp, Easy Money −25 bp, Inflation Warning +25 bp, Bond Yields Rise +25 bp, Cut Hopes Rally −25 bp. Rate Hold and the rest leave it alone.
   - **The Rate Decision space (board 28).** The landing player rolls a d6: 1-2 cuts the rate 25 bp, 3-4 holds it, 5-6 raises it 25 bp. A change applies the same price shock a rate card would; a hold does nothing. If the rate is already at its floor or ceiling, the roll simply does not move it.
-  - **The Market Meter, at every round boundary.** A Bullish round raises it 25 bp and a Bearish round lowers it 25 bp; a Neutral round leaves it alone. This nudge changes borrowing costs only — it does not move share prices.
+  - **The round-end marker, at every round boundary.** A Bullish round raises it 25 bp and a Bearish round lowers it 25 bp. This nudge changes borrowing costs only — it does not move share prices.
 - A **rate card's** change moves the rate-sensitive stocks by **10 bp of price per 1 bp of rate**: Finance moves *with* the rate; Real Estate and High-Risk stocks move *against* it. A +50 bp hike is Finance +5%, Real Estate −5%, High-Risk −5% (a High-Risk Real Estate company takes both). These moves are the whole price effect of a pure rate card (Jumbo Hike, Emergency Cut, Rate Hike, Rate Cut, Tight Money, Easy Money). Inflation Warning, Bond Yields Rise and Cut Hopes Rally keep their own printed price effect and simply move the rate as well.
 - If the rate is at its floor or ceiling, it moves only as far as it can, and the stock moves shrink to match (none at all if it cannot move).
 - Every loan prices off it:
@@ -668,9 +669,9 @@ Two rates run in the background and set the basis points behind loans and part o
 | Margin (Section 20) | Bank Rate |
 | Companies Mode emergency loan | Bank Rate + 2% |
 
-**Market Rate** — the market's return, read from the Market Meter: 3% + 1% per Meter point (0% fully Bearish, 6% fully Bullish).
+**Market Rate** — the market's return, read from the round that just closed: 3% plus that round's move on a Bullish round, minus it on a Bearish one (so a Bullish 5% round reads 8%, a Bearish one −2%). It sits at 3% before any round has closed.
 
-**Spread** — Market Rate − Bank Rate. Zero at the start of a game. A positive spread means stocks are beating cash; a negative one means cash is winning. The spread tilts the direction of *undirected* market moves — the Neutral-zone round-boundary reprice and Neutral-zone card ripples: up with probability 50% + 1% per 8 bp of spread, held between 20% and 80%. Bullish and Bearish zones keep their fixed direction.
+**Spread** — Market Rate − Bank Rate. Zero at the start of a game. A positive spread means the market beat cash last round; a negative one means cash won. It is a read on the game, not a rule: the round-end direction is always an even coin flip.
 
 ## 22. Special Spaces
 
@@ -725,7 +726,7 @@ Bull Run and Bear Run are resolved from the combined Market Swing space by a d6 
 - When any negative Market Event or Bear Run would lower the price of a company that player owns, pause before applying its price effect.
 - The holder may play Circuit Breaker to protect 1 affected company they own from that effect's entire downward move, or pass and keep it for later.
 - Playing it is optional and single-use. After play, discard it into the Market Event discard pile.
-- It does not stop Weak Demand, bank-sale price movement, the Market Meter, or Fed cards.
+- It does not stop Weak Demand, bank-sale price movement, the round-end market move, or Fed cards.
 
 ## 23. Price Movement
 
@@ -745,8 +746,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 |---|---:|
 | Weak Demand reaches 2 markers | −5% (−500 bp) |
 | Strong Demand reaches 2 markers | +5% (+500 bp) |
-| Market Meter, standard reprice | ±5% (±500 bp) |
-| Market Meter, amplified reprice | ±10% (±1,000 bp) |
+| Round-end market move | ±2.5% (±250 bp), ±5% (±500 bp) or ±7.5% (±750 bp) |
 | Market Event / Fed card, standard effect | ±5% (±500 bp) |
 | Market Event / Fed card, large effect | ±10% (±1,000 bp) |
 | Bull/Bear Run — High / Medium / Low risk | ±20% / ±10% / no change (±2,000 / ±1,000 / 0 bp) |
@@ -767,7 +767,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 | Strong Demand reaches 2 markers | Price rises 5% and markers clear |
 | Stock becomes Sold Out | This happens as part of the full-company purchase; no price increase is applied |
 | Stock crosses $5,000 upward on a trade | Triggers a global Market Event card; the price itself is not capped |
-| Market Meter reprice or card ripple | Moves 1-2 random eligible sectors; see Section 21 |
+| Round-end market move | Moves exactly 1 random eligible sector; see Section 21 |
 | Card effect | Follow the card text; no portfolio or share-count protection applies automatically |
 
 **Per-action price movement:** A full-company purchase does not move the share price. A qualifying bank sell-back is one market action regardless of the number of shares sold in that action.
@@ -788,7 +788,7 @@ A player who **controls** a regular company (6+ shares) may invest in it. ETFs a
 
 - **Payout Claim bonus:** a flat amount added after the normal claim and any Market Condition adjustment, then Sector Rent is added, then the $10,000 total cap applies. The landing result shows how much of the bonus survived the cap.
 - **Market Open bonus:** flat cash to the investor at their own Market Open. It is not a dividend and is never multiplied.
-- **Downside reduction:** shrinks declines from Weak Demand, the Market Meter, Market Event cards, Fed cards, and Bear Runs. It shrinks a decline by that share (a −10% Market Event becomes −6% at Level Ⅱ) but never removes it entirely or turns it into a rise. It does not apply to bank-sale drops, a player's own sales, or Cyberattack/Regulatory Investigation penalties the player chose.
+- **Downside reduction:** shrinks declines from Weak Demand, the round-end market move, Market Event cards, Fed cards, and Bear Runs. It shrinks a decline by that share (a −10% Market Event becomes −6% at Level Ⅱ) but never removes it entirely or turns it into a rise. It does not apply to bank-sale drops, a player's own sales, or Cyberattack/Regulatory Investigation penalties the player chose.
 
 **Market Protection shield ($1,500):** one per company, Controller only, does not use the turn's upgrade, and passes the same net-worth test as an upgrade. It absorbs up to 500 bp (5%) of the next eligible decline *after* the downside reduction, then is used up. It is not used up if there was no real decline to stop (for example, the company is already at the $100 floor). Circuit Breaker is applied first; if it blocks the event, the shield is untouched.
 
@@ -833,7 +833,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 | Sector Control | On (11 fixed pairs) |
 | Player Loans | On, but only as Payout Claim financing (Section 13) — no other player-to-player loans are supported |
 | Diversified Portfolio | On |
-| Market Meter | On — ambient round-guaranteed reprice plus card-triggered ripples (Section 21) |
+| Round-end market | On — one guaranteed sector move per completed round (Section 21) |
 | Market Conditions | On — one random temporary condition active at a time, rerolled at each Market Open (Section 6) |
 | Market Open Trading Window | On |
 | Sell-to-bank window | Trade Step only (not Market Open) |
@@ -862,7 +862,7 @@ Use this checklist when sending the rules to code.
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default, or carry to Outstanding Fees if nothing is left to sell |
 | Player Loans | Payout Claim shortfall only; rate = Bank Rate + creditor's d6 premium (1-2: +1%, 3-4: +2%, 5-6: +3%), fixed at creation; interest accrues each debtor turn, rounded to $10 with a $20 minimum; $500 installment or full payoff; unpaid balance counts against debtor's score and for creditor's |
 | Sector Control | 11 fixed pairs of regular stocks, each with a flat rent ($200/$350/$550 by tier); rent is added on top of a Payout Claim only when the claim holder also exclusively owns both companies in the pair |
-| Market Meter | Needle range −3..+3; nudged ±1 per roll (7 holds); guaranteed reprice at every non-final round boundary, scaled by zone and magnitude; decays 1 toward neutral after each reprice instead of resetting; narrow Market Event/Fed cards also trigger a 1-sector ripple on resolution |
+| Round-end market | At the end of every non-final round: marker set Bullish/Bearish 50/50, one eligible sector drawn, size drawn from 250/500/750 bp; revealed IPOs in that sector move too; dice rolls and cards never trigger it |
 | Market Conditions | One random condition active at a time, independent of both card decks; rerolled every time a player reaches Market Open; never stacks |
 | Outstanding Fees | Audit Notice, Portfolio Tax, and ETF landing fees may be paid immediately or carried as debt; add the Bank Rate + 2% each debtor turn, rounded to $10 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
 | Insolvency | Payout Claim only: if the landing player can't pay another player, offer a Player Loan, or force-sell regular stock (not IPO/ETF) until covered or exhausted; waive any remaining shortfall, cash floors at $0, no elimination |

@@ -20,11 +20,10 @@ export const BANK_RATE_START_BP = 300;
 export const BANK_RATE_MIN_BP = 100;
 export const BANK_RATE_MAX_BP = 800;
 
-/** The Market Rate at a Neutral (0) Market Meter. Equal to the starting Bank
-    Rate, so a fresh game opens with a spread of zero. */
+/** The Market Rate before any round has resolved. Equal to the starting Bank
+    Rate, so a fresh game opens with a spread of zero. A finished round adds
+    its own move to this: a Bullish 5% round reads 8%, a Bearish one −2%. */
 export const MARKET_RATE_NEUTRAL_BP = 300;
-/** Market Rate change per Market Meter point: −3 → 0%, +3 → 6%. */
-export const MARKET_RATE_PER_METER_BP = 100;
 
 /** Price move, in bp, per 1 bp change in the Bank Rate. A +50 bp hike moves
     Finance +500 bp and Real Estate and High-Risk stocks −500 bp each; a
@@ -41,9 +40,8 @@ export function rateShockMoves(rateBp: number): Array<{ sec?: SectorId; risk?: R
   ];
 }
 
-/** The Bank Rate the Market Meter nudges at each round boundary: a hot
-    (Bullish) market invites tightening, a cold (Bearish) one invites easing.
-    Neutral rounds leave it alone. */
+/** The Bank Rate the round-end marker nudges: a Bullish round invites
+    tightening, a Bearish one invites easing. */
 export const METER_RATE_NUDGE_BP = 25;
 
 /** Rate Decision space (board 28): the landing player rolls a d6 and the Fed
@@ -58,8 +56,3 @@ export const COMPANY_LOAN_SPREAD_BP = 200;
 /** Player Loan premium over the Bank Rate, by the creditor's d6 roll. */
 export const PLAYER_LOAN_PREMIUM_BY_ROLL_BP = [0, 100, 100, 200, 200, 300, 300]; // index = roll 1-6
 
-/** Chance an undirected market move goes up, given the spread: 50% at a zero
-    spread, +/-1 percentage point per 8 bp, held between 20% and 80%. */
-export function spreadUpChance(spreadBp: number): number {
-  return Math.min(0.8, Math.max(0.2, 0.5 + spreadBp / 800));
-}

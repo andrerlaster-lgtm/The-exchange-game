@@ -151,7 +151,7 @@ describe('movement source constants', () => {
   it('protects only genuinely external declines', () => {
     // The upgrade/shield system must never soften a decline a player caused
     // themselves by selling or by choosing their own company as a target.
-    for (const source of ['weakDemand', 'marketMeter', 'marketEvent', 'fedCard', 'bearRun'] as const) {
+    for (const source of ['weakDemand', 'roundMarket', 'marketEvent', 'fedCard', 'bearRun'] as const) {
       expect(SHIELDABLE_SOURCES.has(source)).toBe(true);
     }
     for (const source of ['voluntarySale', 'bankSale', 'cyberattackChoice', 'regulatoryChoice'] as const) {
@@ -208,7 +208,7 @@ describe('determinism', () => {
     let s = started(2);
     for (let i = 0; i < 50; i += 1) {
       const bp = i % 2 === 0 ? 500 : -500;
-      s = patch(s, (d) => { applyPriceMove(d, 'MEDI', bp, 'marketMeter'); });
+      s = patch(s, (d) => { applyPriceMove(d, 'MEDI', bp, 'roundMarket'); });
       expect(s.prices.MEDI % PRICE_GRID).toBe(0);
       expect(s.prices.MEDI).toBeGreaterThanOrEqual(PRICE_FLOOR);
     }
@@ -221,8 +221,8 @@ describe('last move per stock', () => {
     expect(s.lastMove.MEDI).toBeUndefined();
     s = patch(s, (d) => { applyPriceMove(d, 'MEDI', -500, 'weakDemand'); });
     expect(s.lastMove.MEDI).toEqual({ pct: -5, source: 'weakDemand', lap: 3 });
-    s = patch(s, (d) => { d.lap = 4; applyPriceMove(d, 'MEDI', 1_000, 'marketMeter'); });
-    expect(s.lastMove.MEDI.source).toBe('marketMeter');
+    s = patch(s, (d) => { d.lap = 4; applyPriceMove(d, 'MEDI', 1_000, 'roundMarket'); });
+    expect(s.lastMove.MEDI.source).toBe('roundMarket');
     expect(s.lastMove.MEDI.lap).toBe(4);
     expect(s.lastMove.MEDI.pct).toBeCloseTo(((s.prices.MEDI - 950) / 950) * 100, 10);
   });

@@ -13,13 +13,12 @@
 
 import type { Card } from './types';
 
-const mk = (title: string, story: string, effect: string, eff: Card['eff'], meterSentiment?: number): Card =>
-  ({ deck: 'ME', title, story, effect, eff, ...(meterSentiment !== undefined ? { meterSentiment } : {}) });
+const mk = (title: string, story: string, effect: string, eff: Card['eff']): Card =>
+  ({ deck: 'ME', title, story, effect, eff });
 
 // ── A. Eight balanced sector-rotation cards ─────────────────────────────────
-// Each sector appears exactly once as a +1 leader and once as a -1 laggard
-// across this group. Net meter sentiment: Neutral (no meterSentiment set) —
-// capital rotation, not a market-wide mood.
+// Each sector appears exactly once as a leader and once as a laggard across
+// this group — capital rotation, not a market-wide mood.
 const SECTOR_ROTATION_CARDS: Card[] = [
   mk('Tech Breakthrough',       'A surprise product launch reshapes the tech landscape.',   'Technology +5% (500 bp); Real Estate -5% (500 bp).',       { k: 'multi', m: [{ sec: 'tech', bp: 500 }, { sec: 'realestate', bp: -500 }] }),
   mk('Property Rebound',        'Commercial real estate demand snaps back.',                'Real Estate +5% (500 bp); Technology -5% (500 bp).',       { k: 'multi', m: [{ sec: 'realestate', bp: 500 }, { sec: 'tech', bp: -500 }] }),
@@ -35,8 +34,8 @@ const SECTOR_ROTATION_CARDS: Card[] = [
 const RISK_CARDS: Card[] = [
   mk('Flight to Quality', 'Investors seek shelter in dependable names.',        'Low Risk +5% (500 bp); High Risk -5% (500 bp).', { k: 'multi', m: [{ risk: 'Low', bp: 500 }, { risk: 'High', bp: -500 }] }),
   mk('Risk-On Rally',     'Traders chase upside in the market’s riskiest names.', 'High Risk +5% (500 bp); Low Risk -5% (500 bp).', { k: 'multi', m: [{ risk: 'High', bp: 500 }, { risk: 'Low', bp: -500 }] }),
-  mk('Steady Earnings',   'Mid-tier companies post reliable, unremarkable results.', 'Medium Risk +5% (500 bp).',       { k: 'risk', risk: 'Med', bp: 500 }, 1),
-  mk('Growth Warning',    'Mid-tier guidance comes in soft for the quarter.',   'Medium Risk -5% (500 bp).',            { k: 'risk', risk: 'Med', bp: -500 }, -1),
+  mk('Steady Earnings',   'Mid-tier companies post reliable, unremarkable results.', 'Medium Risk +5% (500 bp).',       { k: 'risk', risk: 'Med', bp: 500 }),
+  mk('Growth Warning',    'Mid-tier guidance comes in soft for the quarter.',   'Medium Risk -5% (500 bp).',            { k: 'risk', risk: 'Med', bp: -500 }),
 ];
 
 // ── C. Four company-specific cards ───────────────────────────────────────────
@@ -57,14 +56,16 @@ const COMPANY_SPECIFIC_CARDS: Card[] = [
 // every round; going back to +/-2 on top of that was not validated as safe
 // (see the balance simulation in the Stage report).
 const BROAD_MARKET_CARDS: Card[] = [
-  mk('Melt-Up Rally', 'Momentum buyers chase the whole market higher.', 'Every eligible company rises 5% (500 bp).', { k: 'all', bp: 500 }, 2),
-  mk('Flash Crash',   'Selling hits fast, before buyers respond.',      'Every eligible company falls 5% (500 bp).', { k: 'all', bp: -500, crash: true }, -2),
+  mk('Melt-Up Rally', 'Momentum buyers chase the whole market higher.', 'Every eligible company rises 5% (500 bp).', { k: 'all', bp: 500 }),
+  mk('Flash Crash',   'Selling hits fast, before buyers respond.',      'Every eligible company falls 5% (500 bp).', { k: 'all', bp: -500, crash: true }),
 ];
 
-// ── E. Three sentiment/information cards ─────────────────────────────────────
+// ── E. Information card ─────────────────────────────────────────────────────
+// Bullish Momentum and Bearish Momentum lived here until 2026-09-19: both
+// only nudged the Market Meter, and the round-end market rules removed the
+// meter, so a card that moves no price and names no company has nothing left
+// to do. Removed rather than given an invented effect.
 const SENTIMENT_CARDS: Card[] = [
-  mk('Bullish Momentum',    'Confidence builds heading into the next session.', 'Moves the Market Meter 2 points bullish. No immediate company movement.', { k: 'meterDelta', delta: 2 }),
-  mk('Bearish Momentum',    'Caution spreads heading into the next session.',   'Moves the Market Meter 2 points bearish. No immediate company movement.', { k: 'meterDelta', delta: -2 }),
   mk('Insider Information', 'A contact gives you an early look at the next headline.', 'Reveals the next Market Event’s title and effect without drawing, discarding, or resolving it.', { k: 'insiderPreview' }),
 ];
 
@@ -76,10 +77,9 @@ const STRATEGIC_CARDS: Card[] = [
   { deck: 'ME', title: 'Extended Hours', story: 'Trading stays open past the bell.',
     effect: 'Banks a global 1-round Market Close extension — everyone gets one more round once it triggers.',
     eff: { k: 'extend' } },
-  mk('Volatility Cools', 'The market takes a breath after a stretch of sharp moves.', 'Moves the Market Meter 2 points toward Neutral. No immediate company movement.', { k: 'meterTowardNeutral', amount: 2 }),
 ];
 
-/** The 24 rebuilt core cards — sections A through F, in spec order. */
+/** The rebuilt core cards — sections A through F, in spec order. */
 export const CORE_ME_CARDS: Card[] = [
   ...SECTOR_ROTATION_CARDS,
   ...RISK_CARDS,

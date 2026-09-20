@@ -6,7 +6,7 @@ describe('Companies Mode', () => {
   it('opens the player-company market after the first lap and keeps a 60/40 split', () => {
     const r = scriptedRng([1, 1, 1, 1]);
     let s = started(2, r);
-    s = reduce(s, { t: 'setOpt', opt: { companiesMode: true, marketMeter: false } }, r);
+    s = reduce(s, { t: 'setOpt', opt: { companiesMode: true, roundMarket: false } }, r);
     s = reduce(s, { t: 'startGame' }, r);
     expect(s.players[0].companyShares).toBe(60);
     expect(s.players[1].companyShares).toBe(60);
@@ -21,7 +21,7 @@ describe('Companies Mode', () => {
   it('offers one randomized emergency loan capped at 75% of starting value', () => {
     const r = scriptedRng([0, 0, 0, 22_500]);
     let s = started(2, r);
-    s = reduce(s, { t: 'setOpt', opt: { companiesMode: true, startCash: 30_000, marketMeter: false } }, r);
+    s = reduce(s, { t: 'setOpt', opt: { companiesMode: true, startCash: 30_000, roundMarket: false } }, r);
     s = reduce(s, { t: 'startGame' }, r);
     s = patch(s, d => {
       d.cur = 1;
@@ -51,7 +51,7 @@ describe('Companies Mode', () => {
   it('does not allow a second emergency loan and requires repayment before a board buy', () => {
     const r = scriptedRng([0, 0, 0, 10_000]);
     let s = started(2, r);
-    s = reduce(s, { t: 'setOpt', opt: { companiesMode: true, marketMeter: false } }, r);
+    s = reduce(s, { t: 'setOpt', opt: { companiesMode: true, roundMarket: false } }, r);
     s = reduce(s, { t: 'startGame' }, r);
     s = patch(s, d => {
       d.cur = 0;

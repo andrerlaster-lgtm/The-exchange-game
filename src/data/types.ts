@@ -90,8 +90,6 @@ export type Effect =
   | { k: 'circuitBreaker' }
   | { k: 'extend' }
   | { k: 'close' }
-  | { k: 'meterDelta'; delta: number }         // 2026-08-21 Market Overhaul: additive, clamped meter move, no price change
-  | { k: 'meterTowardNeutral'; amount: number } // moves the meter toward 0 by amount, never past it
   | { k: 'insiderPreview' }                     // real non-blocking peek at the next Market Event
   | { k: 'none' };
 
@@ -104,8 +102,6 @@ export interface Card {
   strategyOnly?: true;  // card is inactive in Fast Prototype Mode
   // Meter sentiment this card applies ONCE, after its immediate price effect
   // resolves — independent of `eff`'s own kind. Undefined/0 means no meter
-  // effect. Never triggers the round-boundary repricing routine itself.
-  meterSentiment?: number;
   // Bank Rate change (bp) this card makes when it resolves (Fed cards only).
   // Its price effect is then the rate shock — see data/rates.ts.
   rateBp?: number;

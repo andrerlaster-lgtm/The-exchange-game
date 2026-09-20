@@ -85,14 +85,14 @@ export function moveEventPrice(
 }
 
 /**
- * Market Meter move: guaranteed once-per-round ambient repricing (2026-08-21
- * Market Overhaul). Deliberately never queues a Market Event on crossing the
- * $5,000 mark. The meter reprices every non-final round by design, so treating
- * it like a trade would inflate Market Event frequency far beyond what the
- * deck was tuned for; card-driven moves already skip this too.
+ * Round-end market move: the one guaranteed repricing per completed round
+ * (2026-09-19 round-end market rules). Deliberately never queues a Market
+ * Event on crossing the $5,000 mark — it fires every non-final round by
+ * design, so treating it like a trade would inflate Market Event frequency
+ * far beyond what the deck was tuned for; card-driven moves skip it too.
  */
-export function moveMeterPrice(s: GameState, code: string, bp: number): PriceMoveResult {
-  return applyPriceMove(s, code, bp, 'marketMeter');
+export function moveRoundMarketPrice(s: GameState, code: string, bp: number): PriceMoveResult {
+  return applyPriceMove(s, code, bp, 'roundMarket');
 }
 
 /** Settle the current player's open short at the start of their next turn (Rule 6). */

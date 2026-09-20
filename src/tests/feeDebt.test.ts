@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildActionCenter } from '../utils/buildBoard3DActionCenter';
-import { feeDebtBalance, getRankedPlayers, marketGain, netWorth } from '../engine';
+import { feeDebtRatePct, feeDebtBalance, getRankedPlayers, marketGain, netWorth } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
 describe('Outstanding Fees debt', () => {
@@ -17,7 +17,7 @@ describe('Outstanding Fees debt', () => {
     expect(feeDebtBalance(s.players[0])).toBe(charge);
   });
 
-  it('adds 5% interest at the beginning of the debtor’s next turn', () => {
+  it('adds the current fee rate as interest at the beginning of the debtor’s next turn', () => {
     let s = patch(started(2), (draft) => {
       draft.players[0].feeDebtPrincipal = 4_000;
       draft.turnPhase = 'acted';
@@ -28,8 +28,11 @@ describe('Outstanding Fees debt', () => {
     s = patch(s, (draft) => { draft.turnPhase = 'acted'; });
     s = dispatch(s, { t: 'endTurn' }, rng()); // player 0's next turn begins
 
-    expect(s.players[0].feeDebtInterest).toBe(200);
-    expect(feeDebtBalance(s.players[0])).toBe(4_200);
+    // The round-end market nudges the Bank Rate as the round closes, and fees
+    // follow it (Bank Rate + 2%), so read the rate the turn actually charged.
+    const expected = Math.round(4_000 * feeDebtRatePct(s) / 100 / 10) * 10;
+    expect(s.players[0].feeDebtInterest).toBe(expected);
+    expect(feeDebtBalance(s.players[0])).toBe(4_000 + expected);
   });
 
   it('applies the $100 minimum interest increase to small balances', () => {
