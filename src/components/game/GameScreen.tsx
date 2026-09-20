@@ -1,3 +1,8 @@
+// Play screen, layout A (2026-09-19 redesign): one rail for the table, the
+// board in the middle with the rates bar above it and whatever the turn is
+// waiting on directly below, and money, development and the market on the
+// right. Every column scrolls on its own so the board never moves.
+
 import BoardTrack from './BoardTrack';
 import TradeHistory from './TradeHistory';
 import TradingMarket from './TradingMarket';
@@ -14,6 +19,8 @@ import IpoPanel from '../cards/IpoPanel';
 import ShortPanel from '../cards/ShortPanel';
 import MarketIntelligence from './MarketIntelligence';
 import MarketTicker from './MarketTicker';
+import RatesStrip from './RatesStrip';
+import Log from './Log';
 import { useDispatch, useGameState } from '../../store';
 
 export default function GameScreen() {
@@ -22,7 +29,7 @@ export default function GameScreen() {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '252px 1fr 282px',
+      gridTemplateColumns: '252px 1fr 300px',
       gridTemplateRows: '34px minmax(0, 1fr)',
       height: '100vh',
       gap: 10,
@@ -40,34 +47,40 @@ export default function GameScreen() {
       <CardDisplay />
       <StockTradeCard />
 
-      {/* Left column */}
+      {/* Left rail — who is at the table, what is left in the decks, and the
+          running log of what just happened. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, overflowY: 'auto' }}>
-          <PlayerCards />
-          <DeckStatus />
-          <ActionPanel />
-          {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
-          <IpoPanel />
-          <ShortPanel />
+        <PlayerCards />
+        <DeckStatus />
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <Log />
         </div>
       </div>
 
-      {/* Center column */}
+      {/* Centre — rates, board, then the turn's own business. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0 }}>
-        <MarketIntelligence />
+        <RatesStrip />
         <BoardTrack />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <TradingMarket />
-          {s.opts.companyUpgrades && <CompanyDevelopment />}
-          <TradeHistory />
-        </div>
+        <ActionPanel />
+        {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
+        <IpoPanel />
+        <ShortPanel />
+        <TradingMarket />
+        <TradeHistory />
       </div>
 
-      {/* Right column */}
+      {/* Right rail — standings, your money, your companies, the market. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
         <Leaderboard />
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Portfolio />
+          {/* Portfolio fills a block of its own and scrolls inside it: its root
+              is flex:1, so in a shared scrolling column it would otherwise
+              collapse to its header. */}
+          <div style={{ flexShrink: 0, display: 'flex', minHeight: 380, maxHeight: 520 }}>
+            <Portfolio />
+          </div>
+          {s.opts.companyUpgrades && <CompanyDevelopment />}
+          <MarketIntelligence />
           <P2PTradeDesk />
         </div>
       </div>
