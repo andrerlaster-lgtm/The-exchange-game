@@ -477,6 +477,7 @@ function PendingDrawBanner({ deck, count, dispatch }: {
 
 function InvestorDayChoicePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => void }) {
   const eligible = s.investorDay?.eligibleCodes.length ?? 0;
+  const upgradeCode = s.investorDay?.upgradeCode ?? null;
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 9,
@@ -488,13 +489,21 @@ function InvestorDayChoicePanel({ s, dispatch }: { s: GameState; dispatch: (a: A
         ★ INVESTOR DAY · CHOOSE ONE
       </div>
       <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
-        Grow an owned company, or use Insider Information to preview the next Market Event without drawing it.
+        Grow an owned company {moveSize(MOVE_BP.investorDay)} (an IPO {moveSize(MOVE_BP.investorDayIpo)}), buy a level
+        for a company you control at half price, or preview the next Market Event without drawing it.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
         <button className="primary" style={{ fontSize: 11, padding: '7px 11px' }}
           onClick={() => dispatch({ t: 'chooseInvestorGrowth' })}>
           {eligible > 0 ? `Company Growth · ${eligible} eligible` : 'Company Growth · Collect $500'}
         </button>
+        {upgradeCode && (
+          <button style={{ fontSize: 11, padding: '7px 11px' }}
+            title={`Buy ${upgradeCode}'s next level at half price — it does not use this turn's upgrade`}
+            onClick={() => dispatch({ t: 'chooseInvestorUpgrade' })}>
+            ⬆ {upgradeCode} Level · ½ price
+          </button>
+        )}
         <button style={{ fontSize: 11, padding: '7px 11px' }}
           title="See the next Market Event; the card stays on top of the deck"
           onClick={() => dispatch({ t: 'chooseInvestorTip' })}>

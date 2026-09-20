@@ -119,6 +119,9 @@ export const MOVE_BP = {
   cardStep: 500,
   bankSale: -500,
   investorDay: 500,
+  // An IPO grown on Investor Day moves half as far: IPOs already have their
+  // own growth investments and milestone payouts (2026-09-20).
+  investorDayIpo: 250,
 } as const;
 
 /**

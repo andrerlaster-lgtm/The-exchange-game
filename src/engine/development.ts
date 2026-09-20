@@ -4,7 +4,7 @@
 
 import {
   CONTROL_THRESHOLD_REGULAR, MAX_DEVELOPMENT_LEVEL, SHIELD_ABSORB_BP, SHIELD_COST,
-  DEVELOPMENT_MIN_CASH, DEVELOPMENT_MIN_GAIN, PRICE_MOVE_SOURCE_LABEL, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
+  DEVELOPMENT_MIN_CASH, DEVELOPMENT_MIN_GAIN, PRICE_MOVE_SOURCE_LABEL, investorDayUpgradeCost, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
   developmentRefund, isIpoCode, upgradeLevel,
 } from '../data';
 import type { DevelopmentLevel, PriceMoveSource } from '../data';
@@ -72,6 +72,27 @@ function developmentGateReason(s: GameState, cost: number, what: string): string
   return null;
 }
 
+/** Investor Day's discounted level: the same rules as an ordinary upgrade,
+    except the price is halved and the turn's upgrade allowance is ignored. */
+export function investorDayUpgradeBlockReason(s: GameState, code: string): string | null {
+  if (!s.opts.companyUpgrades) return 'Company upgrades are turned off for this game.';
+  if (isIpoCode(code) || !STOCK_BY_CODE[code]) return 'Only regular companies can be upgraded.';
+  if (!isController(s, s.cur, code)) return `You need ${CONTROL_THRESHOLD_REGULAR}+ shares to control ${code}.`;
+  const dev = developmentOf(s, code);
+  if (dev.level >= MAX_DEVELOPMENT_LEVEL) return `${code} is already at Level Ⅲ.`;
+  const next = UPGRADE_LEVELS[dev.level];
+  return developmentGateReason(s, investorDayUpgradeCost(next.cost), `Level ${next.numeral} at half price`);
+}
+
+/** The company Investor Day would offer a discounted level on: the one the
+    player controls that can take one, cheapest level first so the offer is
+    the most affordable one available. */
+export function investorDayUpgradeTarget(s: GameState): string | null {
+  const owned = Object.keys(s.players[s.cur].shares)
+    .filter((code) => !investorDayUpgradeBlockReason(s, code));
+  return owned.sort((a, b) => developmentOf(s, a).level - developmentOf(s, b).level)[0] ?? null;
+}
+
 /** Why the current player can't buy a shield for `code` right now, or null. */
 export function shieldBlockReason(s: GameState, code: string): string | null {
   if (!s.opts.companyUpgrades) return 'Company upgrades are turned off for this game.';
@@ -84,18 +105,28 @@ export function shieldBlockReason(s: GameState, code: string): string | null {
   return null;
 }
 
-export function upgradeCompany(s: GameState, code: string): void {
-  if (upgradeBlockReason(s, code)) return;
+/** Buying a level. Investor Day buys at half price and does not spend the
+    turn's one upgrade — the space is the opportunity, not the allowance. */
+export function upgradeCompany(
+  s: GameState,
+  code: string,
+  opts: { discounted?: boolean; useTurnAllowance?: boolean } = {},
+): void {
+  const { discounted = false, useTurnAllowance = true } = opts;
+  if (discounted ? investorDayUpgradeBlockReason(s, code) : upgradeBlockReason(s, code)) return;
   const p = s.players[s.cur];
   const dev = { ...developmentOf(s, code) };
   const next = UPGRADE_LEVELS[dev.level];
-  p.cash -= next.cost;
+  const cost = discounted ? investorDayUpgradeCost(next.cost) : next.cost;
+  p.cash -= cost;
   dev.level = next.level;
   dev.fundedBy = s.cur;
-  dev.totalInvested += next.cost;
+  // Refunds on losing control return a share of what was actually paid, so a
+  // discounted level adds only its discounted price here.
+  dev.totalInvested += cost;
   s.development[code] = dev;
-  s.upgradedThisTurn = true;
-  addLog(s, `${p.name} upgrades ${code} to Level ${next.numeral} for ${money(next.cost)}.`, 'g');
+  if (useTurnAllowance) s.upgradedThisTurn = true;
+  addLog(s, `${p.name} upgrades ${code} to Level ${next.numeral} for ${money(cost)}${discounted ? ' — Investor Day half price' : ''}.`, 'g');
   addLog(s, `${code} Level ${next.numeral} adds ${money(next.marketOpenBonus)} at ${p.name}'s next Market Open.`, 'g');
 }
 

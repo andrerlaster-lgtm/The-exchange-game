@@ -9,13 +9,13 @@ import {
   SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, BANK_LOAN_INCREMENT, RATE_DECISION_BY_ROLL_BP, rateShockMoves,
 } from '../data';
 import type { Effect } from '../data/types';
-import { money, pctBp } from '../utils/formatMoney';
+import { money, moveSize, pctBp } from '../utils/formatMoney';
 import { toBps } from '../utils/formatRate';
 import type { Rng } from '../utils/rng';
 import type { Action, GameState, InsolvencyReason, LogKind, TradeKind } from './types';
 import { bankSellRemaining, canRise, canTradeNow, canMarketSell, blocked, companyBuyoutCost, ipoOf, priceOf, sellBackPrice } from './rules';
 import { freshDecks, freshDevelopment, freshIpos, resetPlayers } from './gameState';
-import { buyMarketProtection, developmentClaimBonus, developmentOf, upgradeCompany } from './development';
+import { buyMarketProtection, developmentClaimBonus, developmentOf, investorDayUpgradeBlockReason, investorDayUpgradeTarget, upgradeCompany } from './development';
 import { investIpoGrowth, snapshotIpoHoldings } from './ipoGrowth';
 import { heldQty, setHeld, unitValue } from './holdings';
 import { payMarketOpen } from './playerState';
@@ -311,10 +311,12 @@ function resolveLanding(s: GameState, pi: number): void {
       addLog(s, 'The Fed — draw a Fed Rate card.', 'y');
       break;
     case 'investor': {
+      // Regular companies and revealed IPOs alike — an IPO simply grows half
+      // as far (2026-09-20). A company already at the ceiling is skipped.
       const eligible = Object.keys(p.shares).filter((code) =>
-        !isIpoCode(code) && (p.shares[code] ?? 0) > 0 && canRise(s, code),
+        (p.shares[code] ?? 0) > 0 && canRise(s, code) && (!isIpoCode(code) || ipoOf(s, code).revealed),
       );
-      s.investorDay = { eligibleCodes: eligible };
+      s.investorDay = { eligibleCodes: eligible, upgradeCode: investorDayUpgradeTarget(s) };
       addLog(s, `${p.name} lands on Investor Day — choose Company Growth or Insider Information.`, 'g');
       break;
     }
@@ -1298,13 +1300,25 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         addLog(s, `${p.name} chooses Company Growth with no company able to rise — collects ${money(500)}.`, 'g');
       } else {
         s.pick = {
+          // The size depends on which company is picked, so the prompt carries
+          // the regular-company move and pickTarget halves it for an IPO.
           bp: MOVE_BP.investorDay,
-          label: 'Company Growth — choose one company you own to grow 5%',
+          label: `Company Growth — grow one company you own ${moveSize(MOVE_BP.investorDay)}, or an IPO ${moveSize(MOVE_BP.investorDayIpo)}`,
           codes: prompt.eligibleCodes,
           source: 'investor',
         };
-        addLog(s, `${p.name} chooses Company Growth — select one owned company to grow 5%.`, 'g');
+        addLog(s, `${p.name} chooses Company Growth — select one owned company to grow.`, 'g');
       }
+      break;
+    }
+    case 'chooseInvestorUpgrade': {
+      const prompt = s.investorDay;
+      if (!prompt?.upgradeCode) break;
+      const code = prompt.upgradeCode;
+      const blocked = investorDayUpgradeBlockReason(s, code);
+      if (blocked) break;
+      s.investorDay = null;
+      upgradeCompany(s, code, { discounted: true, useTurnAllowance: false });
       break;
     }
     case 'chooseInvestorTip': {
@@ -1385,7 +1399,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (!s.pick) break;
       if (s.pick.codes && !s.pick.codes.includes(action.code)) break;
       if (s.pick.source === 'investor') {
-        const r = moveTradePrice(s, action.code, s.pick.bp, 'investorDay');
+        const bp = isIpoCode(action.code) ? MOVE_BP.investorDayIpo : s.pick.bp;
+        const r = moveTradePrice(s, action.code, bp, 'investorDay');
         addLog(s, `${action.code} moves ${pctBp(r.pct)} to ${money(r.after)}`, r.delta >= 0 ? 'g' : 'r');
         s.pick = null;
         break;

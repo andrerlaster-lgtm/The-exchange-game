@@ -182,6 +182,9 @@ export interface PickContext {
     or previews the next Market Event through Insider Information. */
 export interface InvestorDayPrompt {
   eligibleCodes: string[];
+  // A company the player controls that could take a half-price level, or null
+  // when upgrades are off, none is controlled, or the gate is not met.
+  upgradeCode: string | null;
 }
 
 /** A negative market effect paused before its price movement so the holder can
@@ -592,6 +595,7 @@ export type Action =
   | { t: 'draw'; deck: DeckId }
   | { t: 'chooseInvestorGrowth' }
   | { t: 'chooseInvestorTip' }
+  | { t: 'chooseInvestorUpgrade' }
   | { t: 'pickTarget'; code: string }
   | { t: 'skipPick' }
   | { t: 'playCircuitBreaker'; code: string }

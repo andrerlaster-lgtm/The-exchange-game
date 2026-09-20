@@ -61,6 +61,16 @@ export const DEVELOPMENT_MIN_GAIN = 10_000;
     itself — so an upgrade is never the move that empties a hand. */
 export const DEVELOPMENT_MIN_CASH = 5_000;
 
+/** Investor Day's third option buys the next level at this share of its price
+    (2026-09-20). It does not use up the turn's one upgrade — the space is the
+    opportunity, not the allowance. */
+export const INVESTOR_DAY_UPGRADE_DISCOUNT = 0.5;
+
+/** What the next level costs on Investor Day, rounded to the nearest $100. */
+export function investorDayUpgradeCost(fullCost: number): number {
+  return Math.round((fullCost * INVESTOR_DAY_UPGRADE_DISCOUNT) / 100) * 100;
+}
+
 /** The benefits a company has at a given level (level 0 = Base, no benefits). */
 export function upgradeLevel(level: DevelopmentLevel): UpgradeLevelDef | null {
   return level === 0 ? null : UPGRADE_LEVELS[level - 1];

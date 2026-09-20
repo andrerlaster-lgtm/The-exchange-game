@@ -124,7 +124,7 @@ The board has 36 spaces. The current rule direction preserves the board count an
 | Market Event | 2 | Draw and resolve a Market Event card; spaces 16 and 26 |
 | Market Open | 1 | Payday, Market Condition roll, then Market Open Trading Window |
 | Portfolio Tax | 1 | Penalty space based on net worth |
-| Investor Day | 1 | Choose Company Growth (+1 step to an eligible owned company, or $500 if none) or Insider Information (preview the next Market Event without drawing it) |
+| Investor Day | 1 | Choose Company Growth (an owned company +5%, a revealed IPO +2.5%, or $500 if none is eligible), a half-price development level on a company you control, or Insider Information (preview the next Market Event without drawing it) |
 | Audit Notice | 1 | Penalty space with extra cost if Margin balance is outstanding |
 
 **Board rule locks**
@@ -737,7 +737,7 @@ Two rates run in the background and set the basis points behind loans and part o
 | Market Swing — space 19 | Roll a d6: 1-3 resolves as a Bear Run, 4-6 resolves as a Bull Run. Then resolve that Run's stock movements and every player's current stance, and reset all players to Balanced. Circuit Breaker may protect one affected owned company from a Bear Run roll. |
 | IPO | Resolve IPO reveal/purchase per Section 19. |
 | Rate Decision | Roll a d6: 1-2 cuts the Bank Rate 25 bp, 3-4 holds, 5-6 raises it 25 bp. A change applies the usual rate shock to prices (Section 21). |
-| Investor Day — space 31 | Choose Company Growth or Insider Information. Company Growth raises 1 owned regular company by 5%; crossing $5,000 triggers a Market Event. If you own no regular company, collect $500. Insider Information reveals the title and effect of the next Market Event without drawing, resolving, or removing that card from the top of the deck. |
+| Investor Day — space 31 | Choose one: **Company Growth** — one owned company rises 5% (500 bp), or a revealed IPO 2.5% (250 bp); $500 if nothing you own can rise. **Half-price level** — buy the next development level on a company you control at half cost, rounded to $100 (Level Ⅰ $1,000, Ⅱ $2,000, Ⅲ $2,500); it still needs the portfolio gate and cash floor, and does not use the turn's one upgrade. **Insider Information** — preview the next Market Event without drawing it. Crossing $5,000 on a growth triggers a Market Event as usual. |
 | Portfolio Tax | Charge equals 10% of current net worth. Choose Pay Now or Carry as Debt under Outstanding Fees. |
 | Audit Notice | Charge equals 5% of current net worth, rounded to the nearest $100, with a $500 minimum. Outstanding Margin raises the rate to 7.5% with a $750 minimum. Choose Pay Now or Carry as Debt. |
 
