@@ -48,13 +48,18 @@ export const MAX_DEVELOPMENT_LEVEL = 3;
  * may buy an upgrade or a shield. Development is meant to be what a player
  * does once they are ahead, not a way to spend their opening stack.
  *
- * This replaced a plain cash floor (last $5,000, originally $20,000) on
- * 2026-09-19: simulation showed the floor was really a test of "can you
- * afford the claims you might owe", but as prices rose it turned into a
- * demand to leave cash idle. Measuring the whole portfolio instead lets a
- * player who has genuinely grown their holdings develop them.
+ * This replaced a plain cash floor (originally $20,000) on 2026-09-19:
+ * simulation showed the floor was really a test of "can you afford the claims
+ * you might owe", but as prices rose it turned into a demand to leave cash
+ * idle. Measuring the whole portfolio instead lets a player who has genuinely
+ * grown their holdings develop them. Lowered to $10,000 the same day, with a
+ * $5,000 cash floor alongside it, so development starts earlier.
  */
-export const DEVELOPMENT_MIN_GAIN = 15_000;
+export const DEVELOPMENT_MIN_GAIN = 10_000;
+
+/** Cash a player must hold to develop at all, on top of affording the price
+    itself — so an upgrade is never the move that empties a hand. */
+export const DEVELOPMENT_MIN_CASH = 5_000;
 
 /** The benefits a company has at a given level (level 0 = Base, no benefits). */
 export function upgradeLevel(level: DevelopmentLevel): UpgradeLevelDef | null {

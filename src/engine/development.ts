@@ -4,7 +4,7 @@
 
 import {
   CONTROL_THRESHOLD_REGULAR, MAX_DEVELOPMENT_LEVEL, SHIELD_ABSORB_BP, SHIELD_COST,
-  DEVELOPMENT_MIN_GAIN, PRICE_MOVE_SOURCE_LABEL, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
+  DEVELOPMENT_MIN_CASH, DEVELOPMENT_MIN_GAIN, PRICE_MOVE_SOURCE_LABEL, SHIELDABLE_SOURCES, STOCK_BY_CODE, UPGRADE_LEVELS, applyBasisPoints,
   developmentRefund, isIpoCode, upgradeLevel,
 } from '../data';
 import type { DevelopmentLevel, PriceMoveSource } from '../data';
@@ -63,7 +63,12 @@ function developmentGateReason(s: GameState, cost: number, what: string): string
   if (worth < required) {
     return `${what} needs a portfolio worth ${money(required)} — your starting cash plus ${money(DEVELOPMENT_MIN_GAIN)}. Yours is ${money(worth)}.`;
   }
-  if (p.cash < cost) return `${what} costs ${money(cost)} and you have ${money(p.cash)} in cash.`;
+  const cashNeeded = Math.max(cost, DEVELOPMENT_MIN_CASH);
+  if (p.cash < cashNeeded) {
+    return cost >= DEVELOPMENT_MIN_CASH
+      ? `${what} costs ${money(cost)} and you have ${money(p.cash)} in cash.`
+      : `${what} costs ${money(cost)}, and you need ${money(DEVELOPMENT_MIN_CASH)} in cash to develop at all. You have ${money(p.cash)}.`;
+  }
   return null;
 }
 

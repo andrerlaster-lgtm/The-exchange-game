@@ -126,7 +126,7 @@ describe('upgrade purchase and control', () => {
     expect(s.development[CODE]).toMatchObject({ level: 1, shieldActive: true });
   });
 
-  it('requires a portfolio worth the starting cash plus $15,000', () => {
+  it('requires a portfolio worth the starting cash plus $10,000', () => {
     // Net worth, not cash: shares count at market value.
     const empty = controlled(11, 0);
     const need = developmentMinNetWorth(empty);
@@ -137,17 +137,24 @@ describe('upgrade purchase and control', () => {
     expect(exact.development[CODE].level).toBe(1);
 
     const short = controlled(11, cashForExactly - 1);
-    expect(upgradeBlockReason(short, CODE)).toMatch(/needs a portfolio worth \$50,000/);
+    expect(upgradeBlockReason(short, CODE)).toMatch(/needs a portfolio worth \$45,000/);
     expect(up(short).development[CODE].level).toBe(0);
     expect(up(short).players[0].cash).toBe(cashForExactly - 1);
   });
 
-  it('counts holdings toward the gate but still needs the cash to pay', () => {
-    // A big portfolio, almost no cash: past the gate, blocked on the price.
+  it('counts holdings toward the gate but still needs cash in hand', () => {
+    // A big portfolio, almost no cash: past the gate, blocked on cash.
     const rich = patch(controlled(11, 500), (d) => { d.prices[CODE] = 10_000; });
     expect(netWorth(rich, rich.players[0])).toBeGreaterThan(developmentMinNetWorth(rich));
-    expect(upgradeBlockReason(rich, CODE)).toMatch(/costs \$2,000 and you have \$500 in cash/);
+    expect(upgradeBlockReason(rich, CODE)).toMatch(/need \$5,000 in cash to develop/);
     expect(up(rich).development[CODE].level).toBe(0);
+
+    // $5,000 in cash clears the floor even though Level I only costs $2,000.
+    const ok = patch(controlled(11, 5_000), (d) => { d.prices[CODE] = 10_000; });
+    expect(upgradeBlockReason(ok, CODE)).toBeNull();
+    // A dollar short of the floor does not.
+    const short = patch(controlled(11, 4_999), (d) => { d.prices[CODE] = 10_000; });
+    expect(upgradeBlockReason(short, CODE)).toMatch(/need \$5,000 in cash/);
   });
 
   it('applies the same gate to shields', () => {

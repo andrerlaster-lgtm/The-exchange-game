@@ -807,7 +807,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 A player who **controls** a regular company (6+ shares) may invest in it. ETFs and IPOs cannot be developed.
 
-**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. Development is for players who are ahead: your **net worth** must be at least **your starting cash + $15,000** (so $50,000 at the default $35,000 start), counting cash, stock, IPOs and ETFs at market value, minus debt. You also need the cash to pay the price itself.
+**When:** after rolling, once every card, landing decision, fee, Payout Claim, forced sale, or loan is resolved. One permanent upgrade per turn (a doubles re-roll is the same turn). Levels are bought in order. Development is for players who are ahead: your **net worth** must be at least **your starting cash + $10,000** (so $45,000 at the default $35,000 start), counting cash, stock, IPOs and ETFs at market value, minus debt. You also need **$5,000 in cash** — the price itself if it is higher — so an upgrade never empties your hand.
 
 | Level | Cost | Total spent | Payout Claim bonus | Market Open bonus | Downside reduction |
 |---|---:|---:|---:|---:|---:|
