@@ -6,15 +6,12 @@ import { LandingResultBanner } from './ActionPanel';
 import investabearImg from '../../assets/investabear.png';
 import BoardDiceControls from './BoardDiceControls';
 import MarketRegimeBadge from './MarketRegimeBadge';
+import { BOARD_PALETTES, useBoardTheme } from './useBoardTheme';
 
-// Bull Market Club palette — mirrors PAL in public/board-3d.html
-const PARCH = '#f0e7d1', ETF_PARCH = '#eddbb0', SPEC_PARCH = '#e9dec3';
-const CORNER_BG = '#3a2717', INK = '#2b2016', INK_LT = '#efe3c4';
-
-// Risk chip colors — mirrors RISK_COL in the 3D board
-const RISK_CHIP: Record<string, string> = {
-  Low: '#5f7a52', Med: '#9c6f1f', High: '#a83a2c',
-};
+// Bull Market Club palette — mirrors PAL in public/board-3d.html. The tile
+// colours now come from the board theme (useBoardTheme): parchment by
+// default, slate when the table wants the sector colours to carry.
+const CORNER_BG = '#3a2717', INK_LT = '#efe3c4';
 
 function gridPos(n: number): { col: number; row: number } {
   if (n <= 10) return { col: n, row: 1 };
@@ -44,10 +41,10 @@ const SPECIAL_3D: Record<number, { color: string; label: string; glyph: string; 
 };
 
 // Parchment fibre vignette — mirrors paintTileBase in the 3D board
-const TILE_VIGNETTE = 'radial-gradient(circle at 50% 42%, rgba(255,255,255,0.05) 10%, rgba(60,40,20,0.10) 72%)';
+
 
 // Letterpress type: light offset under an ink fill (canvas does fill offset +1.5px)
-const LETTERPRESS = '1px 1px 0 rgba(255,250,235,0.7)';
+
 
 /** Routed inner keyline at 5% inset — mirrors the 3D tile's strokeRect. */
 function Keyline({ color = 'rgba(43,32,22,0.18)', inset = '5%' }: { color?: string; inset?: string }) {
@@ -113,6 +110,10 @@ function SectorLegend() {
 export default function BoardTrack() {
   const s = useGameState();
   const dispatch = useDispatch();
+  const theme = useBoardTheme();
+  const pal = BOARD_PALETTES[theme];
+  const PARCH = pal.tile, ETF_PARCH = pal.tileEtf, SPEC_PARCH = pal.tileSpecial;
+  const INK = pal.ink, TILE_VIGNETTE = pal.vignette, LETTERPRESS = pal.letterpress;
   const byPos: Record<number, number[]> = {};
   s.players.forEach((p, i) => { if (!byPos[p.pos]) byPos[p.pos] = []; byPos[p.pos].push(i); });
 
@@ -225,9 +226,9 @@ export default function BoardTrack() {
             const claimColor = claimIdx !== null ? PLAYER_COLORS[claimIdx] : null;
             const dev = developmentOf(s, sp.code!);
             const last = s.lastMove?.[sp.code!];
-            const lastColor = last && last.pct > 0 ? '#1e7a4a' : '#b03a2c';
+            const lastColor = last && last.pct > 0 ? pal.up : pal.down;
             const mv = getStockMovementStatus(sp.code!, s);
-            const mvColor = mv.direction === 'up' ? '#1e7a4a' : mv.direction === 'down' ? '#b03a2c' : '#8a795e';
+            const mvColor = mv.direction === 'up' ? pal.up : mv.direction === 'down' ? pal.down : pal.flatText;
             const mvGlyph = mv.direction === 'up' ? '▲' : mv.direction === 'down' ? '▼' : '';
             const sc = stock ? SECTORS[stock.sector].color : '#c9a24f';
             const secGlyph = stock ? SECTORS[stock.sector].glyph : '';
@@ -248,12 +249,14 @@ export default function BoardTrack() {
             return (
               <div key={sp.n} style={{
                 gridColumn: col, gridRow: row,
-                background: `${TILE_VIGNETTE}, ${isCur ? 'linear-gradient(160deg, #fdf6e6, ' + PARCH + ')' : PARCH}`,
+                background: `${TILE_VIGNETTE}, ${isCur
+                  ? `linear-gradient(160deg, ${theme === 'dark' ? '#2b2620' : '#fdf6e6'}, ${PARCH})`
+                  : PARCH}`,
                 // The tile is outlined in its sector's colour, so the board
                 // reads as eight groups at a glance. A Payout Claim holder's
                 // colour still wins the border — who is owed outranks which
                 // sector — and the sector then shows as the inner keyline.
-                border: claimColor ? `1px solid ${claimColor}` : `1.5px solid ${sc}`,
+                border: claimColor ? `1px solid ${claimColor}` : `1.5px solid ${theme === 'dark' ? sc : sc}`,
                 borderRadius: 4,
                 position: 'relative',
                 overflow: 'hidden',
@@ -262,7 +265,7 @@ export default function BoardTrack() {
                   ? `0 0 10px ${claimColor}66, inset 0 0 0 1px ${claimColor}55`
                   : isCur ? '0 0 0 1px #c9a24f, 0 0 12px rgba(201,162,79,0.5)' : 'inset 0 1px 0 rgba(255,255,255,0.5)',
               }}>
-                <Keyline color={claimColor ? `${sc}cc` : `${sc}55`} />
+                <Keyline color={claimColor ? `${sc}cc` : `${sc}${theme === 'dark' ? '77' : '55'}`} />
 
                 {/* Sector glyph — upper-left, sector color. A colored ring
                     appears around it when a player controls this stock's
@@ -331,7 +334,7 @@ export default function BoardTrack() {
                       <span style={{
                         fontSize: 6, fontWeight: 700, letterSpacing: 0.3,
                         fontFamily: 'IBM Plex Mono, monospace',
-                        background: RISK_CHIP[stock?.risk ?? 'Med'], color: '#f4ecd9',
+                        background: pal.riskChip[stock?.risk ?? 'Med'], color: '#f4ecd9',
                         borderRadius: 3, padding: last ? '1px 3px' : '1px 5px', lineHeight: 1.4,
                       }}>{(stock?.risk ?? '').toUpperCase()}</span>
                     )}
@@ -404,7 +407,7 @@ export default function BoardTrack() {
                 : `${TILE_VIGNETTE}, ${tileBg}`,
               border: isCorner
                 ? (isCur ? `1px solid ${color}` : '1px solid rgba(0,0,0,0.4)')
-                : (isCur ? '1px solid #c9a24f' : '1px solid rgba(43,32,22,0.22)'),
+                : (isCur ? '1px solid #c9a24f' : `1px solid ${pal.edge}`),
               borderRadius: isCorner ? 7 : 4,
               position: 'relative',
               overflow: 'hidden',
@@ -414,7 +417,7 @@ export default function BoardTrack() {
                 : isCur ? '0 0 0 1px #c9a24f, 0 0 12px rgba(201,162,79,0.5)' : 'inset 0 1px 0 rgba(255,255,255,0.5)',
             }}>
               {/* Keyline — colored on corners, routed ink on parchment */}
-              <Keyline color={isCorner ? `${color}99` : 'rgba(43,32,22,0.18)'} inset={isCorner ? '6%' : '5%'} />
+              <Keyline color={isCorner ? `${color}99` : pal.keyline} inset={isCorner ? '6%' : '5%'} />
 
               {/* Glyph medallion */}
               <div style={{

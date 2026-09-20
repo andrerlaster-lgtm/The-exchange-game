@@ -5,12 +5,14 @@ import OrderRollScreen from '../components/setup/OrderRollScreen';
 import GameScreen from '../components/game/GameScreen';
 import GameOver from '../components/game/GameOver';
 import Board3DSync from '../components/game/Board3DSync';
+import { setBoardTheme, useBoardTheme } from '../components/game/useBoardTheme';
 
 type ViewMode = '2d' | '3d';
 
 export default function App() {
   const s = useGameState();
   const [view, setView] = useState<ViewMode>('2d');
+  const boardTheme = useBoardTheme();
   // Lazy-mount the iframe on first 3D switch, then keep it alive so the
   // camera position and animation state survive view toggles.
   const [has3DLoaded, setHas3DLoaded] = useState(false);
@@ -48,6 +50,28 @@ export default function App() {
         backdropFilter: 'blur(6px)',
         fontFamily: 'IBM Plex Mono, monospace',
       }}>
+        {/* Board tiles: parchment or slate. A view preference only — it never
+            touches game state (see useBoardTheme). Hidden in the 3D view,
+            which paints its own tiles. */}
+        {view === '2d' && (
+          <button
+            onClick={() => setBoardTheme(boardTheme === 'dark' ? 'light' : 'dark')}
+            title={boardTheme === 'dark' ? 'Board tiles: slate — switch to parchment' : 'Board tiles: parchment — switch to slate'}
+            aria-label={boardTheme === 'dark' ? 'Switch board tiles to parchment' : 'Switch board tiles to slate'}
+            style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.6,
+              padding: '4px 10px', borderRadius: 5, border: 'none',
+              cursor: 'pointer', fontFamily: 'inherit',
+              background: boardTheme === 'dark' ? 'rgba(212,165,53,0.18)' : 'transparent',
+              color: boardTheme === 'dark' ? 'rgba(212,165,53,0.95)' : 'rgba(138,122,104,0.75)',
+              outline: boardTheme === 'dark' ? '1px solid rgba(212,165,53,0.32)' : 'none',
+              marginRight: 3,
+            }}
+          >
+            {boardTheme === 'dark' ? '☾ DARK' : '☀ LIGHT'}
+          </button>
+        )}
+
         {(['2d', '3d'] as const).map((v) => (
           <button
             key={v}
