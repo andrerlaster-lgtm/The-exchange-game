@@ -659,12 +659,23 @@ function LoanRatePanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) =>
     }}>
       <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: 'var(--blue)' }}>💰 {creditor.name} — ROLL FOR LOAN RATE</div>
       <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
-        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: 'var(--blue)' }}>${prompt.amount.toLocaleString()}</span> on their {prompt.label}. {playerLoanRateText(s, prompt.debtor)} Unpaid at game end counts against {debtor.name}'s score and adds to yours.
+        {debtor.name} is asking to borrow <span className="mono" style={{ fontWeight: 800, color: 'var(--blue)' }}>${prompt.amount.toLocaleString()}</span>
+        {prompt.code === '' ? ' from you in cash' : <> on their {prompt.label}</>}. {playerLoanRateText(s, prompt.debtor)} Unpaid at game end counts against {debtor.name}'s score and adds to yours.
       </div>
-      <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800, alignSelf: 'flex-start' }}
-        onClick={() => dispatch({ t: 'rollLoanRate' })}>
-        🎲 Roll for Rate
-      </button>
+      <div style={{ display: 'flex', gap: 7 }}>
+        <button className="primary" style={{ fontSize: 12, padding: '8px 12px', fontWeight: 800 }}
+          onClick={() => dispatch({ t: 'rollLoanRate' })}>
+          🎲 {prompt.code === '' ? 'Lend & Roll for Rate' : 'Roll for Rate'}
+        </button>
+        {/* Only a freely-asked loan may be refused — Payout Claim financing
+            was already the debtor's alternative to a forced sale. */}
+        {prompt.code === '' && (
+          <button style={{ fontSize: 12, padding: '8px 12px', fontWeight: 700 }}
+            onClick={() => dispatch({ t: 'declinePlayerLoan' })}>
+            Decline
+          </button>
+        )}
+      </div>
     </div>
   );
 }

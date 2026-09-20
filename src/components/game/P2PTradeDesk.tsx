@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ETF_BY_CODE, IPO_BY_CODE, STOCK_BY_CODE, isEtfCode, isIpoCode } from '../../data';
-import { heldQty, tradableHoldings } from '../../engine';
+import { BANK_LOAN_INCREMENT, ETF_BY_CODE, IPO_BY_CODE, STOCK_BY_CODE, isEtfCode, isIpoCode } from '../../data';
+import { borrowingCapacity, heldQty, tradableHoldings } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -20,17 +20,26 @@ export default function P2PTradeDesk() {
   const s = useGameState();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
 
   return (
     <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
         <span className="slabel" style={{ marginBottom: 0 }}>Player Trading</span>
-        <button style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => setOpen((v) => !v)}>
-          {open ? 'Close' : 'Propose Trade'}
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {s.opts.bankLoans && (
+            <button style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => { setAskOpen((v) => !v); setOpen(false); }}>
+              {askOpen ? 'Close' : 'Ask for Loan'}
+            </button>
+          )}
+          <button style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => { setOpen((v) => !v); setAskOpen(false); }}>
+            {open ? 'Close' : 'Propose Trade'}
+          </button>
+        </div>
       </div>
 
       {open && <ProposeForm s={s} dispatch={dispatch} onDone={() => setOpen(false)} />}
+      {askOpen && <AskLoanForm s={s} dispatch={dispatch} onDone={() => setAskOpen(false)} />}
 
       {s.p2pOffers.length === 0 ? (
         <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', textAlign: 'center', padding: '4px 0' }}>
@@ -267,5 +276,52 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {label}
       {children}
     </label>
+  );
+}
+
+/** Ask another player for cash. The lender answers on their own prompt: the
+    rate is the Bank Rate plus the premium they roll, exactly as a Payout
+    Claim loan, and it counts against the same borrowing limit as a bank
+    loan — so a player can never be lent more than their holdings support. */
+function AskLoanForm({ s, dispatch, onDone }: { s: GameState; dispatch: (a: Action) => void; onDone: () => void }) {
+  const borrower = s.cur;
+  const lenders = s.players.map((p, i) => ({ p, i })).filter(({ i }) => i !== borrower);
+  const [toIdx, setToIdx] = useState(lenders[0]?.i ?? 0);
+  const [amount, setAmount] = useState(BANK_LOAN_INCREMENT);
+
+  const capacity = borrowingCapacity(s, borrower);
+  const lenderCash = s.players[toIdx]?.cash ?? 0;
+  const tooBig = amount > capacity;
+  const lenderShort = amount > lenderCash;
+  const valid = amount > 0 && amount % BANK_LOAN_INCREMENT === 0 && !tooBig && !lenderShort && lenders.length > 0;
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: 10, borderRadius: 7,
+      background: 'rgba(74,48,25,0.06)', border: '1px solid var(--border)',
+    }}>
+      <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
+        {s.players[borrower]?.name} can borrow up to ${capacity.toLocaleString()} more — half the value of their
+        holdings, less what they already owe.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <Field label="Lender">
+          <select value={toIdx} onChange={(e) => setToIdx(Number(e.target.value))}>
+            {lenders.map(({ p, i }) => <option key={i} value={i}>{p.name} · ${p.cash.toLocaleString()}</option>)}
+          </select>
+        </Field>
+        <Field label={`Amount ($${BANK_LOAN_INCREMENT.toLocaleString()} steps)`}>
+          <input type="number" min={BANK_LOAN_INCREMENT} step={BANK_LOAN_INCREMENT} value={amount}
+            onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))} />
+        </Field>
+      </div>
+      {tooBig && <span style={{ fontSize: 10, color: 'var(--red)' }}>More than {s.players[borrower]?.name} can borrow.</span>}
+      {!tooBig && lenderShort && <span style={{ fontSize: 10, color: 'var(--red)' }}>{s.players[toIdx]?.name} only has ${lenderCash.toLocaleString()}.</span>}
+      <button className="primary" style={{ fontSize: 11, padding: '6px 10px' }} disabled={!valid}
+        onClick={() => { dispatch({ t: 'requestPlayerLoan', from: borrower, to: toIdx, amount }); onDone(); }}>
+        Ask {s.players[toIdx]?.name} for ${amount.toLocaleString()}
+      </button>
+    </div>
   );
 }

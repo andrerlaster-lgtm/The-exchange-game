@@ -15,6 +15,7 @@ export * from './rates';
 export * from './marketConditions';
 export * from './gainLoss';
 export * from './feeDebt';
+export * from './bankLoans';
 export * from './playerLoans';
 export * from './companyMode';
 export * from './sessionDebrief';

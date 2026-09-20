@@ -54,6 +54,8 @@ export interface Player {
   salaryCollected: number;           // base Market Open salary only; excluded from Gain/Loss Mode
   dividendCuts: Record<string, number>; // one-time 50% next-dividend penalties by holding code
   margin: number;                    // total outstanding margin dollars
+  bankLoanPrincipal: number;         // cash borrowed from the bank against holdings (2026-09-20)
+  bankLoanInterest: number;          // accrued interest on it, at the live Bank Rate
   feeDebtPrincipal: number;          // unpaid Audit Notice / Portfolio Tax charges still outstanding
   feeDebtInterest: number;           // unpaid turn-by-turn interest on those charges
   marketStance: MarketStance;        // latest qualifying market position, resolved by Bull/Bear Run
@@ -394,6 +396,7 @@ export interface GameOptions {
   roundMarket: boolean;       // the once-per-round market resolution (2026-09-19 round-end market rules)
   companiesMode: boolean;     // optional player-owned company market
   companyUpgrades: boolean;   // Company Development (Levels I-III + Market Protection) — standard rule, on by default
+  bankLoans: boolean;         // borrowing from the bank, and lending player to player, at the Bank Rate
   bankAuction: boolean;       // alternate resale mode: pooled shares go to a turn-order
                                // Market Open auction instead of the standard-mode Outstanding
                                // Shares offer (buy-on-landing) — off by default
@@ -414,6 +417,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   // off. It was off by default while the percentage market was played on its
   // own and the upgrade economics were being tuned.
   companyUpgrades: true,
+  bankLoans: true,
 };
 
 /**
@@ -547,6 +551,10 @@ export type Action =
   | { t: 'repayCompanyLoan' }
   | { t: 'skipStock'; code: string }
   | { t: 'takeMargin' }
+  | { t: 'takeBankLoan'; amount: number }
+  | { t: 'payBankLoan'; mode: 'installment' | 'full' }
+  | { t: 'requestPlayerLoan'; from: number; to: number; amount: number }
+  | { t: 'declinePlayerLoan' }
   | { t: 'repayMargin' }
   | { t: 'marginSell'; code: string }
   | { t: 'payMarginCall' }

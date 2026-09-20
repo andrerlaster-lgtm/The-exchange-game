@@ -98,6 +98,7 @@ export default function RatesGuide() {
 
         <Section title="What borrowing costs, per turn">
           <Row left={`Outstanding Fees — Bank Rate + ${FEE_DEBT_SPREAD_BP} bp`} right={`${feeDebtRatePct(s)}%`} />
+          <Row left="Bank loan — the Bank Rate itself, floating" right={`${marginRatePct(s)}%`} />
           <Row left="Margin — the Bank Rate itself" right={`${marginRatePct(s)}%`} />
           <Row left={`Company loan — Bank Rate + ${COMPANY_LOAN_SPREAD_BP} bp`} right={`${companyLoanRatePct(s)}%`} />
           <Row
@@ -107,7 +108,8 @@ export default function RatesGuide() {
           <div style={{ marginTop: 5, color: 'var(--muted)' }}>
             The lender rolls a d6 for that premium: 1–2 adds {PLAYER_LOAN_PREMIUM_BY_ROLL_BP[1] / 100}%,
             3–4 adds {PLAYER_LOAN_PREMIUM_BY_ROLL_BP[3] / 100}%, 5–6 adds {PLAYER_LOAN_PREMIUM_BY_ROLL_BP[5] / 100}%.
-            A player loan keeps the rate it was made at; the others follow the Bank Rate as it changes.
+            A player loan keeps the rate it was agreed at; a bank loan and the rest follow the Bank Rate as it changes.
+            You may owe up to half the market value of your holdings, across bank and player loans together.
             Interest is added at the start of the debtor&rsquo;s turn and compounds on the balance.
           </div>
         </Section>

@@ -5,6 +5,7 @@ import type { GameState, Player } from './types';
 import { priceOf } from './selectors';
 import { distinctSectors } from './sector';
 import { feeDebtBalance } from './feeDebt';
+import { bankLoanBalance } from './bankLoans';
 import { totalOwedByPlayer, totalOwedToPlayer } from './playerLoans';
 
 /** Net worth before player-company holdings; used as the non-circular price base.
@@ -19,7 +20,7 @@ import { totalOwedByPlayer, totalOwedToPlayer } from './playerLoans';
     straight through instead of looking the object back up. */
 export function operatingNetWorth(s: GameState, pi: number): number {
   const p = s.players[pi];
-  return p.cash + sharesValue(s, p) + etfValue(p.etfShares) - p.margin - feeDebtBalance(p)
+  return p.cash + sharesValue(s, p) + etfValue(p.etfShares) - p.margin - feeDebtBalance(p) - bankLoanBalance(p)
     - (p.companyLoanPrincipal ?? 0) - (p.companyLoanInterest ?? 0)
     - totalOwedByPlayer(s, pi) + totalOwedToPlayer(s, pi);
 }

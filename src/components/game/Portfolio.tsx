@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
+import { BANK_LOAN_INCREMENT, CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
 import {
   completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
@@ -7,7 +7,7 @@ import {
   projectedDividend, sharesValue, stockGainLoss, ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
   companyLoanBalance, companyMarketTradingOpen, companySharePrice, companySharesHeld, companyPublicSharesHeld, companyPublicSharesRemaining, companyValue,
   playerDebtBalance, playerDebtInstallment,
-  feeDebtRatePct, companyLoanRatePct,
+  feeDebtRatePct, companyLoanRatePct, bankLoanBalance, bankLoanBlockReason, bankRateBp, borrowingCapacity,
 } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import { toBps } from '../../utils/formatRate';
@@ -60,6 +60,9 @@ export default function Portfolio() {
   const divTier = diversificationTier(p);
   const divBonus = diversificationBonus(p);
   const feeDebt = feeDebtBalance(p);
+  const loanBalance = bankLoanBalance(p);
+  const canBorrow = s.opts.bankLoans ? borrowingCapacity(s, viewIdx) : 0;
+  const loanBlocked = s.opts.bankLoans ? bankLoanBlockReason(s, BANK_LOAN_INCREMENT) : 'off';
   const installment = Math.min(FEE_DEBT_INSTALLMENT, feeDebt);
   const debtsOwed = s.playerDebts.filter((d) => d.debtor === viewIdx);
   const debtsReceivable = s.playerDebts.filter((d) => d.creditor === viewIdx);
@@ -252,6 +255,58 @@ export default function Portfolio() {
               </div>;
             })}
           </div>}
+        </div>
+      )}
+
+      {s.opts.bankLoans && (loanBalance > 0 || (isOwnTurn && canBorrow > 0)) && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 7,
+          padding: '10px 11px', borderRadius: 8,
+          background: loanBalance > 0 ? 'rgba(239,68,68,0.10)' : 'rgba(154,111,30,0.10)',
+          border: `1px solid ${loanBalance > 0 ? 'rgba(239,68,68,0.35)' : 'rgba(154,111,30,0.35)'}`,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: loanBalance > 0 ? 'var(--red)' : 'var(--gold)', letterSpacing: 0.6 }}>BANK LOAN</span>
+            <span className="mono" style={{ fontSize: 15, fontWeight: 800, color: loanBalance > 0 ? 'var(--red)' : 'var(--muted)' }}>
+              {loanBalance > 0 ? `−$${loanBalance.toLocaleString()}` : '—'}
+            </span>
+          </div>
+          {loanBalance > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)' }}>
+              <span>Borrowed ${(p.bankLoanPrincipal ?? 0).toLocaleString()}</span>
+              <span>Interest ${(p.bankLoanInterest ?? 0).toLocaleString()}</span>
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>
+            Borrow against your holdings, up to half their value. Interest runs at the Bank Rate
+            ({bankRateBp(s) / 100}%/turn) and follows it as it moves. Room to borrow: ${canBorrow.toLocaleString()}.
+          </div>
+          {isOwnTurn && s.phase === 'play' && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[1_000, 5_000].map((amount) => (
+                <button key={amount} style={{ flex: 1, fontSize: 10, padding: '6px 7px' }}
+                  disabled={amount > canBorrow || !!loanBlocked}
+                  title={amount > canBorrow ? `You can borrow $${canBorrow.toLocaleString()} more` : loanBlocked ?? undefined}
+                  onClick={() => dispatch({ t: 'takeBankLoan', amount })}>
+                  Borrow ${amount.toLocaleString()}
+                </button>
+              ))}
+              {loanBalance > 0 && (
+                <>
+                  <button style={{ flex: 1, fontSize: 10, padding: '6px 7px' }}
+                    disabled={p.cash < Math.min(500, loanBalance) || !!s.landingNotice}
+                    onClick={() => dispatch({ t: 'payBankLoan', mode: 'installment' })}>
+                    Repay ${Math.min(500, loanBalance).toLocaleString()}
+                  </button>
+                  <button className="danger" style={{ flex: 1, fontSize: 10, padding: '6px 7px' }}
+                    disabled={p.cash < loanBalance || !!s.landingNotice}
+                    onClick={() => dispatch({ t: 'payBankLoan', mode: 'full' })}>
+                    Repay in Full
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

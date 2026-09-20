@@ -28,7 +28,7 @@ Consolidated Rules — Reconciled September 18, 2026
 17. Diversified Portfolio
 18. ETFs
 19. IPOs
-20. Margin System
+20. Borrowing (bank loans, player cash loans, Margin)
 21. Round-End Market
 22. Special Spaces
 23. Price Movement
@@ -586,7 +586,32 @@ Measured from the IPO's launch price ($3,000). Each pays once per IPO, to every 
 - IPO shares count toward final portfolio value.
 - IPO shares do not count toward Diversified Portfolio bonus.
 
-## 20. Margin System
+## 20. Borrowing
+
+### Bank loans
+
+Any player may borrow cash from the bank on their own turn, once every card, landing decision, fee, Payout Claim, forced sale and loan is resolved.
+
+- **Limit:** you may owe, across bank loans and player loans together, up to **half the market value of your holdings** — stocks, IPOs and ETFs. Cash is not collateral, so a player holding only cash cannot borrow. The limit falls as prices fall.
+- **Steps:** borrow in **$1,000** steps.
+- **Interest:** the **Bank Rate** (Section 21), added at the start of each of your turns, rounded to $10 with a $20 minimum. A bank loan **floats** — it follows the Bank Rate as it moves.
+- **Repayment:** pay $500 or the whole balance from your Portfolio whenever you like. Nothing is forced.
+- **Scoring:** the balance is subtracted from Net Worth throughout, so borrowed cash is never free score, and anything unpaid at Market Close stays deducted.
+- This is a setup option (**Bank Loans**), on by default. Turning it off also removes player-to-player cash loans.
+
+### Player cash loans
+
+On your turn you may ask any other player for a cash loan.
+
+- The lender may **accept or decline**. Declining costs nothing.
+- If they accept, they roll for the rate exactly as they would for Payout Claim financing: **Bank Rate + 1-3%** by d6, **fixed** for the life of the loan (Section 13).
+- The cash moves from lender to borrower at that moment.
+- It counts against the **same borrowing limit** as a bank loan, so a player can never be lent more than their holdings support.
+- Repayment, interest and scoring follow Section 13: interest at the start of each of the debtor's turns, $500 installments or full payoff, and the balance counts against the debtor's score and for the creditor's.
+
+**The difference between the two:** the bank always lends, at a floating rate, with no negotiation. Another player may refuse, charges a premium, and locks the rate in — but the money comes out of their pocket, and they carry the risk of you not repaying.
+
+### Margin (advanced)
 
 Margin (renamed from Loans) is an advanced-mode borrowing system, distinct from the Payout Claim Player Loans in Section 13. It is off by default in standard mode (see Section 25).
 
@@ -852,6 +877,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 | Starting cash | $35,000 default; setup choices are $35,000, $45,000, or $55,000 |
 | Winning score | Net Worth by default; optional Gain/Loss Mode ranks salary-adjusted Market Gain |
 | Margin trading | Off by default |
+| Bank Loans | On — borrow up to half the value of your holdings at the Bank Rate; also enables player cash loans (Section 20) |
 | Weak Demand | On; 2 affordable-but-declined skips drop an untouched company's price 1 step; a skip forced by insufficient cash doesn't count; no ownership protection; markers persist across laps |
 | Strong Demand | On; 2 Payout Claim landings raise a sold-out company's price 1 step; markers persist across laps |
 | Short Sell | Off / removed from standard game flow |

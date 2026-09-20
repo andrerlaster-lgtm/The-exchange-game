@@ -118,7 +118,8 @@ export function resetPlayers(s: GameState): void {
     s.players.push({
       name, color: PLAYER_COLORS[i], piece: s.pieces[i] ?? DEFAULT_PIECES[i],
       cash: s.opts.startCash, pos: 1, hasCompletedLap: false, shares: {}, stockCostBasis: {}, realizedStockGain: 0, dividendCuts: {},
-      etfShares: {}, salaryCollected: 0, margin: 0, feeDebtPrincipal: 0, feeDebtInterest: 0,
+      etfShares: {}, salaryCollected: 0, margin: 0, bankLoanPrincipal: 0, bankLoanInterest: 0,
+      feeDebtPrincipal: 0, feeDebtInterest: 0,
       marketStance: 'balanced', prevRank: null, companyShares: 60, companyHoldings: {},
       companyLoanPrincipal: 0, companyLoanInterest: 0, lapTrades: [],
     });

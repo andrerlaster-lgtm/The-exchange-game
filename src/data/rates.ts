@@ -57,6 +57,18 @@ export const RATE_DECISION_BY_ROLL_BP = [0, -25, -25, 0, 0, 25, 25]; // index = 
 export const FEE_DEBT_SPREAD_BP = 200;
 export const COMPANY_LOAN_SPREAD_BP = 200;
 
+// ── Borrowing (2026-09-20) ──────────────────────────────────────────────────
+
+/** A player may owe, across bank loans and player loans together, up to this
+    share of what their holdings are worth. */
+export const BANK_LOAN_MAX_LTV = 0.5;
+/** Loans are taken in these steps, which also rounds the borrowing limit. */
+export const BANK_LOAN_INCREMENT = 1_000;
+/** Part payment offered on a bank loan, matching fees and player loans. */
+export const BANK_LOAN_INSTALLMENT = 500;
+/** Smallest interest charge on a live balance. */
+export const BANK_LOAN_MIN_INTEREST = 20;
+
 /** Player Loan premium over the Bank Rate, by the creditor's d6 roll. */
 export const PLAYER_LOAN_PREMIUM_BY_ROLL_BP = [0, 100, 100, 200, 200, 300, 300]; // index = roll 1-6
 

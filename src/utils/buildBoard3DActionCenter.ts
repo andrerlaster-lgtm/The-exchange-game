@@ -172,7 +172,10 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     required.push({
       id: 'loan-rate', title: `${creditor.name} — Roll for Loan Rate`, accent: '#4da3ff', urgent: true,
       description: `${debtor.name} is asking to borrow ${money(prompt.amount)} on their ${prompt.label}. ${playerLoanRateText(s, prompt.debtor)} Unpaid at game end counts against ${debtor.name}'s score and adds to yours.`,
-      buttons: [button('Roll for Rate', { t: 'rollLoanRate' }, 'primary')],
+      buttons: [
+        button(prompt.code === '' ? 'Lend & Roll for Rate' : 'Roll for Rate', { t: 'rollLoanRate' }, 'primary'),
+        ...(prompt.code === '' ? [button('Decline', { t: 'declinePlayerLoan' })] : []),
+      ],
     });
   }
 

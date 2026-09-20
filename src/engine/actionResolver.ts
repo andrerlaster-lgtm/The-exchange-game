@@ -6,7 +6,7 @@ import {
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isEtfCode, isIpoCode,
-  SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, RATE_DECISION_BY_ROLL_BP, rateShockMoves,
+  SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, BANK_LOAN_INCREMENT, RATE_DECISION_BY_ROLL_BP, rateShockMoves,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money, pctBp } from '../utils/formatMoney';
@@ -33,6 +33,7 @@ import { setMarketStance } from './marketRegime';
 import { queueMarketOpenAuctions, handleBid, handlePass } from './auction';
 import { addStockCostBasis, holdingGainLoss, rankingScore, recordStockSale } from './gainLoss';
 import { accrueFeeDebt, addFeeDebt, feeDebtBalance, payFeeDebt } from './feeDebt';
+import { accrueBankLoan, bankLoanBalance, borrowingCapacity, payBankLoan, takeBankLoan } from './bankLoans';
 import { accruePlayerDebt, payPlayerDebt, playerDebtBalance, playerDebtInstallment } from './playerLoans';
 import { ensureMarketCondition, marketConditionBlocksMargin, marketConditionClaimAdjustment, marketConditionWaivesLoanPremium, marketConditionSectorRentMultiplier, tickMarketConditionTurn } from './marketConditions';
 import { bankRateBp, changeBankRate, companyLoanRatePct, feeDebtRatePct, marginRatePct, playerLoanPremiumBp } from './rates';
@@ -1049,13 +1050,20 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       const premiumBp = waived ? 0 : playerLoanPremiumBp(roll);
       const rate = (bankRateBp(s) + premiumBp) / 100;
       s.loanRatePrompt = null;
+      // A Payout Claim loan settles a debt the creditor was already owed, so
+      // no cash moves. A freely-asked cash loan does: the lender hands it over.
+      if (prompt.code === '') {
+        s.players[prompt.creditor].cash -= prompt.amount;
+        s.players[prompt.debtor].cash += prompt.amount;
+      }
       s.playerDebtSeq += 1;
       s.playerDebts.push({
         id: s.playerDebtSeq, debtor: prompt.debtor, creditor: prompt.creditor,
         code: prompt.code, principal: prompt.amount, interest: 0, rate,
       });
       const rateNote = `Bank Rate ${bankRateBp(s) / 100}% + ${waived ? '0% premium (Credit Tightening)' : `${premiumBp / 100}% premium`}`;
-      addLog(s, `${s.players[prompt.creditor].name} rolls ${roll} (${rateNote}) — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} loan on ${prompt.label} at ${rate}%/turn.`, 'y');
+      const loanFor = prompt.code === '' ? 'cash loan' : `loan on ${prompt.label}`;
+      addLog(s, `${s.players[prompt.creditor].name} rolls ${roll} (${rateNote}) — extends ${s.players[prompt.debtor].name} a ${money(prompt.amount)} ${loanFor} at ${rate}%/turn.`, 'y');
       break;
     }
     case 'upgradeCompany':
@@ -1176,6 +1184,45 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.landingNotice = null;
       break;
     }
+    // ---- bank loans and negotiated player loans (2026-09-20) ----
+    case 'takeBankLoan':
+      takeBankLoan(s, action.amount);
+      break;
+    case 'payBankLoan': {
+      if (s.phase !== 'play' || s.landingNotice) break;
+      const paid = payBankLoan(s, action.mode);
+      if (paid > 0) pushFeeEvent(s, 'debt', s.players[s.cur], -paid);
+      break;
+    }
+    case 'requestPlayerLoan': {
+      // A player may ask any opponent for cash on their own turn. The lender
+      // answers before anything moves: accepting rolls the premium over the
+      // Bank Rate through the same path a Payout Claim loan uses, so both
+      // kinds of player loan accrue, repay and score identically.
+      const { from, to, amount } = action;
+      if (!s.opts.bankLoans) break;
+      if (from !== s.cur || to === from) break;
+      if (!s.players[from] || !s.players[to]) break;
+      if (s.loanRatePrompt || s.payoutShortfallChoice) break;
+      if (!canMarketSell(s)) break;
+      if (amount <= 0 || amount % BANK_LOAN_INCREMENT !== 0) break;
+      if (amount > borrowingCapacity(s, from)) break;
+      if (s.players[to].cash < amount) break;
+      s.loanRatePrompt = { debtor: from, creditor: to, code: '', amount, label: 'a cash loan' };
+      addLog(s, `${s.players[from].name} asks ${s.players[to].name} for a ${money(amount)} loan.`, 'y');
+      break;
+    }
+    case 'declinePlayerLoan': {
+      // Only a freely-asked loan may be refused: a Payout Claim loan was
+      // already the debtor's alternative to a forced sale, and turning it
+      // down there would strand the claim unpaid.
+      const prompt = s.loanRatePrompt;
+      if (!prompt || prompt.code !== '') break;
+      s.loanRatePrompt = null;
+      addLog(s, `${s.players[prompt.creditor].name} declines to lend ${s.players[prompt.debtor].name} ${money(prompt.amount)}.`, 'y');
+      break;
+    }
+
     case 'payFeeDebt': {
       if (s.phase !== 'play' || s.landingNotice) break;
       const p = s.players[s.cur];
@@ -1542,6 +1589,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (s.marketHaltUntilLap !== null && s.lap >= s.marketHaltUntilLap) {
         s.marketHaltUntilLap = null;
         addLog(s, 'Market halt lifted — player-company trading resumes.', 'g');
+      }
+      const loanInterestDue = accrueBankLoan(s, s.cur);
+      if (loanInterestDue > 0) {
+        addLog(s, `${s.players[s.cur].name}'s bank loan adds ${money(loanInterestDue)} interest (${bankRateBp(s) / 100}%). Balance ${money(bankLoanBalance(s.players[s.cur]))}.`, 'r');
       }
       const debtInterest = accrueFeeDebt(s.players[s.cur], feeDebtRatePct(s));
       if (debtInterest > 0) {
