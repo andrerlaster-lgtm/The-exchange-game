@@ -436,18 +436,20 @@ Sector Portfolio is the Monopoly color-group equivalent. It rewards concentratio
 
 **Sector map**
 
-The 22 regular stocks are divided into 8 sectors, unevenly sized:
+The 22 regular stocks are divided into 8 sectors, unevenly sized. Each sector's companies sit **together on the board**, the way a Monopoly colour group does, and each sector has one colour — and that colour runs the price ladder, cheapest sector first, rather than describing the industry:
 
-| Sector | Companies | Count |
-|---|---|---:|
-| Technology | CloudCore AI (CCAI) · CyberShield Systems (CYBS) | 2 |
-| Consumer | SafeMart Stores (SAFE) · FreshBite Foods (FRSH) · SneakerStreet (SNKR) | 3 |
-| Healthcare | MediCore Health (MEDI) · BioQuest Labs (BIOQ) · VitalSign Devices (VSGN) · CarePlus Clinics (CARE) | 4 |
-| Energy | OilWorks Energy (OILW) · SolarGrid Power (SOLR) | 2 |
-| Finance | FirstTrust Bank (FTRB) · PayWave Credit (PAYW) · Apex Investments (APEX) | 3 |
-| Real Estate | MetroHomes REIT (MTRO) · TowerPoint Realty (TWPT) · RentWell Properties (RENT) | 3 |
-| Industrials | IronRail Logistics (IRON) · BuildMax Materials (BLDM) · AeroLift Manufacturing (AERO) | 3 |
-| Comms/Media | StreamWave Media (STRM) · GameBox Studios (GMBX) | 2 |
+| Sector | Board spaces | Colour | Companies | Count |
+|---|---|---|---|---:|
+| Healthcare | 2, 3, 5, 6 | Orange | BioQuest Labs (BIOQ) · VitalSign Devices (VSGN) · MediCore Health (MEDI) · CarePlus Clinics (CARE) | 4 |
+| Finance | 8, 9, 11 | Dark blue | FirstTrust Bank (FTRB) · PayWave Credit (PAYW) · Apex Investments (APEX) | 3 |
+| Consumer | 12, 14, 15 | Brown | SafeMart Stores (SAFE) · FreshBite Foods (FRSH) · SneakerStreet (SNKR) | 3 |
+| Real Estate | 17, 18, 20 | Green | MetroHomes REIT (MTRO) · TowerPoint Realty (TWPT) · RentWell Properties (RENT) | 3 |
+| Industrials | 21, 23, 24 | Pink | IronRail Logistics (IRON) · BuildMax Materials (BLDM) · AeroLift Manufacturing (AERO) | 3 |
+| Technology | 27, 29 | Yellow | CloudCore AI (CCAI) · CyberShield Systems (CYBS) | 2 |
+| Energy | 32, 33 | Red | OilWorks Energy (OILW) · SolarGrid Power (SOLR) | 2 |
+| Comms/Media | 35, 36 | Light blue | StreamWave Media (STRM) · GameBox Studios (GMBX) | 2 |
+
+A block may be interrupted by a special space — Finance runs 8, 9 and 11 around the IPO corner at 10, the way Monopoly's orange group straddles Community Chest. Every non-company space (The Fed, ETFs, Market Event, taxes, Investor Day, corners) is drawn in plain ink, so the eight sector colours are the only colour on the board.
 
 **Sector Portfolio rule**
 - A player completes a sector by owning at least 1 regular share in every regular company of that sector.

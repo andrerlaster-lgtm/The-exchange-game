@@ -4,7 +4,7 @@ import {
   marketConditionClaimAdjustment, marketConditionIncome, marketConditionWaivesLoanPremium,
   marketConditionSectorRentMultiplier, reduce,
 } from '../engine';
-import { SALARY, SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
+import { SALARY, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE } from '../data';
 import { claimPayoutForLanding } from '../engine/soldOut';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -15,13 +15,14 @@ describe('Market Conditions — personal, per-player', () => {
     s = patch(s, (d) => { d.players[0].pos = 34; d.turnPhase = 'preRoll'; });
 
     // Roll 1+2 to Market Open, then select condition 0 (Sector Spotlight)
-    // and sector 0 (Technology). The condition uses its own random choice,
-    // not the Market Event or Fed deck.
+    // and sector 0 — whichever sector that is, read from the data rather
+    // than named here, since the board's sector order is a layout choice.
+    // The condition uses its own random choice, not a card deck.
     s = reduce(s, { t: 'roll' }, scriptedRng([1, 2, 0, 0]));
 
     expect(s.players[0].pos).toBe(1);
     expect(s.marketConditions[0]).toMatchObject({
-      id: 'sectorSpotlight', title: 'Technology Spotlight', owner: 0, durationUnit: 'turns', remaining: 5,
+      id: 'sectorSpotlight', title: `${Object.values(SECTORS)[0].name} Spotlight`, owner: 0, durationUnit: 'turns', remaining: 5,
     });
     expect(s.marketConditions[1]).toBeNull();
     expect(s.decks).toEqual(decksBefore);
@@ -194,7 +195,7 @@ describe('Market Conditions — personal, per-player', () => {
       d.players[1].shares[CODE_B] = 11;
       d.cur = 0;
     });
-    s = rollTo(s, 11); // IRON (CODE_B)
+    s = rollTo(s, STOCK_BY_CODE.IRON.space); // IRON (CODE_B)
     const stock = STOCK_BY_CODE[CODE_B];
     const claimOwed = claimPayoutForLanding(11, false, stock.base, stock.base, 0);
     expect(s.landingNotice).toMatchObject({
@@ -215,7 +216,7 @@ describe('Market Conditions — personal, per-player', () => {
       d.players[0].hasCompletedLap = true;
       d.turnPhase = 'preRoll';
     });
-    s = rollTo(s, 8); // FTRB
+    s = rollTo(s, STOCK_BY_CODE.FTRB.space); // FTRB
     s = dispatch(s, { t: 'ackLandingNotice' }, rng());
     s = dispatch(s, { t: 'choosePayoutLoan' }, rng());
     s = dispatch(s, { t: 'rollLoanRate' }, scriptedRng([6])); // would be 3% + 3% premium otherwise

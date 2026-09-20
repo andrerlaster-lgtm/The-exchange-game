@@ -404,9 +404,13 @@ export default function BoardTrack() {
             );
           }
 
-          // Special / ETF / corner tile — mirrors makeSpecialLabel in the 3D board
+          // Special / ETF / corner tile — mirrors makeSpecialLabel in the 3D
+          // board. Monopoly keeps every non-property space as line art on
+          // cream, so the eight group colours are the only chroma: the same
+          // rule here (2026-09-20) leaves these tiles in ink, with the space's
+          // own colour kept only for the corners, which are illustrations.
           const def = SPECIAL_3D[sp.n] ?? { color: sp.color ?? '#c9a24f', label: sp.name ?? '', glyph: sp.glyph ?? '' };
-          const color = def.color;
+          const color = def.corner ? def.color : pal.ink;
           const isCorner = !!def.corner;
           const isEtf = !!def.etf;
           const tileBg = isCorner ? CORNER_BG : isEtf ? ETF_PARCH : SPEC_PARCH;

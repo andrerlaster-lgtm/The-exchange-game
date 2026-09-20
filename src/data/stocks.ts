@@ -161,14 +161,19 @@ export const WEAK_DEMAND_THRESHOLD = 2; // markers before the price drops 1 step
 export const STRONG_DEMAND_THRESHOLD = 2; // Payout Claim landings before the price rises 1 step
 
 export const SECTORS: Record<SectorId, Sector> = {
-  tech:        { id: 'tech',        name: 'Technology',   color: '#4DA3FF', glyph: '◆' },
-  consumer:    { id: 'consumer',    name: 'Consumer',     color: '#F0C53D', glyph: '●' },
-  health:      { id: 'health',      name: 'Healthcare',   color: '#2DD4BF', glyph: '✚' },
-  energy:      { id: 'energy',      name: 'Energy',       color: '#FF9442', glyph: '▲' },
-  finance:     { id: 'finance',     name: 'Finance',      color: '#3ED598', glyph: '■' },
-  realestate:  { id: 'realestate',  name: 'Real Estate',  color: '#A78BFA', glyph: '⌂' },
-  industrials: { id: 'industrials', name: 'Industrials',  color: '#9AA5B1', glyph: '▮' },
-  comm:        { id: 'comm',        name: 'Comms/Media',  color: '#F87171', glyph: '▶' },
+  // Colours run the Monopoly ladder by average share price, cheapest sector
+  // first: brown, light blue, pink, orange, red, yellow, green, dark blue
+  // (2026-09-20). The hue therefore reads as the price tier, not the
+  // industry — Healthcare is orange because it is mid-priced, not because
+  // orange means health.
+  consumer:    { id: 'consumer',    name: 'Consumer',     color: '#8B5A2B', glyph: '●' },  // $500 avg
+  comm:        { id: 'comm',        name: 'Comms/Media',  color: '#7FC6EA', glyph: '▶' },  // $750
+  industrials: { id: 'industrials', name: 'Industrials',  color: '#CE4E92', glyph: '▮' },  // $750
+  health:      { id: 'health',      name: 'Healthcare',   color: '#E98A1F', glyph: '✚' },  // $750
+  energy:      { id: 'energy',      name: 'Energy',       color: '#D8453A', glyph: '▲' },  // $875
+  tech:        { id: 'tech',        name: 'Technology',   color: '#DFBE2E', glyph: '◆' },  // $875
+  realestate:  { id: 'realestate',  name: 'Real Estate',  color: '#2E9E5B', glyph: '⌂' },  // $1,000
+  finance:     { id: 'finance',     name: 'Finance',      color: '#2D6FA8', glyph: '■' },  // $1,167
 };
 
 // High risk earns a small but nonzero dividend so the tier isn't strictly
@@ -188,28 +193,43 @@ const DIV_BY_RISK: Record<Risk, number> = { Low: 110, Med: 70, High: 30 };
 // 22 regular stocks — uneven sector distribution:
 //   tech 2 · comm 2 · energy 2 · consumer 3 · finance 3 · industrials 3 · realestate 3 · health 4
 // Spaces 26 and 30 remain assigned to special spaces rather than regular stocks.
+// Board order, 2026-09-20: each sector's companies sit together, the way a
+// Monopoly colour group does, so a sector band reads as a block you can
+// collect rather than three tiles scattered round the board. Specials keep
+// their spaces (1, 4, 7, 10, 13, 16, 19, 22, 25, 26, 28, 30, 31, 34), and a
+// block may be interrupted by one of them — 8/9/11 is a block with The Fed's
+// neighbour space 10 between, exactly as Monopoly's orange group straddles
+// Community Chest.
 const RAW_STOCKS: Array<[number, string, SectorId, number, Risk, string]> = [
-  [2,  'CloudCore AI',         'tech',        1000, 'High', 'CCAI'],
-  [3,  'SafeMart Stores',      'consumer',     500, 'Low',  'SAFE'],
+  // Healthcare — 2, 3, 5, 6
+  [2,  'BioQuest Labs',        'health',      1000, 'High', 'BIOQ'],
+  [3,  'VitalSign Devices',    'health',       750, 'Low',  'VSGN'],
   [5,  'MediCore Health',      'health',       750, 'Med',  'MEDI'],
-  [6,  'OilWorks Energy',      'energy',      1000, 'Med',  'OILW'],
+  [6,  'CarePlus Clinics',     'health',       500, 'Low',  'CARE'],
+  // Finance — 8, 9, 11
   [8,  'FirstTrust Bank',      'finance',     1250, 'Low',  'FTRB'],
-  [9,  'MetroHomes REIT',      'realestate',  1000, 'Low',  'MTRO'],
-  [11, 'IronRail Logistics',   'industrials',  750, 'Low',  'IRON'],
-  [12, 'StreamWave Media',     'comm',        1000, 'High', 'STRM'],
-  [14, 'CyberShield Systems',  'tech',         750, 'High', 'CYBS'],
-  [15, 'FreshBite Foods',      'consumer',     250, 'Low',  'FRSH'],
-  [17, 'BioQuest Labs',        'health',      1000, 'High', 'BIOQ'],
-  [18, 'SolarGrid Power',      'energy',       750, 'High', 'SOLR'],
-  [20, 'PayWave Credit',       'finance',      750, 'Med',  'PAYW'],
-  [21, 'TowerPoint Realty',    'realestate',  1250, 'Med',  'TWPT'],
+  [9,  'PayWave Credit',       'finance',      750, 'Med',  'PAYW'],
+  [11, 'Apex Investments',     'finance',     1500, 'High', 'APEX'],
+  // Consumer — 12, 14, 15
+  [12, 'SafeMart Stores',      'consumer',     500, 'Low',  'SAFE'],
+  [14, 'FreshBite Foods',      'consumer',     250, 'Low',  'FRSH'],
+  [15, 'SneakerStreet',        'consumer',     750, 'Med',  'SNKR'],
+  // Real Estate — 17, 18, 20
+  [17, 'MetroHomes REIT',      'realestate',  1000, 'Low',  'MTRO'],
+  [18, 'TowerPoint Realty',    'realestate',  1250, 'Med',  'TWPT'],
+  [20, 'RentWell Properties',  'realestate',   750, 'Low',  'RENT'],
+  // Industrials — 21, 23, 24
+  [21, 'IronRail Logistics',   'industrials',  750, 'Low',  'IRON'],
   [23, 'BuildMax Materials',   'industrials',  500, 'Med',  'BLDM'],
-  [24, 'VitalSign Devices',    'health',       750, 'Low',  'VSGN'],
-  [27, 'SneakerStreet',        'consumer',     750, 'Med',  'SNKR'],
-  [29, 'CarePlus Clinics',     'health',       500, 'Low',  'CARE'],
-  [32, 'Apex Investments',     'finance',     1500, 'High', 'APEX'],
-  [33, 'RentWell Properties',  'realestate',   750, 'Low',  'RENT'],
-  [35, 'AeroLift Manufacturing','industrials', 1000, 'Med', 'AERO'],
+  [24, 'AeroLift Manufacturing','industrials', 1000, 'Med', 'AERO'],
+  // Technology — 27, 29
+  [27, 'CloudCore AI',         'tech',        1000, 'High', 'CCAI'],
+  [29, 'CyberShield Systems',  'tech',         750, 'High', 'CYBS'],
+  // Energy — 32, 33
+  [32, 'OilWorks Energy',      'energy',      1000, 'Med',  'OILW'],
+  [33, 'SolarGrid Power',      'energy',       750, 'High', 'SOLR'],
+  // Comms & Media — 35, 36
+  [35, 'StreamWave Media',     'comm',        1000, 'High', 'STRM'],
   [36, 'GameBox Studios',      'comm',         500, 'High', 'GMBX'],
 ];
 

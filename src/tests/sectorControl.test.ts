@@ -12,14 +12,14 @@ import { claimPayoutForLanding } from '../engine/soldOut';
 import { controlledSectorPairs, sectorPairOwner } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
-// blueChipAlliance pair: FTRB (finance, space 8) + IRON (industrials, space
-// 11) — $200 rent. A cross-category pair, deliberately chosen so owning
+// blueChipAlliance pair: FTRB (finance) + IRON (industrials) — $200 rent.
+// Spaces are read from the data, since the board's layout is a design choice. A cross-category pair, deliberately chosen so owning
 // both never also completes either company's *broad* Sector Portfolio
 // (finance and industrials each have 3 companies, not 2) — keeps this test
 // isolated from that separate, pre-existing boost.
 const PAIR = SECTOR_PAIRS.blueChipAlliance;
 const [CODE_A, CODE_B] = PAIR.codes; // FTRB, IRON
-const LANDING_SPACE = 11; // IRON
+const LANDING_SPACE = STOCK_BY_CODE[PAIR.codes[1]].space; // IRON, wherever the board puts it
 
 function expectedClaimOwed(holderShares: number, landingShares = 0) {
   const stock = STOCK_BY_CODE[CODE_B];
