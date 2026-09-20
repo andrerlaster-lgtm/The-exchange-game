@@ -14,7 +14,7 @@ const FTRB_CONTROL_RENT = PAYOUT_MULT_CONTROL * 1_000;
 describe('Outstanding Fees replace bank-fee insolvency', () => {
   it('Portfolio Tax can be carried without force-selling stock or losing cash', () => {
     let s = patch(started(2), (d) => {
-      d.players[0].pos = 23;
+      d.players[0].pos = 24;
       d.players[0].cash = 100;
       d.players[0].shares = { MEDI: 3 };
     });
@@ -33,7 +33,7 @@ describe('Outstanding Fees replace bank-fee insolvency', () => {
 
   it('Audit Notice can be carried even when cash is zero', () => {
     let s = patch(started(2), (d) => {
-      d.players[0].pos = 32;
+      d.players[0].pos = 33;
       d.players[0].cash = 0;
       d.players[0].shares = { FRSH: 1 };
       d.players[0].margin = 2_000;

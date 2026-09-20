@@ -206,10 +206,10 @@ const RAW_STOCKS: Array<[number, string, SectorId, number, Risk, string]> = [
   [3,  'VitalSign Devices',    'health',       750, 'Low',  'VSGN'],
   [5,  'MediCore Health',      'health',       750, 'Med',  'MEDI'],
   [6,  'CarePlus Clinics',     'health',       500, 'Low',  'CARE'],
-  // Finance — 8, 9, 11
+  // Finance — 8, 9, 10
   [8,  'FirstTrust Bank',      'finance',     1250, 'Low',  'FTRB'],
   [9,  'PayWave Credit',       'finance',      750, 'Med',  'PAYW'],
-  [11, 'Apex Investments',     'finance',     1500, 'High', 'APEX'],
+  [10, 'Apex Investments',     'finance',     1500, 'High', 'APEX'],
   // Consumer — 12, 14, 15
   [12, 'SafeMart Stores',      'consumer',     500, 'Low',  'SAFE'],
   [14, 'FreshBite Foods',      'consumer',     250, 'Low',  'FRSH'],
@@ -218,19 +218,21 @@ const RAW_STOCKS: Array<[number, string, SectorId, number, Risk, string]> = [
   [17, 'MetroHomes REIT',      'realestate',  1000, 'Low',  'MTRO'],
   [18, 'TowerPoint Realty',    'realestate',  1250, 'Med',  'TWPT'],
   [20, 'RentWell Properties',  'realestate',   750, 'Low',  'RENT'],
-  // Industrials — 21, 23, 24
-  [21, 'IronRail Logistics',   'industrials',  750, 'Low',  'IRON'],
-  [23, 'BuildMax Materials',   'industrials',  500, 'Med',  'BLDM'],
-  [24, 'AeroLift Manufacturing','industrials', 1000, 'Med', 'AERO'],
-  // Technology — 27, 29
+  // Industrials — 22, 24, 25
+  [22, 'IronRail Logistics',   'industrials',  750, 'Low',  'IRON'],
+  [24, 'BuildMax Materials',   'industrials',  500, 'Med',  'BLDM'],
+  [25, 'AeroLift Manufacturing','industrials', 1000, 'Med', 'AERO'],
+  // Technology — 27, 28, 30
   [27, 'CloudCore AI',         'tech',        1000, 'High', 'CCAI'],
-  [29, 'CyberShield Systems',  'tech',         750, 'High', 'CYBS'],
+  [28, 'CyberShield Systems',  'tech',         750, 'High', 'CYBS'],
+  [30, 'NovaMesh Networks',    'tech',        1000, 'Med',  'NVMS'],
   // Energy — 32, 33
   [32, 'OilWorks Energy',      'energy',      1000, 'Med',  'OILW'],
   [33, 'SolarGrid Power',      'energy',       750, 'High', 'SOLR'],
-  // Comms & Media — 35, 36
-  [35, 'StreamWave Media',     'comm',        1000, 'High', 'STRM'],
-  [36, 'GameBox Studios',      'comm',         500, 'High', 'GMBX'],
+  // Comms & Media — 36, 37, 39
+  [36, 'StreamWave Media',     'comm',        1000, 'High', 'STRM'],
+  [37, 'GameBox Studios',      'comm',         500, 'High', 'GMBX'],
+  [39, 'Playbook Sports',      'comm',         750, 'Med',  'PLBK'],
 ];
 
 export const STOCKS: Stock[] = RAW_STOCKS.map(([space, name, sector, base, risk, code]) => {

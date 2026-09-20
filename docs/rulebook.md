@@ -41,7 +41,7 @@ Consolidated Rules — Reconciled September 18, 2026
 
 ## 1. Game Overview
 
-The Exchange is a 2-6 player stock-market board game where players move around a 36-space board, buy shares, build portfolios, trade with each other, react to market events, and compete to finish with the highest final portfolio value.
+The Exchange is a 2-6 player stock-market board game where players move around a 40-space board, buy shares, build portfolios, trade with each other, react to market events, and compete to finish with the highest final portfolio value.
 
 The game should feel like a board-game version of investing: players are trying to buy into companies, control valuable spaces, complete sectors, diversify across the market, and profit when other players land on spaces they have claimed.
 
@@ -70,13 +70,13 @@ The setup screen offers two winning-score modes:
 
 ## 2. Components
 
-- 1 game board with 36 spaces
-- 22 regular stock spaces/cards, organized into 8 sectors (see Section 16)
+- 1 game board with 40 spaces (a corner plus 9 spaces on each side)
+- 24 regular stock spaces/cards, organized into 8 sectors (see Section 16)
 - 4 ETF spaces/cards
 - 1 IPO space, 1 Rate Decision space, and 3 IPO cards (shared reveal queue — see Section 19)
 - 1 The Fed space and Fed cards
 - 1 Market Swing space (combined Bull Run / Bear Run — resolved by a d6 roll on landing)
-- 2 Market Event spaces and the combined Market Event deck
+- 3 Market Event spaces and the combined Market Event deck
 - 1 Investor Day space
 - 1 Portfolio Tax space
 - 1 Audit Notice space
@@ -111,16 +111,16 @@ The setup screen offers two winning-score modes:
 
 ## 4. Board and Space Types
 
-The board has 36 spaces. The current rule direction preserves the board count and does not bring back Short Sell.
+The board has 40 spaces, matching a Monopoly board's shape: four corners and nine spaces on each side (2026-09-20, up from 36). Short Sell is not coming back.
 
 | Space type | Count | Purpose |
 |---|---|---|
 | Regular stock | 22 | Buy shares, build ownership, sell out companies, create Payout Claims, earn dividends |
 | ETF | 4 | Diversification-style investment route that pays at Market Open and can charge a landing fee |
 | The Fed | 1 | Draw and resolve a Fed card; space 7 |
-| Market Swing | 1 | Roll a d6 to decide Bull Run or Bear Run, then resolve it and every player's locked stance; space 19 |
+| Market Swing | 1 | Roll a d6 to decide Bull Run or Bear Run, then resolve it and every player's locked stance; space 21 |
 | IPO | 1 | Reveal and access IPO opportunities (shared queue of 3); space 10 |
-| Rate Decision | 1 | Roll a d6 to set the Fed's move on the Bank Rate (Section 21); space 28 |
+| Rate Decision | 2 | Roll a d6 to set the Fed's move on the Bank Rate (Section 21); spaces 19 and 31 |
 | Market Event | 2 | Draw and resolve a Market Event card; spaces 16 and 26 |
 | Market Open | 1 | Payday, Market Condition roll, then Market Open Trading Window |
 | Portfolio Tax | 1 | Penalty space based on net worth |
@@ -129,7 +129,7 @@ The board has 36 spaces. The current rule direction preserves the board count an
 
 **Board rule locks**
 - Market Open is payday plus a new Market Condition roll, and does not trigger a Market Event.
-- Spaces 16 and 26 are Market Event spaces; space 19 is the combined Market Swing space.
+- Spaces 16, 29 and 40 are Market Event spaces; space 21 is the combined Market Swing space.
 - Short Sell is not part of the standard game flow.
 - The 3D board is a renderer; the rules engine remains the source of truth.
 
@@ -345,7 +345,7 @@ Sector Control is a Monopoly-style "color-set" bonus layered on top of the broad
 
 **Sector Control pairs**
 
-The 22 regular stocks are grouped into 11 fixed pairs. Most pairs are drawn from the same Sector Portfolio sector, but a few deliberately cross sector lines:
+The 24 regular stocks include 11 fixed Sector Control pairs. Most pairs are drawn from the same Sector Portfolio sector, but a few deliberately cross sector lines:
 
 | Pair | Tier | Rent | Companies |
 |---|---|---:|---|
@@ -436,20 +436,20 @@ Sector Portfolio is the Monopoly color-group equivalent. It rewards concentratio
 
 **Sector map**
 
-The 22 regular stocks are divided into 8 sectors, unevenly sized. Each sector's companies sit **together on the board**, the way a Monopoly colour group does, and each sector has one colour — and that colour runs the price ladder, cheapest sector first, rather than describing the industry:
+The 24 regular stocks are divided into 8 sectors, unevenly sized. Each sector's companies sit **together on the board**, the way a Monopoly colour group does, and each sector has one colour — and that colour runs the price ladder, cheapest sector first, rather than describing the industry:
 
 | Sector | Board spaces | Colour | Companies | Count |
 |---|---|---|---|---:|
 | Healthcare | 2, 3, 5, 6 | Orange | BioQuest Labs (BIOQ) · VitalSign Devices (VSGN) · MediCore Health (MEDI) · CarePlus Clinics (CARE) | 4 |
-| Finance | 8, 9, 11 | Dark blue | FirstTrust Bank (FTRB) · PayWave Credit (PAYW) · Apex Investments (APEX) | 3 |
+| Finance | 8, 9, 10 | Dark blue | FirstTrust Bank (FTRB) · PayWave Credit (PAYW) · Apex Investments (APEX) | 3 |
 | Consumer | 12, 14, 15 | Brown | SafeMart Stores (SAFE) · FreshBite Foods (FRSH) · SneakerStreet (SNKR) | 3 |
 | Real Estate | 17, 18, 20 | Green | MetroHomes REIT (MTRO) · TowerPoint Realty (TWPT) · RentWell Properties (RENT) | 3 |
-| Industrials | 21, 23, 24 | Pink | IronRail Logistics (IRON) · BuildMax Materials (BLDM) · AeroLift Manufacturing (AERO) | 3 |
-| Technology | 27, 29 | Yellow | CloudCore AI (CCAI) · CyberShield Systems (CYBS) | 2 |
+| Industrials | 22, 24, 25 | Pink | IronRail Logistics (IRON) · BuildMax Materials (BLDM) · AeroLift Manufacturing (AERO) | 3 |
+| Technology | 27, 28, 30 | Yellow | CloudCore AI (CCAI) · CyberShield Systems (CYBS) · NovaMesh Networks (NVMS) | 3 |
 | Energy | 32, 33 | Red | OilWorks Energy (OILW) · SolarGrid Power (SOLR) | 2 |
-| Comms/Media | 35, 36 | Light blue | StreamWave Media (STRM) · GameBox Studios (GMBX) | 2 |
+| Comms/Media | 36, 37, 39 | Light blue | StreamWave Media (STRM) · GameBox Studios (GMBX) · Playbook Sports (PLBK) | 3 |
 
-A block may be interrupted by a special space — Finance runs 8, 9 and 11 around the IPO corner at 10, the way Monopoly's orange group straddles Community Chest. Every non-company space (The Fed, ETFs, Market Event, taxes, Investor Day, corners) is drawn in plain ink, so the eight sector colours are the only colour on the board.
+A block may be interrupted by a special space — Industrials runs 22, 24 and 25 around the Property Fund at 23, the way Monopoly's orange group straddles Community Chest. Every non-company space (The Fed, ETFs, Market Event, taxes, Investor Day, corners) is drawn in plain ink, so the eight sector colours are the only colour on the board.
 
 **Sector Portfolio rule**
 - A player completes a sector by owning at least 1 regular share in every regular company of that sector.
@@ -736,10 +736,10 @@ Two rates run in the background and set the basis points behind loans and part o
 | Market Open | Payday, then a new Market Condition roll, then the Market Open Trading Window. Does not draw a Market Event. |
 | Market Event — spaces 16 and 26 | Draw and resolve 1 Market Event card. Also triggered automatically if any stock reaches the $5,000 price ceiling. |
 | The Fed | Draw and resolve 1 Fed card. |
-| Market Swing — space 19 | Roll a d6: 1-3 resolves as a Bear Run, 4-6 resolves as a Bull Run. Then resolve that Run's stock movements and every player's current stance, and reset all players to Balanced. Circuit Breaker may protect one affected owned company from a Bear Run roll. |
+| Market Swing — space 21 | Roll a d6: 1-3 resolves as a Bear Run, 4-6 resolves as a Bull Run. Then resolve that Run's stock movements and every player's current stance, and reset all players to Balanced. Circuit Breaker may protect one affected owned company from a Bear Run roll. |
 | IPO | Resolve IPO reveal/purchase per Section 19. |
 | Rate Decision | Roll a d6: 1-2 cuts the Bank Rate 25 bp, 3-4 holds, 5-6 raises it 25 bp. A change applies the usual rate shock to prices (Section 21). |
-| Investor Day — space 31 | Choose one: **Company Growth** — one owned company rises 5% (500 bp), or a revealed IPO 2.5% (250 bp); $500 if nothing you own can rise. **Half-price level** — buy the next development level on a company you control at half cost, rounded to $100 (Level Ⅰ $1,000, Ⅱ $2,000, Ⅲ $2,500); it still needs the portfolio gate and cash floor, and does not use the turn's one upgrade. **Insider Information** — preview the next Market Event without drawing it. Crossing $5,000 on a growth triggers a Market Event as usual. |
+| Investor Day — space 38 | Choose one: **Company Growth** — one owned company rises 5% (500 bp), or a revealed IPO 2.5% (250 bp); $500 if nothing you own can rise. **Half-price level** — buy the next development level on a company you control at half cost, rounded to $100 (Level Ⅰ $1,000, Ⅱ $2,000, Ⅲ $2,500); it still needs the portfolio gate and cash floor, and does not use the turn's one upgrade. **Insider Information** — preview the next Market Event without drawing it. Crossing $5,000 on a growth triggers a Market Event as usual. |
 | Portfolio Tax | Charge equals 10% of current net worth. Choose Pay Now or Carry as Debt under Outstanding Fees. |
 | Audit Notice | Charge equals 5% of current net worth, rounded to the nearest $100, with a $500 minimum. Outstanding Margin raises the rate to 7.5% with a $750 minimum. Choose Pay Now or Carry as Debt. |
 
@@ -747,7 +747,7 @@ Two rates run in the background and set the basis points behind loans and part o
 
 **Market Swing, Bull Run, Bear Run, and Market Stance**
 
-Landing on Market Swing (space 19) does not resolve a Run directly — it opens a required roll first. The active player rolls 1 die: 1-3 resolves the landing as a Bear Run, 4-6 resolves it as a Bull Run. Once rolled, that Run resolves exactly as described below; there is no further choice.
+Landing on Market Swing (space 21) does not resolve a Run directly — it opens a required roll first. The active player rolls 1 die: 1-3 resolves the landing as a Bear Run, 4-6 resolves it as a Bull Run. Once rolled, that Run resolves exactly as described below; there is no further choice.
 
 Each player holds one visible Market Stance. The latest qualifying action replaces the previous stance:
 

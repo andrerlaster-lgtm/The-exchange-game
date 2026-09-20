@@ -99,7 +99,7 @@ describe('Diversified / Broad Market Portfolio', () => {
   it('pays only the highest bonus (not both) at Market Open', () => {
     let s = started(2);
     const shares = { SAFE: 1, MTRO: 1, FTRB: 1, IRON: 1, CARE: 1, CCAI: 1 }; // Broad Market
-    s = patch(s, (d) => { d.players[0].shares = shares; d.players[0].pos = 34; });
+    s = patch(s, (d) => { d.players[0].shares = shares; d.players[0].pos = 38; });
     const cashBefore = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // wraps past Market Open
     // +$500 salary + $200 SAFE dividend (only priced stock with a dividend here: SAFE is Low risk) + $600 Broad Market

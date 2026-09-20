@@ -11,7 +11,7 @@ describe('Trading Market — sell without landing', () => {
   it('canMarketSell is false before rolling, true once acted with nothing pending', () => {
     const s = started();
     expect(canMarketSell(s)).toBe(false); // preRoll
-    const acted = rollTo(s, 20); // land on a non-blocking space
+    const acted = rollTo(s, 9); // land on a non-blocking space
     expect(acted.turnPhase).toBe('acted');
     expect(canMarketSell(acted)).toBe(true);
   });
@@ -106,7 +106,7 @@ describe('Trading Market — sell without landing', () => {
     expect(projectedDividend(s, s.players[0])).toBe(STOCK_BY_CODE.SAFE.div * 3);
 
     s = patch(s, (d) => {
-      d.players[0].pos = 34;
+      d.players[0].pos = 38;
       d.turnPhase = 'preRoll';
       d.trade = null;
     });

@@ -15,7 +15,7 @@ function buyThenWrap() {
   let s = started(2);
   s = rollTo(s, 5); // MEDI stock space
   s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
-  s = patch(s, (d) => { d.players[0].pos = 34; d.turnPhase = 'preRoll'; });
+  s = patch(s, (d) => { d.players[0].pos = 38; d.turnPhase = 'preRoll'; });
   return dispatch(s, { t: 'roll' }, scriptedRng([1, 3])); // 34 + 4 wraps to space 2
 }
 
@@ -36,7 +36,7 @@ describe('Market Open Report', () => {
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
     // Bump MEDI's price up a step before the lap completes, so the report
     // captures a real unrealized gain (not just a $0 baseline).
-    s = patch(s, (d) => { d.prices.MEDI += 1; d.players[0].pos = 34; d.turnPhase = 'preRoll'; });
+    s = patch(s, (d) => { d.prices.MEDI += 1; d.players[0].pos = 38; d.turnPhase = 'preRoll'; });
     const expected = holdingGainLoss(s, s.players[0], 'MEDI');
     expect(expected.unrealized).toBeGreaterThan(0); // sanity: the bump actually created a gain
 
@@ -51,7 +51,7 @@ describe('Market Open Report', () => {
 
   it('has no trades or holdings listed when the player did nothing this lap', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; });
+    s = patch(s, (d) => { d.players[0].pos = 38; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
 
     expect(s.marketOpenReport!.trades).toEqual([]);
@@ -77,7 +77,7 @@ describe('Market Open Report', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.players[0].shares = { SAFE: 2 }; // Low-risk, $110/share
-      d.players[0].pos = 34;
+      d.players[0].pos = 38;
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // wraps to space 2, not landing exactly
 
@@ -92,7 +92,7 @@ describe('Market Open Report', () => {
 
   it('doubles salary in the breakdown when landing exactly on Market Open', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 33; d.turnPhase = 'preRoll'; });
+    s = patch(s, (d) => { d.players[0].pos = 37; d.turnPhase = 'preRoll'; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 3])); // 33 + 4 = space 1 exactly
 
     const inc = s.marketOpenReport!.income;
@@ -102,7 +102,7 @@ describe('Market Open Report', () => {
 
   it('includes the Recovery Bonus when cash was low walking in', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].cash = 500; d.players[0].pos = 34; });
+    s = patch(s, (d) => { d.players[0].cash = 500; d.players[0].pos = 38; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
 
     const inc = s.marketOpenReport!.income;
@@ -114,7 +114,7 @@ describe('Market Open Report', () => {
 
   it('captures margin repayment in the breakdown', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].margin = 2_000; d.players[0].pos = 34; });
+    s = patch(s, (d) => { d.players[0].margin = 2_000; d.players[0].pos = 38; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
 
     const inc = s.marketOpenReport!.income;
@@ -127,7 +127,7 @@ describe('Market Open Report', () => {
     let s = started(2);
     s = rollTo(s, 5); // MEDI stock space
     s = dispatch(s, { t: 'buy', code: 'MEDI' }, rng());
-    s = patch(s, (d) => { d.players[0].pos = 34; d.turnPhase = 'preRoll'; });
+    s = patch(s, (d) => { d.players[0].pos = 38; d.turnPhase = 'preRoll'; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // double — wraps AND earns a bonus roll
     expect(s.marketOpenReport).not.toBeNull();
     expect(s.bonusRollPending).toBe(true);

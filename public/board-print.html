@@ -49,8 +49,8 @@
   .board {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    grid-template-rows: repeat(10, 1fr);
+    grid-template-columns: repeat(11, 1fr);
+    grid-template-rows: repeat(11, 1fr);
     gap: 1.2mm;
     border: 0.6mm solid #1a1a2e;
     border-radius: 3mm;
@@ -203,57 +203,62 @@
 
 <script>
 // ── Data ──────────────────────────────────────────────────────────────────────
+// Colours climb the price ladder, cheapest sector first (see src/data/stocks.ts).
 const SECTORS = {
-  tech:        { name: 'Technology',    color: '#4DA3FF' },
-  consumer:    { name: 'Consumer',      color: '#F0C53D' },
-  health:      { name: 'Healthcare',    color: '#2DD4BF' },
-  energy:      { name: 'Energy',        color: '#FF9442' },
-  finance:     { name: 'Finance',       color: '#3ED598' },
-  realestate:  { name: 'Real Estate',   color: '#A78BFA' },
-  industrials: { name: 'Industrials',   color: '#9AA5B1' },
-  comm:        { name: 'Comms/Media',   color: '#F87171' },
+  consumer:    { name: 'Consumer',      color: '#8B5A2B' },
+  comm:        { name: 'Comms/Media',   color: '#7FC6EA' },
+  industrials: { name: 'Industrials',   color: '#CE4E92' },
+  health:      { name: 'Healthcare',    color: '#E98A1F' },
+  energy:      { name: 'Energy',        color: '#D8453A' },
+  tech:        { name: 'Technology',    color: '#DFBE2E' },
+  realestate:  { name: 'Real Estate',   color: '#2E9E5B' },
+  finance:     { name: 'Finance',       color: '#2D6FA8' },
 };
 
 const STOCKS = [
-  [2,  'CloudCore AI',          'tech',        '$1k',   'CCAI'],
-  [3,  'SafeMart Stores',       'consumer',    '$500',  'SAFE'],
+  [2,  'BioQuest Labs',         'health',      '$1k',   'BIOQ'],
+  [3,  'VitalSign Devices',     'health',      '$750',  'VSGN'],
   [5,  'MediCore Health',       'health',      '$750',  'MEDI'],
-  [6,  'OilWorks Energy',       'energy',      '$1k',   'OILW'],
+  [6,  'CarePlus Clinics',      'health',      '$500',  'CARE'],
   [8,  'FirstTrust Bank',       'finance',     '$1.25k','FTRB'],
-  [9,  'MetroHomes REIT',       'realestate',  '$1k',   'MTRO'],
-  [11, 'IronRail Logistics',    'industrials', '$750',  'IRON'],
-  [12, 'StreamWave Media',      'comm',        '$1k',   'STRM'],
-  [14, 'CyberShield Systems',   'tech',        '$750',  'CYBS'],
-  [15, 'FreshBite Foods',       'consumer',    '$250',  'FRSH'],
-  [17, 'BioQuest Labs',         'health',      '$1k',   'BIOQ'],
-  [18, 'SolarGrid Power',       'energy',      '$750',  'SOLR'],
-  [20, 'PayWave Credit',        'finance',     '$750',  'PAYW'],
-  [21, 'TowerPoint Realty',     'realestate',  '$1.25k','TWPT'],
-  [23, 'BuildMax Materials',    'industrials', '$500',  'BLDM'],
-  [24, 'VitalSign Devices',     'health',      '$750',  'VSGN'],
-  [27, 'SneakerStreet',         'consumer',    '$750',  'SNKR'],
-  [29, 'CarePlus Clinics',      'health',      '$500',  'CARE'],
-  [32, 'Apex Investments',      'finance',     '$1.5k', 'APEX'],
-  [33, 'RentWell Properties',   'realestate',  '$750',  'RENT'],
-  [35, 'AeroLift Manufacturing','industrials', '$1k',   'AERO'],
-  [36, 'GameBox Studios',       'comm',        '$500',  'GMBX'],
+  [9,  'PayWave Credit',        'finance',     '$750',  'PAYW'],
+  [10, 'Apex Investments',      'finance',     '$1.5k', 'APEX'],
+  [12, 'SafeMart Stores',       'consumer',    '$500',  'SAFE'],
+  [14, 'FreshBite Foods',       'consumer',    '$250',  'FRSH'],
+  [15, 'SneakerStreet',         'consumer',    '$750',  'SNKR'],
+  [17, 'MetroHomes REIT',       'realestate',  '$1k',   'MTRO'],
+  [18, 'TowerPoint Realty',     'realestate',  '$1.25k','TWPT'],
+  [20, 'RentWell Properties',   'realestate',  '$750',  'RENT'],
+  [22, 'IronRail Logistics',    'industrials', '$750',  'IRON'],
+  [24, 'BuildMax Materials',    'industrials', '$500',  'BLDM'],
+  [25, 'AeroLift Manufacturing','industrials', '$1k',   'AERO'],
+  [27, 'CloudCore AI',          'tech',        '$1k',   'CCAI'],
+  [28, 'CyberShield Systems',   'tech',        '$750',  'CYBS'],
+  [30, 'NovaMesh Networks',     'tech',        '$1k',   'NVMS'],
+  [32, 'OilWorks Energy',       'energy',      '$1k',   'OILW'],
+  [33, 'SolarGrid Power',       'energy',      '$750',  'SOLR'],
+  [36, 'StreamWave Media',      'comm',        '$1k',   'STRM'],
+  [37, 'GameBox Studios',       'comm',        '$500',  'GMBX'],
+  [39, 'Playbook Sports',       'comm',        '$750',  'PLBK'],
 ];
 
 const SPECIALS = {
   1:  { glyph: '▲', name: 'MARKET OPEN',      color: '#22c55e', corner: true  },
   4:  { glyph: '◆', name: 'GROWTH FUND',      color: '#4da3ff', corner: false },
   7:  { glyph: '%', name: 'THE FED',           color: '#f0b429', corner: false },
-  10: { glyph: '↑', name: 'IPO',               color: '#22c55e', corner: true  },
+  11: { glyph: '↑', name: 'IPO',               color: '#22c55e', corner: true  },
   13: { glyph: '■', name: 'INCOME FUND',       color: '#3ed598', corner: false },
   16: { glyph: '◈', name: 'MARKET EVENT',     color: '#FF5C5C', corner: false },
-  19: { glyph: '⚡', name: 'MARKET SWING',     color: '#A78BFA', corner: true  },
-  22: { glyph: '⌂', name: 'PROPERTY FUND',    color: '#a78bfa', corner: false },
-  25: { glyph: '$', name: 'PORTFOLIO TAX',     color: '#94a3b8', corner: false },
-  26: { glyph: '◈', name: 'MARKET EVENT',     color: '#FF5C5C', corner: false },
-  28: { glyph: '↑', name: 'IPO',               color: '#22c55e', corner: true  },
-  30: { glyph: '▲', name: 'ENERGY FUND',       color: '#ff9442', corner: false },
-  31: { glyph: '★', name: 'INVESTOR DAY',       color: '#c4b5fd', corner: false },
-  34: { glyph: '⚑', name: 'AUDIT NOTICE',      color: '#e8b44c', corner: false },
+  19: { glyph: '%', name: 'RATE DECISION',     color: '#e8b44c', corner: false },
+  21: { glyph: '⚡', name: 'MARKET SWING',     color: '#A78BFA', corner: true  },
+  23: { glyph: '⌂', name: 'PROPERTY FUND',    color: '#a78bfa', corner: false },
+  26: { glyph: '$', name: 'PORTFOLIO TAX',     color: '#94a3b8', corner: false },
+  29: { glyph: '◈', name: 'MARKET EVENT',     color: '#FF5C5C', corner: false },
+  31: { glyph: '%', name: 'RATE DECISION',     color: '#e8b44c', corner: true  },
+  34: { glyph: '▲', name: 'ENERGY FUND',       color: '#ff9442', corner: false },
+  35: { glyph: '⚑', name: 'AUDIT NOTICE',      color: '#e8b44c', corner: false },
+  38: { glyph: '★', name: 'INVESTOR DAY',       color: '#c4b5fd', corner: false },
+  40: { glyph: '◈', name: 'MARKET EVENT',     color: '#FF5C5C', corner: false },
 };
 
 const STOCK_BY_SPACE = {};
@@ -262,13 +267,15 @@ STOCKS.forEach(([sp, name, sector, price, code]) => {
 });
 
 // ── Grid position ──────────────────────────────────────────────────────────────
+// 40 spaces on an 11x11 grid since 2026-09-20 (was 36 on 10x10).
+const BOARD_SIZE = 40, SIDE = BOARD_SIZE / 4 + 1;
 function gridPos(n) {
-  if (n <= 10) return { col: n,          row: 1 };
-  if (n <= 18) return { col: 10,         row: n - 9 };
-  if (n === 19) return { col: 10,        row: 10 };
-  if (n <= 27) return { col: 10 - (n - 19), row: 10 };
-  if (n === 28) return { col: 1,         row: 10 };
-  return              { col: 1,          row: 10 - (n - 28) };
+  if (n <= SIDE) return { col: n, row: 1 };
+  if (n < SIDE * 2 - 1) return { col: SIDE, row: n - SIDE + 1 };
+  if (n === SIDE * 2 - 1) return { col: SIDE, row: SIDE };
+  if (n < SIDE * 3 - 2) return { col: SIDE - (n - (SIDE * 2 - 1)), row: SIDE };
+  if (n === SIDE * 3 - 2) return { col: 1, row: SIDE };
+  return { col: 1, row: SIDE - (n - (SIDE * 3 - 2)) };
 }
 
 // ── Build board ────────────────────────────────────────────────────────────────
@@ -277,8 +284,8 @@ const board = document.getElementById('board');
 // Center panel
 const center = document.createElement('div');
 center.className = 'center';
-center.style.gridColumn = '2 / 10';
-center.style.gridRow = '2 / 10';
+center.style.gridColumn = '2 / 11';
+center.style.gridRow = '2 / 11';
 center.innerHTML = `
   <div class="center-inner">
     <div class="c-sub">The</div>
@@ -299,7 +306,7 @@ center.innerHTML = `
 board.appendChild(center);
 
 // Spaces
-for (let n = 1; n <= 36; n++) {
+for (let n = 1; n <= BOARD_SIZE; n++) {
   const { col, row } = gridPos(n);
   const el = document.createElement('div');
   el.className = 'space';

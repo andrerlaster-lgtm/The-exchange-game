@@ -175,7 +175,7 @@ describe('Rule 3 — share supply limits & stock-space scope', () => {
 describe('Rule 4 — Market Event: triggered by landing on space 16 (not Market Open)', () => {
   it('passing Market Open does NOT queue a Market Event draw (payday only)', () => {
     let s = started();
-    s = patch(s, (d) => { d.players[0].pos = 34; }); // roll 2+2 → pos 2, passes MO at 1
+    s = patch(s, (d) => { d.players[0].pos = 38; }); // roll 2+2 → pos 2, passes MO at 1
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     expect(s.players[0].pos).toBe(2);
     expect(s.pendingDraws).toHaveLength(0); // Market Open is payday only — no ME draw

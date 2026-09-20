@@ -35,8 +35,8 @@ export function etfLandingFee(distinctFunds: number): number {
 export const ETF_DEFS: EtfDef[] = [
   { code: 'GRW',  name: 'Growth Fund',   space:  4, price: ETF_PRICE, color: '#4DA3FF', glyph: '◆' },
   { code: 'INC',  name: 'Income Fund',   space: 13, price: ETF_PRICE, color: '#3ED598', glyph: '■' },
-  { code: 'PROP', name: 'Property Fund', space: 22, price: ETF_PRICE, color: '#A78BFA', glyph: '⌂' },
-  { code: 'ENE',  name: 'Energy Fund',   space: 30, price: ETF_PRICE, color: '#FF9442', glyph: '▲' },
+  { code: 'PROP', name: 'Property Fund', space: 23, price: ETF_PRICE, color: '#A78BFA', glyph: '⌂' },
+  { code: 'ENE',  name: 'Energy Fund',   space: 34, price: ETF_PRICE, color: '#FF9442', glyph: '▲' },
 ];
 
 export const ETF_BY_CODE: Record<string, EtfDef> = Object.fromEntries(

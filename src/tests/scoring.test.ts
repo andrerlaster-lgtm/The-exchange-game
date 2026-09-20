@@ -8,7 +8,7 @@ import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 describe('Rule 8 — Market Open base income + dividends', () => {
   it('passing Market Open pays base salary', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; });
+    s = patch(s, (d) => { d.players[0].pos = 38; });
     const cash = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     expect(s.players[0].pos).toBe(2);
@@ -18,7 +18,7 @@ describe('Rule 8 — Market Open base income + dividends', () => {
 
   it('pays printed dividends per share', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { SAFE: 2, CCAI: 3 }; });
+    s = patch(s, (d) => { d.players[0].pos = 38; d.players[0].shares = { SAFE: 2, CCAI: 3 }; });
     const cash = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     // 2026-08-21 Market Overhaul: High risk (CCAI) now earns a small nonzero

@@ -149,7 +149,7 @@ describe('stock cost basis and gain/loss', () => {
   });
 
   it('records IPO purchase price as cost basis', () => {
-    let s = rollTo(started(2), 10);
+    let s = rollTo(started(2), 11);
     const code = s.ipoBuy!.code;
     const price = s.ipoBuy!.price;
     s = dispatch(s, { t: 'ipoBuyShare' }, rng());
@@ -221,7 +221,7 @@ describe('lapReturnPct', () => {
 
 describe('Gain/Loss Mode', () => {
   it('excludes salary from Market Gain', () => {
-    let s = patch(started(2), (draft) => { draft.players[0].pos = 34; });
+    let s = patch(started(2), (draft) => { draft.players[0].pos = 38; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
 
     expect(s.players[0].salaryCollected).toBe(SALARY);

@@ -27,7 +27,7 @@ function landOnMedi(s: ReturnType<typeof started>) {
 }
 
 function passMarketOpen(s: ReturnType<typeof started>) {
-  const placed = patch(s, (d) => { d.players[d.cur].pos = 34; d.turnPhase = 'preRoll'; });
+  const placed = patch(s, (d) => { d.players[d.cur].pos = 38; d.turnPhase = 'preRoll'; });
   return dispatch(placed, { t: 'roll' }, scriptedRng([1, 2])); // 34 + 3 -> space 1
 }
 

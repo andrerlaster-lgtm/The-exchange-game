@@ -25,7 +25,7 @@ describe('Session Debrief', () => {
 
     expect(summary.lapsReached).toBe(4);
     expect(summary.companiesCornered).toBe(2);
-    expect(summary.companiesUntouched).toBe(20);
+    expect(summary.companiesUntouched).toBe(22); // 24 companies, 2 cornered
     expect(summary.outstandingFees).toBe(3_200);
     expect(summary.interestStillOwed).toBe(200);
     expect(summary.biggestSwingPlayer).toBe('Morgan');

@@ -27,7 +27,7 @@ function landOnMedi(s: ReturnType<typeof started>) {
 describe('Outstanding Shares — availability', () => {
   it('does not open an auction at Market Open', () => {
     let s = withOutstanding(started(2), 2);
-    s = patch(s, (draft) => { draft.players[0].pos = 34; draft.turnPhase = 'preRoll'; });
+    s = patch(s, (draft) => { draft.players[0].pos = 38; draft.turnPhase = 'preRoll'; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 2]));
 
     expect(s.auction).toBeNull();

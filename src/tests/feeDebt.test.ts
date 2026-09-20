@@ -5,7 +5,7 @@ import { dispatch, patch, rng, rollTo, started } from './helpers';
 
 describe('Outstanding Fees debt', () => {
   it('carries a Portfolio Tax charge into the portfolio without taking cash', () => {
-    let s = rollTo(started(2), 25);
+    let s = rollTo(started(2), 26);
     const cashBefore = s.players[0].cash;
     const charge = s.landingNotice!.amount;
 

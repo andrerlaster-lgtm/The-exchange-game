@@ -16,12 +16,13 @@ function normalizeLabel(label: string): string {
   return label.replace(/\\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
-// Space numbers touched by the 2026-09-18 redesign: dedicated Bull Run/Bear Run spaces at
-// 16/26 were collapsed into a combined "Market Swing" space at 19. Event/regime spaces like
-// these keep the same wording everywhere; other special spaces (ETF funds, portfolio tax)
-// intentionally use shortened labels and a shared ETF glyph on the small board tiles, so
-// this test is scoped to the event/regime spaces rather than asserting universal parity.
-const SPECIAL_SPACE_NUMBERS = [16, 19, 26];
+// Event and regime spaces keep the same wording in every renderer; other
+// special spaces (ETF funds, portfolio tax) intentionally use shortened
+// labels and a shared ETF glyph on the small board tiles, so this test is
+// scoped to the event/regime ones rather than asserting universal parity.
+// Renumbered for the 40-space board (2026-09-20): Market Events at 16, 29 and
+// 40, Market Swing on the corner at 21.
+const SPECIAL_SPACE_NUMBERS = [16, 21, 29, 40];
 
 function canonicalLabelAndGlyph(n: number): { label: string; glyph: string } {
   const space = SPACES.find((s) => s.n === n)!;

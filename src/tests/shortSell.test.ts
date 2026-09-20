@@ -1,4 +1,4 @@
-// Rule — Portfolio Tax (space 25) and Audit Notice (space 34).
+// Rule — Portfolio Tax (space 26) and Audit Notice (space 35).
 // Short Sell was removed from the board; its state types are kept for legacy safety.
 
 import { describe, expect, it } from 'vitest';
@@ -8,9 +8,9 @@ import { dispatch, patch, scriptedRng, started } from './helpers';
 describe('Portfolio Tax (space 25)', () => {
   it('offers a 10% charge that can be paid immediately', () => {
     let s = started(2);
-    // pos 23 → roll [1,1] → lands on 25 (no Market Open pass)
+    // pos 24 → roll [1,1] → lands on 26, Portfolio Tax (no Market Open pass)
     s = patch(s, (d) => {
-      d.players[0].pos = 23;
+      d.players[0].pos = 24;
       d.players[0].cash = 8000;
       d.players[0].shares = { MEDI: 2 };
       d.players[0].margin = 0;
@@ -18,7 +18,7 @@ describe('Portfolio Tax (space 25)', () => {
     const nwBefore = netWorth(s, s.players[0]);
     const expectedTax = Math.max(0, Math.round(nwBefore * 0.10 / 100) * 100);
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
-    expect(s.players[0].pos).toBe(25);
+    expect(s.players[0].pos).toBe(26);
     expect(s.players[0].cash).toBe(8000);
     expect(s.landingNotice?.amount).toBe(expectedTax);
     s = dispatch(s, { t: 'payLandingFee' }, scriptedRng([]));
@@ -28,28 +28,28 @@ describe('Portfolio Tax (space 25)', () => {
   it('charges 0 when net worth is zero or negative', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].pos = 23;
+      d.players[0].pos = 24;
       d.players[0].cash = 0;
       d.players[0].shares = {};
       d.players[0].margin = 5000;
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
-    expect(s.players[0].pos).toBe(25);
+    expect(s.players[0].pos).toBe(26);
     expect(s.players[0].cash).toBe(0);
     expect(s.landingNotice?.amount).toBe(0);
   });
 });
 
-describe('Audit Notice (space 34)', () => {
+describe('Audit Notice (space 35)', () => {
   it('offers 5% of net worth when that is above the $500 minimum', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].pos = 32;
+      d.players[0].pos = 33;
       d.players[0].cash = 40_000;
       d.players[0].margin = 0;
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
-    expect(s.players[0].pos).toBe(34);
+    expect(s.players[0].pos).toBe(35);
     expect(s.players[0].cash).toBe(40_000);
     expect(s.landingNotice?.amount).toBe(2_000);
     s = dispatch(s, { t: 'payLandingFee' }, scriptedRng([]));
@@ -59,12 +59,12 @@ describe('Audit Notice (space 34)', () => {
   it('offers 7.5% of net worth when the player has margin', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].pos = 32;
+      d.players[0].pos = 33;
       d.players[0].cash = 42_000;
       d.players[0].margin = 2_000;
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1]));
-    expect(s.players[0].pos).toBe(34);
+    expect(s.players[0].pos).toBe(35);
     expect(s.players[0].cash).toBe(42_000);
     expect(s.landingNotice?.amount).toBe(3_000);
     s = dispatch(s, { t: 'payLandingFee' }, scriptedRng([]));
@@ -73,14 +73,14 @@ describe('Audit Notice (space 34)', () => {
 
   it('keeps the former $500 / $750 minimum charges for low net worth', () => {
     let noMargin = patch(started(2), (d) => {
-      d.players[0].pos = 32;
+      d.players[0].pos = 33;
       d.players[0].cash = 1_000;
     });
     noMargin = dispatch(noMargin, { t: 'roll' }, scriptedRng([1, 1]));
     expect(noMargin.landingNotice?.amount).toBe(500);
 
     let withMargin = patch(started(2), (d) => {
-      d.players[0].pos = 32;
+      d.players[0].pos = 33;
       d.players[0].cash = 1_000;
       d.players[0].margin = 500;
     });

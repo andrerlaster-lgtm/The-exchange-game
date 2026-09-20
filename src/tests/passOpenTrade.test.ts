@@ -3,14 +3,14 @@
 // draw from a draw-space (Fed/Market Event) never strips a concurrent trade.
 
 import { describe, expect, it } from 'vitest';
-import { SPACES } from '../data';
+import { BOARD_SIZE, SPACES } from '../data';
 import { dispatch, patch, rollTo, scriptedRng, started } from './helpers';
 
 describe('Market Open payday vs. Market Event space', () => {
   it('passing Market Open onto a stock space sets the trade but queues no draw', () => {
     const STOCK_SPACE = SPACES.find((sp) => sp.type === 'stock')!.n;
     let s = started(2);
-    const total = 36;
+    const total = BOARD_SIZE;
     const from = ((STOCK_SPACE - 1 - 4 + total) % total) + 1; // land STOCK_SPACE after rolling 4
     s = patch(s, (d) => { d.players[d.cur].pos = from; d.turnPhase = 'preRoll'; });
 

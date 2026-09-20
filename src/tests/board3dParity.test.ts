@@ -92,7 +92,7 @@ describe('3D Action Center parity', () => {
 
   it('offers both Investor Day paths and the follow-up company choice in 3D', () => {
     let s = patch(started(2), (draft) => { draft.players[0].shares.MEDI = 11; });
-    s = rollTo(s, 31);
+    s = rollTo(s, 38);
     const decision = buildActionCenter(s).required.find((entry) => entry.id === 'investor-day');
 
     expect(decision?.title).toBe('Investor Day · Choose One');
@@ -127,7 +127,7 @@ describe('3D Action Center parity', () => {
   });
 
   it('shows Pay Now and Carry as Debt for Audit Notice in 3D', () => {
-    let s = rollTo(started(2), 34);
+    let s = rollTo(started(2), 35);
     const notice = buildActionCenter(s).required.find((entry) => entry.id === 'landing-notice-audit');
 
     expect(notice?.title).toContain('−$1,800');
@@ -165,7 +165,7 @@ describe('3D Action Center parity', () => {
   });
 
   it('lets a fresh IPO landing buy through the same action exposed in 3D', () => {
-    let s = rollTo(started(2), 10);
+    let s = rollTo(started(2), 11);
     const code = s.ipoBuy!.code;
     const buy = buildActionCenter(s).required.find((entry) => entry.id === 'ipo-buy');
 

@@ -3,13 +3,13 @@ import { CEILING_TRIGGER, MOVE_BP, UPGRADE_LEVELS, applyBasisPoints, investorDay
 import { blocked, developmentOf, investorDayUpgradeTarget } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
-describe('Investor Day — space 31', () => {
+describe('Investor Day — space 38', () => {
   it('offers Company Growth or Insider Information when the player owns no regular company', () => {
     let s = started(2);
     const cash = s.players[0].cash;
-    s = rollTo(s, 31);
+    s = rollTo(s, 38);
 
-    expect(s.players[0].pos).toBe(31);
+    expect(s.players[0].pos).toBe(38);
     expect(s.players[0].cash).toBe(cash);
     expect(s.investorDay?.eligibleCodes).toEqual([]);
     expect(blocked(s)).toBe(true);
@@ -24,7 +24,7 @@ describe('Investor Day — space 31', () => {
   it('requires the owner to choose one eligible regular company to move up', () => {
     let s = patch(started(2), (d) => { d.players[0].shares.MEDI = 11; });
     const before = s.prices.MEDI;
-    s = rollTo(s, 31);
+    s = rollTo(s, 38);
 
     expect(s.investorDay?.eligibleCodes).toEqual(['MEDI']);
     expect(s.pick).toBeNull();
@@ -48,7 +48,7 @@ describe('Investor Day — space 31', () => {
       d.players[0].shares = {};
     });
     const cash = s.players[0].cash;
-    s = rollTo(s, 31);
+    s = rollTo(s, 38);
 
     expect(s.investorDay?.eligibleCodes).toEqual([]);
     s = dispatch(s, { t: 'chooseInvestorGrowth' }, rng());
@@ -61,7 +61,7 @@ describe('Investor Day — space 31', () => {
       d.players[0].shares.MEDI = 11;
       d.prices.MEDI = CEILING_TRIGGER - 25;
     });
-    s = rollTo(s, 31);
+    s = rollTo(s, 38);
     s = dispatch(s, { t: 'chooseInvestorGrowth' }, rng());
     s = dispatch(s, { t: 'pickTarget', code: 'MEDI' }, rng());
 
@@ -71,7 +71,7 @@ describe('Investor Day — space 31', () => {
 
   it('previews the next Market Event without drawing, resolving, or removing it', () => {
     let s = started(2);
-    s = rollTo(s, 31);
+    s = rollTo(s, 38);
     const nextIndex = s.decks.ME[0];
     const deckLength = s.decks.ME.length;
     const prices = { ...s.prices };
@@ -104,7 +104,7 @@ describe('Investor Day — IPOs and the half-price level', () => {
 
   /** Land player 0 on Investor Day with whatever holdings the test needs. */
   function onInvestorDay(extra: (d: ReturnType<typeof started>) => void = () => {}) {
-    return rollTo(patch(started(2), (d) => { d.players[0].cash = 60_000; extra(d); }), 31);
+    return rollTo(patch(started(2), (d) => { d.players[0].cash = 60_000; extra(d); }), 38);
   }
   const growth = (s: ReturnType<typeof started>) => dispatch(s, { t: 'chooseInvestorGrowth' }, rng());
   const pickCode = (s: ReturnType<typeof started>, code: string) => dispatch(s, { t: 'pickTarget', code }, rng());

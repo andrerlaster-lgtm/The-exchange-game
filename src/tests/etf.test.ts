@@ -61,7 +61,7 @@ describe('ETF diversification bonus (different funds)', () => {
     const etfShares = Object.fromEntries(ETF_DEFS.map((e) => [e.code, 1]));
     s = patch(s, (d) => {
       d.players[0].etfShares = etfShares;
-      d.players[0].pos = 33; // 33 + 4 = 37 → wraps to space 1 (Market Open)
+      d.players[0].pos = 37; // 37 + 4 = 41 → wraps to space 1 (Market Open)
     });
     const cashBefore = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // total 4
@@ -73,7 +73,7 @@ describe('ETF diversification bonus (different funds)', () => {
   it('ETF shares can never be force-sold (rulebook §17): forcedSell only touches p.shares', () => {
     let s = started(2);
     s = patch(s, (d) => {
-      d.players[0].pos = 23;
+      d.players[0].pos = 24;
       d.players[0].cash = 0;
       d.players[0].shares = {};
       d.players[0].etfShares = { GRW: 2 };

@@ -27,7 +27,7 @@ describe('Event card draw', () => {
   it('Investor Day replaces the former After-Hours draw space', () => {
     let s = started();
     const cash = s.players[0].cash;
-    s = rollTo(s, 31);
+    s = rollTo(s, 38);
     expect(s.pendingDraws).toHaveLength(0);
     expect(s.investorDay).not.toBeNull();
     s = dispatch(s, { t: 'chooseInvestorGrowth' }, rng());

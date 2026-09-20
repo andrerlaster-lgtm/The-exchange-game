@@ -635,32 +635,37 @@
       1: {color:'#22c55e',label:'MKT\nOPEN',glyph:'»',corner:true},
       4: {color:'#4da3ff',label:'GROWTH\nFUND',glyph:'◆',etf:true},
       7: {color:'#f0b429',label:'THE\nFED',glyph:'%'},
-      10:{color:'#4ade80',label:'IPO',glyph:'↑',corner:true},
+      11:{color:'#4ade80',label:'IPO',glyph:'↑',corner:true},
       13:{color:'#3ed598',label:'INCOME\nFUND',glyph:'◆',etf:true},
       16:{color:'#FF5C5C',label:'MARKET\nEVENT',glyph:'◈'},
-      19:{color:'#A78BFA',label:'MARKET\nSWING',glyph:'⚡',corner:true},
-      22:{color:'#a78bfa',label:'PROP\nFUND',glyph:'◆',etf:true},
-      25:{color:'#9aa5b1',label:'PORT\nTAX',glyph:'$'},
-      26:{color:'#FF5C5C',label:'MARKET\nEVENT',glyph:'◈'},
-      28:{color:'#4ade80',label:'IPO',glyph:'↑',corner:true},
-      30:{color:'#ff9442',label:'ENERGY\nFUND',glyph:'◆',etf:true},
-      31:{color:'#c4b5fd',label:'INVESTOR\nDAY',glyph:'★'},
-      34:{color:'#e8b44c',label:'AUDIT\nNOTICE',glyph:'⚑'},
+      19:{color:'#e8b44c',label:'RATE\nDECISION',glyph:'%'},
+      21:{color:'#A78BFA',label:'MARKET\nSWING',glyph:'⚡',corner:true},
+      23:{color:'#a78bfa',label:'PROP\nFUND',glyph:'◆',etf:true},
+      26:{color:'#9aa5b1',label:'PORT\nTAX',glyph:'$'},
+      29:{color:'#FF5C5C',label:'MARKET\nEVENT',glyph:'◈'},
+      31:{color:'#e8b44c',label:'RATE\nDECISION',glyph:'%',corner:true},
+      34:{color:'#ff9442',label:'ENERGY\nFUND',glyph:'◆',etf:true},
+      35:{color:'#e8b44c',label:'AUDIT\nNOTICE',glyph:'⚑'},
+      38:{color:'#c4b5fd',label:'INVESTOR\nDAY',glyph:'★'},
+      40:{color:'#FF5C5C',label:'MARKET\nEVENT',glyph:'◈'},
     };
     // risk: 1=Low, 2=Med, 3=High (mirrors src/data/stocks.ts)
     const STOCKS = {
-      2:{code:'CCAI',sector:'tech',name:'CloudCore AI',risk:3},3:{code:'SAFE',sector:'consumer',name:'SafeMart Stores',risk:1},
-      5:{code:'MEDI',sector:'health',name:'MediCore Health',risk:2},6:{code:'OILW',sector:'energy',name:'OilWorks Energy',risk:2},
-      8:{code:'FTRB',sector:'finance',name:'FirstTrust Bank',risk:1},9:{code:'MTRO',sector:'realestate',name:'MetroHomes REIT',risk:1},
-      11:{code:'IRON',sector:'industrials',name:'IronRail Logistics',risk:1},12:{code:'STRM',sector:'comm',name:'StreamWave Media',risk:3},
-      14:{code:'CYBS',sector:'tech',name:'CyberShield Systems',risk:3},15:{code:'FRSH',sector:'consumer',name:'FreshBite Foods',risk:1},
-      17:{code:'BIOQ',sector:'health',name:'BioQuest Labs',risk:3},18:{code:'SOLR',sector:'energy',name:'SolarGrid Power',risk:3},
-      20:{code:'PAYW',sector:'finance',name:'PayWave Credit',risk:2},21:{code:'TWPT',sector:'realestate',name:'TowerPoint Realty',risk:2},
-      23:{code:'BLDM',sector:'industrials',name:'BuildMax Materials',risk:2},24:{code:'VSGN',sector:'health',name:'VitalSign Devices',risk:1},
-      27:{code:'SNKR',sector:'consumer',name:'SneakerStreet',risk:2},
-      29:{code:'CARE',sector:'health',name:'CarePlus Clinics',risk:1},
-      32:{code:'APEX',sector:'finance',name:'Apex Investments',risk:3},33:{code:'RENT',sector:'realestate',name:'RentWell Properties',risk:1},
-      35:{code:'AERO',sector:'industrials',name:'AeroLift Manufacturing',risk:2},36:{code:'GMBX',sector:'comm',name:'GameBox Studios',risk:3},
+      2:{code:'BIOQ',sector:'health',name:'BioQuest Labs',risk:3},3:{code:'VSGN',sector:'health',name:'VitalSign Devices',risk:1},
+      5:{code:'MEDI',sector:'health',name:'MediCore Health',risk:2},6:{code:'CARE',sector:'health',name:'CarePlus Clinics',risk:1},
+      8:{code:'FTRB',sector:'finance',name:'FirstTrust Bank',risk:1},9:{code:'PAYW',sector:'finance',name:'PayWave Credit',risk:2},
+      10:{code:'APEX',sector:'finance',name:'Apex Investments',risk:3},
+      12:{code:'SAFE',sector:'consumer',name:'SafeMart Stores',risk:1},14:{code:'FRSH',sector:'consumer',name:'FreshBite Foods',risk:1},
+      15:{code:'SNKR',sector:'consumer',name:'SneakerStreet',risk:2},
+      17:{code:'MTRO',sector:'realestate',name:'MetroHomes REIT',risk:1},18:{code:'TWPT',sector:'realestate',name:'TowerPoint Realty',risk:2},
+      20:{code:'RENT',sector:'realestate',name:'RentWell Properties',risk:1},
+      22:{code:'IRON',sector:'industrials',name:'IronRail Logistics',risk:1},24:{code:'BLDM',sector:'industrials',name:'BuildMax Materials',risk:2},
+      25:{code:'AERO',sector:'industrials',name:'AeroLift Manufacturing',risk:2},
+      27:{code:'CCAI',sector:'tech',name:'CloudCore AI',risk:3},28:{code:'CYBS',sector:'tech',name:'CyberShield Systems',risk:3},
+      30:{code:'NVMS',sector:'tech',name:'NovaMesh Networks',risk:2},
+      32:{code:'OILW',sector:'energy',name:'OilWorks Energy',risk:2},33:{code:'SOLR',sector:'energy',name:'SolarGrid Power',risk:3},
+      36:{code:'STRM',sector:'comm',name:'StreamWave Media',risk:3},37:{code:'GMBX',sector:'comm',name:'GameBox Studios',risk:3},
+      39:{code:'PLBK',sector:'comm',name:'Playbook Sports',risk:2},
     };
     const SECTOR_GLYPH = {
       tech:'◆', consumer:'●', health:'✚', energy:'▲',
@@ -745,14 +750,18 @@
       previousMarketZone = mc.zone;
     }
 
+    // The board is a square: a corner plus SIDE-1 spaces along each edge.
+    // 40 spaces on an 11x11 grid since 2026-09-20 (was 36 on 10x10).
+    const BOARD_SIZE = 40, SIDE = BOARD_SIZE / 4 + 1;
     function gridPos(n) {
-      if (n <= 10) return { col: n, row: 1 };
-      if (n <= 18) return { col: 10, row: n - 9 };
-      if (n === 19) return { col: 10, row: 10 };
-      if (n <= 27) return { col: 10 - (n - 19), row: 10 };
-      if (n === 28) return { col: 1, row: 10 };
-      return { col: 1, row: 10 - (n - 28) };
+      if (n <= SIDE) return { col: n, row: 1 };
+      if (n < SIDE * 2 - 1) return { col: SIDE, row: n - SIDE + 1 };
+      if (n === SIDE * 2 - 1) return { col: SIDE, row: SIDE };
+      if (n < SIDE * 3 - 2) return { col: SIDE - (n - (SIDE * 2 - 1)), row: SIDE };
+      if (n === SIDE * 3 - 2) return { col: 1, row: SIDE };
+      return { col: 1, row: SIDE - (n - (SIDE * 3 - 2)) };
     }
+
 
     const TILE = 1.15, GAP = 0.06, STEP = TILE + GAP;
     const SPACE_H = 0.12;
@@ -1138,7 +1147,7 @@
     const stockTiles = {};          // code -> tile mesh (for sold-out claim rings)
     const claimRings = {};          // code -> claim-holder ring mesh (created lazily)
     let latestPrices = {};          // code -> {p, d, s, so, claim} from the game tab
-    for (let n=1;n<=36;n++) {
+    for (let n=1;n<=BOARD_SIZE;n++) {
       const {col,row}=gridPos(n);
       const x=(col-5.5)*STEP, z=(row-5.5)*STEP;
       let color=null, labelText='', isCorner=false, isEtf=false;
@@ -2485,10 +2494,10 @@
         if (tok && from !== to) {
           const [ox,oz] = tokenOffset(playerIdx);
           // Build the forward path with wrap: from → from+1 → … → to
-          const steps = ((to - from) % 36 + 36) % 36;
+          const steps = ((to - from) % BOARD_SIZE + BOARD_SIZE) % BOARD_SIZE;
           const path = [];
           for (let k = 0; k <= steps; k++) {
-            const n = ((from - 1 + k) % 36) + 1;
+            const n = ((from - 1 + k) % BOARD_SIZE) + 1;
             const { x, z } = spaceWorld(n);
             path.push({ x: x + ox, z: z + oz });
           }

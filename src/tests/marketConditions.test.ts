@@ -12,7 +12,7 @@ describe('Market Conditions — personal, per-player', () => {
   it('starts a condition owned by the landing player only — the other player\'s slot stays empty', () => {
     let s = started(2);
     const decksBefore = structuredClone(s.decks);
-    s = patch(s, (d) => { d.players[0].pos = 34; d.turnPhase = 'preRoll'; });
+    s = patch(s, (d) => { d.players[0].pos = 38; d.turnPhase = 'preRoll'; });
 
     // Roll 1+2 to Market Open, then select condition 0 (Sector Spotlight)
     // and sector 0 — whichever sector that is, read from the data rather
@@ -33,7 +33,7 @@ describe('Market Conditions — personal, per-player', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.marketConditions[1] = { id: 'riskOff', title: 'Risk-Off', detail: 'test', icon: '⚠', color: '#fb923c', owner: 1, lap: 1, durationUnit: 'turns', remaining: 5 };
-      d.players[0].pos = 34;
+      d.players[0].pos = 38;
       d.turnPhase = 'preRoll';
     });
 
@@ -48,7 +48,7 @@ describe('Market Conditions — personal, per-player', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.marketConditions[0] = { id: 'dividendWindfall', title: 'Dividend Windfall', detail: 'test', icon: '✦', color: '#4ade80', owner: 0, lap: 1, durationUnit: 'rounds', remaining: 2 };
-      d.players[0].pos = 34;
+      d.players[0].pos = 38;
       d.turnPhase = 'preRoll';
     });
 
@@ -63,7 +63,7 @@ describe('Market Conditions — personal, per-player', () => {
     s = patch(s, (d) => {
       d.marketConditions[0] = { id: 'dividendWindfall', title: 'Dividend Windfall', detail: 'test', icon: '✦', color: '#4ade80', owner: 0, lap: 1, durationUnit: 'rounds', remaining: 1 };
       d.players[0].shares = { MEDI: 2 };
-      d.players[0].pos = 34;
+      d.players[0].pos = 38;
       d.turnPhase = 'preRoll';
     });
     const cashBefore = s.players[0].cash;
@@ -158,7 +158,7 @@ describe('Market Conditions — personal, per-player', () => {
 
   it('can select Toll Hike as the 7th condition', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; d.turnPhase = 'preRoll'; });
+    s = patch(s, (d) => { d.players[0].pos = 38; d.turnPhase = 'preRoll'; });
     s = reduce(s, { t: 'roll' }, scriptedRng([1, 2, 6]));
     expect(s.marketConditions[0]).toMatchObject({ id: 'tollHike', title: 'Toll Hike', owner: 0 });
   });
@@ -225,14 +225,14 @@ describe('Market Conditions — personal, per-player', () => {
 
   it('pays double salary for landing exactly on Market Open, and normal salary for passing over it', () => {
     let landed = started(2);
-    landed = patch(landed, (d) => { d.players[0].pos = 34; d.turnPhase = 'preRoll'; });
+    landed = patch(landed, (d) => { d.players[0].pos = 38; d.turnPhase = 'preRoll'; });
     landed = dispatch(landed, { t: 'roll' }, scriptedRng([1, 2])); // 34 -> 1 exactly
     expect(landed.players[0].pos).toBe(1);
     expect(landed.log.some((entry) => entry.text.includes('landed exactly'))).toBe(true);
     expect(landed.players[0].salaryCollected).toBe(SALARY * 2);
 
     let passed = started(2);
-    passed = patch(passed, (d) => { d.players[0].pos = 35; d.turnPhase = 'preRoll'; });
+    passed = patch(passed, (d) => { d.players[0].pos = 39; d.turnPhase = 'preRoll'; });
     passed = dispatch(passed, { t: 'roll' }, scriptedRng([1, 2])); // 35 -> 2, passing over 1
     expect(passed.players[0].pos).toBe(2);
     expect(passed.log.some((entry) => entry.text.includes('landed exactly'))).toBe(false);

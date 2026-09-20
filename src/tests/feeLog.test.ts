@@ -9,7 +9,7 @@ import { dispatch, patch, rollTo, scriptedRng, started } from './helpers';
 describe('Taxes & Fees — feeLog', () => {
   it('logs an income entry on Market Open with no dividends owed', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; });
+    s = patch(s, (d) => { d.players[0].pos = 38; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // wraps past space 1
 
     const income = s.feeLog.find((f) => f.kind === 'income');
@@ -22,7 +22,7 @@ describe('Taxes & Fees — feeLog', () => {
     let s = started(2);
     s = patch(s, (d) => {
       d.players[0].shares = { SAFE: 2 }; // Low-risk, $110 div/share (2026-09-18 cash-flow pass)
-      d.players[0].pos = 34;
+      d.players[0].pos = 38;
     });
 
     // Forward-looking projection reflects current holdings before the pass.
@@ -35,7 +35,7 @@ describe('Taxes & Fees — feeLog', () => {
 
   it('logs a marginCall entry when the call is fully paid from cash', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].margin = 2000; d.players[0].cash = 10000; d.players[0].pos = 34; });
+    s = patch(s, (d) => { d.players[0].margin = 2000; d.players[0].cash = 10000; d.players[0].pos = 38; });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
 
     const call = s.feeLog.find((f) => f.kind === 'marginCall');
@@ -56,7 +56,7 @@ describe('Taxes & Fees — feeLog', () => {
       d.players[0].margin = 2 * (SALARY + RECOVERY_BONUS) + 2_000;
       d.players[0].cash = 0;
       d.players[0].shares = { MEDI: 3 };
-      d.players[0].pos = 34;
+      d.players[0].pos = 38;
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     expect(s.marginCall).not.toBeNull();
@@ -74,11 +74,11 @@ describe('Taxes & Fees — feeLog', () => {
 
   it('logs an audit entry after the player chooses Pay Now', () => {
     let s = started(2);
-    // Space 34 is Audit Notice — land there by rolling 2 from space 32.
-    s = patch(s, (d) => { d.players[0].pos = 32; d.turnPhase = 'preRoll'; });
-    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1])); // 32 + 2 = 34
+    // Space 35 is Audit Notice — land there by rolling 2 from space 33.
+    s = patch(s, (d) => { d.players[0].pos = 33; d.turnPhase = 'preRoll'; });
+    s = dispatch(s, { t: 'roll' }, scriptedRng([1, 1])); // 33 + 2 = 35
 
-    expect(s.players[0].pos).toBe(34);
+    expect(s.players[0].pos).toBe(35);
     expect(s.landingNotice).toMatchObject({
       kind: 'audit', amount: 1_800, paidFromCash: 0, remaining: 1_800, canDefer: true,
     });
@@ -93,7 +93,7 @@ describe('Taxes & Fees — feeLog', () => {
 
   it('raises the Audit Notice rate to 7.5% when margin is outstanding', () => {
     let s = patch(started(2), (d) => {
-      d.players[0].pos = 32;
+      d.players[0].pos = 33;
       d.players[0].cash += 2_000; // borrowed cash offsets the new margin in net worth
       d.players[0].margin = 2_000;
     });
@@ -107,7 +107,7 @@ describe('Taxes & Fees — feeLog', () => {
 
   it('explains the 10% Portfolio Tax and exact amount charged', () => {
     let s = started(2);
-    s = rollTo(s, 25);
+    s = rollTo(s, 26);
 
     expect(s.landingNotice).toMatchObject({
       kind: 'tax', amount: 3_500, paidFromCash: 0, remaining: 3_500, canDefer: true,

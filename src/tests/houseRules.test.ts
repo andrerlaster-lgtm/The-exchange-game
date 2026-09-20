@@ -53,7 +53,7 @@ describe('Controlling Stake dividend boost', () => {
   it('doubles dividend for a regular stock at 6+ shares', () => {
     // FTRB is Low-risk -> $110/share dividend (2026-09-18 cash-flow pass).
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { FTRB: CONTROL_THRESHOLD_REGULAR }; });
+    s = patch(s, (d) => { d.players[0].pos = 38; d.players[0].shares = { FTRB: CONTROL_THRESHOLD_REGULAR }; });
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
@@ -63,7 +63,7 @@ describe('Controlling Stake dividend boost', () => {
 
   it('does not double dividend below the threshold', () => {
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { FTRB: CONTROL_THRESHOLD_REGULAR - 1 }; });
+    s = patch(s, (d) => { d.players[0].pos = 38; d.players[0].shares = { FTRB: CONTROL_THRESHOLD_REGULAR - 1 }; });
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;
@@ -74,7 +74,7 @@ describe('Controlling Stake dividend boost', () => {
     // RNST is the only IPO with a nonzero dividend ($50/share) — IPO dividend
     // rates are their own fixed data, untouched by the regular-stock rebalance.
     let s = started(2);
-    s = patch(s, (d) => { d.players[0].pos = 34; d.players[0].shares = { RNST: CONTROL_THRESHOLD_IPO }; });
+    s = patch(s, (d) => { d.players[0].pos = 38; d.players[0].shares = { RNST: CONTROL_THRESHOLD_IPO }; });
     const before = s.players[0].cash;
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2]));
     const gained = s.players[0].cash - before;

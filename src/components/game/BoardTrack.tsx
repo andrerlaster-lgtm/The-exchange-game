@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { PRICE_MOVE_SOURCE_LABEL, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { BOARD_SIDE, PRICE_MOVE_SOURCE_LABEL, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { developmentOf, getStockMovementStatus, sectorPairOwner } from '../../engine';
 import { pctBp } from '../../utils/formatMoney';
 import { useGameState, useDispatch } from '../../store';
@@ -14,13 +14,18 @@ import { BOARD_PALETTES, useBoardTheme } from './useBoardTheme';
 // default, slate when the table wants the sector colours to carry.
 const CORNER_BG = '#3a2717', INK_LT = '#efe3c4';
 
+/** Where a space sits on the square: clockwise from the top-left corner,
+    across the top, down the right, back along the bottom, up the left. Reads
+    the board's size rather than hard-coding it, so the 36 → 40 change
+    (2026-09-20) needed no arithmetic here. */
 function gridPos(n: number): { col: number; row: number } {
-  if (n <= 10) return { col: n, row: 1 };
-  if (n <= 18) return { col: 10, row: n - 9 };
-  if (n === 19) return { col: 10, row: 10 };
-  if (n <= 27) return { col: 10 - (n - 19), row: 10 };
-  if (n === 28) return { col: 1, row: 10 };
-  return { col: 1, row: 10 - (n - 28) };
+  const side = BOARD_SIDE;                 // spaces along one edge, corners included
+  if (n <= side) return { col: n, row: 1 };                          // top edge
+  if (n < side * 2 - 1) return { col: side, row: n - side + 1 };     // right edge
+  if (n === side * 2 - 1) return { col: side, row: side };           // bottom-right corner
+  if (n < side * 3 - 2) return { col: side - (n - (side * 2 - 1)), row: side };  // bottom edge
+  if (n === side * 3 - 2) return { col: 1, row: side };              // bottom-left corner
+  return { col: 1, row: side - (n - (side * 3 - 2)) };               // left edge, and n === last is row 2
 }
 
 // Special-space colors, labels and glyphs — mirrors SPECIAL in public/board-3d.html
@@ -28,17 +33,19 @@ const SPECIAL_3D: Record<number, { color: string; label: string; glyph: string; 
   1:  { color: '#22c55e', label: 'MKT\nOPEN',      glyph: '»', corner: true },
   4:  { color: '#4da3ff', label: 'GROWTH\nFUND',   glyph: '◆', etf: true },
   7:  { color: '#f0b429', label: 'THE\nFED',       glyph: '%' },
-  10: { color: '#4ade80', label: 'IPO',            glyph: '↑', corner: true },
+  11: { color: '#4ade80', label: 'IPO',            glyph: '↑', corner: true },
   13: { color: '#3ed598', label: 'INCOME\nFUND',   glyph: '◆', etf: true },
   16: { color: '#FF5C5C', label: 'MARKET\nEVENT',  glyph: '◈' },
-  19: { color: '#A78BFA', label: 'MARKET\nSWING',  glyph: '⚡', corner: true },
-  22: { color: '#a78bfa', label: 'PROP\nFUND',     glyph: '◆', etf: true },
-  25: { color: '#9aa5b1', label: 'PORT\nTAX',      glyph: '$' },
-  26: { color: '#FF5C5C', label: 'MARKET\nEVENT',  glyph: '◈' },
-  28: { color: '#e8b44c', label: 'RATE\nDECISION', glyph: '%', corner: true },
-  30: { color: '#ff9442', label: 'ENERGY\nFUND',   glyph: '◆', etf: true },
-  31: { color: '#c4b5fd', label: 'INVESTOR\nDAY',  glyph: '★' },
-  34: { color: '#e8b44c', label: 'AUDIT\nNOTICE',  glyph: '⚑' },
+  19: { color: '#e8b44c', label: 'RATE\nDECISION', glyph: '%' },
+  21: { color: '#A78BFA', label: 'MARKET\nSWING',  glyph: '⚡', corner: true },
+  23: { color: '#a78bfa', label: 'PROP\nFUND',     glyph: '◆', etf: true },
+  26: { color: '#9aa5b1', label: 'PORT\nTAX',      glyph: '$' },
+  29: { color: '#FF5C5C', label: 'MARKET\nEVENT',  glyph: '◈' },
+  31: { color: '#e8b44c', label: 'RATE\nDECISION', glyph: '%', corner: true },
+  34: { color: '#ff9442', label: 'ENERGY\nFUND',   glyph: '◆', etf: true },
+  35: { color: '#e8b44c', label: 'AUDIT\nNOTICE',  glyph: '⚑' },
+  38: { color: '#c4b5fd', label: 'INVESTOR\nDAY',  glyph: '★' },
+  40: { color: '#FF5C5C', label: 'MARKET\nEVENT',  glyph: '◈' },
 };
 
 // Parchment fibre vignette — mirrors paintTileBase in the 3D board
@@ -55,7 +62,7 @@ const SPECIAL_3D: Record<number, { color: string; label: string; glyph: string; 
 function sectorBandStyle(color: string, col: number, row: number, edge: string): CSSProperties {
   const band = `6px solid ${color}`;
   const hairline = `1px solid ${edge}`;
-  const side = row === 1 ? 'top' : row === 10 ? 'bottom' : col === 1 ? 'left' : 'right';
+  const side = row === 1 ? 'top' : row === BOARD_SIDE ? 'bottom' : col === 1 ? 'left' : 'right';
   return {
     borderTop: side === 'top' ? band : hairline,
     borderBottom: side === 'bottom' ? band : hairline,
@@ -155,15 +162,15 @@ export default function BoardTrack() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(10, 1fr)',
-        gridTemplateRows: 'repeat(10, 1fr)',
+        gridTemplateColumns: `repeat(${BOARD_SIDE}, 1fr)`,
+        gridTemplateRows: `repeat(${BOARD_SIDE}, 1fr)`,
         gap: 3,
         aspectRatio: '1',
       }}>
         {/* Center panel — club-green felt well, brass bezel, bear-mascot medallion */}
         <div style={{
-          gridColumn: '2 / 10',
-          gridRow: '2 / 10',
+          gridColumn: `2 / ${BOARD_SIDE}`,
+          gridRow: `2 / ${BOARD_SIDE}`,
           background: [
             /* felt crosshatch weave */
             'repeating-linear-gradient(45deg, rgba(58,85,68,0.10) 0 2px, transparent 2px 5px)',

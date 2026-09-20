@@ -68,7 +68,7 @@ describe('Margin — Market Open call', () => {
     let s = started(2);
     s = patch(s, (d) => { d.players[0].margin = 4000; d.players[0].cash = 10000; d.players[0].pos = 1; d.turnPhase = 'preRoll'; });
     // Roll back onto Market Open to trigger the call (4+4 from pos 1 → lands 9, passes... use pos that lands on 1).
-    s = patch(s, (d) => { d.players[0].pos = 33; }); // 33 + 4 = 37 → space 1, passes MO
+    s = patch(s, (d) => { d.players[0].pos = 37; }); // 37 + 4 = 41 → space 1, passes MO
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // total 4
     expect(s.players[0].pos).toBe(1);
     expect(s.players[0].margin).toBe(2000);   // paid half
@@ -88,7 +88,7 @@ describe('Margin — Market Open call', () => {
       d.players[0].margin = 2 * (SALARY * 2 + RECOVERY_BONUS) + 2_000;
       d.players[0].cash = 0;            // cannot cover the call
       d.players[0].shares = { MEDI: 3 }; // owns stock to liquidate
-      d.players[0].pos = 33;
+      d.players[0].pos = 37;
       d.turnPhase = 'preRoll';
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // → space 1, margin call
@@ -140,7 +140,7 @@ describe('Margin — Market Open call', () => {
       d.players[0].cash = 0;
       d.players[0].shares = {};
       d.players[0].etfShares = { GRW: 1, INC: 1 };
-      d.players[0].pos = 33;
+      d.players[0].pos = 37;
       d.turnPhase = 'preRoll';
     });
     s = dispatch(s, { t: 'roll' }, scriptedRng([2, 2])); // → space 1, margin call

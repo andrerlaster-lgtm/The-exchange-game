@@ -6,7 +6,7 @@ import {
   CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isEtfCode, isIpoCode,
-  SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, BANK_LOAN_INCREMENT, RATE_DECISION_BY_ROLL_BP, rateShockMoves,
+  SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, BANK_LOAN_INCREMENT, BOARD_SIZE, RATE_DECISION_BY_ROLL_BP, rateShockMoves,
 } from '../data';
 import type { Effect } from '../data/types';
 import { money, moveSize, pctBp } from '../utils/formatMoney';
@@ -455,8 +455,8 @@ function applyMove(s: GameState, steps: number, rng: Rng): void {
   s.rolling = false;
   const p = s.players[s.cur];
   const from = p.pos;
-  const passed = Math.floor((from - 1 + steps) / 36) >= 1;
-  p.pos = ((from - 1 + steps) % 36) + 1;
+  const passed = Math.floor((from - 1 + steps) / BOARD_SIZE) >= 1;
+  p.pos = ((from - 1 + steps) % BOARD_SIZE) + 1;
   addLog(s, `${p.name} rolls ${steps} → space ${p.pos}`);
   if (passed || p.pos === 1) {
     p.hasCompletedLap = true;

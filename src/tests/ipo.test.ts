@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { IPO_DEFS, IPO_FIXED_PRICE, IPO_PRESENTATION } from '../data';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
-const IPO_SPACE = 10;
+const IPO_SPACE = 11;
 
 describe('IPO reveal — shared queue, fixed price', () => {
   it('has complete, unique card presentation copy for every listing', () => {

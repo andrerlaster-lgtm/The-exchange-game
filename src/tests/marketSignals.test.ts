@@ -118,7 +118,7 @@ describe('Market Intelligence signals', () => {
     // version of this test hand-built one with the wrong `kind` and so kept
     // passing while real landings were silently dropped.
     for (const [roll, title] of [[6, 'Bull Run'], [1, 'Bear Run']] as const) {
-      let s = rollTo(started(2), 19);
+      let s = rollTo(started(2), 21);
       expect(s.landingNotice).toBeNull(); // still no banner — hence the feed matters
       s = dispatch(s, { t: 'rollRegime' }, scriptedRng([roll]));
       expect(importantMarketSignals(s).map((signal) => signal.title)).toContain(title);
