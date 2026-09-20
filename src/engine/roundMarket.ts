@@ -19,7 +19,7 @@
 // still work exactly as written — they move only what they name. The board's
 // Bull Run and Bear Run spaces stay a separate mechanic.
 
-import { IPO_BY_CODE, METER_RATE_NUDGE_BP, ROUND_MARKET_BP, SECTOR_CODES, SECTORS } from '../data';
+import { IPO_BY_CODE, METER_RATE_NUDGE_BP, RATE_NUDGE_EVERY_N_ROUNDS, ROUND_MARKET_BP, SECTOR_CODES, SECTORS } from '../data';
 import type { SectorId } from '../data/types';
 import type { Rng } from '../utils/rng';
 import { moveSize } from '../utils/formatMoney';
@@ -122,10 +122,15 @@ export function resolveRoundEndMarket(s: GameState, rng: Rng): void {
   });
 
   // A hot round invites tightening and a cold one invites easing: the Bank
-  // Rate follows the marker. Borrowing costs only — no price move.
-  const before = s.bankRateBp;
-  const actual = changeBankRate(s, direction === 'bull' ? METER_RATE_NUDGE_BP : -METER_RATE_NUDGE_BP);
-  if (actual !== 0) {
-    addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
+  // Rate follows the marker, but only on every RATE_NUDGE_EVERY_N_ROUNDS
+  // round (2026-09-19) — nudging every round moved it two to three times as
+  // often as the Fed cards did, which made the cards feel like noise.
+  // Borrowing costs only; no price moves either way.
+  if (s.lap % RATE_NUDGE_EVERY_N_ROUNDS === 0) {
+    const before = s.bankRateBp;
+    const actual = changeBankRate(s, direction === 'bull' ? METER_RATE_NUDGE_BP : -METER_RATE_NUDGE_BP);
+    if (actual !== 0) {
+      addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
+    }
   }
 }

@@ -119,12 +119,17 @@ describe('round-end market resolution', () => {
     }
   });
 
-  it('nudges the Bank Rate with the marker: up on Bullish, down on Bearish', () => {
+  it('nudges the Bank Rate with the marker every OTHER round', () => {
     for (const seed of ['r1', 'r2', 'r3', 'r4']) {
-      const s = started(2);
-      const t = resolve(s, seed);
-      const expected = bankRateBp(s) + (t.marketRound!.direction === 'bull' ? 25 : -25);
-      expect(bankRateBp(t)).toBe(expected);
+      const even = patch(started(2), (d) => { d.lap = 2; });
+      const t = resolve(even, seed);
+      expect(bankRateBp(t)).toBe(bankRateBp(even) + (t.marketRound!.direction === 'bull' ? 25 : -25));
+
+      // The round in between resolves the market but leaves the rate alone.
+      const odd = patch(started(2), (d) => { d.lap = 3; });
+      const u = resolve(odd, seed);
+      expect(bankRateBp(u)).toBe(bankRateBp(odd));
+      expect(u.marketRound).not.toBeNull();
     }
   });
 

@@ -44,6 +44,10 @@ export function rateShockMoves(rateBp: number): Array<{ sec?: SectorId; risk?: R
     tightening, a Bearish one invites easing. */
 export const METER_RATE_NUDGE_BP = 25;
 
+/** How often that nudge happens — every other completed round, so the Fed
+    cards stay the main mover of the rate. */
+export const RATE_NUDGE_EVERY_N_ROUNDS = 2;
+
 /** Rate Decision space (board 28): the landing player rolls a d6 and the Fed
     follows it — a low roll eases, a high roll tightens, the middle holds. */
 export const RATE_DECISION_BY_ROLL_BP = [0, -25, -25, 0, 0, 25, 25]; // index = roll 1-6

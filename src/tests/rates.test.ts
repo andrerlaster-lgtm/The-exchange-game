@@ -108,11 +108,13 @@ describe('Bank Rate and Market Rate', () => {
     expect(t.prices[fin]).toBe(s.prices[fin]);
   });
 
-  it('a resolved round nudges the rate 25 bp with its marker', () => {
+  it('a resolved round nudges the rate 25 bp with its marker, every other round', () => {
     for (const seed of ['n1', 'n2', 'n3']) {
-      const s = started(2);
-      const t = patch(s, (d) => { resolveRoundEndMarket(d, makeRng(seed)); });
+      const even = patch(started(2), (d) => { d.lap = 4; });
+      const t = patch(even, (d) => { resolveRoundEndMarket(d, makeRng(seed)); });
       expect(t.bankRateBp).toBe(300 + (t.marketRound!.direction === 'bull' ? 25 : -25));
+      const odd = patch(started(2), (d) => { d.lap = 5; });
+      expect(patch(odd, (d) => { resolveRoundEndMarket(d, makeRng(seed)); }).bankRateBp).toBe(300);
     }
   });
 });
