@@ -69,15 +69,16 @@ describe('3D Action Center parity', () => {
     let s = patch(started(2), (draft) => {
       draft.turnPhase = 'acted';
       draft.players[0].shares.MEDI = 11;
+      draft.opts.companyUpgrades = false; // checked on its own below
     });
     // A controlled company's row also carries Company Development buttons;
     // the sell allowance is checked on the sell buttons alone.
     const sells = (r: typeof row) => r?.buttons?.filter((entry) => entry.action.t === 'sell') ?? [];
     let row = buildActionCenter(s).portfolio.rows?.[0];
     expect(sells(row).map((entry) => entry.label)).toEqual(['Sell 1', 'Sell 2', 'Sell 3', 'Sell 4', 'Sell 5']);
-    // Company Upgrades are off by default: no development buttons.
+    // With Company Upgrades turned off, a row carries sell buttons only.
     expect(row?.buttons?.every((entry) => entry.action.t === 'sell')).toBe(true);
-    // With the setting on, a controlled company also offers them.
+    // On — the standard setting — a controlled company also offers them.
     const withUpgrades = patch(s, (draft) => { draft.opts.companyUpgrades = true; });
     expect(buildActionCenter(withUpgrades).portfolio.rows?.[0].buttons
       ?.filter((entry) => entry.action.t !== 'sell').map((entry) => entry.action.t))

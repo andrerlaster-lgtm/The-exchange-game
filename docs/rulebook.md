@@ -803,7 +803,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 
 ### Company Development (Upgrades)
 
-*Optional rule — the **Company Upgrades** setup option, off by default while its balance is reviewed.*
+*Standard rule — the **Company Upgrades** setup option is on by default, like IPOs; a table that wants a simpler game turns it off.*
 
 A player who **controls** a regular company (6+ shares) may invest in it. ETFs and IPOs cannot be developed.
 
@@ -862,6 +862,7 @@ The default game is a net-worth race, not a bankruptcy-elimination game.
 | Sector Control | On (11 fixed pairs) |
 | Player Loans | On, but only as Payout Claim financing (Section 13) — no other player-to-player loans are supported |
 | Diversified Portfolio | On |
+| Company Upgrades | On — Levels Ⅰ-Ⅲ and Market Protection on companies you control (Company Development); turn off for a simpler game |
 | Round-end market | On — one guaranteed sector move per completed round (Section 21) |
 | Market Conditions | On — one random temporary condition active at a time, rerolled at each Market Open (Section 6) |
 | Market Open Trading Window | On |

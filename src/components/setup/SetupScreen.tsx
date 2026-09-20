@@ -214,7 +214,7 @@ export default function SetupScreen() {
             <TBtn active={!opts.companyUpgrades} onClick={() => setOpt('companyUpgrades', false)}>Off</TBtn>
           </OptRow>
           <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45, padding: '0 2px' }}>
-            Controllers (6+ shares) can upgrade a company through Levels Ⅰ–Ⅲ and buy Market Protection. Experimental — off by default while the balance is reviewed.
+            Controllers (6+ shares) can upgrade a company through Levels Ⅰ–Ⅲ and buy Market Protection. A standard rule, like IPOs: you need $5,000 in cash and a portfolio $10,000 above your starting cash. Turn it off for a simpler game.
           </div>
 
           <OptRow label="Bank Auction">

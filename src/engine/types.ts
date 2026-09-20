@@ -393,7 +393,7 @@ export interface GameOptions {
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
   roundMarket: boolean;       // the once-per-round market resolution (2026-09-19 round-end market rules)
   companiesMode: boolean;     // optional player-owned company market
-  companyUpgrades: boolean;   // Company Development (Levels I-III + Market Protection) — off by default pending review
+  companyUpgrades: boolean;   // Company Development (Levels I-III + Market Protection) — standard rule, on by default
   bankAuction: boolean;       // alternate resale mode: pooled shares go to a turn-order
                                // Market Open auction instead of the standard-mode Outstanding
                                // Shares offer (buy-on-landing) — off by default
@@ -410,9 +410,10 @@ export const DEFAULT_OPTIONS: GameOptions = {
   roundMarket: true, // core rule: the market moves once per completed round, never off a dice roll
   companiesMode: false,
   bankAuction: false, // standard mode uses Outstanding Shares (rulebook §11); this is the variant
-  // Off by default while the percentage market is played on its own; the
-  // upgrade system stays in code and tests for a later review (2026-09-19).
-  companyUpgrades: false,
+  // Standard rule as of 2026-09-19, like IPOs: on unless a table turns it
+  // off. It was off by default while the percentage market was played on its
+  // own and the upgrade economics were being tuned.
+  companyUpgrades: true,
 };
 
 /**

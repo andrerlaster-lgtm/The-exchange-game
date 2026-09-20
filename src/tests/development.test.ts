@@ -56,9 +56,10 @@ const tick = (s: GameState) => dispatch(s, { t: 'skipShort' }, rng());
 // ── Purchase and control ────────────────────────────────────────────────────
 
 describe('Company Upgrades setting', () => {
-  it('is off by default, and then nothing can be upgraded or shielded', () => {
+  it('is on by default, and nothing can be upgraded or shielded once turned off', () => {
+    // A standard rule since 2026-09-19, like IPOs: on unless a table opts out.
+    expect(started(2).opts.companyUpgrades).toBe(true);
     const s = patch(controlled(), (d) => { d.opts.companyUpgrades = false; });
-    expect(started(2).opts.companyUpgrades).toBe(false);
     expect(upgradeBlockReason(s, CODE)).toMatch(/turned off/);
     expect(shieldBlockReason(s, CODE)).toMatch(/turned off/);
     expect(up(s).development[CODE].level).toBe(0);
