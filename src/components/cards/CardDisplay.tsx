@@ -74,20 +74,30 @@ function useHoloTilt<T extends HTMLElement>() {
   return ref;
 }
 
+/** A drawn card clears itself after this long, so a routine draw needs no
+    click. A card still waiting on a decision (pick a target, Circuit Breaker)
+    never auto-clears, and the countdown restarts when that decision resolves.
+    The card's own signal stays in Market Intelligence either way. */
+const CARD_AUTO_DISMISS_MS = 5_000;
+
 export default function CardDisplay() {
   const s = useGameState();
   const dispatch = useDispatch();
   const [phase, setPhase] = useState<CardPhase>('idle');
+  const [dismissed, setDismissed] = useState(false);
   const prevKey = useRef<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const holoRef = useHoloTilt<HTMLDivElement>();
 
   const cardKey = s.card ? `${s.cardPreviewMode ?? 'draw'}-${s.card.deck}-${s.card.title}` : null;
+  // Anything the player must answer on the card itself holds it open.
+  const awaitingDecision = !!s.circuitBreakerPrompt || (!!s.pick && s.pick.source !== 'investor');
 
   useEffect(() => {
     if (cardKey && cardKey !== prevKey.current) {
       prevKey.current = cardKey;
       timers.current.forEach(clearTimeout);
+      setDismissed(false);
       setPhase('back');
       timers.current = [
         setTimeout(() => setPhase('reveal'), 320),
@@ -97,7 +107,13 @@ export default function CardDisplay() {
     return () => timers.current.forEach(clearTimeout);
   }, [cardKey]);
 
-  if (!s.card) return null;
+  useEffect(() => {
+    if (!cardKey || awaitingDecision) return;
+    const timer = setTimeout(() => setDismissed(true), CARD_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [cardKey, awaitingDecision]);
+
+  if (!s.card || dismissed) return null;
 
   const deckId = s.card.deck;
   const isInsiderPreview = s.cardPreviewMode === 'insider';
@@ -159,7 +175,10 @@ export default function CardDisplay() {
   // Reveal face — mirrors the 3D .card3d-reveal (flat dark, deck-colored frame)
   return (
     <div style={overlayStyle}>
-      <div ref={holoRef} className="card-box holo-card" style={{
+      <div ref={holoRef} className="card-box holo-card"
+        onClick={() => { if (!awaitingDecision) setDismissed(true); }}
+        title={awaitingDecision ? undefined : 'Click to close'}
+        style={{
         borderColor: `${deckColorHex}55`,
         borderWidth: 2, borderRadius: 12,
         animation: phase === 'reveal' ? 'cardFlipReveal 640ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
@@ -169,6 +188,14 @@ export default function CardDisplay() {
       }}>
         <div className="holo-card__sheen" />
         <div className="holo-card__grain" />
+        {/* Countdown to the card clearing itself — absent while it waits on a
+            decision, since it stays put until that is answered. */}
+        {!awaitingDecision && (
+          <div className="card-dismiss-bar" style={{
+            background: deckColorHex,
+            animationDuration: `${CARD_AUTO_DISMISS_MS}ms`,
+          }} />
+        )}
         {/* Bold top banner */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',

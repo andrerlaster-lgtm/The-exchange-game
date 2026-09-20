@@ -761,3 +761,17 @@ input[type="number"]:focus, select:focus {
   }
   .market-ticker-track { animation: none !important; transform: none !important; }
 }
+
+/* Countdown bar on an auto-dismissing drawn card (CardDisplay). */
+@keyframes cardDismissCountdown {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+.card-dismiss-bar {
+  height: 2px;
+  transform-origin: left center;
+  animation: cardDismissCountdown linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-dismiss-bar { animation: none; opacity: 0.5; }
+}
