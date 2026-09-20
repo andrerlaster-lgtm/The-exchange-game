@@ -4,6 +4,7 @@
 
 import { bankRateBp, feeDebtRatePct, marketRateBp, playerLoanPremiumBp, rateSpreadBp } from '../../engine';
 import { useGameState } from '../../store';
+import RatesGuide from './RatesGuide';
 
 const pctOf = (bpValue: number) => `${(bpValue / 100).toFixed(2)}%`;
 
@@ -47,6 +48,9 @@ export default function RatesStrip() {
         <div style={{ fontSize: 9.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.35 }}>
           Market Rate − Bank Rate: what the market returned last round against what cash costs
         </div>
+      </div>
+      <div style={{ flexBasis: '100%' }}>
+        <RatesGuide />
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
 import MarketRegimeBadge from './MarketRegimeBadge';
-import { IPO_RUN_BP, MOVE_BP, RUN_BP } from '../../data';
+import { IPO_RUN_BP, MOVE_BP, ROUND_MARKET_BP, RUN_BP } from '../../data';
 import { moveSize } from '../../utils/formatMoney';
 
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
@@ -21,12 +21,16 @@ const KIND_LABEL: Record<MarketSignal['kind'], string> = {
 
 const PRICE_MOVEMENT_GUIDE = [
   {
-    title: 'Dice → Market Meter',
-    text: 'A roll of 2–6 moves the Meter bearish, 8–12 moves it bullish, and 7 holds. After every player takes a turn, the Meter moves one or two random sectors; the panel below previews the size and direction.',
+    title: 'Round-end market',
+    text: `After every player has taken a turn, the market resolves once: the marker is set Bullish or Bearish with equal odds, one random sector is drawn, and it moves ${ROUND_MARKET_BP.map((bp) => moveSize(bp)).join(', ')}. Revealed IPOs in that sector move with it. Your dice roll moves your piece only — it never moves prices.`,
   },
   {
     title: 'Market Event & Fed cards',
-    text: `The drawn card names the sectors, risk groups, or companies that move, and by how much (for example 5% = 500 bp). Most targeted cards also create a separate ${moveSize(MOVE_BP.meterStandard)} ripple in one random eligible sector.`,
+    text: 'The drawn card names the sectors, risk groups, or companies that move, and by how much (for example 5% = 500 bp) — and nothing else. A card never stirs an extra random sector.',
+  },
+  {
+    title: 'The Bank Rate',
+    text: 'Fed rate cards and the Rate Decision space move the Bank Rate, and that change moves Finance one way and Real Estate and High-Risk companies the other, at 10 bp of price per 1 bp of rate. The full arithmetic is in the rates bar above the board.',
   },
   {
     title: 'Bull & Bear Runs',
