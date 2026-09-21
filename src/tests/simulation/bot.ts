@@ -6,14 +6,15 @@
 // seeded Rng, so a given seed replays identically.
 
 import {
-  blocked, completedSectors, controlledSectorPairs, ipoGrowthBlockReason, ipoPctFromLaunch,
-  nextIpoMilestone, reduce, sectorPairOwner, shieldBlockReason, upgradeBlockReason,
+  bankLoanBalance, bankLoanBlockReason, blocked, borrowingCapacity, completedSectors,
+  controlledSectorPairs, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone, reduce,
+  sectorPairOwner, shieldBlockReason, upgradeBlockReason,
 } from '../../engine';
 import type { Action, GameState } from '../../engine';
 import type { Rng } from '../../utils/rng';
 import {
-  ETF_PRICE, IPO_GROWTH_INVESTMENTS, SECTOR_CODES, SECTOR_PAIRS, SHIELD_COST, STOCK_BY_CODE,
-  UPGRADE_LEVELS, isIpoCode,
+  BANK_LOAN_INCREMENT, ETF_PRICE, IPO_GROWTH_INVESTMENTS, SECTOR_CODES, SECTOR_PAIRS, SHIELD_COST,
+  STOCK_BY_CODE, UPGRADE_LEVELS, isIpoCode,
 } from '../../data';
 import type { SectorId, SectorPairId } from '../../data/types';
 
@@ -129,6 +130,14 @@ function nextAction(s: GameState, rng: Rng): Action | null {
     const code = t.code;
     const affordable = s.players[s.cur].cash >= 11 * (s.prices[code] ?? 0);
     return affordable ? { t: 'buy', code } : { t: 'skipStock', code };
+  }
+
+  // Leverage: top the hand up from the bank before deciding what to spend
+  // on, so the borrowed cash is actually available to the upgrade and trade
+  // steps below rather than sitting idle until next turn.
+  if (!blocked(s)) {
+    const loan = leverageAction(s);
+    if (loan) return loan;
   }
 
   // Company development, once everything required is resolved: upgrade a
@@ -280,6 +289,57 @@ function answerOffer(s: GameState): Action | null {
   return affordable && enough && held && !wouldBreakOwnSet(s, seller, offer.code, offer.qty)
     ? { t: 'acceptP2POffer', id: offer.id }
     : { t: 'declineP2POffer', id: offer.id };
+}
+
+// ── LEVERAGE (2026-09-20) ───────────────────────────────────────────────────
+//
+// The borrow-and-hold strategy, as a policy one seat can run while the rest
+// of the table plays normally: draw bank debt up to the collateral limit,
+// never repay a dollar of it early, and put the cash to work on upgrades and
+// on trades. The bet is that company development and market appreciation
+// outrun the Bank Rate, which is charged EVERY TURN, not every round.
+//
+// Borrowed cash is net-worth-neutral the moment it lands (the balance is
+// subtracted), so this can only pay through what the cash is spent on.
+
+/** Bank-debt policy. Off by default. */
+export const leverage = {
+  enabled: false,
+  /** Seats running it (null = everyone, which is rarely what you want). */
+  seats: null as number[] | null,
+  /** Draw more debt whenever cash falls below this — the point of borrowing
+      is to always have a whole company's price ready when you land on one. */
+  cashFloor: 12_000,
+  /** Most to draw in one turn, in $1,000 steps. */
+  maxDrawPerTurn: 4_000,
+  /** Never repay early: the strategy is to keep the loan open and let the
+      market outpace it. Set true to compare against a disciplined borrower. */
+  repayWhenFlush: false,
+  /** Repay only once cash is this far above the floor, if repaying at all. */
+  repayAbove: 25_000,
+};
+
+const isLevered = (pi: number) =>
+  leverage.enabled && (leverage.seats === null || leverage.seats.includes(pi));
+
+/** The borrow-or-repay action for a leveraged seat, or null. */
+function leverageAction(s: GameState): Action | null {
+  const pi = s.cur;
+  if (!isLevered(pi)) return null;
+  const p = s.players[pi];
+
+  if (leverage.repayWhenFlush && bankLoanBalance(p) > 0 && p.cash >= leverage.repayAbove) {
+    return { t: 'payBankLoan', mode: 'installment' };
+  }
+  if (p.cash >= leverage.cashFloor) return null;
+
+  const capacity = borrowingCapacity(s, pi);
+  if (capacity < BANK_LOAN_INCREMENT) return null;
+  const want = Math.min(capacity, leverage.maxDrawPerTurn,
+    Math.ceil((leverage.cashFloor - p.cash) / BANK_LOAN_INCREMENT) * BANK_LOAN_INCREMENT);
+  const amount = Math.floor(want / BANK_LOAN_INCREMENT) * BANK_LOAN_INCREMENT;
+  if (amount < BANK_LOAN_INCREMENT || bankLoanBlockReason(s, amount)) return null;
+  return { t: 'takeBankLoan', amount };
 }
 
 /** Player-to-player trading policy. Off by default: every simulation written
