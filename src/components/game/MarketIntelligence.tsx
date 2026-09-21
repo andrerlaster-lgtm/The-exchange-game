@@ -1,8 +1,7 @@
-import { importantMarketSignals, playerSignalExposure, roundMarketForecast } from '../../engine';
+import { importantMarketSignals, playerSignalExposure } from '../../engine';
 import type { MarketSignal } from '../../engine';
 import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
-import MarketRegimeBadge from './MarketRegimeBadge';
 import { IPO_RUN_BP, MOVE_BP, RUN_BP } from '../../data';
 import { moveSize } from '../../utils/formatMoney';
 
@@ -84,11 +83,8 @@ export default function MarketIntelligence() {
   const s = useGameState();
   const latestFed = s.marketSignals.find((signal) => signal.kind === 'fed');
   const fedHistory = s.marketSignals.filter((signal) => signal.kind === 'fed').slice(0, 3);
-  const latestRoundMove = s.marketSignals.find((signal) =>
-    signal.kind === 'market' && signal.title.startsWith('Round-End Market'));
   const important = importantMarketSignals(s).slice(0, 6);
   const stance = latestFed?.stance ? STANCE_META[latestFed.stance] : STANCE_META.neutral;
-  const roundForecast = roundMarketForecast(s);
 
   return (
     <section className="card-box" aria-label="Market Intelligence" style={{ padding: 10 }}>
@@ -134,31 +130,6 @@ export default function MarketIntelligence() {
           </div>
         );
       })()}
-
-      {s.opts.roundMarket && (
-        <div style={{
-          marginBottom: 9, padding: '9px 10px', borderRadius: 8,
-          background: 'rgba(30, 74, 112, 0.06)', border: '1px solid rgba(30, 74, 112, 0.17)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 0.9, color: 'var(--muted)' }}>ROUND-END MARKET — NEXT RESOLUTION</div>
-              <div style={{ color: 'var(--text)', fontSize: 11, fontWeight: 800, marginTop: 3 }}>{roundForecast.headline}</div>
-            </div>
-            <MarketRegimeBadge round={s.marketRound} variant="ticker" />
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: 10, lineHeight: 1.35, marginTop: 5 }}>
-            {roundForecast.detail}
-          </div>
-          {latestRoundMove && (
-            <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(30, 74, 112, 0.12)' }}>
-              <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 0.8, color: 'var(--muted)' }}>LAST ROUND-END MOVE</div>
-              <div style={{ color: 'var(--text)', fontSize: 10.5, fontWeight: 700, marginTop: 2 }}>{latestRoundMove.summary}</div>
-              <ImpactChips impacts={latestRoundMove.impacts} style={{ marginTop: 5 }} />
-            </div>
-          )}
-        </div>
-      )}
 
       <PriceMovementGuide />
 

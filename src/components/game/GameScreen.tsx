@@ -52,6 +52,7 @@ export default function GameScreen() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
         <PlayerCards />
         <DeckStatus />
+        <MarketIntelligence />
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Log />
         </div>
@@ -80,7 +81,6 @@ export default function GameScreen() {
             <Portfolio />
           </div>
           {s.opts.companyUpgrades && <CompanyDevelopment />}
-          <MarketIntelligence />
           <P2PTradeDesk />
         </div>
       </div>
