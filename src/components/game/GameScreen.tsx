@@ -16,7 +16,6 @@ import P2PTradeDesk from './P2PTradeDesk';
 import ActionPanel, { EtfPicker } from './ActionPanel';
 import CardDisplay from '../cards/CardDisplay';
 import IpoPanel from '../cards/IpoPanel';
-import ShortPanel from '../cards/ShortPanel';
 import MarketIntelligence from './MarketIntelligence';
 import MarketTicker from './MarketTicker';
 import RatesStrip from './RatesStrip';
@@ -68,7 +67,6 @@ export default function GameScreen() {
         <ActionPanel />
         {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
         <IpoPanel />
-        <ShortPanel />
         <TradingMarket />
         <TradeHistory />
       </div>

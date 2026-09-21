@@ -210,7 +210,7 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
 
   switch (action.t) {
     case 'newGame': case 'roll': case 'takeMargin': case 'repayMargin': case 'payMarginCall':
-    case 'payInsolvency': case 'skipShort': case 'ipoBuyShare': case 'ipoBuyDone':
+    case 'payInsolvency': case 'ipoBuyShare': case 'ipoBuyDone':
     case 'outstandingBuyDone':
     case 'skipIpo': case 'skipPick': case 'passCircuitBreaker': case 'callClose':
     case 'skipEtf': case 'auctionPass': case 'endTurn':
@@ -218,7 +218,7 @@ function isBoard3DAction(value: unknown): value is Board3DAction {
     case 'payLandingFee': case 'deferLandingFee':
       return true;
     case 'buy': case 'skipStock': case 'marginSell': case 'forcedSell':
-    case 'doShort': case 'pickKnownIpo': case 'pickTarget': case 'playCircuitBreaker':
+    case 'pickKnownIpo': case 'pickTarget': case 'playCircuitBreaker':
     case 'buyEtf':
       return text('code');
     case 'sell':

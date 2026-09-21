@@ -30,7 +30,7 @@ const invest = (s: GameState, code: string, size: 'standard' | 'major' = 'major'
     reducer's after-action milestone check fires. */
 function setPct(s: GameState, code: string, pct: number): GameState {
   const moved = patch(s, (d) => { const ip = d.ipos.find((x) => x.code === code)!; ip.price = ip.startPrice * (1 + pct / 100); });
-  return dispatch(moved, { t: 'skipShort' }, rng());
+  return dispatch(moved, { t: 'toggleTest' }, rng());
 }
 
 describe('IPO growth investment', () => {

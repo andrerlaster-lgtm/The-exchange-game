@@ -92,9 +92,8 @@ describe('Extended Hours — extends Market Close by exactly 1 round', () => {
 });
 
 describe('Standard mode defaults (rulebook §21)', () => {
-  it('margin trading and short selling are off by default', () => {
+  it('margin trading is off by default', () => {
     const s = started(2);
     expect(s.opts.margin).toBe(false);
-    expect(s.opts.shorts).toBe(false);
   });
 });

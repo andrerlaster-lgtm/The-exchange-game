@@ -7,7 +7,7 @@ import type { PriceMoveSource } from '../data/priceModel';
 export type Phase = 'setup' | 'orderRoll' | 'play' | 'over';
 export type TurnPhase = 'preRoll' | 'acted';
 export type LogKind = 'g' | 'r' | 'y' | 'b' | 'n';
-export type TradeKind = 'buy' | 'sell' | 'ipo' | 'short' | 'settle' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
+export type TradeKind = 'buy' | 'sell' | 'ipo' | 'margin' | 'repay' | 'penalty' | 'dividend' | 'p2p' | 'payout';
 export type MarketStance = 'bullish' | 'balanced' | 'bearish';
 export type MarketConditionId = 'sectorSpotlight' | 'dividendWindfall' | 'etfInflows' | 'creditTightening' | 'weakDemandBargains' | 'riskOff' | 'tollHike';
 
@@ -49,7 +49,7 @@ export interface Player {
   hasCompletedLap: boolean;          // first-lap grace: landing payments start after passing Start
   shares: Record<string, number>;    // code -> qty (regular + IPO)
   stockCostBasis: Record<string, number>; // code -> total cost basis of shares still held
-  realizedStockGain: number;         // cumulative realized gain/loss from sold shares and settled shorts
+  realizedStockGain: number;         // cumulative realized gain/loss from sold shares
   etfShares: Record<string, number>; // ETF code -> qty held
   salaryCollected: number;           // base Market Open salary only; excluded from Gain/Loss Mode
   dividendCuts: Record<string, number>; // one-time 50% next-dividend penalties by holding code
@@ -133,14 +133,6 @@ export interface CompanyDevelopment {
   shieldActive: boolean;
   fundedBy: number | null;
   totalInvested: number;   // upgrade spending only — shields are not refunded
-}
-
-export interface Short {
-  owner: number;       // player index
-  ownerName: string;
-  pcolor: string;
-  code: string;
-  entryPrice: number;
 }
 
 export interface TradeContext {
@@ -392,7 +384,6 @@ export interface GameOptions {
   startCash: number;          // starting cash per player
   scoringMode: 'netWorth' | 'gainLoss';
   margin: boolean;            // margin trading allowed
-  shorts: boolean;            // short selling allowed
   ipos: boolean;              // IPO spaces active
   closeMode: 'card' | 'rounds';
   closeRounds: number;        // rounds if closeMode === 'rounds' (ignored otherwise)
@@ -409,7 +400,6 @@ export const DEFAULT_OPTIONS: GameOptions = {
   startCash: 35_000,
   scoringMode: 'netWorth',
   margin: false, // advanced-mode toggle — off by default in standard mode (rulebook §21)
-  shorts: false, // Short Sell is off / removed from standard game flow (rulebook §21)
   ipos: true,
   closeMode: 'card',
   closeRounds: 5,
@@ -473,7 +463,6 @@ export interface GameState {
   cardPreviewMode: 'insider' | null;   // card is only a peek; it remains on top of the ME deck
   pick: PickContext | null;
   investorDay: InvestorDayPrompt | null;
-  shortPick: boolean;
   ipos: IpoState[];
   ipoChoice: boolean;
   ipoListPick: boolean;
@@ -481,7 +470,6 @@ export interface GameState {
   outstandingBuy: OutstandingBuyContext | null;
   decks: Record<DeckId, number[]>;     // shuffled index queues
   discard: Record<DeckId, number[]>;
-  shorts: Short[];
   closing: boolean;
   closeDrawer: number | null;
   extendedHoursAvailable: boolean; // an Extended Hours card was drawn and hasn't been consumed yet
@@ -586,8 +574,6 @@ export type Action =
   | { t: 'dismissMarketOpenReport' }
   | { t: 'payPlayerDebt'; debtId: number; mode: 'installment' | 'full' }
   | { t: 'payFeeDebt'; mode: 'installment' | 'full' }
-  | { t: 'doShort'; code: string }
-  | { t: 'skipShort' }
   | { t: 'pickKnownIpo'; code: string }
   | { t: 'ipoBuyShare' }
   | { t: 'ipoBuyDone' }

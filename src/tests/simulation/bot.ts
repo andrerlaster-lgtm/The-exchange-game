@@ -5,10 +5,17 @@
 // MARKET model rather than a bot's cleverness. Every decision goes through the
 // seeded Rng, so a given seed replays identically.
 
-import { blocked, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone, reduce, shieldBlockReason, upgradeBlockReason } from '../../engine';
+import {
+  blocked, completedSectors, controlledSectorPairs, ipoGrowthBlockReason, ipoPctFromLaunch,
+  nextIpoMilestone, reduce, sectorPairOwner, shieldBlockReason, upgradeBlockReason,
+} from '../../engine';
 import type { Action, GameState } from '../../engine';
 import type { Rng } from '../../utils/rng';
-import { ETF_PRICE, IPO_GROWTH_INVESTMENTS, SHIELD_COST, UPGRADE_LEVELS, isIpoCode } from '../../data';
+import {
+  ETF_PRICE, IPO_GROWTH_INVESTMENTS, SECTOR_CODES, SECTOR_PAIRS, SHIELD_COST, STOCK_BY_CODE,
+  UPGRADE_LEVELS, isIpoCode,
+} from '../../data';
+import type { SectorId, SectorPairId } from '../../data/types';
 
 /** Codes the current player owns at least one share of. */
 function owned(s: GameState, player = s.cur): string[] {
@@ -26,6 +33,10 @@ function pick<T>(rng: Rng, arr: readonly T[]): T | null {
  * the most urgent prompt is always answered first.
  */
 function nextAction(s: GameState, rng: Rng): Action | null {
+  // A pending trade offer is answered before anything else: it is the one
+  // piece of state that belongs to a player who is not the active one, and
+  // leaving it open would stall the turn.
+  if (trading.enabled && s.p2pOffers.length > 0) return answerOffer(s);
   if (s.pendingDraws.length > 0) return { t: 'draw', deck: s.pendingDraws[0] };
   if (s.marketOpenReport) return { t: 'dismissMarketOpenReport' };
   // A deferrable notice (audit, tax, fund fee) needs an explicit pay/defer
@@ -106,7 +117,6 @@ function nextAction(s: GameState, rng: Rng): Action | null {
     return markets.etfs && active && !s.landingNotice && affordsWithCushion(ETF_PRICE) ? { t: 'buyEtf', code: s.etfPick } : { t: 'skipEtf' };
   }
   if (s.companyLoanOffer) return { t: 'takeCompanyLoan' };
-  if (s.shortPick) return { t: 'skipShort' };
   if (s.auction) return { t: 'auctionPass' };
 
   if (s.turnPhase === 'preRoll') return { t: 'roll' };
@@ -155,9 +165,142 @@ function nextAction(s: GameState, rng: Rng): Action | null {
     }
   }
 
+  // The Trade Step: once nothing is pending, go looking for the set.
+  if (!blocked(s) && trading.enabled && trading.proposedThisTurn < trading.maxPerTurn) {
+    const offer = setSeekingOffer(s, s.cur);
+    if (offer && offer.t === 'proposeP2POffer') {
+      // A declined deal must not be re-proposed on the same turn, or the bot
+      // and its counterparty loop on it until playTurn's guard trips.
+      const key = `${offer.from}:${offer.to}:${offer.code}:${offer.qty}`;
+      if (!trading.attempted.has(key)) {
+        trading.attempted.add(key);
+        trading.proposedThisTurn += 1;
+        return offer;
+      }
+    }
+  }
+
   if (!blocked(s)) return { t: 'endTurn' };
   return null;
 }
+
+// ── SET-SEEKING TRADING (2026-09-20) ────────────────────────────────────────
+//
+// Everything above answers prompts. This is the one part of the bot that acts
+// on a plan, and it exists to answer a single question: Monopoly's sets are
+// completed by NEGOTIATION, not by landing luck, so does The Exchange's
+// collect-a-set loop close once the players are willing to trade for it?
+//
+// The policy is deliberately narrow, so a run still measures the game rather
+// than a clever bot. On its own turn a player will:
+//   1. buy out the one other holder standing between it and a Sector Control
+//      group (the group needs EXCLUSIVE ownership, so a part-share left with
+//      anyone else is fatal), then
+//   2. buy a single share to finish a Sector Portfolio.
+// It pays a premium over market for both, because that is what a set is worth
+// and what a real table haggles over. The other side accepts any price at or
+// above its own threshold, unless the sale would break a set IT holds.
+
+/** What one share of a code is worth to the bank/market right now. */
+function unitPrice(s: GameState, code: string): number {
+  return s.prices[code] ?? s.ipos.find((ip) => ip.code === code)?.price ?? 0;
+}
+
+const heldBy = (s: GameState, pi: number, code: string) => s.players[pi].shares[code] ?? 0;
+
+/** Players other than `me` holding any share of `code`. */
+function otherHolders(s: GameState, me: number, code: string): number[] {
+  return s.players.map((_, i) => i).filter((i) => i !== me && heldBy(s, i, code) > 0);
+}
+
+/** The offer this player would make to finish a set, or null. */
+function setSeekingOffer(s: GameState, me: number): Action | null {
+  const myCash = s.players[me].cash;
+
+  // 1. Sector Control — needs every company in the group, held by nobody else.
+  for (const id of Object.keys(SECTOR_PAIRS) as SectorPairId[]) {
+    const codes = SECTOR_PAIRS[id].codes;
+    if (sectorPairOwner(s, id) === me) continue;         // already controlled
+    if (!codes.some((c) => heldBy(s, me, c) > 0)) continue; // not a group I'm in
+    // Every company must already be in play and held only by me or by ONE
+    // other player — anything looser needs more than one deal to fix.
+    if (codes.some((c) => heldBy(s, me, c) === 0 && otherHolders(s, me, c).length === 0)) continue;
+    const blockers = new Set<number>();
+    for (const c of codes) for (const h of otherHolders(s, me, c)) blockers.add(h);
+    if (blockers.size !== 1) continue;
+    const them = [...blockers][0]!;
+    // Buy out their whole position in one of the blocked companies. A part
+    // buy is worthless here: exclusivity is all-or-nothing.
+    const code = codes.find((c) => heldBy(s, them, c) > 0)!;
+    const qty = heldBy(s, them, code);
+    const price = Math.round(qty * unitPrice(s, code) * trading.setPremium);
+    if (price <= 0 || myCash - price < trading.reserve) continue;
+    return { t: 'proposeP2POffer', from: me, to: them, code, qty, direction: 'buy', price };
+  }
+
+  // 2. Sector Portfolio — one share of every company in a sector, so a single
+  //    share from the largest holder finishes it.
+  for (const sector of Object.keys(SECTOR_CODES) as SectorId[]) {
+    const codes = SECTOR_CODES[sector];
+    const missing = codes.filter((c) => heldBy(s, me, c) === 0);
+    if (missing.length !== 1) continue;
+    const code = missing[0];
+    const seller = otherHolders(s, me, code)
+      .filter((i) => heldBy(s, i, code) > 1)  // never strip someone to zero here
+      .sort((a, b) => heldBy(s, b, code) - heldBy(s, a, code))[0];
+    if (seller === undefined) continue;
+    const price = Math.round(unitPrice(s, code) * trading.sharePremium);
+    if (price <= 0 || myCash - price < trading.reserve) continue;
+    return { t: 'proposeP2POffer', from: me, to: seller, code, qty: 1, direction: 'buy', price };
+  }
+
+  return null;
+}
+
+/** Would selling this break a set the seller already holds? */
+function wouldBreakOwnSet(s: GameState, seller: number, code: string, qty: number): boolean {
+  const left = heldBy(s, seller, code) - qty;
+  if (left > 0) return false;
+  const stock = STOCK_BY_CODE[code];
+  if (!stock) return false;
+  if (completedSectors(s.players[seller]).includes(stock.sector)) return true;
+  return controlledSectorPairs(s, seller).some((id) => SECTOR_PAIRS[id].codes.includes(code));
+}
+
+/** Answer a pending offer: accept a good price, decline otherwise. */
+function answerOffer(s: GameState): Action | null {
+  const offer = s.p2pOffers[0];
+  if (!offer) return null;
+  const seller = offer.direction === 'buy' ? offer.to : offer.from;
+  const buyer = offer.direction === 'buy' ? offer.from : offer.to;
+  const value = unitPrice(s, offer.code) * offer.qty;
+  const affordable = s.players[buyer].cash >= offer.price;
+  const enough = offer.price >= value * trading.acceptFactor;
+  const held = heldBy(s, seller, offer.code) >= offer.qty;
+  return affordable && enough && held && !wouldBreakOwnSet(s, seller, offer.code, offer.qty)
+    ? { t: 'acceptP2POffer', id: offer.id }
+    : { t: 'declineP2POffer', id: offer.id };
+}
+
+/** Player-to-player trading policy. Off by default: every simulation written
+    before 2026-09-20 measured a table that never traded, and turning this on
+    silently would change what those runs mean. */
+export const trading = {
+  enabled: false,
+  /** Premium over market paid to buy out a blocker's whole position. */
+  setPremium: 1.4,
+  /** Premium for the single share that completes a Sector Portfolio. */
+  sharePremium: 1.5,
+  /** The seller's threshold, as a multiple of market value. */
+  acceptFactor: 1.25,
+  /** Cash a buyer keeps back after a trade. */
+  reserve: 5_000,
+  /** Offers one player will propose in a single turn. */
+  maxPerTurn: 2,
+  // Runtime bookkeeping, reset by playTurn.
+  proposedThisTurn: 0,
+  attempted: new Set<string>(),
+};
 
 /** Buying policy for IPOs, ETFs, and IPO growth (switchable for sweeps). */
 export const markets = {
@@ -201,6 +344,8 @@ export type Observer = (before: GameState, action: Action, after: GameState) => 
 export function playTurn(s: GameState, rng: Rng, observe?: Observer, decisionRng: Rng = rng): GameState {
   let state = s;
   const startingPlayer = state.cur;
+  trading.proposedThisTurn = 0;
+  trading.attempted.clear();
   // Generous guard: a single turn can chain several prompts (card -> pick ->
   // circuit breaker -> notice), plus doubles re-rolls.
   for (let i = 0; i < 200; i += 1) {

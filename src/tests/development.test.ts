@@ -51,7 +51,7 @@ function moveWith(s: GameState, bp: number, source: PriceMoveSource): GameState 
 }
 
 /** Run any harmless action so the reducer's control-loss check executes. */
-const tick = (s: GameState) => dispatch(s, { t: 'skipShort' }, rng());
+const tick = (s: GameState) => dispatch(s, { t: 'toggleTest' }, rng());
 
 // ── Purchase and control ────────────────────────────────────────────────────
 

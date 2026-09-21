@@ -135,17 +135,3 @@ export function blocked(s: GameState): boolean {
   return false;
 }
 
-/**
- * Short settlement payout by percentage moved (Rule 6). Profit when price falls.
- *  -10% or worse -> +$1,000 ; -5% -> +$500 ; flat -> $0 ; +5% -> -$500 ;
- *  +10% or better -> -$1,000.
- */
-export function shortPayout(entryPrice: number, currentPrice: number): number {
-  // Percentage-based conversion of the old step-delta table, preserving its
-  // scale exactly: one step was ~5%, which paid $500, and the payout capped at
-  // two steps (~10%) for $1,000. So $100 per 1% moved, capped at ±$1,000.
-  if (entryPrice <= 0) return 0;
-  const pct = ((currentPrice - entryPrice) / entryPrice) * 100;
-  // `|| 0` keeps an unchanged price at +0 rather than -0.
-  return Math.max(-1000, Math.min(1000, Math.round(-pct * 100 / 50) * 50)) || 0;
-}
