@@ -1,4 +1,4 @@
-import { STOCKS } from '../../data';
+import { REGULAR_SUPPLY, STOCKS } from '../../data';
 import { getStockMovementStatus, priceOf } from '../../engine';
 import type { GameState } from '../../engine';
 import { money, pctBp } from '../../utils/formatMoney';
@@ -53,11 +53,23 @@ function TickerGroup({ entries, hidden = false }: { entries: TickerEntry[]; hidd
 export default function MarketTicker() {
   const s = useGameState();
   const entries = tickerEntries(s);
+  const theme = s.marketTheme;
+  const listedCodes = (sectors: readonly string[]) => STOCKS
+    .filter((stock) => sectors.includes(stock.sector) && (s.supply[stock.code] ?? REGULAR_SUPPLY) < REGULAR_SUPPLY)
+    .map((stock) => stock.code);
+  const tailwindCodes = theme ? listedCodes(theme.tailwinds) : [];
+  const headwindCodes = theme ? listedCodes(theme.headwinds) : [];
 
   return (
     <section className="market-ticker" aria-label="Live stock price tracker" tabIndex={0}>
       <div className="market-ticker-title">MARKET TICKER</div>
-      {s.opts.roundMarket && <MarketRegimeBadge round={s.marketRound} variant="ticker" />}
+      {theme ? (
+        <div title={`Market Theme: ${theme.name}. Tailwinds: ${theme.tailwinds.join(', ')}. Headwinds: ${theme.headwinds.join(', ')}.`} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, padding: '0 8px', fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          <strong style={{ color: '#d4a535', letterSpacing: 0.7 }}>THEME · {theme.name.toUpperCase()}</strong>
+          <span style={{ color: '#3ed598' }}>▲ {tailwindCodes.length ? tailwindCodes.join(' ') : 'No public tailwinds yet'}</span>
+          <span style={{ color: '#ef4444' }}>▼ {headwindCodes.length ? headwindCodes.join(' ') : 'No public headwinds yet'}</span>
+        </div>
+      ) : <MarketRegimeBadge round={s.marketRound} variant="ticker" />}
       <div className="market-ticker-viewport">
         <div className="market-ticker-track">
           <TickerGroup entries={entries} />

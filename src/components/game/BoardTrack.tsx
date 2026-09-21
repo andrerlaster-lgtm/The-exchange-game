@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { BOARD_SIDE, PRICE_MOVE_SOURCE_LABEL, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
+import { BOARD_SIDE, PRICE_MOVE_SOURCE_LABEL, REGULAR_SUPPLY, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { developmentOf, getStockMovementStatus, sectorPairOwner } from '../../engine';
 import { pctBp } from '../../utils/formatMoney';
 import { useGameState, useDispatch } from '../../store';
@@ -243,6 +243,10 @@ export default function BoardTrack() {
           if (sp.type === 'stock') {
             const stock = STOCK_BY_CODE[sp.code!];
             const price = s.prices[sp.code!];
+            const isPublic = (s.supply[sp.code!] ?? REGULAR_SUPPLY) < REGULAR_SUPPLY;
+            const themeDirection = isPublic && s.marketTheme?.tailwinds.includes(stock.sector) ? 'up'
+              : isPublic && s.marketTheme?.headwinds.includes(stock.sector) ? 'down' : null;
+            const themeColor = themeDirection === 'up' ? '#3ed598' : '#ef4444';
             const weakCount = s.skips[sp.code!] ?? 0;
             const soldOut = s.soldOut[sp.code!];
             const outstanding = s.bankPool[sp.code!] ?? 0;
@@ -273,7 +277,7 @@ export default function BoardTrack() {
             return (
               <div key={sp.n} style={{
                 gridColumn: col, gridRow: row,
-                background: `${TILE_VIGNETTE}, ${isCur
+                background: `${themeDirection === 'up' ? 'linear-gradient(160deg, rgba(62,213,152,0.30), rgba(62,213,152,0.08))' : themeDirection === 'down' ? 'linear-gradient(160deg, rgba(239,68,68,0.28), rgba(239,68,68,0.07))' : TILE_VIGNETTE}, ${isCur
                   ? `linear-gradient(160deg, ${theme === 'dark' ? '#2b2620' : '#fdf6e6'}, ${PARCH})`
                   : PARCH}`,
                 // The tile is outlined in its sector's colour, so the board
@@ -287,6 +291,7 @@ export default function BoardTrack() {
                 minHeight: 0,
                 boxShadow: claimColor
                   ? `0 0 10px ${claimColor}66, inset 0 0 0 1px ${claimColor}55`
+                  : themeDirection ? `0 0 0 1px ${themeColor}, 0 0 12px ${themeColor}66`
                   : isCur ? '0 0 0 1px #c9a24f, 0 0 12px rgba(201,162,79,0.5)' : 'inset 0 1px 0 rgba(255,255,255,0.5)',
               }}>
                 {/* A Payout Claim holder's colour rides as the inner keyline,
@@ -303,6 +308,7 @@ export default function BoardTrack() {
                   borderRadius: pairOwnerColor ? '50%' : undefined,
                   padding: pairOwnerColor ? 1.5 : undefined,
                 }}>{secGlyph}</span>
+                {themeDirection && <span title={`Market Theme ${themeDirection === 'up' ? 'Tailwind' : 'Headwind'} — this public company will ${themeDirection === 'up' ? 'rise' : 'fall'} when the round ends`} style={{ position: 'absolute', right: '7%', top: '14%', color: themeColor, fontSize: 9, fontWeight: 900 }}>{themeDirection === 'up' ? '▲' : '▼'}</span>}
 
                 {outstanding > 0 && (
                   <span title={`${outstanding} outstanding share${outstanding === 1 ? '' : 's'} · land here to buy`} style={{

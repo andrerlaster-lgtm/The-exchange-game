@@ -104,15 +104,6 @@ export default function MarketIntelligence() {
         }}>{latestFed ? stance.label : 'Waiting on Fed'}</span>
       </div>
 
-      {s.marketTheme && (
-        <div style={{ marginBottom: 9, padding: '9px 10px', borderRadius: 8, background: 'rgba(74,163,255,0.07)', border: '1px solid rgba(74,163,255,0.25)' }}>
-          <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 0.85, color: 'var(--muted)' }}>THIS ROUND'S MARKET THEME</div>
-          <div style={{ color: 'var(--text)', fontSize: 12, fontWeight: 900, marginTop: 3 }}>{s.marketTheme.name}</div>
-          <div style={{ color: '#3ed598', fontSize: 10, marginTop: 4 }}>Tailwinds · {s.marketTheme.tailwinds.join(' · ')}</div>
-          <div style={{ color: '#ef4444', fontSize: 10, marginTop: 2 }}>Headwinds · {s.marketTheme.headwinds.join(' · ')}</div>
-        </div>
-      )}
-
       {(() => {
         // Each player can be running their own independent Market Condition
         // at once — this list is the one place the whole table's personal
