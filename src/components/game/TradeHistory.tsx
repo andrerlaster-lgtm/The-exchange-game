@@ -3,7 +3,7 @@ import type { TradeKind } from '../../engine';
 
 const KIND_LABEL: Record<TradeKind, string> = {
   buy: 'BUY', sell: 'SELL', ipo: 'IPO',
-  short: 'SHORT', settle: 'SETTL', margin: 'MARGIN', repay: 'REPAY', penalty: 'PNLTY', dividend: 'DIV',
+  margin: 'MARGIN', repay: 'REPAY', penalty: 'PNLTY', dividend: 'DIV',
   p2p: 'P2P', payout: 'CLAIM',
 };
 
@@ -11,8 +11,6 @@ const KIND_COLORS: Record<TradeKind, [string, string]> = {
   buy:      ['#16502a', '#4ade80'],
   sell:     ['#5a1010', '#f87171'],
   ipo:      ['#1e1a56', '#818cf8'],
-  short:    ['#5a2a08', '#fb923c'],
-  settle:   ['#40320a', '#fbbf24'],
   margin:   ['#40320a', '#fbbf24'],
   repay:    ['#16502a', '#4ade80'],
   penalty:  ['#5a1010', '#f87171'],

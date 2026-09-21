@@ -1,7 +1,7 @@
 // Low-level read-only selectors. Re-export rules and scoring for a unified public surface.
 // Import from this file (or engine/index.ts) rather than from rules/scoringEngine directly.
 
-export { clampPrice, ipoOf, priceOf, sellBackPrice, canFall, canRise, companyBuyoutCost, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked, shortPayout } from './rules';
+export { clampPrice, ipoOf, priceOf, sellBackPrice, canFall, canRise, companyBuyoutCost, eventPool, canTradeNow, canMarketSell, bankSellLimit, bankSellRemaining, blocked } from './rules';
 export { sharesValue, netWorth, isDiversified } from './scoringEngine';
 export { holdingGainLoss, holdingsReturnPct, stockGainLoss, marketGain, marketReturnPct, lapReturnPct, rankingScore } from './gainLoss';
 export { topOwner, recomputeClaim, claimPayout } from './soldOut';
@@ -137,9 +137,6 @@ export function getPortfolioRisk(playerIdx: number, s: GameState): RiskWarning {
   const p = s.players[playerIdx];
 
   if (p.margin > 0) return { badge: 'LEVERAGED', color: 'var(--red)' };
-
-  const hasShort = s.shorts.some(sh => sh.owner === playerIdx);
-  if (hasShort) return { badge: 'SHORT POSITION', color: 'var(--red)' };
 
   if (p.cash < 1000) return { badge: 'LOW CASH', color: 'var(--yellow)' };
 

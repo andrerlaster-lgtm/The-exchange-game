@@ -117,7 +117,6 @@ function nextAction(s: GameState, rng: Rng): Action | null {
     return markets.etfs && active && !s.landingNotice && affordsWithCushion(ETF_PRICE) ? { t: 'buyEtf', code: s.etfPick } : { t: 'skipEtf' };
   }
   if (s.companyLoanOffer) return { t: 'takeCompanyLoan' };
-  if (s.shortPick) return { t: 'skipShort' };
   if (s.auction) return { t: 'auctionPass' };
 
   if (s.turnPhase === 'preRoll') return { t: 'roll' };

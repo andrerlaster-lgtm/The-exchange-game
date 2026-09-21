@@ -315,13 +315,6 @@ export function buildActionCenter(s: GameState): ActionCenter3D {
     });
   }
 
-  if (s.shortPick) {
-    required.push({
-      id: 'short', title: 'Choose Short Position', accent: '#ef4444', urgent: true,
-      rows: STOCKS.map((stock) => ({ key: stock.code, title: `${stock.code} · ${stock.name}`, value: money(priceOf(s, stock.code)), buttons: [button('Short', { t: 'doShort', code: stock.code }, 'danger')] })),
-      buttons: [button('Skip', { t: 'skipShort' })],
-    });
-  }
 
   if (s.trade && s.trade.actionsLeft > 0 && s.pendingDraws.length === 0) {
     const stocks = s.trade.scope === 'stock' && s.trade.code ? [STOCK_BY_CODE[s.trade.code]] : STOCKS;

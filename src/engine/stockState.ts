@@ -1,9 +1,9 @@
-// Stock price mutations and short settlement (called on Immer drafts).
+// Stock price mutations (called on Immer drafts).
 
 import { CEILING_TRIGGER, IPO_INDEX, type PriceMoveSource, applyBasisPoints, isIpoCode } from '../data';
 import { money } from '../utils/formatMoney';
 import type { GameState } from './types';
-import { priceOf, shortPayout } from './rules';
+import { priceOf } from './rules';
 import { protectMove } from './development';
 
 /** What a price move actually did, in dollars, after the grid, the floor and
@@ -95,25 +95,6 @@ export function moveRoundMarketPrice(s: GameState, code: string, bp: number): Pr
   return applyPriceMove(s, code, bp, 'roundMarket');
 }
 
-/** Settle the current player's open short at the start of their next turn (Rule 6). */
-export function settleShorts(s: GameState): void {
-  const keep: GameState['shorts'] = [];
-  for (const sh of s.shorts) {
-    if (sh.owner === s.cur) {
-      const pl = shortPayout(sh.entryPrice, priceOf(s, sh.code));
-      s.players[s.cur].cash += pl;
-      s.players[s.cur].realizedStockGain += pl;
-      s.log.unshift({
-        text: `${sh.ownerName} settles short ${sh.code}: ${pl >= 0 ? '+' : ''}${money(pl)}`,
-        kind: pl >= 0 ? 'g' : 'r', t: s.lap,
-      });
-      if (s.log.length > 40) s.log.pop();
-      s.tradeLog.unshift({ kind: 'settle', text: `Short ${sh.code} settled ${pl >= 0 ? '+' : ''}${money(pl)}`, amount: pl, player: sh.ownerName, t: s.lap });
-      if (s.tradeLog.length > 60) s.tradeLog.pop();
-    } else keep.push(sh);
-  }
-  s.shorts = keep;
-}
 
 /** Lowest-priced code in the event pool. */
 export function lowestCode(s: GameState, pool: Array<{ code: string }>): string {

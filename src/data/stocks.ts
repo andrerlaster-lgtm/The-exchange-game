@@ -190,16 +190,16 @@ export const SECTORS: Record<SectorId, Sector> = {
 const DIV_BY_RISK: Record<Risk, number> = { Low: 110, Med: 70, High: 30 };
 
 // [space, name, sector, basePrice, risk, code]
-// 22 regular stocks — uneven sector distribution:
-//   tech 2 · comm 2 · energy 2 · consumer 3 · finance 3 · industrials 3 · realestate 3 · health 4
-// Spaces 26 and 30 remain assigned to special spaces rather than regular stocks.
+// 24 regular stocks — uneven sector distribution:
+//   energy 2 · comm 3 · consumer 3 · finance 3 · industrials 3 · realestate 3 ·
+//   tech 3 · health 4
 // Board order, 2026-09-20: each sector's companies sit together, the way a
 // Monopoly colour group does, so a sector band reads as a block you can
-// collect rather than three tiles scattered round the board. Specials keep
-// their spaces (1, 4, 7, 10, 13, 16, 19, 22, 25, 26, 28, 30, 31, 34), and a
-// block may be interrupted by one of them — 8/9/11 is a block with The Fed's
-// neighbour space 10 between, exactly as Monopoly's orange group straddles
-// Community Chest.
+// collect rather than three tiles scattered round the board. The 16 special
+// spaces keep theirs (SPECIAL in data/boardSpaces.ts: 1, 4, 7, 11, 13, 16, 19,
+// 21, 23, 26, 29, 31, 34, 35, 38, 40), and a block may be interrupted by one
+// of them — Industrials runs 22/24/25 around the Property Fund at 23, exactly
+// as Monopoly's orange group straddles Community Chest.
 const RAW_STOCKS: Array<[number, string, SectorId, number, Risk, string]> = [
   // Healthcare — 2, 3, 5, 6
   [2,  'BioQuest Labs',        'health',      1000, 'High', 'BIOQ'],

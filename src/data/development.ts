@@ -57,8 +57,12 @@ export const MAX_DEVELOPMENT_LEVEL = 3;
  */
 export const DEVELOPMENT_MIN_GAIN = 10_000;
 
-/** Cash a player must hold to develop at all, on top of affording the price
-    itself — so an upgrade is never the move that empties a hand. */
+/** Cash floor for developing at all. The test is max(price, this) — NOT
+    price + this: a player needs $5,000 in hand, or the price if the price is
+    higher. So a $5,000 Level Ⅲ bought with exactly $5,000 does leave the
+    buyer at zero; the floor stops the small levels from emptying a hand, not
+    the largest one. Raise this to `cost + DEVELOPMENT_MIN_CASH` in
+    developmentGateReason if that should change. */
 export const DEVELOPMENT_MIN_CASH = 5_000;
 
 /** Investor Day's third option buys the next level at this share of its price

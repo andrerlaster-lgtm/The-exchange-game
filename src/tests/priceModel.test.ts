@@ -10,7 +10,7 @@ import {
   applyBasisPoints, roundToGrid, runBasisPoints,
 } from '../data';
 import { applyPriceMove } from '../engine/stockState';
-import { priceOf, sellBackPrice, shortPayout } from '../engine';
+import { priceOf, sellBackPrice } from '../engine';
 import { dispatch, patch, rng, started } from './helpers';
 
 describe('applyBasisPoints', () => {
@@ -180,16 +180,6 @@ describe('prices derived from the live model', () => {
     expect(sellBackPrice(s, 'MEDI')).toBe(PRICE_FLOOR);
   });
 
-  it('short settlement pays on percentage moved, capped at +/-$1,000', () => {
-    // Preserves the old step table's scale exactly: ~5% paid $500 and the
-    // payout capped at ~10% for $1,000.
-    expect(shortPayout(1_000, 950)).toBe(500);    // -5%
-    expect(shortPayout(1_000, 900)).toBe(1_000);  // -10%
-    expect(shortPayout(1_000, 800)).toBe(1_000);  // capped
-    expect(shortPayout(1_000, 1_000)).toBe(0);
-    expect(shortPayout(1_000, 1_050)).toBe(-500);
-    expect(shortPayout(1_000, 1_200)).toBe(-1_000); // capped
-  });
 });
 
 describe('determinism', () => {

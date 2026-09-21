@@ -16,7 +16,7 @@ export type Volatility = 'mod' | 'high' | 'spec';
 export type SpaceType =
   | 'open' | 'stock' | 'event' | 'fed' | 'ipo' | 'rateDecision'
   | 'regime' // combined Bull/Bear space (2026-09-18 board redesign) — landing here rolls a d6 to pick one, see actionResolver.ts's 'regime'/'rollRegime' cases
-  | 'tax' | 'free' | 'short' | 'investor' | 'placeholder'
+  | 'tax' | 'free' | 'investor' | 'placeholder'
   | 'etf' | 'audit';
 
 export interface Sector {

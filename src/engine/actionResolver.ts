@@ -19,7 +19,7 @@ import { buyMarketProtection, developmentClaimBonus, developmentOf, investorDayU
 import { investIpoGrowth, snapshotIpoHoldings } from './ipoGrowth';
 import { heldQty, setHeld, unitValue } from './holdings';
 import { payMarketOpen } from './playerState';
-import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
+import { applyPriceMove, moveTradePrice, moveEventPrice } from './stockState';
 import { beginMarketTheme, resolveRoundEndMarket, tallyRoundDice } from './roundMarket';
 import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, finalizeCard, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
@@ -489,7 +489,6 @@ function resolveLanding(s: GameState, pi: number): void {
       break;
     }
     case 'placeholder':
-    case 'short':
       break;
   }
 }
@@ -555,7 +554,7 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.marketSignals = []; s.marketSignalSeq = 0; s.portfolioMilestones = {};
       s.decks = freshDecks(rng, s.opts.closeMode); s.discard = { ME: [], FED: [] };
       s.ipos = freshIpos();
-      s.shorts = []; s.closing = false; s.closeDrawer = null; s.etfPick = null;
+      s.closing = false; s.closeDrawer = null; s.etfPick = null;
       s.extendedHoursAvailable = false; s.extendedRoundsLeft = 0;
       s.circuitBreakerHolder = null; s.circuitBreakerPrompt = null;
       s.lastDraw = null; s.cardPreviewMode = null; s.investorDay = null;
@@ -1281,23 +1280,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       break;
     }
 
-    // ---- short sell (legacy state — no longer triggered from board) ----
-    case 'doShort': {
-      const { code } = action;
-      if (!s.opts.shorts || !s.shortPick) break;
-      if (isIpoCode(code)) break;
-      if (s.shorts.some((sh) => sh.owner === s.cur)) break;
-      const p = s.players[s.cur];
-      s.shorts.push({ owner: s.cur, ownerName: p.name, pcolor: p.color, code, entryPrice: priceOf(s, code) });
-      setMarketStance(p, 'bearish');
-      addLog(s, `${p.name} shorts ${code} @ ${money(priceOf(s, code))}`, 'r');
-      addTradeLog(s, 'short', `Short ${code} @ ${money(priceOf(s, code))}`, 0, p.name);
-      s.shortPick = false;
-      break;
-    }
-    case 'skipShort':
-      s.shortPick = false;
-      break;
 
     // ---- IPO ----
     case 'pickKnownIpo': {
@@ -1700,7 +1682,6 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       s.ipoGrowthThisTurn = false;
       s.ipoBoughtThisTurn = [];
       clearTurnState(s);
-      settleShorts(s);
       snapshotIpoHoldings(s); // the new turn's "held before this turn began" for IPO milestones
       addLog(s, `— ${s.players[s.cur].name}'s turn —`);
       break;
