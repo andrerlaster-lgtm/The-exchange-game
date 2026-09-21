@@ -12,14 +12,17 @@ import { claimPayoutForLanding } from '../engine/soldOut';
 import { controlledSectorPairs, sectorPairOwner } from '../engine';
 import { dispatch, patch, rng, rollTo, started } from './helpers';
 
-// blueChipAlliance pair: FTRB (finance) + IRON (industrials) — $200 rent.
-// Spaces are read from the data, since the board's layout is a design choice. A cross-category pair, deliberately chosen so owning
-// both never also completes either company's *broad* Sector Portfolio
-// (finance and industrials each have 3 companies, not 2) — keeps this test
-// isolated from that separate, pre-existing boost.
-const PAIR = SECTOR_PAIRS.blueChipAlliance;
-const [CODE_A, CODE_B] = PAIR.codes; // FTRB, IRON
-const LANDING_SPACE = STOCK_BY_CODE[PAIR.codes[1]].space; // IRON, wherever the board puts it
+// healthEssentials: CARE + VSGN — $200 rent. Spaces are read from the data,
+// since the board's layout is a design choice. Healthcare has four companies
+// and this group is only half of it, so owning both never also completes the
+// company's broad Sector Portfolio — that keeps this test isolated from that
+// separate, pre-existing boost. (Every other group is now a whole sector, so
+// this is the only pair that can be tested in isolation.)
+const PAIR = SECTOR_PAIRS.healthEssentials;
+// The landing company is whichever of the two sits further round the board,
+// since rollTo needs a target of at least space 4.
+const [CODE_A, CODE_B] = [...PAIR.codes].sort((a, b) => STOCK_BY_CODE[a].space - STOCK_BY_CODE[b].space);
+const LANDING_SPACE = STOCK_BY_CODE[CODE_B].space; // the later of the two, wherever the board puts it
 
 function expectedClaimOwed(holderShares: number, landingShares = 0) {
   const stock = STOCK_BY_CODE[CODE_B];
@@ -93,7 +96,7 @@ describe('Sector Rent stacks on the Payout Claim', () => {
   });
 
   it('caps the final combined Payout Claim and Sector Rent at $10,000', () => {
-    const premiumPair = SECTOR_PAIRS.speculativePlays; // SNKR + APEX
+    const premiumPair = SECTOR_PAIRS.financialDistrict; // FTRB + PAYW + APEX
     let s = started(2);
     s = patch(s, (d) => {
       for (const code of premiumPair.codes) {
@@ -112,7 +115,7 @@ describe('Sector Rent stacks on the Payout Claim', () => {
 
     expect(s.landingNotice?.amount).toBe(PAYOUT_CLAIM_TOTAL_CAP);
     expect(s.payoutShortfallChoice?.owed).toBe(PAYOUT_CLAIM_TOTAL_CAP);
-    expect(s.landingNotice?.detail).toContain('combined $12,350 charge is capped at $10,000');
+    expect(s.landingNotice?.detail).toContain('combined $12,825 charge is capped at $10,000');
   });
 
   it('never charges Sector Rent to a player landing on their own controlled pair', () => {

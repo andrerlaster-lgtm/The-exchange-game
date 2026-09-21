@@ -149,7 +149,7 @@ Each turn follows the same order unless a card or special rule changes it.
 9. End the Trade Step. All unresolved offers expire.
 10. If the player's first roll was doubles, that player takes exactly 1 bonus roll after the landing and all required actions are fully resolved.
     - Doubles rolled on the bonus roll do not earn another roll.
-11. If the round just completed (every player has taken a turn), resolve the round-end market from the round's dice: the first dice total picks the bloc, the second dice average sets direction and size (Section 21).
+11. If the round just completed (every player has taken a turn), resolve the round-end market: the round's Market Theme lifts its tailwind sectors and presses its headwind sectors, by risk tier, across every public company (Section 21). Then draw the next round's theme.
 12. Pass play to the next player.
 
 **First-lap grace:** Any Payout Claim (Section 11), Sector Rent (Section 12), or ETF landing fee (Section 18) that would otherwise be owed is skipped entirely for a player who has not yet completed one full lap of the board — no charge, no marker, no effect on the claim/fee holder. The purchase or other option that space offers is unaffected; only the payment to another player is waived. Once a player completes their first lap, every later landing is charged normally.
@@ -640,53 +640,48 @@ Audit Notice, Portfolio Tax, and ETF landing fees are bank/player fees a player 
 
 ## 21. Round-End Market
 
-The market moves **once per completed round**, and the round's own dice decide what it does. A single roll still moves only that player's piece — but both of its dice are written down, and the whole round's dice are read together when the round closes.
+The market moves **once per completed round**, and a **Market Theme** decides what it does. A single dice roll never moves prices — it moves that player's piece and nothing else.
 
-**During the round**
-- Every movement roll adds its **first die** to the sector tally and its **second die** to the move tally. A doubles bonus roll counts as well.
-- Both tallies are visible all round, so everyone can see where the market is heading — and that the next roll can still change it.
+**At the start of every round**
+
+One Market Theme is drawn and announced. Each theme names **tailwind** sectors and **headwind** sectors:
+
+| Theme | Tailwinds | Headwinds |
+|---|---|---|
+| Growth Rotation | Technology, Finance, Communications | Consumer, Real Estate |
+| Defensive Rotation | Healthcare, Consumer, Real Estate | Technology, Communications |
+| Energy Shock | Energy, Industrials | Consumer, Real Estate |
+| Infrastructure Boom | Industrials, Energy, Finance | Consumer, Communications |
+| Credit Tightening | Finance, Consumer | Technology, Real Estate |
+| Healthcare Breakthrough | Healthcare, Technology | Energy, Consumer |
+
+The theme is public the whole round, so everyone trades knowing what the close will reward. What nobody knows is how much of it each player will be able to act on before the round ends.
 
 **End-of-round resolution**
 
 Once every player has taken a turn:
 
-1. **Total the first dice** and count that many places round the bloc wheel, wrapping past six (so a total of 7 is face 1, 12 is face 6):
+1. Every **public** company in a tailwind sector **rises**; every public company in a headwind sector **falls**. A company is public once at least one of its shares has left the bank — an untouched company is not affected by a theme.
+2. The size is **5%, scaled by risk tier**:
 
-   | Face | Bloc |
+   | Risk | Move |
    |---|---|
-   | 1 | Tech & Communications |
-   | 2 | Consumer |
-   | 3 | Healthcare |
-   | 4 | Energy & Industrials |
-   | 5 | Finance |
-   | 6 | Real Estate |
+   | Low | 2.5% |
+   | Med | 5% |
+   | High | 7.5% |
 
-   Totalling — rather than averaging — keeps every bloc equally likely however many players are at the table.
-
-2. **Average the second dice** and compare to the midpoint of a die, **3.50**:
-   - below 3.50 → **Bearish**; above → **Bullish**; exactly 3.50 → the market holds flat.
-   - how far the average sits from 3.50 sets the size. The further a round strayed from the middle, the bigger the move — but more dice average out flatter, so the thresholds tighten as the round gets longer:
-
-   | Rolls in the round | 5% from | 7.5% from |
-   |---|---|---|
-| 2 | 0.48 | 1.21 |
-| 3 | 0.39 | 0.99 |
-| 4 | 0.34 | 0.85 |
-| 5 | 0.31 | 0.76 |
-| 6 | 0.28 | 0.70 |
-| 7 | 0.26 | 0.65 |
-| 8 | 0.24 | 0.60 |
-
-   Below the first threshold the move is **2.5%**. (In the app this is computed exactly; the table is for playing on paper.)
-
-3. Every regular company in that bloc moves by it, and so does every **revealed** IPO in it. Unrevealed IPOs do not move.
-4. Clear both tallies for the next round.
+3. Sectors the theme does not name do not move at all.
+4. The theme is spent, and a new one is drawn for the next round.
 
 The marker stays visible as the result of the round just finished, until the next round-end resolution replaces it.
 
 **Price rules**
 - Moves use the percentage price system, rounded to the **$25 grid**, with the **$100 floor** (Section 23). There is no maximum price.
-- Exactly one bloc moves each round. If everything in that bloc is already at its limit in that direction, the marker still records the round and no prices move — the dice are not re-read and no other bloc is substituted.
+- Anything already at its limit in that direction simply does not move; nothing is substituted for it.
+
+**Bank Rate follow-through**
+
+Every second round, the Bank Rate follows the round's net result: a net-up round nudges it **+0.25%**, a net-down round **-0.25%**, within the 1-8% band. Borrowing costs only — the nudge never moves prices.
 
 **What does not move the broad market**
 - A single dice roll on its own.
@@ -702,7 +697,7 @@ Market Event cards, Fed cards, Weak Demand, Strong Demand, large bank sales and 
 
 The board's **Bull Run** and **Bear Run** (the Market Swing space, Section 22) are a different mechanic — risk-tier moves and stance cash on landing — and are not merged into this marker.
 
-**In play:** "Your roll moves your piece, and your dice go into the round's tally. When everyone has had a turn, the first dice are totalled to pick the bloc and the second dice averaged to set the move — below 3.5 the market falls, above it rises, and the further from the middle the round rolled, the bigger the move."
+**In play:** "The theme is on the table all round: these sectors are favoured, these are under pressure. Trade into it before the round closes, because the close pays out on what you are holding then — and only companies that are already public move."
 
 ### Bank Rate and Market Rate
 
@@ -823,7 +818,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 | Strong Demand reaches 2 markers | Price rises 5% and markers clear |
 | Stock becomes Sold Out | This happens as part of the full-company purchase; no price increase is applied |
 | Stock crosses $5,000 upward on a trade | Triggers a global Market Event card; the price itself is not capped |
-| Round-end market move | Moves exactly 1 market bloc, from the round's dice; see Section 21 |
+| Round-end market move | Moves the round's Market Theme sectors, by risk tier; see Section 21 |
 | Card effect | Follow the card text; no portfolio or share-count protection applies automatically |
 
 **Per-action price movement:** A full-company purchase does not move the share price. A qualifying bank sell-back is one market action regardless of the number of shares sold in that action.
@@ -920,7 +915,7 @@ Use this checklist when sending the rules to code.
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default, or carry to Outstanding Fees if nothing is left to sell |
 | Player Loans | Payout Claim shortfall only; rate = Bank Rate + creditor's d6 premium (1-2: +1%, 3-4: +2%, 5-6: +3%), fixed at creation; interest accrues each debtor turn, rounded to $10 with a $20 minimum; $500 installment or full payoff; unpaid balance counts against debtor's score and for creditor's |
 | Sector Control | 11 fixed pairs of regular stocks, each with a flat rent ($200/$350/$550 by tier); rent is added on top of a Payout Claim only when the claim holder also exclusively owns both companies in the pair |
-| Round-end market | Tally both dice of every movement roll. At the end of every non-final round: first-dice total wraps to a face 1-6 for the bloc; second-dice average against 3.50 sets direction, and its distance from 3.50, scaled by the number of rolls, sets 250/500/750 bp; revealed IPOs in the bloc move too; a single roll or a card never triggers it |
+| Round-end market | Draw a Market Theme as each round begins. At the end of every non-final round: public companies in tailwind sectors rise and in headwind sectors fall, 250/500/750 bp by Low/Med/High risk; untouched companies and unnamed sectors do not move; a single roll or a card never triggers it |
 | Market Conditions | One random condition active at a time, independent of both card decks; rerolled every time a player reaches Market Open; never stacks |
 | Outstanding Fees | Audit Notice, Portfolio Tax, and ETF landing fees may be paid immediately or carried as debt; add the Bank Rate + 2% each debtor turn, rounded to $10 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
 | Insolvency | Payout Claim only: if the landing player can't pay another player, offer a Player Loan, or force-sell regular stock (not IPO/ETF) until covered or exhausted; waive any remaining shortfall, cash floors at $0, no elimination |

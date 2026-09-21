@@ -184,8 +184,10 @@ describe('Market Conditions — personal, per-player', () => {
   });
 
   it('charges doubled Sector Rent on a live landing while the claim holder\'s own Toll Hike is active', () => {
-    const PAIR = SECTOR_PAIRS.blueChipAlliance;
-    const [CODE_A, CODE_B] = PAIR.codes; // FTRB, IRON
+    const PAIR = SECTOR_PAIRS.healthEssentials;
+    // Land on whichever of the two sits further round the board — rollTo
+    // needs a target of at least space 4.
+    const [CODE_A, CODE_B] = [...PAIR.codes].sort((a, b) => STOCK_BY_CODE[a].space - STOCK_BY_CODE[b].space);
     let s = started(2);
     s = patch(s, (d) => {
       d.marketConditions[1] = { id: 'tollHike', title: 'Toll Hike', detail: 'test', icon: '▲', color: '#f472b6', owner: 1, lap: 1, durationUnit: 'turns', remaining: 5 };
@@ -195,7 +197,7 @@ describe('Market Conditions — personal, per-player', () => {
       d.players[1].shares[CODE_B] = 11;
       d.cur = 0;
     });
-    s = rollTo(s, STOCK_BY_CODE.IRON.space); // IRON (CODE_B)
+    s = rollTo(s, STOCK_BY_CODE[CODE_B].space);
     const stock = STOCK_BY_CODE[CODE_B];
     const claimOwed = claimPayoutForLanding(11, false, stock.base, stock.base, 0);
     expect(s.landingNotice).toMatchObject({

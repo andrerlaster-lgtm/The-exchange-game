@@ -108,9 +108,9 @@ describe('Bank Rate and Market Rate', () => {
   });
 
   it('a resolved round nudges the rate 25 bp with its marker, every other round', () => {
-    const even = patch(started(2), (d) => { d.lap = 4; tallyRoundDice(d, 5, 6); });
+    const even = patch(started(2), (d) => { d.lap = 4; d.marketTheme = null; tallyRoundDice(d, 5, 6); });
     expect(patch(even, (d) => { resolveRoundEndMarket(d); }).bankRateBp).toBe(325);
-    const odd = patch(started(2), (d) => { d.lap = 5; tallyRoundDice(d, 5, 6); });
+    const odd = patch(started(2), (d) => { d.lap = 5; d.marketTheme = null; tallyRoundDice(d, 5, 6); });
     expect(patch(odd, (d) => { resolveRoundEndMarket(d); }).bankRateBp).toBe(300);
   });
 });

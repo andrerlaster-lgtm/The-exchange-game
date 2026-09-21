@@ -260,25 +260,36 @@ export const SECTOR_CODES: Record<SectorId, string[]> = STOCKS.reduce((acc, s) =
   return acc;
 }, {} as Record<SectorId, string[]>);
 
-// ── Sector Control (landing rent for owning both companies in a pair) ──────
+// ── Sector Control (landing rent for owning a whole group) ─────────────────
 // Flat toll by tier — paid straight to the owner, no forced-sale/loan
 // complexity like Payout Claims have. Kept modest since this fires on every
 // landing (not just sold-out ones), so it needs to stay in the background
 // rather than dominate the economy.
+//
+// Every group sits inside ONE sector as of 2026-09-20, so the colour blocks
+// on the board are exactly the groups you can control. Three cross-sector
+// pairs (Blue Chip Alliance, Capital Growth, Speculative Plays) were retired
+// with that change, and the two companies added with the 40-space board join
+// their own sector's group.
 export const SECTOR_PAIR_RENT: Record<Risk, number> = { Low: 200, Med: 350, High: 550 };
 
+/** A three-company sector is markedly harder to corner than a two-company
+    one, so its rent is half as much again, rounded to $50. */
+export const SECTOR_TRIO_RENT: Record<Risk, number> = { Low: 300, Med: 525, High: 825 };
+
 export const SECTOR_PAIRS: Record<SectorPairId, SectorPair> = {
-  techSentinels:      { id: 'techSentinels',      name: 'Tech Sentinels',      tier: 'High', rent: SECTOR_PAIR_RENT.High, codes: ['CCAI', 'CYBS'], color: '#38BDF8' },
-  consumerStaples:    { id: 'consumerStaples',    name: 'Consumer Staples',    tier: 'Low',  rent: SECTOR_PAIR_RENT.Low,  codes: ['SAFE', 'FRSH'], color: '#FBBF24' },
+  // Healthcare has four companies, so it splits into two groups of two.
   healthEssentials:   { id: 'healthEssentials',   name: 'Health Essentials',   tier: 'Low',  rent: SECTOR_PAIR_RENT.Low,  codes: ['CARE', 'VSGN'], color: '#34D399' },
   healthInnovation:   { id: 'healthInnovation',   name: 'Health Innovation',   tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['MEDI', 'BIOQ'], color: '#A78BFA' },
+  // Energy is the one two-company sector, so its group is the whole sector.
   energyComplex:      { id: 'energyComplex',      name: 'Energy Complex',      tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['OILW', 'SOLR'], color: '#FB923C' },
-  realEstateHoldings: { id: 'realEstateHoldings', name: 'Real Estate Holdings', tier: 'Low', rent: SECTOR_PAIR_RENT.Low,  codes: ['MTRO', 'RENT'], color: '#60A5FA' },
-  heavyIndustry:      { id: 'heavyIndustry',      name: 'Heavy Industry',      tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['BLDM', 'AERO'], color: '#94A3B8' },
-  mediaGames:         { id: 'mediaGames',         name: 'Media & Games',       tier: 'High', rent: SECTOR_PAIR_RENT.High, codes: ['STRM', 'GMBX'], color: '#F472B6' },
-  blueChipAlliance:   { id: 'blueChipAlliance',   name: 'Blue Chip Alliance',  tier: 'Low',  rent: SECTOR_PAIR_RENT.Low,  codes: ['FTRB', 'IRON'], color: '#2DD4BF' },
-  capitalGrowth:      { id: 'capitalGrowth',      name: 'Capital Growth',      tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['PAYW', 'TWPT'], color: '#FACC15' },
-  speculativePlays:   { id: 'speculativePlays',   name: 'Speculative Plays',   tier: 'Med',  rent: SECTOR_PAIR_RENT.Med,  codes: ['SNKR', 'APEX'], color: '#F87171' },
+  // The six three-company sectors: the group is the whole colour block.
+  financialDistrict:  { id: 'financialDistrict',  name: 'Financial District',  tier: 'High', rent: SECTOR_TRIO_RENT.High, codes: ['FTRB', 'PAYW', 'APEX'], color: '#2D6FA8' },
+  consumerStaples:    { id: 'consumerStaples',    name: 'Consumer Staples',    tier: 'Low',  rent: SECTOR_TRIO_RENT.Low,  codes: ['SAFE', 'FRSH', 'SNKR'], color: '#FBBF24' },
+  realEstateHoldings: { id: 'realEstateHoldings', name: 'Real Estate Holdings', tier: 'Med', rent: SECTOR_TRIO_RENT.Med,  codes: ['MTRO', 'TWPT', 'RENT'], color: '#2E9E5B' },
+  heavyIndustry:      { id: 'heavyIndustry',      name: 'Heavy Industry',      tier: 'Med',  rent: SECTOR_TRIO_RENT.Med,  codes: ['IRON', 'BLDM', 'AERO'], color: '#CE4E92' },
+  techSentinels:      { id: 'techSentinels',      name: 'Tech Sentinels',      tier: 'High', rent: SECTOR_TRIO_RENT.High, codes: ['CCAI', 'CYBS', 'NVMS'], color: '#DFBE2E' },
+  mediaGames:         { id: 'mediaGames',         name: 'Media & Games',       tier: 'Med',  rent: SECTOR_TRIO_RENT.Med,  codes: ['STRM', 'GMBX', 'PLBK'], color: '#7FC6EA' },
 };
 
 /** Reverse lookup: regular stock code -> the Sector Control pair it belongs

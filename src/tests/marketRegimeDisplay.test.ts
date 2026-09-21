@@ -73,7 +73,7 @@ describe('marketRegimeInfo — single source of truth for all three surfaces', (
     expect(marketRegimeInfo(s.marketRound).zone).toBe('none');
     s = dispatch(patch(s, (d) => { d.turnPhase = 'preRoll'; }), { t: 'roll' }, scriptedRng([6, 6]));
     expect(s.marketRound).toBeNull();
-    s = patch(s, (d) => { tallyRoundDice(d, 5, 6); resolveRoundEndMarket(d); });
+    s = patch(s, (d) => { d.marketTheme = null; tallyRoundDice(d, 5, 6); resolveRoundEndMarket(d); });
     expect(['bull', 'bear']).toContain(marketRegimeInfo(s.marketRound).zone);
     // No second field tracks the regime — marketRound is the only source.
     expect((s as unknown as Record<string, unknown>).marketRegime).toBeUndefined();
@@ -96,7 +96,7 @@ describe('Round boundary', () => {
   it('records exactly one market signal for a round that moved something', () => {
     const s = started(2);
     const signalsBefore = s.marketSignals.length;
-    const t = patch(s, (d) => { tallyRoundDice(d, 5, 6); resolveRoundEndMarket(d); });
+    const t = patch(s, (d) => { d.marketTheme = null; tallyRoundDice(d, 5, 6); resolveRoundEndMarket(d); });
     expect(t.marketSignals.length).toBe(signalsBefore + 1);
     expect(t.marketSignals[0].title).toMatch(/^Round-End Market/);
   });

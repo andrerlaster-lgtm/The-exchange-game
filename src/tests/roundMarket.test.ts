@@ -12,9 +12,12 @@ import { bankRateBp, marketRateBp } from '../engine';
 import type { GameState } from '../engine';
 import { dispatch, patch, rng, scriptedRng, started } from './helpers';
 
-/** A state whose round tally holds exactly these rolls. */
+/** A state whose round tally holds exactly these rolls, with no Market Theme
+    live — the dice are the round-end fallback when a theme is not running
+    (a theme takes priority; see resolveRoundEndMarket). */
 function withRolls(rolls: Array<[number, number]>, extra: (d: GameState) => void = () => {}): GameState {
   return patch(started(2), (d) => {
+    d.marketTheme = null;
     for (const [a, b] of rolls) tallyRoundDice(d, a, b);
     extra(d);
   });

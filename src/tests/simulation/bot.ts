@@ -42,6 +42,11 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   if (s.landingNotice) return { t: 'ackLandingNotice' };
   if (s.regimeRollPrompt) return { t: 'rollRegime' };
   if (s.loanRatePrompt) return { t: 'rollLoanRate' };
+  // Rate Decision (board 19 and 31, added 2026-09-19). Without this the bot
+  // simply stops on that space: playTurn returns an unchanged state and the
+  // simulated game ends there, which quietly truncated every run between
+  // that date and 2026-09-20.
+  if (s.rateDecisionPrompt) return { t: 'rollRateDecision' };
 
   // Debts are paid from cash whenever cash covers them, and stock is sold only
   // until it does. An earlier version chose "force-sell" for every Payout

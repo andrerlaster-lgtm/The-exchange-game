@@ -31,19 +31,22 @@ export interface Sector {
 // the broad SectorId groups (3-4 companies each) drive Market Event/Fed
 // card targeting and Diversified/Broad Market bonuses, and reshuffling
 // those to make every group exactly 2 companies would silently change what
-// "all Finance stocks" etc. means on existing cards. Sector Control pairs
-// instead cut across those groups purely for the landing-rent mechanic.
+// "all Finance stocks" etc. means on existing cards. A Sector Control group
+// now sits inside one sector (2026-09-20), so the board's colour blocks and
+// the groups you can control are the same thing.
 export type SectorPairId =
   | 'techSentinels' | 'consumerStaples' | 'healthEssentials' | 'healthInnovation'
   | 'energyComplex' | 'realEstateHoldings' | 'heavyIndustry' | 'mediaGames'
-  | 'blueChipAlliance' | 'capitalGrowth' | 'speculativePlays';
+  | 'financialDistrict';
 
 export interface SectorPair {
   id: SectorPairId;
   name: string;
   tier: Risk;
   rent: number;
-  codes: [string, string];
+  /** Every company in the group — two for the two-company sectors and for
+      each half of Healthcare, three for a three-company sector. */
+  codes: readonly string[];
   color: string;
 }
 

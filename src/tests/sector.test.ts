@@ -3,7 +3,7 @@
 // Built on the app's existing 8-sector map (no data migration).
 
 import { describe, expect, it } from 'vitest';
-import { SECTOR_CODES, DIVERSIFIED_BONUS, BROAD_MARKET_BONUS, PAYOUT_MULT_LOW, PAYOUT_MULT_LOW_SECTOR } from '../data';
+import { SECTOR_PAIRS, SECTOR_CODES, DIVERSIFIED_BONUS, BROAD_MARKET_BONUS, PAYOUT_MULT_LOW, PAYOUT_MULT_LOW_SECTOR } from '../data';
 import { completedSectors, distinctSectors, diversificationBonus, diversificationTier, hasSectorPortfolio } from '../engine';
 import { dispatch, patch, rng, rollTo, scriptedRng, started } from './helpers';
 
@@ -50,8 +50,12 @@ describe('Sector Portfolio boosts Payout Claim rent', () => {
     // Landing only presents the Payout Claim choice now — pay cash to match
     // the old auto-deducted-on-landing behavior these assertions check.
     s = dispatch(s, { t: 'choosePayoutPayCash' }, rng());
-    expect(s.players[0].cash).toBe(payerBefore - FTRB_RENT_LOW_SECTOR);
-    expect(s.players[1].cash).toBe(holderBefore + FTRB_RENT_LOW_SECTOR);
+    // Holding every Finance company completes the sector AND controls the
+    // Financial District group (2026-09-20: a group is a whole sector now),
+    // so Sector Rent rides along with the boosted claim.
+    const owed = FTRB_RENT_LOW_SECTOR + SECTOR_PAIRS.financialDistrict.rent;
+    expect(s.players[0].cash).toBe(payerBefore - owed);
+    expect(s.players[1].cash).toBe(holderBefore + owed);
   });
 
   it('pays the normal tier when the sector is not complete', () => {

@@ -1,10 +1,16 @@
-// THE ROUND-END MARKET (2026-09-19 rules) — the only source of broad market
-// movement, and it resolves exactly once per completed round.
+// THE ROUND-END MARKET — the only source of broad market movement, and it
+// resolves exactly once per completed round.
 //
-// This replaced the dice-driven Market Meter, then took the dice back in a
-// different shape. A single roll still does nothing to prices: it moves the
-// player's piece, and its two dice are tallied. When the round closes, the
-// whole round's dice are read together:
+// MARKET THEMES (2026-09-20) are the live rule. A theme is drawn as each round
+// begins and named at the table: it lists tailwind sectors and headwind
+// sectors, so everyone trades all round knowing what the close will reward.
+// At the round end every PUBLIC company (one that has had at least one share
+// leave the bank) in a tailwind sector rises and every one in a headwind
+// sector falls, 5% scaled by risk tier — 2.5% Low, 5% Med, 7.5% High.
+//
+// The dice path below is what themes replaced, and stays as the fallback for
+// a state with no theme live (resolveRoundEndMarket tries the theme first).
+// It reads the whole round's dice together:
 //
 //   1. the FIRST dice are TOTALLED and wrapped to six, which picks the market
 //      bloc (see MARKET_BLOCS). Totalling keeps every bloc equally likely at
@@ -57,6 +63,22 @@ export function beginMarketTheme(s: GameState, rng: Rng): void {
   addLog(s, `Market Theme: ${theme.name}. Tailwinds: ${theme.tailwinds.map((x) => SECTORS[x].name).join(', ')}. Headwinds: ${theme.headwinds.map((x) => SECTORS[x].name).join(', ')}.`, 'y');
 }
 
+/** A hot round invites tightening and a cold one invites easing: the Bank Rate
+    follows the round's result, but only on every RATE_NUDGE_EVERY_N_ROUNDS
+    round — nudging every round moved it two to three times as often as the Fed
+    cards did. Borrowing costs only; no price moves either way. Both round-end
+    paths call this: the themes took over the round end and, until this was
+    pulled out, quietly took the rate nudge with it. */
+function nudgeBankRate(s: GameState, direction: MarketDirection): void {
+  if (direction === 'flat' || s.lap % RATE_NUDGE_EVERY_N_ROUNDS !== 0) return;
+  const before = s.bankRateBp;
+  const actual = changeBankRate(s, direction === 'bull' ? METER_RATE_NUDGE_BP : -METER_RATE_NUDGE_BP);
+  if (actual !== 0) {
+    const label = direction === 'bull' ? 'Bullish' : 'Bearish';
+    addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
+  }
+}
+
 function resolveMarketTheme(s: GameState): boolean {
   const theme = s.marketTheme;
   if (!theme) return false;
@@ -73,10 +95,16 @@ function resolveMarketTheme(s: GameState): boolean {
     }
   };
   move(theme.tailwinds, 1); move(theme.headwinds, -1);
-  s.marketRound = { direction: impacts.some((x) => x.pct > 0) ? 'bull' : impacts.some((x) => x.pct < 0) ? 'bear' : 'flat', bloc: theme.name, sectors: [...theme.tailwinds, ...theme.headwinds], bp: 500, sectorTotal: 0, moveAvg: null, lap: s.lap };
+  // A theme lifts one set of sectors and presses on another, so the round's
+  // direction is the NET of what actually moved — not "bull because something
+  // rose", which every theme would satisfy.
+  const net = impacts.reduce((sum, x) => sum + x.pct, 0);
+  const direction: MarketDirection = net > 0 ? 'bull' : net < 0 ? 'bear' : 'flat';
+  s.marketRound = { direction, bloc: theme.name, sectors: [...theme.tailwinds, ...theme.headwinds], bp: 500, sectorTotal: 0, moveAvg: null, lap: s.lap };
   recordMarketSignal(s, { kind: 'market', title: `Market Theme — ${theme.name}`, summary: `${theme.tailwinds.map((x) => SECTORS[x].name).join(' & ')} gained while ${theme.headwinds.map((x) => SECTORS[x].name).join(' & ')} fell. Only public companies moved.`, impacts });
   addLog(s, `Market Theme resolves — ${theme.name}.`, 'y');
   s.marketTheme = null;
+  nudgeBankRate(s, direction);
   resetRoundDice(s);
   return true;
 }
@@ -228,17 +256,6 @@ export function resolveRoundEndMarket(s: GameState): void {
     impacts,
   });
 
-  // A hot round invites tightening and a cold one invites easing: the Bank
-  // Rate follows the marker, but only on every RATE_NUDGE_EVERY_N_ROUNDS
-  // round — nudging every round moved it two to three times as often as the
-  // Fed cards did. Borrowing costs only; no price moves either way.
-  if (s.lap % RATE_NUDGE_EVERY_N_ROUNDS === 0) {
-    const before = s.bankRateBp;
-    const actual = changeBankRate(s, direction === 'bull' ? METER_RATE_NUDGE_BP : -METER_RATE_NUDGE_BP);
-    if (actual !== 0) {
-      addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
-    }
-  }
-
+  nudgeBankRate(s, direction);
   resetRoundDice(s);
 }
