@@ -69,6 +69,23 @@ describe('a Market Theme resolving', () => {
     expect(after.log.some((l) => /Market Theme resolves/.test(l.text))).toBe(true);
   });
 
+  it('records each player’s exact holding-value impact for the round close recap', () => {
+    const up = SECTOR_CODES.tech[0];
+    const down = SECTOR_CODES.consumer[0];
+    const before = themed((d) => {
+      d.players[0].shares[up] = 2;
+      d.players[0].shares[down] = 3;
+    });
+    const after = patch(before, (d) => { resolveRoundEndMarket(d); });
+    const expected = (after.prices[up] - before.prices[up]) * 2
+      + (after.prices[down] - before.prices[down]) * 3;
+
+    expect(after.roundCloseRecap?.theme).toBe('Growth Rotation');
+    expect(after.roundCloseRecap?.playerImpacts[0].amount).toBe(expected);
+    expect(after.roundCloseRecap?.playerImpacts[0].helped).toContain(up);
+    expect(after.roundCloseRecap?.playerImpacts[0].hurt).toContain(down);
+  });
+
   it('still nudges the Bank Rate every other round — the theme does not skip it', () => {
     const even = patch(themed((d) => { d.lap = 4; }), (d) => { resolveRoundEndMarket(d); });
     const odd = patch(themed((d) => { d.lap = 5; }), (d) => { resolveRoundEndMarket(d); });

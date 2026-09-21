@@ -4,6 +4,7 @@ import { useGameState } from '../../store';
 import { STANCE_META, ImpactChips } from '../shared/MarketSignalBits';
 import { IPO_RUN_BP, MOVE_BP, RUN_BP } from '../../data';
 import { moveSize } from '../../utils/formatMoney';
+import RoundCloseRecap from './RoundCloseRecap';
 
 const KIND_LABEL: Record<MarketSignal['kind'], string> = {
   fed: 'FED',
@@ -130,6 +131,8 @@ export default function MarketIntelligence() {
           </div>
         );
       })()}
+
+      <RoundCloseRecap playerIndex={s.cur} />
 
       <PriceMovementGuide />
 

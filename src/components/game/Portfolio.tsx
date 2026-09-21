@@ -13,6 +13,7 @@ import type { Action, GameState } from '../../engine';
 import { toBps } from '../../utils/formatRate';
 import { useDispatch, useGameState } from '../../store';
 import { moveSize, pctBp } from '../../utils/formatMoney';
+import RoundCloseRecap from './RoundCloseRecap';
 
 export default function Portfolio() {
   const s = useGameState();
@@ -145,6 +146,8 @@ export default function Portfolio() {
       </div>
 
       {/* Financials block — Cash, Margin Balance, Buying Power = Net Worth */}
+      <RoundCloseRecap playerIndex={viewIdx} compact />
+
       <div style={{
         background: 'var(--sunken)',
         border: '1px solid rgba(74,48,25,0.08)',

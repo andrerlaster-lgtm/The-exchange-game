@@ -233,6 +233,21 @@ export interface MarketSignal {
   milestone?: number;
 }
 
+/** A permanent, player-by-player record of the latest Market Theme close.
+    Dollar amounts are captured while prices are repriced, so the recap stays
+    accurate even if a player later trades those holdings. */
+export interface RoundCloseRecap {
+  theme: string;
+  lap: number;
+  impacts: MarketSignalImpact[];
+  playerImpacts: Array<{
+    playerIndex: number;
+    amount: number;
+    helped: string[];
+    hurt: string[];
+  }>;
+}
+
 /** Taxes & Fees panel entry kinds. */
 export type FeeEventKind = 'marginCall' | 'income' | 'audit' | 'tax' | 'payout' | 'debt';
 
@@ -517,6 +532,8 @@ export interface GameState {
   roundDice: { aSum: number; bSum: number; rolls: number };
   /** The public sector outlook for the round currently being played. */
   marketTheme: { id: string; name: string; tailwinds: SectorId[]; headwinds: SectorId[]; lap: number } | null;
+  /** The latest resolved theme and each player's exact holding-value impact. */
+  roundCloseRecap: RoundCloseRecap | null;
   bankRateBp: number;                // Bank Rate in bp per turn (data/rates.ts); Fed cards move it, loans price off it
   companyMarketOpen: boolean;         // opens after the first lap in Companies Mode
   marketHeat: number;                 // doubles-based shared Market Heat meter (0-3)

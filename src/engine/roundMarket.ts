@@ -83,6 +83,9 @@ function resolveMarketTheme(s: GameState): boolean {
   const theme = s.marketTheme;
   if (!theme) return false;
   const impacts: Array<{ code: string; pct: number }> = [];
+  const playerImpacts = s.players.map((_, playerIndex) => ({
+    playerIndex, amount: 0, helped: [] as string[], hurt: [] as string[],
+  }));
   const move = (sectors: readonly SectorId[], dir: 1 | -1) => {
     for (const sector of sectors) for (const code of SECTOR_CODES[sector]) {
       // supply only falls on the first bank purchase / buyout, so it keeps a
@@ -91,7 +94,17 @@ function resolveMarketTheme(s: GameState): boolean {
       const risk = STOCK_BY_CODE[code].risk;
       const multiplier = risk === 'Low' ? 0.5 : risk === 'High' ? 1.5 : 1;
       const r = moveRoundMarketPrice(s, code, dir * 500 * multiplier);
-      if (r.delta) impacts.push({ code, pct: r.pct });
+      if (r.delta) {
+        impacts.push({ code, pct: r.pct });
+        s.players.forEach((player, playerIndex) => {
+          const qty = player.shares[code] ?? 0;
+          if (!qty) return;
+          const impact = playerImpacts[playerIndex];
+          impact.amount += qty * r.delta;
+          if (r.delta > 0) impact.helped.push(code);
+          else impact.hurt.push(code);
+        });
+      }
     }
   };
   move(theme.tailwinds, 1); move(theme.headwinds, -1);
@@ -101,6 +114,7 @@ function resolveMarketTheme(s: GameState): boolean {
   const net = impacts.reduce((sum, x) => sum + x.pct, 0);
   const direction: MarketDirection = net > 0 ? 'bull' : net < 0 ? 'bear' : 'flat';
   s.marketRound = { direction, bloc: theme.name, sectors: [...theme.tailwinds, ...theme.headwinds], bp: 500, sectorTotal: 0, moveAvg: null, lap: s.lap };
+  s.roundCloseRecap = { theme: theme.name, lap: s.lap, impacts, playerImpacts };
   recordMarketSignal(s, { kind: 'market', title: `Market Theme — ${theme.name}`, summary: `${theme.tailwinds.map((x) => SECTORS[x].name).join(' & ')} gained while ${theme.headwinds.map((x) => SECTORS[x].name).join(' & ')} fell. Only public companies moved.`, impacts });
   addLog(s, `Market Theme resolves — ${theme.name}.`, 'y');
   s.marketTheme = null;
