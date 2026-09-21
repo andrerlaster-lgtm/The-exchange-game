@@ -49,11 +49,14 @@ export default function GameScreen() {
 
       {/* Left rail — who is at the table, what is left in the decks, and the
           running log of what just happened. */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 8,
+        overflowY: 'auto', overflowX: 'hidden', minHeight: 0, paddingRight: 2,
+      }}>
         <PlayerCards />
         <DeckStatus />
         <MarketIntelligence />
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: '0 0 230px', minHeight: 230, display: 'flex', flexDirection: 'column' }}>
           <Log />
         </div>
       </div>

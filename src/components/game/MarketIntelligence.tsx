@@ -143,7 +143,7 @@ export default function MarketIntelligence() {
         </div>
       ) : (
         <div style={{
-          display: 'grid', gridTemplateColumns: 'minmax(0, 1.3fr) minmax(220px, 0.7fr)', gap: 8,
+          display: 'grid', gridTemplateColumns: '1fr', gap: 8,
           padding: 9, borderRadius: 8,
           border: `1px solid ${stance.color}33`, background: stance.bg,
         }}>
@@ -160,9 +160,9 @@ export default function MarketIntelligence() {
             )}
             <ImpactChips impacts={latestFed.impacts} style={{ marginTop: 7 }} />
           </div>
-          <div style={{ borderLeft: '1px solid rgba(74,48,25,0.12)', paddingLeft: 9 }}>
-            <div style={{ fontSize: 9, fontWeight: 900, color: 'var(--muted)', letterSpacing: 0.8 }}>YOUR EXPOSURE</div>
-            <div style={{ color: 'var(--text)', fontSize: 10.5, lineHeight: 1.4, marginTop: 4 }}>
+          <div style={{ borderTop: '1px solid rgba(74,48,25,0.16)', paddingTop: 8 }}>
+            <div style={{ fontSize: 10, fontWeight: 900, color: 'var(--muted)', letterSpacing: 0.8 }}>YOUR EXPOSURE</div>
+            <div style={{ color: 'var(--text)', fontSize: 11.5, lineHeight: 1.5, fontWeight: 700, marginTop: 4 }}>
               {playerSignalExposure(s, latestFed)}
             </div>
             {fedHistory.length > 1 && (
