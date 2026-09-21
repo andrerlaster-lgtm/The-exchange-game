@@ -9,7 +9,6 @@ import TradingMarket from './TradingMarket';
 import CompanyDevelopment from './CompanyDevelopment';
 import StockTradeCard from './StockTradeCard';
 import PlayerCards from './PlayerCards';
-import DeckStatus from './DeckStatus';
 import Portfolio from './Portfolio';
 import Leaderboard from './Leaderboard';
 import P2PTradeDesk from './P2PTradeDesk';
@@ -53,7 +52,6 @@ export default function GameScreen() {
         overflowY: 'auto', overflowX: 'hidden', minHeight: 0, paddingRight: 2,
       }}>
         <PlayerCards />
-        <DeckStatus />
         <MarketIntelligence />
         <div style={{ flex: '0 0 230px', minHeight: 230, display: 'flex', flexDirection: 'column' }}>
           <Log />

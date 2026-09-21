@@ -12,11 +12,12 @@ const QUICK_RULES = [
   'Land on an untouched company: buy all 11 shares at 11× its current share price, or skip. Tier opening prices are Starter $500, Growth $750, Premium $1,000 — so at the open a company costs $5,500, $8,250, or $11,000, and less or more once the market has moved it. Your cost basis always equals market value at the moment you buy, and the buyout itself moves no price.',
   'A company bought in full becomes Sold Out for good, and its buyer holds the Payout Claim. Everyone else who lands there pays the claim instead of opening a normal buy step; landing on your own company costs nothing, and the final combined landing charge is capped at $10,000.',
   `Weak Demand has no ownership protection: 2 explicit skips on an untouched company drop its price ${moveSize(MOVE_BP.weakDemand)}. Markers stay on the company between laps until they reach 2 or someone buys it out.`,
-  'Stock prices move by percentages (basis points: 100 bp = 1%) through the round-end market move, Market Event and Fed cards, Bull/Bear Runs, Weak Demand, Strong Demand after repeated Payout Claims, and large bank sales. Prices round to the nearest $25 and never fall below $100. Buying a company or making a private trade does not move its market price.',
+  'A visible Market Theme resolves at the end of every round: public companies in its Tailwind sectors rise and public companies in its Headwind sectors fall. Low-, Medium-, and High-Risk companies move 2.5%, 5%, and 7.5%. Untouched companies and sectors outside the theme do not move.',
+  'Other stock moves use percentages (basis points: 100 bp = 1%): Market Event and Fed cards, Bull/Bear Runs, Weak Demand, Strong Demand after repeated Payout Claims, and large bank sales. Prices round to the nearest $25 and never fall below $100. Buying a company or making a private trade does not move its market price.',
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own regular companies across 3+ different sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
   'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window for private player-to-player trades.',
-  'Every Market Open also starts a random Market Condition outside the card decks. It stays active for every player until the next player reaches Market Open, when it is replaced; Conditions never stack.',
-  'IPOs: 4 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',
+  'When you reach Market Open without one, you receive a personal random Market Condition outside the card decks. It affects only you and lasts for its listed number of your own turns or Market Open passes; conditions never stack.',
+  'IPOs: 3 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',
   'Audit Notice charges 5% of net worth, rounded to the nearest $100, with a $500 minimum. Carrying Margin raises it to 7.5% with a $750 minimum.',
   'Portfolio Tax and Audit Notice can be paid now or carried as Outstanding Fees. Debt adds 5% at the start of your turn and lowers your score until paid. A Payout Claim owed to another player still uses forced sale.',
   'Margin trading is an advanced option, off by default.',
@@ -313,7 +314,7 @@ export default function SetupScreen() {
             </ol>
             <div style={{ height: 1, background: 'rgba(212,165,53,0.1)' }} />
             <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>
-              Full rulebook coming soon.
+              These are the highlights. The complete rulebook is maintained with the game.
             </p>
             <button className="primary" style={{ padding: '8px 0' }} onClick={() => setShowRules(false)}>
               Got it
