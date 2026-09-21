@@ -28,9 +28,11 @@
 // Bull Run and Bear Run spaces stay a separate mechanic.
 
 import {
-  DIE_SPREAD, IPO_BY_CODE, MARKET_BLOCS, METER_RATE_NUDGE_BP, MOVE_DIE_BANDS, MOVE_DIE_MIDPOINT,
+  DIE_SPREAD, IPO_BY_CODE, MARKET_BLOCS, MARKET_THEMES, METER_RATE_NUDGE_BP, MOVE_DIE_BANDS, MOVE_DIE_MIDPOINT,
   RATE_NUDGE_EVERY_N_ROUNDS, SECTOR_CODES, SECTORS,
 } from '../data';
+import { STOCK_BY_CODE } from '../data/stocks';
+import type { Rng } from '../utils/rng';
 import type { SectorId } from '../data/types';
 import { moveSize } from '../utils/formatMoney';
 import { moveRoundMarketPrice } from './stockState';
@@ -45,6 +47,39 @@ function addLog(s: GameState, text: string, kind: LogKind = 'n'): void {
 }
 
 export type MarketDirection = 'bull' | 'bear' | 'flat';
+
+/** Reveal the next theme before its round begins. A theme never affects an
+ * untouched company: it first has to have at least one share removed from the
+ * initial bank supply, which is the game's permanent "public" signal. */
+export function beginMarketTheme(s: GameState, rng: Rng): void {
+  const theme = MARKET_THEMES[rng.int(0, MARKET_THEMES.length - 1)];
+  s.marketTheme = { ...theme, tailwinds: [...theme.tailwinds], headwinds: [...theme.headwinds], lap: s.lap };
+  addLog(s, `Market Theme: ${theme.name}. Tailwinds: ${theme.tailwinds.map((x) => SECTORS[x].name).join(', ')}. Headwinds: ${theme.headwinds.map((x) => SECTORS[x].name).join(', ')}.`, 'y');
+}
+
+function resolveMarketTheme(s: GameState): boolean {
+  const theme = s.marketTheme;
+  if (!theme) return false;
+  const impacts: Array<{ code: string; pct: number }> = [];
+  const move = (sectors: readonly SectorId[], dir: 1 | -1) => {
+    for (const sector of sectors) for (const code of SECTOR_CODES[sector]) {
+      // supply only falls on the first bank purchase / buyout, so it keeps a
+      // company public even when every share later changes hands.
+      if ((s.supply[code] ?? 0) >= 11) continue;
+      const risk = STOCK_BY_CODE[code].risk;
+      const multiplier = risk === 'Low' ? 0.5 : risk === 'High' ? 1.5 : 1;
+      const r = moveRoundMarketPrice(s, code, dir * 500 * multiplier);
+      if (r.delta) impacts.push({ code, pct: r.pct });
+    }
+  };
+  move(theme.tailwinds, 1); move(theme.headwinds, -1);
+  s.marketRound = { direction: impacts.some((x) => x.pct > 0) ? 'bull' : impacts.some((x) => x.pct < 0) ? 'bear' : 'flat', bloc: theme.name, sectors: [...theme.tailwinds, ...theme.headwinds], bp: 500, sectorTotal: 0, moveAvg: null, lap: s.lap };
+  recordMarketSignal(s, { kind: 'market', title: `Market Theme — ${theme.name}`, summary: `${theme.tailwinds.map((x) => SECTORS[x].name).join(' & ')} gained while ${theme.headwinds.map((x) => SECTORS[x].name).join(' & ')} fell. Only public companies moved.`, impacts });
+  addLog(s, `Market Theme resolves — ${theme.name}.`, 'y');
+  s.marketTheme = null;
+  resetRoundDice(s);
+  return true;
+}
 
 /** What the round's dice so far say the market will do. Everything here is
     derived — the tally is the only state. */
@@ -155,6 +190,7 @@ export function roundMarketForecast(s: GameState): { headline: string; detail: s
  */
 export function resolveRoundEndMarket(s: GameState): void {
   if (!s.opts.roundMarket) return;
+  if (resolveMarketTheme(s)) return;
   const reading = readRoundDice(s);
   const { direction, sectors, blocName, bp } = reading;
 

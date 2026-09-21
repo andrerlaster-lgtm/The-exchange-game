@@ -21,8 +21,8 @@ const KIND_LABEL: Record<MarketSignal['kind'], string> = {
 
 const PRICE_MOVEMENT_GUIDE = [
   {
-    title: 'Round-end market',
-    text: 'Your roll moves your piece — and both dice go into the round\'s tally. When every player has taken a turn, the first dice are totalled and wrapped to six to pick the market bloc, and the second dice averaged to set the move: below 3.5 is Bearish, above is Bullish, and the further from 3.5 the round strayed, the bigger the move — 2.5%, 5% or 7.5%. Revealed IPOs in that bloc move with it. No single roll decides anything, and the running tally is shown above all round.',
+    title: 'Market Themes',
+    text: 'One theme is visible for the full round. At round end, its Tailwind sectors rise and its Headwind sectors fall by 5%; Low-Risk companies move half as much and High-Risk companies 1.5× as much. Only companies that have been purchased and become public can move.',
   },
   {
     title: 'Market Event & Fed cards',
@@ -103,6 +103,15 @@ export default function MarketIntelligence() {
           fontSize: 9, fontWeight: 900, letterSpacing: 0.8, textTransform: 'uppercase',
         }}>{latestFed ? stance.label : 'Waiting on Fed'}</span>
       </div>
+
+      {s.marketTheme && (
+        <div style={{ marginBottom: 9, padding: '9px 10px', borderRadius: 8, background: 'rgba(74,163,255,0.07)', border: '1px solid rgba(74,163,255,0.25)' }}>
+          <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 0.85, color: 'var(--muted)' }}>THIS ROUND'S MARKET THEME</div>
+          <div style={{ color: 'var(--text)', fontSize: 12, fontWeight: 900, marginTop: 3 }}>{s.marketTheme.name}</div>
+          <div style={{ color: '#3ed598', fontSize: 10, marginTop: 4 }}>Tailwinds · {s.marketTheme.tailwinds.join(' · ')}</div>
+          <div style={{ color: '#ef4444', fontSize: 10, marginTop: 2 }}>Headwinds · {s.marketTheme.headwinds.join(' · ')}</div>
+        </div>
+      )}
 
       {(() => {
         // Each player can be running their own independent Market Condition

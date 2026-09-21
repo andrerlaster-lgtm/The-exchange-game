@@ -20,7 +20,7 @@ import { investIpoGrowth, snapshotIpoHoldings } from './ipoGrowth';
 import { heldQty, setHeld, unitValue } from './holdings';
 import { payMarketOpen } from './playerState';
 import { applyPriceMove, moveTradePrice, moveEventPrice, settleShorts } from './stockState';
-import { resolveRoundEndMarket, tallyRoundDice } from './roundMarket';
+import { beginMarketTheme, resolveRoundEndMarket, tallyRoundDice } from './roundMarket';
 import { startLap, clearTurnState } from './turnState';
 import { applyEffect, beginMarketEventEffect, finalizeCard, resolveCircuitBreaker, triggerClose } from './eventCardResolver';
 import { netWorth } from './scoringEngine';
@@ -77,6 +77,7 @@ export function settleTurnOrder(s: GameState, rng: Rng): void {
   s.phase = 'play';
   s.cur = 0;
   s.turnPhase = 'preRoll';
+  beginMarketTheme(s, rng);
   addLog(s, `Market open. ${s.players[0].name} starts.`, 'g');
   if (s.opts.closeMode === 'rounds' && s.opts.closeRounds <= 1) triggerClose(s);
 }
@@ -1640,7 +1641,10 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
         // last one still gets its reprice. s.closing stays true for every
         // Extended Hours round after that point, so this naturally excludes
         // all of them without a separate "final round" flag.
-        if (!s.closing) resolveRoundEndMarket(s);
+        if (!s.closing) {
+          resolveRoundEndMarket(s);
+          beginMarketTheme(s, rng);
+        }
       }
       // These two checks are lap-number-based, not round-boundary-based —
       // they must keep evaluating on every turn (not only inside the

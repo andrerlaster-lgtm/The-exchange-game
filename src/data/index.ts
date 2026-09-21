@@ -20,3 +20,4 @@ export const CARDS: Record<DeckId, Card[]> = {
   FED: FED_CARDS,
 };
 export * from './development';
+export * from './marketThemes';

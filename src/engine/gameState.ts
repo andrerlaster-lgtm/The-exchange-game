@@ -101,6 +101,7 @@ export function initialState(rng: Rng): GameState {
     p2pSeq: 0,
     marketRound: null,
     roundDice: { aSum: 0, bSum: 0, rolls: 0 },
+    marketTheme: null,
     bankRateBp: BANK_RATE_START_BP,
     companyMarketOpen: false,
     marketHeat: 0,

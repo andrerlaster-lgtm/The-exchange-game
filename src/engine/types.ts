@@ -527,6 +527,8 @@ export interface GameState {
   // Running tally of this round's movement rolls: the first die feeds the
   // sector, the second the move. Read once when the round closes, then reset.
   roundDice: { aSum: number; bSum: number; rolls: number };
+  /** The public sector outlook for the round currently being played. */
+  marketTheme: { id: string; name: string; tailwinds: SectorId[]; headwinds: SectorId[]; lap: number } | null;
   bankRateBp: number;                // Bank Rate in bp per turn (data/rates.ts); Fed cards move it, loans price off it
   companyMarketOpen: boolean;         // opens after the first lap in Companies Mode
   marketHeat: number;                 // doubles-based shared Market Heat meter (0-3)
