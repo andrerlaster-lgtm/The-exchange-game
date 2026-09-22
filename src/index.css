@@ -616,6 +616,45 @@ input[type="number"]:focus, select:focus {
   letter-spacing: .4px;
 }
 
+/* IPOs are presented as an in-app investment brief, not a physical trading
+   card. The visual hierarchy puts the live price, the offering size, and the
+   investor's decision ahead of decoration. */
+.ipo-card {
+  border: 1px solid color-mix(in srgb, var(--ipo-color) 48%, var(--border)) !important;
+  border-left: 4px solid var(--ipo-color) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--panel-shadow) !important;
+  font-family: inherit !important;
+}
+.ipo-card::after { display: none; }
+.ipo-card__banner {
+  color: var(--ipo-color) !important;
+  background: color-mix(in srgb, var(--ipo-color) 9%, var(--surface)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--ipo-color) 22%, var(--border));
+  font-size: 8px;
+}
+.ipo-card__status { border-color: color-mix(in srgb, var(--ipo-color) 45%, var(--border)); }
+.ipo-card__ticker { color: var(--text); text-shadow: none; }
+.ipo-card__name { color: var(--text); }
+.ipo-card__meta { color: var(--muted); }
+.ipo-card__mark {
+  background: color-mix(in srgb, var(--ipo-color) 10%, var(--surface));
+  box-shadow: none;
+}
+.ipo-card__quote { padding-top: 3px; }
+.ipo-card__eyebrow, .ipo-card__facts span { color: var(--muted); }
+.ipo-card__quote strong { color: var(--text); }
+.ipo-card__supply { background: color-mix(in srgb, var(--ipo-color) 8%, var(--surface)); }
+.ipo-card__supply span { color: var(--muted); }
+.ipo-card__facts > div { border-color: rgba(74,48,25,.11); background: rgba(74,48,25,.035); }
+.ipo-card__facts strong { color: var(--text); }
+.ipo-card__opportunity { background: color-mix(in srgb, var(--ipo-color) 6%, var(--surface)); }
+.ipo-card__opportunity span { color: var(--text); }
+.ipo-card__footer { border-top-color: rgba(74,48,25,.10); }
+.ipo-card__footer span { color: var(--muted); font-family: inherit; }
+
 /* Section label — ALL CAPS small tracking, brass keyline */
 .slabel {
   font-size: 10px;

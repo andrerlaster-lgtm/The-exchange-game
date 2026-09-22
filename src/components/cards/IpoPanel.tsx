@@ -24,13 +24,11 @@ function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
     : `${pctDiff > 0 ? '↑' : '↓'} ${Math.abs(pctDiff).toFixed(1)}% (${Math.round(Math.abs(pctDiff) * 100).toLocaleString()} bp)`;
 
   return (
-    <article className="ipo-card holo-card" style={{ '--ipo-color': def.color } as CSSProperties}
+    <article className="ipo-card" style={{ '--ipo-color': def.color } as CSSProperties}
       aria-label={`${def.code} ${def.name} IPO card`}>
-      <div className="holo-card__sheen" />
-      <div className="holo-card__grain" />
       <header className="ipo-card__banner">
-        <span>THE EXCHANGE · IPO</span>
-        <span className="ipo-card__status">NEW LISTING</span>
+        <span>IPO INVESTMENT BRIEF</span>
+        <span className="ipo-card__status">AVAILABLE NOW</span>
       </header>
 
       <div className="ipo-card__identity">
@@ -40,21 +38,6 @@ function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
           <div className="ipo-card__meta">{sector.name} · {presentation.volatilityLabel}</div>
         </div>
         <div className="ipo-card__mark" aria-hidden="true">{presentation.icon}</div>
-      </div>
-
-      <div className="ipo-card__chart" aria-hidden="true">
-        <svg viewBox="0 0 220 54" role="presentation">
-          <defs>
-            <linearGradient id={`ipo-fill-${def.code}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor={def.color} stopOpacity=".42" />
-              <stop offset="1" stopColor={def.color} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path className="ipo-card__chart-grid" d="M0 13.5H220M0 27H220M0 40.5H220" />
-          <path fill={`url(#ipo-fill-${def.code})`} d="M0 49L0 42L24 39L43 43L68 30L91 34L116 25L138 29L162 17L183 20L220 4V54H0Z" />
-          <path className="ipo-card__chart-line" style={{ stroke: def.color }} d="M0 42L24 39L43 43L68 30L91 34L116 25L138 29L162 17L183 20L220 4" />
-        </svg>
-        <span className="ipo-card__chart-label">PUBLIC OFFERING</span>
       </div>
 
       <div className="ipo-card__quote">

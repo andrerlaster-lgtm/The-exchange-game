@@ -33,47 +33,6 @@ function resolvedSignalFor(s: GameState, card: NonNullable<GameState['card']>, i
 
 type CardPhase = 'idle' | 'back' | 'reveal';
 
-/** Pointer-tracked holographic tilt + idle ambient sheen sweep for a card element. */
-function useHoloTilt<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let hovering = false;
-    let raf = 0;
-    let t = 0;
-
-    const apply = (px: number, py: number) => {
-      el.style.setProperty('--holo-ry', `${((px - 0.5) * 24).toFixed(2)}deg`);
-      el.style.setProperty('--holo-rx', `${((0.5 - py) * 24).toFixed(2)}deg`);
-      el.style.setProperty('--holo-sheen', `${(px * 100).toFixed(1)}%`);
-    };
-    const onMove = (e: PointerEvent) => {
-      hovering = true;
-      const r = el.getBoundingClientRect();
-      apply((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
-    };
-    const onLeave = () => { hovering = false; };
-    const loop = () => {
-      t += 0.011;
-      if (!hovering) apply(0.5 + Math.sin(t) * 0.42, 0.5 + Math.cos(t * 0.7) * 0.3);
-      raf = requestAnimationFrame(loop);
-    };
-
-    el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerleave', onLeave);
-    if (!reduce) raf = requestAnimationFrame(loop);
-
-    return () => {
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerleave', onLeave);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-  return ref;
-}
-
 /** A drawn card clears itself after this long, so a routine draw needs no
     click. A card still waiting on a decision (pick a target, Circuit Breaker)
     never auto-clears, and the countdown restarts when that decision resolves.
@@ -87,7 +46,6 @@ export default function CardDisplay() {
   const [dismissed, setDismissed] = useState(false);
   const prevKey = useRef<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const holoRef = useHoloTilt<HTMLDivElement>();
 
   const cardKey = s.card ? `${s.cardPreviewMode ?? 'draw'}-${s.card.deck}-${s.card.title}` : null;
   // Anything the player must answer on the card itself holds it open.
@@ -123,7 +81,6 @@ export default function CardDisplay() {
   const deckColorHex = isStrategyOnly ? '#666666' : baseColor;
   const deckLabel  = isInsiderPreview ? 'INSIDER TIP · NEXT EVENT' : deckId === 'ME' ? 'MARKET EVENT' : 'THE FED';
   const deckIcon   = isInsiderPreview ? '👁️' : deckId === 'ME' ? '📈' : '🏛️';
-  const deckSymbol = deckId === 'ME' ? '📊' : '🏦';
 
   // What this specific draw actually did, once it's resolved — see
   // resolvedSignalFor's doc comment for why this can't just read s.card.eff.
@@ -140,7 +97,7 @@ export default function CardDisplay() {
     top: 54,
     left: '50%',
     transform: 'translateX(-50%)',
-    width: 320,
+    width: 380,
     maxHeight: 'calc(100vh - 74px)',
     overflowY: 'auto',
     zIndex: 260,
@@ -172,22 +129,20 @@ export default function CardDisplay() {
     );
   }
 
-  // Reveal face — mirrors the 3D .card3d-reveal (flat dark, deck-colored frame)
+  // A concise investor briefing: the card's outcome and the decision it calls for.
   return (
     <div style={overlayStyle}>
-      <div ref={holoRef} className="card-box holo-card"
+      <div className="card-box"
         onClick={() => { if (!awaitingDecision) setDismissed(true); }}
         title={awaitingDecision ? undefined : 'Click to close'}
         style={{
-        borderColor: `${deckColorHex}55`,
-        borderWidth: 2, borderRadius: 12,
-        animation: phase === 'reveal' ? 'cardFlipReveal 640ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
+        borderColor: `${deckColorHex}66`, borderLeft: `4px solid ${deckColorHex}`,
+        borderRadius: 10,
+        animation: phase === 'reveal' ? 'cardFlipReveal 380ms ease-out forwards' : 'none',
         padding: 0, overflow: 'hidden', flexShrink: 0, position: 'relative', cursor: 'pointer',
-        background: 'rgba(12,9,6,0.97)',
-        boxShadow: `0 8px 36px rgba(0,0,0,0.75), 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
+        background: 'var(--surface)',
+        boxShadow: '0 12px 34px rgba(0,0,0,0.42)',
       }}>
-        <div className="holo-card__sheen" />
-        <div className="holo-card__grain" />
         {/* Countdown to the card clearing itself — absent while it waits on a
             decision, since it stays put until that is answered. */}
         {!awaitingDecision && (
@@ -196,49 +151,37 @@ export default function CardDisplay() {
             animationDuration: `${CARD_AUTO_DISMISS_MS}ms`,
           }} />
         )}
-        {/* Bold top banner */}
+        {/* Briefing header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '7px 12px 6px',
-          background: `linear-gradient(135deg, ${deckColorHex}ee, ${deckColorHex}bb)`,
+          padding: '9px 12px 8px', background: `${deckColorHex}12`,
+          borderBottom: `1px solid ${deckColorHex}28`,
         }}>
           <span style={{
-            fontSize: 9, fontWeight: 800, letterSpacing: 2.5,
-            color: 'rgba(0,0,0,0.85)', textTransform: 'uppercase',
+            fontSize: 9, fontWeight: 900, letterSpacing: 1.3,
+            color: deckColorHex, textTransform: 'uppercase',
           }}>
-            {deckLabel}
+            {deckIcon} {deckLabel} · INVESTOR BRIEF
           </span>
-          <span style={{ fontSize: 15, lineHeight: 1 }}>{deckIcon}</span>
+          <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>JUST IN</span>
         </div>
 
         {/* Title area */}
         <div style={{
-          padding: '10px 12px 8px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '13px 14px 10px',
+          borderBottom: '1px solid rgba(74,48,25,0.10)',
         }}>
           <div style={{
-            fontSize: 14, fontWeight: 800, color: 'rgba(240,230,210,0.97)',
-            letterSpacing: 0.5, lineHeight: 1.25, textTransform: 'uppercase',
+            fontSize: 17, fontWeight: 900, color: 'var(--text)',
+            letterSpacing: -0.15, lineHeight: 1.2,
           }}>{s.card.title}</div>
           {/* Flavor line — every card is written with one; it never reached
               the player before, only the mechanical effect text below did. */}
           {s.card.story && (
             <div style={{
-              fontSize: 10.5, fontStyle: 'italic', color: 'rgba(200,188,168,0.72)',
-              lineHeight: 1.4, marginTop: 4,
+              fontSize: 11, color: 'var(--muted)', lineHeight: 1.45, marginTop: 5,
             }}>{s.card.story}</div>
           )}
-        </div>
-
-        {/* Center icon area */}
-        <div style={{
-          padding: '10px 12px 8px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-        }}>
-          <span style={{ fontSize: 30, lineHeight: 1, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))' }}>
-            {isStrategyOnly ? '⚙️' : deckSymbol}
-          </span>
         </div>
 
         {/* Fed stance readout — the card's own hawkish/dovish read and what it
@@ -255,20 +198,19 @@ export default function CardDisplay() {
               background: `${fedStance.color}22`, color: fedStance.color,
               fontSize: 8.5, fontWeight: 900, letterSpacing: 0.9, textTransform: 'uppercase',
             }}>{fedStance.label}</span>
-            <p style={{ fontSize: 10.5, color: 'rgba(220,210,192,0.92)', lineHeight: 1.5, margin: 0 }}>
+            <p style={{ fontSize: 10.5, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
               {fedSignal.insight}
             </p>
           </div>
         )}
 
-        {/* Effect text box */}
-        <div style={{ margin: '8px 10px', padding: '8px 10px', borderRadius: 7,
-          background: 'rgba(255,255,255,0.04)', border: `1px solid ${deckColorHex}22`,
+        {/* Plain-language result: the useful part of the notification. */}
+        <div style={{ margin: '10px 12px', padding: '9px 10px', borderRadius: 7,
+          background: `${deckColorHex}0d`, border: `1px solid ${deckColorHex}2d`,
         }}>
+          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: 0.9, color: 'var(--muted)', marginBottom: 4 }}>WHAT HAPPENED</div>
           <p style={{
-            fontSize: 11,
-            color: 'rgba(200,188,168,0.92)',
-            lineHeight: 1.55, margin: 0,
+            fontSize: 11, color: 'var(--text)', lineHeight: 1.5, margin: 0,
           }}>{s.card.effect}</p>
           {isStrategyOnly && (
             <p style={{ fontSize: 9, color: 'rgba(100,90,78,0.8)', marginTop: 4, marginBottom: 0, fontStyle: 'italic' }}>
@@ -284,17 +226,33 @@ export default function CardDisplay() {
           {resolved && (
             resolved.impacts.length > 0 ? (
               <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: 0.9, color: 'rgba(200,188,168,0.55)', textTransform: 'uppercase', marginBottom: 4 }}>
-                  What Actually Moved
+                <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: 0.9, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                  Affected investments
                 </div>
                 <ImpactChips impacts={resolved.impacts} />
               </div>
             ) : (
-              <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 9.5, color: 'rgba(200,188,168,0.55)', fontStyle: 'italic' }}>
+              <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(74,48,25,0.12)', fontSize: 9.5, color: 'var(--muted)', fontStyle: 'italic' }}>
                 No price actually moved — every eligible target was already clamped, protected, or the move landed on a company already at that price.
               </div>
             )
           )}
+          {resolved && (() => {
+            const held = resolved.impacts.filter((impact) => (s.players[s.cur].shares[impact.code] ?? 0) > 0);
+            if (held.length === 0) return null;
+            const helped = held.filter((impact) => impact.pct > 0).map((impact) => impact.code);
+            const hurt = held.filter((impact) => impact.pct < 0).map((impact) => impact.code);
+            return (
+              <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid rgba(74,48,25,0.12)' }}>
+                <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: 0.9, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 3 }}>What it means for you</div>
+                <div style={{ fontSize: 10.5, color: 'var(--text)', lineHeight: 1.4 }}>
+                  {helped.length ? `Helped: ${helped.join(', ')}.` : ''}
+                  {helped.length && hurt.length ? ' ' : ''}
+                  {hurt.length ? `Under pressure: ${hurt.join(', ')}.` : ''}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {s.circuitBreakerPrompt && (
@@ -316,10 +274,10 @@ export default function CardDisplay() {
 
         {/* Footer */}
         <div style={{
-          padding: '5px 12px 8px', textAlign: 'center',
-          fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase',
-          color: `${deckColorHex}55`,
-        }}>{isInsiderPreview ? 'Preview only · Card remains on top of the deck' : 'Latest Drawn Card'}</div>
+          padding: '7px 12px 9px', textAlign: 'center',
+          fontSize: 8.5, letterSpacing: 0.7,
+          color: 'var(--muted)',
+        }}>{isInsiderPreview ? 'Preview only · This event remains on top of the deck' : awaitingDecision ? 'Choose an action to continue' : 'Tap anywhere to close'}</div>
       </div>
     </div>
   );
