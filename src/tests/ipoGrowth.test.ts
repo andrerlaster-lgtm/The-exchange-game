@@ -72,7 +72,7 @@ describe('IPO growth investment', () => {
   });
 
   it('cannot fund an IPO you bought shares of this turn', () => {
-    const { s, code } = setup((d) => { d.ipoBuy = { code: d.ipos[0].code, max: 2, bought: 0, price: 3_000, actor: 0 }; });
+    const { s, code } = setup((d) => { d.ipoBuy = { code: d.ipos[0].code, max: d.ipos[0].supply, bought: 0, price: 3_000, actor: 0 }; });
     const bought = dispatch(dispatch(s, { t: 'ipoBuyShare' }, rng()), { t: 'ipoBuyDone' }, rng());
     expect(ipoGrowthBlockReason(bought, code, 'major')).toMatch(/bought .* shares this turn/);
   });
@@ -143,8 +143,8 @@ describe('IPO milestones', () => {
   });
 
   it('a growth investment that crosses a threshold triggers it — and is repaid', () => {
-    const { s, code } = setup((d) => { d.ipos[0].price = 3_600; }); // +20%
-    const t = invest(s, code, 'major'); // +5% → $3,775, +25.8%
+    const { s, code } = setup((d) => { d.ipos[0].price = 2_400; }); // +20%
+    const t = invest(s, code, 'major'); // +5% → $2,525, +26.3%
     expect(t.ipos[0].milestonesPaid).toBe(1);
     // -$1,000 invested, +$1,000 repaid at the milestone, +2 x $250 payout.
     expect(t.players[0].cash).toBe(s.players[0].cash + 2 * 250);
@@ -224,4 +224,3 @@ describe('IPO growth funding is repaid at the next milestone', () => {
     expect(ipoGrowthBlockReason(patch(t, (d) => { d.ipoGrowthThisTurn = false; }), code, 'major')).toMatch(/every milestone/);
   });
 });
-

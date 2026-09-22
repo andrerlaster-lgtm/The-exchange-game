@@ -79,7 +79,7 @@ function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
         <span>{presentation.opportunityText}</span>
       </div>
 
-      <div className="ipo-card__limit">BUY UP TO 2 SHARES THIS LANDING</div>
+      <div className="ipo-card__limit">ENTIRE {supply}-SHARE OFFERING · FIRST COME, FIRST SERVED</div>
       {children ? <div className="ipo-card__actions">{children}</div> : null}
       <footer className="ipo-card__footer">
         <span>{presentation.flavor}</span>
@@ -126,25 +126,27 @@ export default function IpoPanel() {
         const ipo = s.ipos.find((entry) => entry.code === offer.code);
         const actor = s.players[offer.actor];
         const supply = ipo?.supply ?? 0;
-        const atMax = offer.bought >= offer.max;
+        const remaining = Math.min(offer.max - offer.bought, supply);
+        const totalCost = offer.price * remaining;
+        const atMax = remaining <= 0;
         const supplyOut = supply <= 0;
-        const cantAfford = actor.cash < offer.price;
+        const cantAfford = actor.cash < totalCost;
         const disabled = atMax || supplyOut || cantAfford;
         return (
           <div className="ipo-market__offer">
             <div className="ipo-market__buyer" style={{ '--player-color': actor.color } as CSSProperties}>
               <span />
               <strong>{actor.name}</strong>
-              <small>ONLY BUYER · {offer.bought}/{offer.max} PURCHASED</small>
+              <small>ONLY BUYER · {remaining} SHARE{remaining === 1 ? '' : 'S'} AVAILABLE</small>
             </div>
             <IpoCard def={def} price={offer.price} supply={supply} pctDiff={(((ipo?.price ?? def.start) - def.start) / def.start) * 100}>
               <button className="ipo-card__primary" disabled={disabled} onClick={() => dispatch({ t: 'ipoBuyShare' })}>
-                Buy 1 Share · {money(offer.price)}
+                Buy Entire Offering · {money(totalCost)}
               </button>
               <button className="ipo-card__done" onClick={() => dispatch({ t: 'ipoBuyDone' })}>Done</button>
               {!atMax && (cantAfford || supplyOut) ? (
                 <div className="ipo-card__warning">
-                  {supplyOut ? 'No shares remain.' : `${actor.name} needs ${money(offer.price - actor.cash)} more.`}
+                  {supplyOut ? 'No shares remain.' : `${actor.name} needs ${money(totalCost - actor.cash)} more to buy the entire offering.`}
                 </div>
               ) : null}
             </IpoCard>

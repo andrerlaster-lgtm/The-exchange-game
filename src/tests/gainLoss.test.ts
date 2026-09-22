@@ -154,8 +154,8 @@ describe('stock cost basis and gain/loss', () => {
     const price = s.ipoBuy!.price;
     s = dispatch(s, { t: 'ipoBuyShare' }, rng());
 
-    expect(s.players[0].shares[code]).toBe(1);
-    expect(s.players[0].stockCostBasis[code]).toBe(price);
+    expect(s.players[0].shares[code]).toBe(5);
+    expect(s.players[0].stockCostBasis[code]).toBe(price * 5);
   });
 });
 

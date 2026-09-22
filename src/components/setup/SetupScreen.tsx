@@ -17,7 +17,7 @@ const QUICK_RULES = [
   'Own at least 1 share in every stock of a sector for a Sector Portfolio badge (bigger Payout Claim rent). Own regular companies across 3+ different sectors for a Diversified Portfolio bonus at Market Open (6+ sectors pays even more).',
   'Passing or landing on Market Open is payday: salary, dividends, ETF payout, and any diversification bonus, then any margin repayment. It also opens a Trading Window for private player-to-player trades.',
   'When you reach Market Open without one, you receive a personal random Market Condition outside the card decks. It affects only you and lasts for its listed number of your own turns or Market Open passes; conditions never stack.',
-  'IPOs: 3 companies total, revealed one at a time at a fixed $3,000/share. Only the player who lands on an IPO space may buy, up to 2 shares.',
+  'IPOs: 3 companies total, revealed one at a time at a fixed $2,000/share. The first player to land on an available IPO may buy its entire 5-share offering for $10,000; once bought, it is fully owned by that player.',
   'Audit Notice charges 5% of net worth, rounded to the nearest $100, with a $500 minimum. Carrying Margin raises it to 7.5% with a $750 minimum.',
   'Portfolio Tax and Audit Notice can be paid now or carried as Outstanding Fees. Debt adds 5% at the start of your turn and lowers your score until paid. A Payout Claim owed to another player still uses forced sale.',
   'Margin trading is an advanced option, off by default.',

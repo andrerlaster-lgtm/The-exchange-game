@@ -155,12 +155,12 @@ describe('3D Action Center parity', () => {
 
     const buyState = patch(listState, (draft) => {
       draft.ipoListPick = false;
-      draft.ipoBuy = { code: draft.ipos[0].code, max: 2, bought: 0, price: 500, actor: 0 };
+      draft.ipoBuy = { code: draft.ipos[0].code, max: draft.ipos[0].supply, bought: 0, price: 500, actor: 0 };
     });
     const buy = buildActionCenter(buyState).required.find((entry) => entry.id === 'ipo-buy');
     expect(buy?.variant).toBe('ipo');
     expect(buy?.rows?.map((entry) => entry.title)).toContain('DIVIDEND · $0 / SHARE');
-    expect(buy?.rows?.find((entry) => entry.key === 'ipo-profile')?.detail).toContain('BUY UP TO 2 SHARES');
+    expect(buy?.rows?.find((entry) => entry.key === 'ipo-profile')?.detail).toContain('BUY ENTIRE 5-SHARE OFFERING');
     expect(buy?.buttons?.map((entry) => entry.action.t)).toEqual(['ipoBuyShare', 'ipoBuyDone']);
   });
 
@@ -171,10 +171,10 @@ describe('3D Action Center parity', () => {
 
     expect(buy?.buttons?.[0]).toMatchObject({ action: { t: 'ipoBuyShare' }, disabled: false });
     s = dispatch(s, buy!.buttons![0].action, rng());
-    expect(s.players[s.cur].shares[code]).toBe(1);
-    expect(buildActionCenter(s).required.find((entry) => entry.id === 'ipo-buy')?.description).toContain('1/2 bought');
+    expect(s.players[s.cur].shares[code]).toBe(5);
+    expect(buildActionCenter(s).required.find((entry) => entry.id === 'ipo-buy')).toBeUndefined();
     const ipoHolding = buildActionCenter(s).portfolio.rows?.find((entry) => entry.key === code);
-    expect(ipoHolding?.detail).toContain('Basis $3,000');
+    expect(ipoHolding?.detail).toContain('Basis $10,000');
     expect(ipoHolding?.detail).toContain('Unrealized G/L $0');
     // IPOs can't be sold to the bank, but holders can fund growth — except in
     // an IPO bought this same turn, so both growth buttons start disabled.

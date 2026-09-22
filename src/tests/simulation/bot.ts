@@ -101,7 +101,7 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   const affordsWithCushion = (cost: number) => s.players[s.cur].cash - cost >= markets.reserve;
   const active = markets.onlyPlayers === null || markets.onlyPlayers.includes(s.cur);
   if (s.ipoListPick) {
-    const options = s.ipos.filter((ip) => ip.revealed && ip.supply > 0 && affordsWithCushion(ip.price));
+    const options = s.ipos.filter((ip) => ip.revealed && ip.supply > 0 && affordsWithCushion(ip.price * ip.supply));
     const choice = markets.ipos && active ? pick(rng, options) : null;
     return choice ? { t: 'pickKnownIpo', code: choice.code } : { t: 'skipIpo' };
   }
@@ -109,7 +109,7 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   if (s.ipoBuy) {
     const b = s.ipoBuy;
     const supply = s.ipos.find((ip) => ip.code === b.code)?.supply ?? 0;
-    return markets.ipos && active && b.bought < b.max && supply > 0 && affordsWithCushion(b.price)
+    return markets.ipos && active && b.bought < b.max && supply > 0 && affordsWithCushion(b.price * Math.min(b.max - b.bought, supply))
       ? { t: 'ipoBuyShare' } : { t: 'ipoBuyDone' };
   }
   if (s.outstandingBuy) return { t: 'outstandingBuyDone' };

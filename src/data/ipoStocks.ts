@@ -2,8 +2,8 @@ import type { IpoDef, SectorId } from './types';
 import { CONTROL_DIVIDEND_MULTIPLIER, CONTROL_THRESHOLD_IPO, SECTORS } from './stocks';
 
 // A single shared reveal queue of 3 IPOs, all entering the game at the same
-// fixed $3,000 price (rulebook §16) — no tiered starting prices.
-export const IPO_FIXED_PRICE = 3_000;
+// fixed $2,000 price (rulebook §19) — a full 5-share offering costs $10,000.
+export const IPO_FIXED_PRICE = 2_000;
 
 // ── IPO growth & milestones (2026-09-19 redesign) ───────────────────────────
 // IPO prices move with the market like any stock, but in a 20-round game that

@@ -142,7 +142,7 @@ Each turn follows the same order unless a card or special rule changes it.
 3. If the player passes or lands on Market Open, resolve Market Open before continuing the landing result as applicable.
 4. Resolve the landed space completely.
 5. Resolve any required payment, buy/skip choice, Weak/Strong Demand effect, outstanding-share offer, card, or special-space effect.
-   - 5a. If the landed space is an IPO space, only the player who landed there may buy IPO shares. A new reveal offers that IPO to the landing player; after all 3 IPOs are revealed, the landing player may choose any revealed IPO with available shares.
+   - 5a. If the landed space is an IPO space, only the player who landed there may buy an available IPO offering. A new reveal offers that IPO's entire 5-share offering to the landing player; after all 3 IPOs are revealed, the landing player may choose any revealed IPO that remains unsold.
 6. Open the active player's Trade Step.
 7. During the Trade Step, the active player (and any other player) may propose P2P trades, and the active player may sell up to half of each regular-stock holding back to the bank, rounded down (see Section 14).
 8. Resolve accepted trades and bank sales immediately.
@@ -542,13 +542,13 @@ IPOs are limited new-stock opportunities. They are more volatile and have smalle
 - When a player lands on the IPO space, the next unrevealed IPO in the queue flips face up and becomes active.
 - Once revealed, that IPO stays available for purchase at the IPO space for the rest of the game.
 - Only the player who landed on the IPO space may buy during that landing. No other player receives a buy-in turn.
-- The landing player may buy a maximum of 2 IPO shares during that landing.
-- After the reveal turn, any player landing on the IPO space may buy available shares of any already-revealed IPO normally.
+- The landing player may buy the IPO's entire remaining 5-share offering for 5× its live IPO price (normally $10,000 at launch), or pass.
+- After the reveal turn, any player landing on the IPO space may buy an entire unsold offering from any already-revealed IPO. Once bought, all of its shares belong to that player.
 - Once all 3 IPOs are revealed, landing on the IPO space simply allows buying from whichever IPOs are already out — no further reveals occur.
 
 **IPO Pricing**
 
-All 3 IPOs start at a fixed price of $3,000 per share. There is no tiered starting-price structure; every IPO enters the game at the same price point and differentiates only through reveal order and Market Event effects.
+All 3 IPOs start at a fixed price of $2,000 per share. There is no tiered starting-price structure; every IPO enters the game at the same price point and differentiates only through reveal order and Market Event effects.
 
 **IPO Price Movement**
 - IPO share prices do not move from buying or selling. They move with the market — Market Event and Fed cards, Bull/Bear Runs, the round-end market (Section 21) — and through growth investments (below).
@@ -572,7 +572,7 @@ Any player who owns at least 1 share of a revealed IPO may fund its growth after
 - Crossing $5,000 upward this way triggers a Market Event, as other player-driven rises do.
 
 **IPO milestones**
-Measured from the IPO's launch price ($3,000). Each pays once per IPO, to every holder, per share:
+Measured from the IPO's launch price ($2,000). Each pays once per IPO, to every holder, per share:
 
 | Milestone | Price vs launch | Reward |
 |---|---:|---:|
@@ -911,7 +911,7 @@ Use this checklist when sending the rules to code.
 | Trading | Trade Step: P2P trades and bank sell-back both allowed. Market Open Trading Window: P2P trades only, no bank sell-back. Offers expire on window close. A share-for-share swap leg is booked at market value on both sides |
 | Gain/Loss accounting | Purchases add actual cost basis (cash paid plus market value of any shares handed over); sales remove proportional average basis and record proceeds minus basis as realized G/L; current value minus remaining basis is unrealized G/L |
 | Dividends | Pay flat per-share dividend on every regular stock and revealed IPO at every Market Open; apply 1.5× multiplier for Controllers; Always On, independent of Sold-Out status |
-| IPO reveal | Single shared 4-IPO queue; landing on either IPO space reveals the next unrevealed IPO; only the landing player may buy, up to 2 shares |
+| IPO reveal | Single shared 3-IPO queue; landing on the IPO space reveals the next unrevealed IPO; only the landing player may buy its entire 5-share offering |
 | Margin | Off by default; when on, enforce $4,000 cap, half-balance repayment on Market Open pass or landing, forced sell + penalty fee on default, or carry to Outstanding Fees if nothing is left to sell |
 | Player Loans | Payout Claim shortfall only; rate = Bank Rate + creditor's d6 premium (1-2: +1%, 3-4: +2%, 5-6: +3%), fixed at creation; interest accrues each debtor turn, rounded to $10 with a $20 minimum; $500 installment or full payoff; unpaid balance counts against debtor's score and for creditor's |
 | Sector Control | 9 fixed within-sector groups of regular stocks, each with a flat rent ($200/$350 for a two-company group, $300/$525/$825 for a three-company group); rent is added on top of a Payout Claim only when the claim holder exclusively owns every company in the group |

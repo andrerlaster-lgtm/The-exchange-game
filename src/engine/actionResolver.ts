@@ -380,14 +380,14 @@ function resolveLanding(s: GameState, pi: number): void {
           summary: `${IPO_DEFS[i].name} entered the market at ${money(ip.startPrice)} per share.`,
           impacts: [],
         });
-        s.ipoBuy = { code: ip.code, max: 2, bought: 0, price: ip.price, actor: pi };
-        addLog(s, `${p.name} may buy ${ip.code} (up to 2 shares).`, 'g');
+        s.ipoBuy = { code: ip.code, max: ip.supply, bought: 0, price: ip.price, actor: pi };
+        addLog(s, `${p.name} may buy the entire ${ip.code} IPO offering (${ip.supply} shares).`, 'g');
         break;
       }
       const anyRevealed = s.ipos.some((ip) => ip.revealed && ip.supply > 0);
       if (anyRevealed) {
         s.ipoListPick = true;
-        addLog(s, 'IPO space — choose an IPO to buy (up to 2 shares).', 'g');
+        addLog(s, 'IPO space — choose an available IPO to buy outright.', 'g');
       } else {
         addLog(s, 'IPO space — no shares available.');
       }
@@ -1287,8 +1287,8 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (!ip.revealed || ip.supply <= 0) break;
       const price = ip.price;
       s.ipoListPick = false;
-      s.ipoBuy = { code: action.code, max: 2, bought: 0, price, actor: s.cur };
-      addLog(s, `Buying IPO ${action.code} @ ${money(price)} (up to 2 shares).`, 'g');
+      s.ipoBuy = { code: action.code, max: ip.supply, bought: 0, price, actor: s.cur };
+      addLog(s, `Buying IPO ${action.code} @ ${money(price)} (${ip.supply} shares, entire offering).`, 'g');
       break;
     }
     case 'ipoBuyShare': {
@@ -1297,17 +1297,20 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
       if (b.actor !== s.cur) break; // only the player on the IPO space may buy
       const ip = ipoOf(s, b.code);
       const p = s.players[b.actor];
-      if (b.bought >= b.max || ip.supply <= 0 || p.cash < b.price) break;
-      p.cash -= b.price;
-      p.shares[b.code] = (p.shares[b.code] || 0) + 1;
-      addStockCostBasis(p, b.code, b.price);
-      ip.supply -= 1; b.bought += 1;
+      const qty = Math.min(b.max - b.bought, ip.supply);
+      const cost = b.price * qty;
+      if (qty <= 0 || p.cash < cost) break;
+      p.cash -= cost;
+      p.shares[b.code] = (p.shares[b.code] || 0) + qty;
+      addStockCostBasis(p, b.code, cost);
+      ip.supply -= qty; b.bought += qty;
       // Buying and funding growth in the same IPO on the same turn is not allowed.
       if (!s.ipoBoughtThisTurn.includes(b.code)) s.ipoBoughtThisTurn.push(b.code);
       // IPO prices never move from buying/selling (rulebook §16) — only card
       // effects move them, via moveEventPrice.
-      addLog(s, `${p.name} buys 1 ${b.code} (IPO) @ ${money(b.price)}`, 'g');
-      addTradeLog(s, 'ipo', `1× ${b.code} IPO @ ${money(b.price)}`, -b.price, p.name);
+      addLog(s, `${p.name} buys the entire ${b.code} IPO offering (${qty} shares) @ ${money(b.price)}.`, 'g');
+      addTradeLog(s, 'ipo', `${qty}× ${b.code} IPO @ ${money(b.price)}`, -cost, p.name);
+      s.ipoBuy = null; s.ipoChoice = false; s.ipoListPick = false;
       break;
     }
     case 'ipoBuyDone':

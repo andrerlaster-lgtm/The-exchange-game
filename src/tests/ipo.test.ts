@@ -1,4 +1,4 @@
-// IPO model — a single shared reveal queue of 3 IPOs, all at a fixed $3,000,
+// IPO model — a single shared reveal queue of 3 IPOs, all at a fixed $2,000,
 // no price movement from buying/selling, and only the player who lands on an
 // IPO space may buy during that landing.
 
@@ -19,7 +19,7 @@ describe('IPO reveal — shared queue, fixed price', () => {
     expect(IPO_DEFS.filter((ipo) => ipo.div === 0).every((ipo) => IPO_PRESENTATION[ipo.code].opportunityText.includes('No dividend'))).toBe(true);
   });
 
-  it('landing on an IPO space with hidden IPOs reveals the next one at $3,000', () => {
+  it('landing on an IPO space with hidden IPOs reveals the next one at $2,000', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);
     const revealed = s.ipos.filter((ip) => ip.revealed);
@@ -36,20 +36,19 @@ describe('IPO reveal — shared queue, fixed price', () => {
     expect(s.ipoListPick).toBe(false);
   });
 
-  it('the revealer can buy up to 2 shares and price never moves', () => {
+  it('the revealer buys the entire 5-share offering and price never moves', () => {
     let s = started(3);
     s = rollTo(s, IPO_SPACE);
     const code = s.ipoBuy!.code;
     const priceBefore = s.ipos.find((ip) => ip.code === code)!.price;
     s = dispatch(s, { t: 'ipoBuyShare' }, rng());
-    expect(s.players[0].shares[code]).toBe(1);
+    expect(s.players[0].shares[code]).toBe(5);
+    expect(s.ipos.find((ip) => ip.code === code)!.supply).toBe(0);
     expect(s.ipos.find((ip) => ip.code === code)!.price).toBe(priceBefore); // unchanged
-    s = dispatch(s, { t: 'ipoBuyShare' }, rng());
-    expect(s.players[0].shares[code]).toBe(2);
     const cash = s.players[0].cash;
-    s = dispatch(s, { t: 'ipoBuyShare' }, rng()); // 3rd blocked (max 2)
+    s = dispatch(s, { t: 'ipoBuyShare' }, rng()); // no offer remains after the full purchase
     expect(s.players[0].cash).toBe(cash);
-    expect(s.players[0].shares[code]).toBe(2);
+    expect(s.players[0].shares[code]).toBe(5);
     expect(s.ipos.find((ip) => ip.code === code)!.price).toBe(priceBefore);
   });
 
@@ -59,9 +58,8 @@ describe('IPO reveal — shared queue, fixed price', () => {
     const code = s.ipoBuy!.code;
 
     s = dispatch(s, { t: 'ipoBuyShare' }, rng());
-    s = dispatch(s, { t: 'ipoBuyDone' }, rng());
     expect(s.ipoBuy).toBeNull();
-    expect(s.players[0].shares[code]).toBe(1);
+    expect(s.players[0].shares[code]).toBe(5);
     expect(s.players[1].shares[code] ?? 0).toBe(0);
     expect(s.players[2].shares[code] ?? 0).toBe(0);
   });
@@ -103,7 +101,7 @@ describe('IPO — after reveal, normal buy-list flow resumes', () => {
     expect(s.ipoBuy!.code).not.toBe(firstCode);
   });
 
-  it('once every IPO is revealed, landing opens the general buy list for the landing player', () => {
+  it('once every IPO is revealed, landing opens the available-offering list for the landing player', () => {
     let s = started(2);
     s = patch(s, (d) => { d.ipos.forEach((ip) => { ip.revealed = true; }); });
     s = rollTo(s, IPO_SPACE);
