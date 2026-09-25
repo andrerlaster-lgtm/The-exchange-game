@@ -681,7 +681,22 @@ The marker stays visible as the result of the round just finished, until the nex
 
 **Bank Rate follow-through**
 
-Every second round, the Bank Rate follows the round's net result: a net-up round nudges it **+0.25%**, a net-down round **-0.25%**, within the 1-8% band. Borrowing costs only — the nudge never moves prices.
+Every second round, the Bank Rate follows the round's net result: a net-up round nudges it **+0.25%**, a net-down round **-0.25%**, within the 1-8% band.
+
+A move to the rate also **shocks the rate-sensitive parts of the market** (2026-09-25), exactly as a Fed card does — banks earn more when money is dear, while property and high-risk growth companies pay more to borrow:
+
+| Holding | Rate rises 0.25% | Rate falls 0.25% |
+|---|---:|---:|
+| Finance | +2.5% | -2.5% |
+| Real Estate | -2.5% | +2.5% |
+| Any High-Risk company | -2.5% | +2.5% |
+| Everything else | no change | no change |
+
+- A company that is both (a High-Risk Real Estate company, say) takes **both** moves.
+- Only **public** companies are shocked, the same rule the theme follows — a company nobody has bought yet is never repriced by the Fed at round end.
+- If the rate is already at the 1% floor or the 8% ceiling, it does not move, so nothing is shocked either.
+
+This is why the Bank Rate matters to a player carrying no debt at all: policy reprices a third of the board.
 
 **What does not move the broad market**
 - A single dice roll on its own.
@@ -708,7 +723,7 @@ Two rates run in the background and set the basis points behind loans and part o
 - Two things move it:
   - **Fed cards.** Jumbo Hike +100 bp, Emergency Cut −100 bp, Rate Hike +50 bp, Rate Cut −50 bp, Tight Money +25 bp, Easy Money −25 bp, Inflation Warning +25 bp, Bond Yields Rise +25 bp, Cut Hopes Rally −25 bp. Rate Hold and the rest leave it alone.
   - **The Rate Decision spaces (board 19 and 31).** The landing player rolls a d6: 1-2 cuts the rate 25 bp, 3-4 holds it, 5-6 raises it 25 bp. A change applies the same price shock a rate card would; a hold does nothing. If the rate is already at its floor or ceiling, the roll simply does not move it.
-  - **The round-end marker, every OTHER completed round.** On those rounds a Bullish marker raises it 25 bp and a Bearish marker lowers it 25 bp; the rounds in between leave it alone. This nudge changes borrowing costs only — it does not move share prices.
+  - **The round-end marker, every OTHER completed round.** On those rounds a Bullish marker raises it 25 bp and a Bearish marker lowers it 25 bp; the rounds in between leave it alone. The move changes borrowing costs **and** shocks the rate-sensitive sectors of public companies (see Bank Rate follow-through above).
 - A **rate card's** change moves the rate-sensitive stocks by **10 bp of price per 1 bp of rate**: Finance moves *with* the rate; Real Estate and High-Risk stocks move *against* it. A +50 bp hike is Finance +5%, Real Estate −5%, High-Risk −5% (a High-Risk Real Estate company takes both). These moves are the whole price effect of a pure rate card (Jumbo Hike, Emergency Cut, Rate Hike, Rate Cut, Tight Money, Easy Money). Inflation Warning, Bond Yields Rise and Cut Hopes Rally keep their own printed price effect and simply move the rate as well.
 - If the rate is at its floor or ceiling, it moves only as far as it can, and the stock moves shrink to match (none at all if it cannot move).
 - Every loan prices off it:
@@ -804,6 +819,7 @@ market event is worth more dollars to an expensive company than a cheap one.
 | Revealed IPO in a Run | ±5% (±500 bp) |
 | Selling 3+ shares to the bank in one action | −5% (−500 bp) |
 | Investor Day Company Growth | +5% (+500 bp) |
+| Bank Rate move, per 0.25% | ±2.5% (±250 bp) on Finance, Real Estate and High-Risk holdings |
 
 **Event reference**
 
