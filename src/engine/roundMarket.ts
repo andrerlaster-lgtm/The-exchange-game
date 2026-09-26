@@ -77,7 +77,8 @@ export function beginMarketTheme(s: GameState, rng: Rng): void {
  * prices only through the two Rate Decision tiles. It now moves the
  * rate-sensitive parts of the market the same way a Fed card does — banks earn
  * more when money is dear, property and high-risk growth pay more to borrow —
- * so policy is something the whole table has to read.
+ * so policy is something the whole table has to read. Unlike the theme, it
+ * reprices untouched companies too: see the loop below.
  */
 function nudgeBankRate(s: GameState, direction: MarketDirection): void {
   if (direction === 'flat' || s.lap % RATE_NUDGE_EVERY_N_ROUNDS !== 0) return;
@@ -88,13 +89,14 @@ function nudgeBankRate(s: GameState, direction: MarketDirection): void {
   const label = direction === 'bull' ? 'Bullish' : 'Bearish';
   addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
 
-  // Only PUBLIC companies move, the same rule the theme above follows. A Fed
-  // card reprices the whole board, but that is an occasional draw; this fires
-  // every other round, and letting it drift companies nobody has bought yet
-  // would walk their opening prices away before the table can buy in.
+  // The WHOLE board is repriced, untouched companies included — a rate is
+  // policy, not demand, so it does not wait for anyone to buy in. This
+  // deliberately differs from the Market Theme above, which only moves public
+  // companies: a theme is money rotating between sectors that are actually
+  // being traded, while the cost of borrowing applies to every balance sheet
+  // on the board. It also matches how a Fed card already behaves.
   const impacts: Array<{ code: string; pct: number }> = [];
   for (const code of Object.keys(STOCK_BY_CODE)) {
-    if ((s.supply[code] ?? 0) >= 11) continue;
     const stock = STOCK_BY_CODE[code];
     const perBp = (RATE_SENSITIVITY_BY_SECTOR[stock.sector] ?? 0)
       + (RATE_SENSITIVITY_BY_RISK[stock.risk] ?? 0);

@@ -693,7 +693,7 @@ A move to the rate also **shocks the rate-sensitive parts of the market** (2026-
 | Everything else | no change | no change |
 
 - A company that is both (a High-Risk Real Estate company, say) takes **both** moves.
-- Only **public** companies are shocked, the same rule the theme follows — a company nobody has bought yet is never repriced by the Fed at round end.
+- **Every** company is shocked, including ones nobody has bought yet. A rate is policy, not demand: the cost of borrowing applies to every balance sheet on the board. (This differs from the Market Theme, which only moves public companies, and matches how a Fed card already behaves.)
 - If the rate is already at the 1% floor or the 8% ceiling, it does not move, so nothing is shocked either.
 
 This is why the Bank Rate matters to a player carrying no debt at all: policy reprices a third of the board.
