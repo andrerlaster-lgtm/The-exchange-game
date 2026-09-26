@@ -86,6 +86,57 @@ describe('a Market Theme resolving', () => {
     expect(after.roundCloseRecap?.playerImpacts[0].hurt).toContain(down);
   });
 
+  it('carries a price shock into the rate-sensitive sectors (2026-09-25)', () => {
+    // A theme confined to Healthcare and Industrials, so Finance and Real
+    // Estate move only from the rate shock. FTRB (Low) and MTRO (Low) carry no
+    // risk sensitivity either, so each shows one clean effect.
+    const rateOnly = (lap: number) => patch(started(2), (d) => {
+      d.lap = lap;
+      d.marketTheme = { id: 't', name: 'T', tailwinds: ['health'], headwinds: ['industrials'], lap };
+      for (const code of Object.keys(d.supply)) d.supply[code] = 10;
+    });
+
+    const before = rateOnly(4);
+    const after = patch(before, (d) => { resolveRoundEndMarket(d); });
+    const hiked = after.bankRateBp > before.bankRateBp;
+
+    // Finance tracks the rate, Real Estate moves against it.
+    if (hiked) {
+      expect(after.prices.FTRB).toBeGreaterThan(before.prices.FTRB);
+      expect(after.prices.MTRO).toBeLessThan(before.prices.MTRO);
+    } else {
+      expect(after.prices.FTRB).toBeLessThan(before.prices.FTRB);
+      expect(after.prices.MTRO).toBeGreaterThan(before.prices.MTRO);
+    }
+
+    // An odd round changes no rate, so it shocks no prices either.
+    const odd = rateOnly(5);
+    const oddAfter = patch(odd, (d) => { resolveRoundEndMarket(d); });
+    expect(oddAfter.bankRateBp).toBe(odd.bankRateBp);
+    expect(oddAfter.prices.FTRB).toBe(odd.prices.FTRB);
+    expect(oddAfter.prices.MTRO).toBe(odd.prices.MTRO);
+  });
+
+  it('shocks the whole board, untouched companies included', () => {
+    // The theme only moves public companies; a rate is policy, not demand, so
+    // it reprices every balance sheet on the board.
+    const before = patch(started(2), (d) => {
+      d.lap = 4;
+      d.marketTheme = { id: 't', name: 'T', tailwinds: ['health'], headwinds: ['industrials'], lap: 4 };
+      // The theme has to move something for the round to read bull or bear —
+      // a flat round nudges no rate at all — so the theme's own sectors are
+      // public while FTRB, the company under test, is not.
+      for (const code of Object.keys(d.supply)) d.supply[code] = 10;
+      d.supply.FTRB = 11; // never bought by anyone
+    });
+    const after = patch(before, (d) => { resolveRoundEndMarket(d); });
+    expect(after.bankRateBp).not.toBe(before.bankRateBp);
+    expect(after.prices.FTRB).not.toBe(before.prices.FTRB);
+    // …while a company the rate does not reach stays put: SAFE is Consumer
+    // (no rate sensitivity), Low risk, and outside this theme's sectors.
+    expect(after.prices.SAFE).toBe(before.prices.SAFE);
+  });
+
   it('still nudges the Bank Rate every other round — the theme does not skip it', () => {
     const even = patch(themed((d) => { d.lap = 4; }), (d) => { resolveRoundEndMarket(d); });
     const odd = patch(themed((d) => { d.lap = 5; }), (d) => { resolveRoundEndMarket(d); });

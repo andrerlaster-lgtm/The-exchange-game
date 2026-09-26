@@ -35,13 +35,13 @@
 
 import {
   DIE_SPREAD, IPO_BY_CODE, MARKET_BLOCS, MARKET_THEMES, METER_RATE_NUDGE_BP, MOVE_DIE_BANDS, MOVE_DIE_MIDPOINT,
-  RATE_NUDGE_EVERY_N_ROUNDS, SECTOR_CODES, SECTORS,
+  RATE_NUDGE_EVERY_N_ROUNDS, RATE_SENSITIVITY_BY_RISK, RATE_SENSITIVITY_BY_SECTOR, SECTOR_CODES, SECTORS,
 } from '../data';
 import { STOCK_BY_CODE } from '../data/stocks';
 import type { Rng } from '../utils/rng';
 import type { SectorId } from '../data/types';
 import { moveSize } from '../utils/formatMoney';
-import { moveRoundMarketPrice } from './stockState';
+import { applyPriceMove, moveRoundMarketPrice } from './stockState';
 import { canFall, canRise } from './rules';
 import { recordMarketSignal } from './marketSignals';
 import { changeBankRate } from './rates';
@@ -66,17 +66,53 @@ export function beginMarketTheme(s: GameState, rng: Rng): void {
 /** A hot round invites tightening and a cold one invites easing: the Bank Rate
     follows the round's result, but only on every RATE_NUDGE_EVERY_N_ROUNDS
     round — nudging every round moved it two to three times as often as the Fed
-    cards did. Borrowing costs only; no price moves either way. Both round-end
-    paths call this: the themes took over the round end and, until this was
-    pulled out, quietly took the rate nudge with it. */
+    cards did. Both round-end paths call this: the themes took over the round
+    end and, until this was pulled out, quietly took the rate nudge with it.
+ *
+ * The move carries a PRICE SHOCK as of 2026-09-25. Before that the round-end
+ * nudge changed borrowing costs and nothing else, which made the Bank Rate
+ * invisible to anyone not carrying a loan: a simulation of random rate shocks
+ * found a debt-free player's net worth landed within ~1% of baseline whether
+ * the rate swung 150 bp a round or never moved, because the rate reached
+ * prices only through the two Rate Decision tiles. It now moves the
+ * rate-sensitive parts of the market the same way a Fed card does — banks earn
+ * more when money is dear, property and high-risk growth pay more to borrow —
+ * so policy is something the whole table has to read. Unlike the theme, it
+ * reprices untouched companies too: see the loop below.
+ */
 function nudgeBankRate(s: GameState, direction: MarketDirection): void {
   if (direction === 'flat' || s.lap % RATE_NUDGE_EVERY_N_ROUNDS !== 0) return;
   const before = s.bankRateBp;
   const actual = changeBankRate(s, direction === 'bull' ? METER_RATE_NUDGE_BP : -METER_RATE_NUDGE_BP);
-  if (actual !== 0) {
-    const label = direction === 'bull' ? 'Bullish' : 'Bearish';
-    addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
+  if (actual === 0) return; // already at the floor or ceiling: no move, no shock
+
+  const label = direction === 'bull' ? 'Bullish' : 'Bearish';
+  addLog(s, `${label} round — the Bank Rate ${actual > 0 ? 'rises' : 'falls'} ${before / 100}% → ${s.bankRateBp / 100}%.`, 'y');
+
+  // The WHOLE board is repriced, untouched companies included — a rate is
+  // policy, not demand, so it does not wait for anyone to buy in. This
+  // deliberately differs from the Market Theme above, which only moves public
+  // companies: a theme is money rotating between sectors that are actually
+  // being traded, while the cost of borrowing applies to every balance sheet
+  // on the board. It also matches how a Fed card already behaves.
+  const impacts: Array<{ code: string; pct: number }> = [];
+  for (const code of Object.keys(STOCK_BY_CODE)) {
+    const stock = STOCK_BY_CODE[code];
+    const perBp = (RATE_SENSITIVITY_BY_SECTOR[stock.sector] ?? 0)
+      + (RATE_SENSITIVITY_BY_RISK[stock.risk] ?? 0);
+    if (perBp === 0) continue;
+    const r = applyPriceMove(s, code, actual * perBp, 'rateShock');
+    if (r.delta) impacts.push({ code, pct: r.pct });
   }
+  if (impacts.length === 0) return;
+  recordMarketSignal(s, {
+    kind: 'fed',
+    title: `Bank Rate ${actual > 0 ? 'Hike' : 'Cut'} · ${before / 100}% → ${s.bankRateBp / 100}%`,
+    stance: actual > 0 ? 'hawkish' : 'dovish',
+    summary: `A ${label.toLowerCase()} round moved the Bank Rate ${actual > 0 ? 'up' : 'down'} ${Math.abs(actual) / 100}%. `
+      + `${actual > 0 ? 'Finance gained while Real Estate and High-Risk companies fell' : 'Finance fell while Real Estate and High-Risk companies gained'}, and every loan now costs ${actual > 0 ? 'more' : 'less'}.`,
+    impacts,
+  });
 }
 
 function resolveMarketTheme(s: GameState): boolean {

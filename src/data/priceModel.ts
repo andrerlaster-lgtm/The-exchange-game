@@ -71,6 +71,7 @@ export type PriceMoveSource =
   | 'weakDemand'
   | 'strongDemand'
   | 'roundMarket'
+  | 'rateShock'
   | 'marketEvent'
   | 'fedCard'
   | 'bullRun'
@@ -85,6 +86,7 @@ export type PriceMoveSource =
 /** Player-facing name for each price-move source (logs, tooltips). */
 export const PRICE_MOVE_SOURCE_LABEL: Record<PriceMoveSource, string> = {
   weakDemand: 'Weak Demand', strongDemand: 'Strong Demand', roundMarket: 'round-end market move',
+  rateShock: 'Bank Rate move',
   marketEvent: 'Market Event', fedCard: 'Fed card', bullRun: 'Bull Run', bearRun: 'Bear Run',
   bankSale: 'bank sale', voluntarySale: 'sale', cyberattackChoice: 'Cyberattack penalty',
   regulatoryChoice: 'Regulatory penalty', investorDay: 'Investor Day', ipoGrowth: 'IPO growth investment',
@@ -99,7 +101,7 @@ export const PRICE_MOVE_SOURCE_LABEL: Record<PriceMoveSource, string> = {
  * place.
  */
 export const SHIELDABLE_SOURCES: ReadonlySet<PriceMoveSource> = new Set<PriceMoveSource>([
-  'weakDemand', 'roundMarket', 'marketEvent', 'fedCard', 'bearRun',
+  'weakDemand', 'roundMarket', 'rateShock', 'marketEvent', 'fedCard', 'bearRun',
 ]);
 
 /**
