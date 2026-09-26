@@ -931,7 +931,7 @@ function AuctionPanel({ s, dispatch }: { s: GameState; dispatch: (a: Action) => 
   );
 }
 
-export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; dispatch: (a: Action) => void }) {
+export function EtfPicker({ code, s, dispatch, preview = false }: { code: string; s: GameState; dispatch: (a: Action) => void; preview?: boolean }) {
   const etf = ETF_BY_CODE[code];
   if (!etf) return null;
   const p = s.players[s.cur];
@@ -945,56 +945,45 @@ export function EtfPicker({ code, s, dispatch }: { code: string; s: GameState; d
   // Landing on a fund someone else controls charges a fee AND still offers the
   // share — but the fee is settled first, matching the engine's buyEtf guard.
   const feeFirst = !!s.landingNotice || !!s.insolvency;
-  const distinctOwned = distinctEtfFunds(p.etfShares);
-  const bonusNow = etfDiversificationBonus(p.etfShares);
-  const nextTier = [2, 3, 4].find((n) => n > distinctOwned);
+  const bonusAfterPurchase = etfDiversificationBonus({ ...p.etfShares, [code]: ownedHere + 1 });
+  const distinctAfterPurchase = distinctEtfFunds({ ...p.etfShares, [code]: ownedHere + 1 });
+  const nextTier = [2, 3, 4].find((n) => n > distinctAfterPurchase);
+  const incomeAfterPurchase = incomeAfter;
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', gap: 8,
-      padding: '10px 12px', borderRadius: 7,
-      background: 'rgba(96,165,250,0.05)',
-      border: `1px solid ${etf.color}44`,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 16, color: etf.color }}>{etf.glyph}</span>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: etf.color }}>{etf.name}</div>
-          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-            ${ETF_PRICE.toLocaleString()} · you own {ownedHere} share{ownedHere !== 1 ? 's' : ''} of this fund
-            {' · '}{addsPerLap > 0
-              ? <>this share adds <strong>+${addsPerLap.toLocaleString()}</strong> per Market Open</>
-              : <>this fund already pays its maximum (3+ shares)</>}
+    <div style={preview ? { width: '100%' } : { position: 'fixed', top: 54, left: '50%', transform: 'translateX(-50%)', width: 'min(420px, calc(100vw - 24px))', maxHeight: 'calc(100vh - 74px)', overflowY: 'auto', zIndex: 260, pointerEvents: 'auto' }}>
+      <section aria-label={`${etf.name} fund opportunity`} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderTop: `4px solid ${etf.color}`, boxShadow: 'var(--panel-shadow)' }}>
+        <header style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 10, display: 'grid', placeItems: 'center', flexShrink: 0, background: etf.color, color: '#fff', fontSize: 20, fontWeight: 900 }}>{etf.glyph}</div>
+          <div><div className="slabel">Fund investment opportunity</div><strong style={{ display: 'block', fontSize: 21, marginTop: 2 }}>{etf.name}</strong><span className="mono" style={{ color: etf.color, fontWeight: 800, fontSize: 12 }}>{etf.code} · fixed-price fund</span></div>
+        </header>
+
+        <section style={{ padding: 11, borderRadius: 9, background: 'var(--bg)', color: '#fff', borderLeft: `4px solid ${etf.color}` }}>
+          <div className="slabel" style={{ color: 'rgba(255,255,255,.64)', marginBottom: 8 }}>Investment summary</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div><div style={{ color: 'rgba(255,255,255,.68)', fontSize: 10, fontWeight: 800, letterSpacing: .7, textTransform: 'uppercase' }}>Price per share</div><div className="mono" style={{ fontSize: 23, fontWeight: 900, marginTop: 2 }}>${ETF_PRICE.toLocaleString()}</div></div>
+            <div style={{ paddingLeft: 10, borderLeft: '1px solid rgba(255,255,255,.2)' }}><div style={{ color: 'rgba(255,255,255,.68)', fontSize: 10, fontWeight: 800, letterSpacing: .7, textTransform: 'uppercase' }}>You own after buy</div><div className="mono" style={{ fontSize: 23, fontWeight: 900, marginTop: 2 }}>{ownedHere + 1} share{ownedHere + 1 === 1 ? '' : 's'}</div></div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Safe-haven note — what makes ETFs different from stocks */}
-      <div style={{
-        fontSize: 10, color: 'var(--muted)', lineHeight: 1.5,
-        padding: '5px 8px', borderRadius: 5,
-        background: 'rgba(74,48,25,0.05)', border: '1px solid rgba(74,48,25,0.08)',
-      }}>
-        🔒 Fixed price, never crashes · can't be sold or force-sold — a safe, illiquid income asset.
-      </div>
+        <section style={{ padding: '10px 11px', borderRadius: 8, background: 'rgba(74,48,25,.045)', border: '1px solid var(--border)' }}>
+          <div className="slabel" style={{ marginBottom: 7 }}>What this purchase does</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
+            <div><span style={{ color: 'var(--muted)' }}>Adds at Market Open</span><br /><strong style={{ color: addsPerLap > 0 ? 'var(--green)' : 'var(--muted)' }}>{addsPerLap > 0 ? `+$${addsPerLap.toLocaleString()}` : 'Fund payout capped'}</strong></div>
+            <div><span style={{ color: 'var(--muted)' }}>Your total fund income</span><br /><strong style={{ color: 'var(--green)' }}>+${incomeAfterPurchase.toLocaleString()}/open</strong></div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 10, lineHeight: 1.4, marginTop: 8 }}>Fixed price: market themes and stock swings do not change this fund’s value. It cannot be sold or force-sold.</div>
+        </section>
 
-      {/* Diversification bonus progress — different funds, not more shares */}
-      <div style={{ fontSize: 10, color: bonusNow > 0 ? 'var(--green)' : 'var(--muted)', lineHeight: 1.5 }}>
-        {`Different funds held: ${distinctOwned}/${ETF_DEFS.length}`}
-        {bonusNow > 0 && ` · earning +$${bonusNow.toLocaleString()}/lap diversification bonus`}
-        {nextTier != null && ` · ${nextTier} funds pays +$${ETF_DIVERSIFICATION_BONUS_BY_FUNDS[nextTier].toLocaleString()}/lap`}
-      </div>
+        <section style={{ padding: '10px 11px', borderRadius: 8, background: 'rgba(74,48,25,.045)', border: '1px solid var(--border)', fontSize: 11, lineHeight: 1.45 }}>
+          <div className="slabel" style={{ marginBottom: 5 }}>Diversification progress</div>
+          <strong>{distinctAfterPurchase}/{ETF_DEFS.length} different funds after purchase</strong>{bonusAfterPurchase > 0 && <> · earning <strong style={{ color: 'var(--green)' }}>+${bonusAfterPurchase.toLocaleString()}/open</strong> bonus</>}{nextTier != null && <div style={{ color: 'var(--muted)', marginTop: 4 }}>Own {nextTier} different funds to unlock +${ETF_DIVERSIFICATION_BONUS_BY_FUNDS[nextTier].toLocaleString()} each Market Open.</div>}
+        </section>
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          style={{ fontSize: 12, padding: '5px 14px', color: etf.color, borderColor: `${etf.color}66` }}
-          disabled={!canAfford || feeFirst}
-          onClick={() => dispatch({ t: 'buyEtf', code })}>
-          {feeFirst ? 'Settle the landing fee first'
-            : canAfford ? `Buy 1 Share — $${ETF_PRICE.toLocaleString()}` : 'Not enough cash'}
-        </button>
-        <button style={{ fontSize: 12, padding: '5px 12px' }}
-          onClick={() => dispatch({ t: 'skipEtf' })}>Skip</button>
-      </div>
+        {feeFirst && <div style={{ color: 'var(--red)', fontSize: 11 }}>Settle the landing fee before buying this share.</div>}
+        {!canAfford && !feeFirst && <div style={{ color: 'var(--red)', fontSize: 11 }}>You need ${(ETF_PRICE - p.cash).toLocaleString()} more cash to buy this share.</div>}
+        <button style={{ width: '100%', padding: '11px 10px', borderRadius: 8, border: 'none', background: etf.color, color: '#fff', fontWeight: 800, fontSize: 13, cursor: canAfford && !feeFirst ? 'pointer' : 'not-allowed', opacity: canAfford && !feeFirst ? 1 : .45 }} disabled={!canAfford || feeFirst} onClick={() => dispatch({ t: 'buyEtf', code })}>{feeFirst ? 'Settle landing fee first' : canAfford ? `Buy 1 fund share · $${ETF_PRICE.toLocaleString()}` : 'Not enough cash'}</button>
+        <button style={{ background: 'transparent', color: 'var(--muted)', border: 'none', padding: '2px', cursor: 'pointer', fontSize: 12 }} onClick={() => dispatch({ t: 'skipEtf' })}>Skip for now</button>
+      </section>
     </div>
   );
 }

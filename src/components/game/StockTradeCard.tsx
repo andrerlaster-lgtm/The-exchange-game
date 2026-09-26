@@ -20,7 +20,7 @@ const overlayStyle: CSSProperties = {
   top: 54,
   left: '50%',
   transform: 'translateX(-50%)',
-  width: 340,
+  width: 'min(420px, calc(100vw - 24px))',
   maxHeight: 'calc(100vh - 74px)',
   overflowY: 'auto',
   zIndex: 260,

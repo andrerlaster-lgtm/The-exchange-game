@@ -3,6 +3,7 @@ import { useGameState } from '../store';
 import SetupScreen from '../components/setup/SetupScreen';
 import GameScreen from '../components/game/GameScreen';
 import GameOver from '../components/game/GameOver';
+import InvestmentCardPreview from '../components/game/InvestmentCardPreview';
 import Board3DSync from '../components/game/Board3DSync';
 import { setBoardTheme, useBoardTheme } from '../components/game/useBoardTheme';
 
@@ -30,6 +31,10 @@ export default function App() {
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, []);
+
+  if (new URLSearchParams(window.location.search).get('preview') === 'cards') {
+    return <InvestmentCardPreview />;
+  }
 
   if (s.phase === 'setup') return <SetupScreen />;
 

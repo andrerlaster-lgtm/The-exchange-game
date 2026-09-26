@@ -15,13 +15,14 @@ function money(value: number) {
   return `$${value.toLocaleString()}`;
 }
 
-function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
+export function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
   const presentation = IPO_PRESENTATION[def.code];
   const sector = SECTORS[def.sector];
   const moveClass = pctDiff > 0 ? 'up' : pctDiff < 0 ? 'down' : 'flat';
   const moveLabel = pctDiff === 0
     ? 'Opening price'
     : `${pctDiff > 0 ? '↑' : '↓'} ${Math.abs(pctDiff).toFixed(1)}% (${Math.round(Math.abs(pctDiff) * 100).toLocaleString()} bp)`;
+  const fullOfferingCost = price * supply;
 
   return (
     <article className="ipo-card" style={{ '--ipo-color': def.color } as CSSProperties}
@@ -39,6 +40,12 @@ function IpoCard({ def, price, supply, pctDiff, children }: IpoCardProps) {
         </div>
         <div className="ipo-card__mark" aria-hidden="true">{presentation.icon}</div>
       </div>
+
+      <section className="ipo-card__summary" aria-label="IPO investment summary">
+        <div><span>PRICE PER SHARE</span><strong>{money(price)}</strong></div>
+        <div><span>ENTIRE OFFERING</span><strong>{money(fullOfferingCost)}</strong></div>
+        <div><span>YOU RECEIVE</span><strong>{supply} SHARE{supply === 1 ? '' : 'S'}</strong></div>
+      </section>
 
       <div className="ipo-card__quote">
         <div>

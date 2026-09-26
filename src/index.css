@@ -655,6 +655,58 @@ input[type="number"]:focus, select:focus {
 .ipo-card__footer { border-top-color: rgba(74,48,25,.10); }
 .ipo-card__footer span { color: var(--muted); font-family: inherit; }
 
+/* IPOs use the same focused decision treatment as company and fund offers.
+   The figures a player needs before acting stay at the top of the viewport. */
+.ipo-market {
+  position: fixed;
+  top: 54px;
+  left: 50%;
+  z-index: 260;
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100vh - 74px);
+  padding: 14px;
+  overflow-y: auto;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--panel-shadow);
+}
+.ipo-market__heading > span { color: var(--text); font-size: 10px; }
+.ipo-market__heading small { font-size: 10px; }
+.ipo-card__identity { padding: 13px 14px 9px; }
+.ipo-card__ticker { font-size: 28px; }
+.ipo-card__name { font-size: 13px; }
+.ipo-card__meta { font-size: 10px; }
+.ipo-card__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 13px 10px;
+  padding: 10px 0;
+  border-left: 4px solid var(--ipo-color);
+  border-radius: 8px;
+  color: #fff;
+  background: var(--bg);
+}
+.ipo-card__summary > div { min-width: 0; padding: 0 9px; border-right: 1px solid rgba(255,255,255,.16); }
+.ipo-card__summary > div:last-child { border-right: 0; }
+.ipo-card__summary span { display: block; color: rgba(255,255,255,.65); font-size: 8px; font-weight: 800; letter-spacing: .6px; }
+.ipo-card__summary strong { display: block; margin-top: 4px; color: #fff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.15; white-space: nowrap; }
+.ipo-card__quote { padding: 4px 13px 8px; }
+.ipo-card__quote strong { font-size: 17px; }
+.ipo-card__eyebrow { font-size: 8px; }
+.ipo-card__supply strong { font-size: 20px; }
+.ipo-card__supply span { font-size: 7px; }
+.ipo-card__facts span { font-size: 8px; }
+.ipo-card__facts strong { font-size: 10px; }
+.ipo-card__opportunity strong { font-size: 10px; }
+.ipo-card__opportunity span { font-size: 11px; }
+.ipo-card__limit { font-size: 9px; }
+.ipo-card__actions button { padding: 9px 10px; font-size: 11px; }
+.ipo-card__footer span { font-size: 10px; }
+.ipo-card__footer b { font-size: 8px; }
+
 /* Section label — ALL CAPS small tracking, brass keyline */
 .slabel {
   font-size: 10px;
