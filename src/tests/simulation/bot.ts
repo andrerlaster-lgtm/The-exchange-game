@@ -377,11 +377,14 @@ export const trading = {
 //   investor — deploys everything. Small cushion, buys whenever affordable,
 //              upgrades and shields, funds IPO growth, trades for sets, and
 //              borrows against holdings.
+//   owner    — the investor without the debt: identical in every way except
+//              that it is never listed in `leverage.seats`, which separates
+//              "owning things" from "using debt to own things".
 //
 // Everything a style touches is a cushion or a yes/no on an existing policy —
 // no new actions — so the two archetypes stay comparable to the normal bot.
 
-export type PlayerStyle = 'normal' | 'cash' | 'investor';
+export type PlayerStyle = 'normal' | 'cash' | 'investor' | 'owner';
 
 export const styles = {
   enabled: false,
@@ -399,7 +402,8 @@ function styleOf(pi: number): PlayerStyle {
 /** The cash cushion this seat insists on keeping, whatever it is buying. */
 function reserveFor(pi: number, fallback: number): number {
   const style = styleOf(pi);
-  return style === 'cash' ? styles.cashReserve : style === 'investor' ? styles.investorReserve : fallback;
+  if (style === 'cash') return styles.cashReserve;
+  return style === 'investor' || style === 'owner' ? styles.investorReserve : fallback;
 }
 
 /** Buying policy for IPOs, ETFs, and IPO growth (switchable for sweeps). */

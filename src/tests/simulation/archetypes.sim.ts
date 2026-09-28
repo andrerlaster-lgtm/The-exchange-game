@@ -8,7 +8,10 @@
 // and can afford, upgrades and shields its companies, funds IPO growth,
 // trades to complete sets, and borrows against its holdings.
 //
-// Every other seat plays the ordinary middle policy, so both archetypes are
+// Seat 3 is the investor without the debt — identical policy, but it never
+// borrows — which separates owning things from using debt to own them.
+//
+// Every other seat plays the ordinary middle policy, so the archetypes are
 // measured against the same field and against each other in the same games.
 //
 // Run with:
@@ -27,6 +30,7 @@ const GAMES_PER_SIZE = 30;
 const PLAYER_COUNTS = [4, 5, 6];
 const CASH_SEAT = 0;
 const INVESTOR_SEAT = 1;
+const OWNER_SEAT = 2; // the investor policy with borrowing switched off
 
 interface SeatStats {
   worth: number[];
@@ -55,7 +59,8 @@ function startedInRoundsMode(numPlayers: number, seed: string): GameState {
 }
 
 /** Seats other than the two archetypes. */
-const fieldSeats = (n: number) => Array.from({ length: n }, (_, i) => i).filter((i) => i !== CASH_SEAT && i !== INVESTOR_SEAT);
+const fieldSeats = (n: number) => Array.from({ length: n }, (_, i) => i)
+  .filter((i) => i !== CASH_SEAT && i !== INVESTOR_SEAT && i !== OWNER_SEAT);
 
 function run(numPlayers: number) {
   development.enabled = true;
@@ -64,10 +69,11 @@ function run(numPlayers: number) {
   leverage.seats = [INVESTOR_SEAT]; // only the investor borrows
   leverage.repayWhenFlush = false;
   styles.enabled = true;
-  styles.bySeat = { [CASH_SEAT]: 'cash', [INVESTOR_SEAT]: 'investor' };
+  styles.bySeat = { [CASH_SEAT]: 'cash', [INVESTOR_SEAT]: 'investor', [OWNER_SEAT]: 'owner' };
 
   const cash = emptySeat();
   const investor = emptySeat();
+  const owner = emptySeat();
   const field = emptySeat();
 
   for (let game = 0; game < GAMES_PER_SIZE; game += 1) {
@@ -83,6 +89,7 @@ function run(numPlayers: number) {
         const payer = after.cur;
         if (payer === CASH_SEAT) cash.claimsPaid += n.amount;
         else if (payer === INVESTOR_SEAT) investor.claimsPaid += n.amount;
+        else if (payer === OWNER_SEAT) owner.claimsPaid += n.amount;
         else field.claimsPaid += n.amount;
         // The notice names the PAYER, not the payee, so the claim holder has
         // to come from state: the title carries the company code.
@@ -90,12 +97,14 @@ function run(numPlayers: number) {
         const payeeIndex = before.soldOut[code]?.claimHolder ?? -1;
         if (payeeIndex === CASH_SEAT) cash.claimsReceived += n.amount;
         else if (payeeIndex === INVESTOR_SEAT) investor.claimsReceived += n.amount;
+        else if (payeeIndex === OWNER_SEAT) owner.claimsReceived += n.amount;
         else if (payeeIndex >= 0) field.claimsReceived += n.amount;
       }
       if (after.insolvency && !before.insolvency) {
         const who = after.insolvency.player;
         if (who === CASH_SEAT) cash.insolvencies += 1;
         else if (who === INVESTOR_SEAT) investor.insolvencies += 1;
+        else if (who === OWNER_SEAT) owner.insolvencies += 1;
         else field.insolvencies += 1;
       }
     };
@@ -123,6 +132,7 @@ function run(numPlayers: number) {
     };
     record(cash, CASH_SEAT);
     record(investor, INVESTOR_SEAT);
+    record(owner, OWNER_SEAT);
     for (const pi of fieldSeats(numPlayers)) record(field, pi);
   }
 
@@ -131,7 +141,7 @@ function run(numPlayers: number) {
   leverage.enabled = false;
   leverage.seats = null;
   trading.enabled = false;
-  return { cash, investor, field };
+  return { cash, investor, owner, field };
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -145,11 +155,12 @@ describe('archetypes — the cash player vs the investor', () => {
     w(`ARCHETYPE SIMULATION · ${GAMES_PER_SIZE} games × ${ROUNDS_PER_GAME} rounds per player count`);
     w(`Seat 1 = CASH (keeps ${$(styles.cashReserve)}, no debt, no upgrades, no trades)`);
     w(`Seat 2 = INVESTOR (keeps ${$(styles.investorReserve)}, buys, upgrades, trades, borrows)`);
+    w('Seat 3 = OWNER    (the same as the investor, but never borrows)');
     w('Every other seat plays the ordinary policy.');
     w('='.repeat(84));
 
     for (const n of PLAYER_COUNTS) {
-      const { cash, investor, field } = run(n);
+      const { cash, investor, owner, field } = run(n);
       const games = cash.worth.length;
       w();
       w(`── ${n} PLAYERS ${'─'.repeat(68)}`);
@@ -161,9 +172,11 @@ describe('archetypes — the cash player vs the investor', () => {
       };
       row('CASH', cash, 1);
       row('INVESTOR', investor, 1);
-      row('field (avg)', field, n - 2);
+      row('OWNER', owner, 1);
+      row('field (avg)', field, n - 3);
       w(`  investor's bank debt at close: ${$(mean(investor.loanAtClose))}`);
       w(`  gap, investor - cash: ${$(mean(investor.worth) - mean(cash.worth))}`);
+      w(`  cost of the debt, owner - investor: ${$(mean(owner.worth) - mean(investor.worth))}`);
     }
 
     w();
