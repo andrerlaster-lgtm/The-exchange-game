@@ -576,9 +576,9 @@ Measured from the IPO's launch price ($2,000). Each pays once per IPO, to every 
 
 | Milestone | Price vs launch | Reward |
 |---|---:|---:|
-| Early Growth | +25% ($3,750) | $250 per share |
-| Expansion | +50% ($4,500) | $500 per share |
-| Breakout | +100% ($6,000) | $750 per share |
+| Early Growth | +25% ($2,500) | $250 per share |
+| Expansion | +50% ($3,000) | $500 per share |
+| Breakout | +100% ($4,000) | $750 per share |
 
 - Only shares held **before the turn began** count — shares bought during the turn in which a milestone is reached don't qualify (nor do shares sold during it).
 - A move that clears several milestones at once pays each in turn. A milestone never pays twice, even if the price falls and climbs back.
