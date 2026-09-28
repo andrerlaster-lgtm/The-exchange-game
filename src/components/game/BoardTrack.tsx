@@ -131,7 +131,7 @@ function SectorLegend() {
   );
 }
 
-export default function BoardTrack() {
+export default function BoardTrack({ onManageCompany }: { onManageCompany?: (code: string) => void }) {
   const s = useGameState();
   const dispatch = useDispatch();
   const theme = useBoardTheme();
@@ -260,6 +260,7 @@ export default function BoardTrack() {
             const mvGlyph = mv.direction === 'up' ? '▲' : mv.direction === 'down' ? '▼' : '';
             const sc = stock ? SECTORS[stock.sector].color : '#c9a24f';
             const secGlyph = stock ? SECTORS[stock.sector].glyph : '';
+            const canManage = !!onManageCompany && !!s.opts.companyUpgrades && (s.players[s.cur].shares[sp.code!] ?? 0) >= 6;
             // Sector Control: a small ring around the sector glyph in the
             // controlling player's color. Owning a whole company requires
             // the all-or-nothing buyout (always sold out), so a controlled
@@ -275,7 +276,12 @@ export default function BoardTrack() {
             // sector glyph upper-left, letterpress ticker, centered price + arrow,
             // centered risk chip, full-width sold-out claim band.
             return (
-              <div key={sp.n} style={{
+              <div key={sp.n} role={canManage ? 'button' : undefined} tabIndex={canManage ? 0 : undefined}
+                aria-label={canManage ? `Manage ${stock.name}` : undefined}
+                title={canManage ? `Manage ${stock.name}: upgrades and Market Protection` : undefined}
+                onClick={canManage ? () => onManageCompany(sp.code!) : undefined}
+                onKeyDown={canManage ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onManageCompany(sp.code!); } } : undefined}
+                style={{
                 gridColumn: col, gridRow: row,
                 background: `${themeDirection === 'up' ? 'linear-gradient(160deg, rgba(62,213,152,0.30), rgba(62,213,152,0.08))' : themeDirection === 'down' ? 'linear-gradient(160deg, rgba(239,68,68,0.28), rgba(239,68,68,0.07))' : TILE_VIGNETTE}, ${isCur
                   ? `linear-gradient(160deg, ${theme === 'dark' ? '#2b2620' : '#fdf6e6'}, ${PARCH})`
@@ -289,6 +295,7 @@ export default function BoardTrack() {
                 position: 'relative',
                 overflow: 'hidden',
                 minHeight: 0,
+                cursor: canManage ? 'pointer' : undefined,
                 boxShadow: claimColor
                   ? `0 0 10px ${claimColor}66, inset 0 0 0 1px ${claimColor}55`
                   : themeDirection ? `0 0 0 1px ${themeColor}, 0 0 12px ${themeColor}66`
@@ -309,6 +316,7 @@ export default function BoardTrack() {
                   padding: pairOwnerColor ? 1.5 : undefined,
                 }}>{secGlyph}</span>
                 {themeDirection && <span title={`Market Theme ${themeDirection === 'up' ? 'Tailwind' : 'Headwind'} — this public company will ${themeDirection === 'up' ? 'rise' : 'fall'} when the round ends`} style={{ position: 'absolute', right: '7%', top: '14%', color: themeColor, fontSize: 9, fontWeight: 900 }}>{themeDirection === 'up' ? '▲' : '▼'}</span>}
+                {canManage && <span style={{ position: 'absolute', right: '5%', top: themeDirection ? '34%' : '14%', zIndex: 3, padding: '2px 3px', borderRadius: 2, background: '#273f31', color: '#fff4cf', fontFamily: 'IBM Plex Mono, monospace', fontSize: 5.5, fontWeight: 900, lineHeight: 1 }}>MANAGE</span>}
 
                 {outstanding > 0 && (
                   <span title={`${outstanding} outstanding share${outstanding === 1 ? '' : 's'} · land here to buy`} style={{

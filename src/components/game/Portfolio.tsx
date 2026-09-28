@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BANK_LOAN_INCREMENT, CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, SECTORS, SECTOR_PAIRS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
+import { BANK_LOAN_INCREMENT, CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
 import {
-  completedSectors, controlledSectorPairs, diversificationBonus, diversificationTier,
+  diversificationBonus, diversificationTier,
   getBuyingPower, getPlayerNetWorthMovement, getPortfolioRisk, getStockMovementStatus,
   feeDebtBalance, holdingDividendInfo, holdingGainLoss, holdingsReturnPct, lapReturnPct, marketGain, marketReturnPct, marketStanceMeta, netWorth, priceOf,
   projectedDividend, sharesValue, stockGainLoss, ipoGrowthAtRisk, ipoGrowthBlockReason, ipoPctFromLaunch, nextIpoMilestone,
@@ -56,8 +56,6 @@ export default function Portfolio() {
   const etfFundsHeld = distinctEtfFunds(p.etfShares);
   const etfDiverBonus = etfDiversificationBonus(p.etfShares);
   const nextEtfTier = [2, 3, 4].find((n) => n > etfFundsHeld);
-  const sectors = completedSectors(p);
-  const controlledPairs = controlledSectorPairs(s, viewIdx);
   const divTier = diversificationTier(p);
   const divBonus = diversificationBonus(p);
   const feeDebt = feeDebtBalance(p);
@@ -68,6 +66,7 @@ export default function Portfolio() {
   const debtsOwed = s.playerDebts.filter((d) => d.debtor === viewIdx);
   const debtsReceivable = s.playerDebts.filter((d) => d.creditor === viewIdx);
   const [companyRevealed, setCompanyRevealed] = useState(false);
+  const [expandedHolding, setExpandedHolding] = useState<string | null>(null);
   const companyLoan = companyLoanBalance(p);
   const companyMarketOpen = companyMarketTradingOpen(s);
   const companyLoanOffer = s.companyLoanOffer?.player === viewIdx ? s.companyLoanOffer.amount : null;
@@ -457,59 +456,13 @@ export default function Portfolio() {
         </div>
       )}
 
-      {/* Sector Portfolio badges — completed sector "color groups" */}
-      {sectors.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span className="slabel">Sector Portfolio</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            {sectors.map((sec) => {
-              const def = SECTORS[sec];
-              return (
-                <span key={sec} style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
-                  padding: '3px 8px', borderRadius: 5,
-                  color: def.color,
-                  background: `${def.color}18`,
-                  border: `1px solid ${def.color}55`,
-                  display: 'flex', alignItems: 'center', gap: 4,
-                }}>
-                  <span>{def.glyph}</span>{def.name}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Sector Control badges — exclusive 2-company pairs collecting landing rent */}
-      {controlledPairs.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span className="slabel">Sector Control</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            {controlledPairs.map((pairId) => {
-              const def = SECTOR_PAIRS[pairId];
-              return (
-                <span key={pairId} title={`${def.codes.join(' + ')} · $${def.rent.toLocaleString()} rent per landing`} style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
-                  padding: '3px 8px', borderRadius: 5,
-                  color: def.color,
-                  background: `${def.color}18`,
-                  border: `1px solid ${def.color}55`,
-                  display: 'flex', alignItems: 'center', gap: 4,
-                }}>
-                  {def.name}
-                  <span style={{ opacity: 0.75 }}>${def.rent.toLocaleString()}</span>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Holdings */}
       {entries.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span className="slabel">Holdings</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span className="slabel" style={{ marginBottom: 0 }}>Holdings</span>
+            <span style={{ color: 'var(--muted)', fontSize: 10 }}>{entries.length} position{entries.length === 1 ? '' : 's'} · Details for more</span>
+          </div>
           {entries.map(([code, qty]) => {
             const price = priceOf(s, code);
             const total = qty * price;
@@ -520,6 +473,7 @@ export default function Portfolio() {
             const mvColor = mv?.direction === 'up' ? 'var(--green)' : mv?.direction === 'down' ? 'var(--red)' : 'var(--muted)';
             const mvGlyph = mv?.direction === 'up' ? '▲' : mv?.direction === 'down' ? '▼' : '—';
             const sc = STOCK_BY_CODE[code]?.color ?? 'var(--accent)';
+            const isExpanded = expandedHolding === code;
             return (
               <div key={code} style={{
                 padding: '6px 8px', borderRadius: 6,
@@ -538,43 +492,30 @@ export default function Portfolio() {
                       }}>★ CONTROLLER</span>
                     )}
                   </span>
-                  <span style={{ fontSize: 10, color: mvColor, fontWeight: 700 }}>
-                    {mvGlyph} {mv?.label ?? ''}{mv && mv.pctFromOpen !== 0 ? ` ${pctBp(mv.pctFromOpen)}` : ''}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ fontSize: 10, color: mvColor, fontWeight: 700 }}>
+                      {mvGlyph} {mv?.label ?? ''}{mv && mv.pctFromOpen !== 0 ? ` ${pctBp(mv.pctFromOpen)}` : ''}
+                    </span>
+                    <button aria-expanded={isExpanded} onClick={() => setExpandedHolding(isExpanded ? null : code)} style={{ fontSize: 9, padding: '2px 5px' }}>{isExpanded ? 'Less' : 'Details'}</button>
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                   <span style={{ color: 'var(--muted)' }}>{qty}× ${price >= 1000 ? `${price / 1000}k` : price}</span>
-                  <span className="mono" style={{ color: 'var(--text)' }}>${total.toLocaleString()}</span>
+                  <span className="mono" style={{ color: gainColor(gl.unrealized), fontWeight: 700 }}>${total.toLocaleString()} · {signedMoney(gl.unrealized)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 3 }}>
-                  <span style={{ color: 'var(--muted)' }}>Basis ${Math.round(gl.costBasis).toLocaleString()}</span>
-                  <span className="mono" style={{ color: gainColor(gl.unrealized), fontWeight: 700 }}>
-                    G/L {signedMoney(gl.unrealized)} · {signedPercent(gl.returnPct)}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 2 }}>
-                  <span style={{ color: 'var(--muted)' }}>{concentrationPct.toFixed(1)}% of portfolio</span>
-                  {div.printed > 0 ? (
-                    <span className="mono" title={`${toBps(div.yieldPct)} bps/lap on current price`} style={{ color: 'var(--muted)' }}>
-                      Yield (mkt) {div.yieldPct.toFixed(1)}%/lap
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--muted)', opacity: 0.7, fontStyle: 'italic' }}>No dividend</span>
-                  )}
-                </div>
-                {div.printed > 0 && gl.costBasis > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 9.5, marginTop: 1 }}>
-                    <span className="mono" title={`${toBps(div.yieldOnCostPct)} bps/lap on what you actually paid`} style={{ color: 'var(--muted)', opacity: 0.85 }}>
-                      Yield (cost) {div.yieldOnCostPct.toFixed(1)}%/lap
-                    </span>
+                {isExpanded && <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 3 }}>
+                    <span style={{ color: 'var(--muted)' }}>Basis ${Math.round(gl.costBasis).toLocaleString()}</span>
+                    <span className="mono" style={{ color: gainColor(gl.unrealized), fontWeight: 700 }}>G/L {signedMoney(gl.unrealized)} · {signedPercent(gl.returnPct)}</span>
                   </div>
-                )}
-                {!div.isController && (
-                  <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.75, fontStyle: 'italic', marginTop: 1 }}>
-                    {div.sharesToControl} more share{div.sharesToControl === 1 ? '' : 's'} → Controller ({CONTROL_DIVIDEND_MULTIPLIER}× dividend)
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 2 }}>
+                    <span style={{ color: 'var(--muted)' }}>{concentrationPct.toFixed(1)}% of portfolio</span>
+                    {div.printed > 0 ? <span className="mono" title={`${toBps(div.yieldPct)} bps/lap on current price`} style={{ color: 'var(--muted)' }}>Yield (mkt) {div.yieldPct.toFixed(1)}%/lap</span> : <span style={{ color: 'var(--muted)', opacity: 0.7, fontStyle: 'italic' }}>No dividend</span>}
                   </div>
-                )}
-                {isIpoCode(code) && <IpoGrowthRow code={code} s={s} isOwnTurn={isOwnTurn} dispatch={dispatch} />}
+                  {div.printed > 0 && gl.costBasis > 0 && <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 9.5, marginTop: 1 }}><span className="mono" title={`${toBps(div.yieldOnCostPct)} bps/lap on what you actually paid`} style={{ color: 'var(--muted)', opacity: 0.85 }}>Yield (cost) {div.yieldOnCostPct.toFixed(1)}%/lap</span></div>}
+                  {!div.isController && <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.75, fontStyle: 'italic', marginTop: 1 }}>{div.sharesToControl} more share{div.sharesToControl === 1 ? '' : 's'} → Controller ({CONTROL_DIVIDEND_MULTIPLIER}× dividend)</div>}
+                  {isIpoCode(code) && <IpoGrowthRow code={code} s={s} isOwnTurn={isOwnTurn} dispatch={dispatch} />}
+                </>}
               </div>
             );
           })}

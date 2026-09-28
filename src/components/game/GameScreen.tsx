@@ -3,14 +3,16 @@
 // waiting on directly below, and money, development and the market on the
 // right. Every column scrolls on its own so the board never moves.
 
+import { useState } from 'react';
 import BoardTrack from './BoardTrack';
 import TradeHistory from './TradeHistory';
 import TradingMarket from './TradingMarket';
-import CompanyDevelopment from './CompanyDevelopment';
+import CompanyDevelopment, { CompanyDevelopmentDialog } from './CompanyDevelopment';
 import StockTradeCard from './StockTradeCard';
 import PlayerCards from './PlayerCards';
 import Portfolio from './Portfolio';
 import Leaderboard from './Leaderboard';
+import SectorStatus from './SectorStatus';
 import P2PTradeDesk from './P2PTradeDesk';
 import ActionPanel, { EtfPicker } from './ActionPanel';
 import CardDisplay from '../cards/CardDisplay';
@@ -24,6 +26,7 @@ import { useDispatch, useGameState } from '../../store';
 export default function GameScreen() {
   const s = useGameState();
   const dispatch = useDispatch();
+  const [manageCompanyCode, setManageCompanyCode] = useState<string | null>(null);
   return (
     <div style={{
       display: 'grid',
@@ -44,6 +47,7 @@ export default function GameScreen() {
           regardless of scroll position in any column. */}
       <CardDisplay />
       <StockTradeCard />
+      {manageCompanyCode && <CompanyDevelopmentDialog code={manageCompanyCode} onClose={() => setManageCompanyCode(null)} />}
 
       {/* Left rail — who is at the table, what is left in the decks, and the
           running log of what just happened. */}
@@ -61,7 +65,7 @@ export default function GameScreen() {
       {/* Centre — rates, board, then the turn's own business. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0 }}>
         <RatesStrip />
-        <BoardTrack />
+        <BoardTrack onManageCompany={setManageCompanyCode} />
         <ActionPanel />
         {s.etfPick && <EtfPicker code={s.etfPick} s={s} dispatch={dispatch} />}
         <IpoPanel />
@@ -72,6 +76,7 @@ export default function GameScreen() {
       {/* Right rail — standings, your money, your companies, the market. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minHeight: 0 }}>
         <Leaderboard />
+        <SectorStatus />
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* Portfolio fills a block of its own and scrolls inside it: its root
               is flex:1, so in a shared scrolling column it would otherwise
@@ -79,7 +84,7 @@ export default function GameScreen() {
           <div style={{ flexShrink: 0, display: 'flex', minHeight: 380, maxHeight: 520 }}>
             <Portfolio />
           </div>
-          {s.opts.companyUpgrades && <CompanyDevelopment />}
+          {s.opts.companyUpgrades && <CompanyDevelopment onManageCompany={setManageCompanyCode} />}
           <P2PTradeDesk />
         </div>
       </div>
