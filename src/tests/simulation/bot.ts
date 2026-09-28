@@ -99,7 +99,7 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   }
 
   // IPOs: buy when offered and the purchase keeps the cash cushion.
-  const affordsWithCushion = (cost: number) => s.players[s.cur].cash - cost >= markets.reserve;
+  const affordsWithCushion = (cost: number) => s.players[s.cur].cash - cost >= reserveFor(s.cur, markets.reserve);
   const active = markets.onlyPlayers === null || markets.onlyPlayers.includes(s.cur);
   if (s.ipoListPick) {
     const options = s.ipos.filter((ip) => ip.revealed && ip.supply > 0 && affordsWithCushion(ip.price * ip.supply));
@@ -128,7 +128,11 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   const t = s.trade;
   if (t && t.scope === 'stock' && t.code && t.actionsLeft > 0) {
     const code = t.code;
-    const affordable = s.players[s.cur].cash >= 11 * (s.prices[code] ?? 0);
+    // A whole company is the biggest single purchase in the game, so the
+    // style's cushion decides it: the cash player only buys what it can pay
+    // for and still cover the claims it might owe.
+    const cost = 11 * (s.prices[code] ?? 0);
+    const affordable = s.players[s.cur].cash - cost >= (styleOf(s.cur) === 'normal' ? 0 : reserveFor(s.cur, 0));
     return affordable ? { t: 'buy', code } : { t: 'skipStock', code };
   }
 
@@ -144,14 +148,14 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   // controlled company when the purchase still leaves a cash cushion, and
   // sometimes buy a shield. The cushion keeps the bot from upgrading itself
   // into the very Payout Claim shortfalls the simulation is measuring.
-  if (!blocked(s) && development.enabled && (development.onlyPlayers === null || development.onlyPlayers.includes(s.cur))) {
+  if (!blocked(s) && development.enabled && styleOf(s.cur) !== 'cash' && (development.onlyPlayers === null || development.onlyPlayers.includes(s.cur))) {
     const cash = s.players[s.cur].cash;
     for (const code of owned(s)) {
       if (!upgradeBlockReason(s, code)) {
         const cost = UPGRADE_LEVELS[s.development[code].level].cost;
-        if (cash - cost >= development.reserve) return { t: 'upgradeCompany', code };
+        if (cash - cost >= reserveFor(s.cur, development.reserve)) return { t: 'upgradeCompany', code };
       }
-      if (development.shields && !shieldBlockReason(s, code) && cash - SHIELD_COST >= development.reserve && rng.int(0, 3) === 0) {
+      if (development.shields && !shieldBlockReason(s, code) && cash - SHIELD_COST >= reserveFor(s.cur, development.reserve) && rng.int(0, 3) === 0) {
         return { t: 'buyMarketProtection', code };
       }
     }
@@ -175,7 +179,7 @@ function nextAction(s: GameState, rng: Rng): Action | null {
   }
 
   // The Trade Step: once nothing is pending, go looking for the set.
-  if (!blocked(s) && trading.enabled && trading.proposedThisTurn < trading.maxPerTurn) {
+  if (!blocked(s) && trading.enabled && styleOf(s.cur) !== 'cash' && trading.proposedThisTurn < trading.maxPerTurn) {
     const offer = setSeekingOffer(s, s.cur);
     if (offer && offer.t === 'proposeP2POffer') {
       // A declined deal must not be re-proposed on the same turn, or the bot
@@ -325,7 +329,7 @@ const isLevered = (pi: number) =>
 /** The borrow-or-repay action for a leveraged seat, or null. */
 function leverageAction(s: GameState): Action | null {
   const pi = s.cur;
-  if (!isLevered(pi)) return null;
+  if (!isLevered(pi) || styleOf(pi) === 'cash') return null;
   const p = s.players[pi];
 
   if (leverage.repayWhenFlush && bankLoanBalance(p) > 0 && p.cash >= leverage.repayAbove) {
@@ -361,6 +365,42 @@ export const trading = {
   proposedThisTurn: 0,
   attempted: new Set<string>(),
 };
+
+// ── PLAYER STYLES (2026-09-27) ──────────────────────────────────────────────
+//
+// Two archetypes that can be seated at a table of otherwise ordinary bots, so
+// a run measures a STRATEGY against the field rather than a rule change.
+//
+//   cash     — liquidity first. Buys only when the purchase still leaves a
+//              large cushion, never borrows, never develops, never trades.
+//              Every claim is payable from hand; nothing compounds.
+//   investor — deploys everything. Small cushion, buys whenever affordable,
+//              upgrades and shields, funds IPO growth, trades for sets, and
+//              borrows against holdings.
+//
+// Everything a style touches is a cushion or a yes/no on an existing policy —
+// no new actions — so the two archetypes stay comparable to the normal bot.
+
+export type PlayerStyle = 'normal' | 'cash' | 'investor';
+
+export const styles = {
+  enabled: false,
+  bySeat: {} as Record<number, PlayerStyle>,
+  /** What the cash player refuses to spend below. */
+  cashReserve: 20_000,
+  /** What the investor keeps back — barely anything. */
+  investorReserve: 1_500,
+};
+
+function styleOf(pi: number): PlayerStyle {
+  return styles.enabled ? (styles.bySeat[pi] ?? 'normal') : 'normal';
+}
+
+/** The cash cushion this seat insists on keeping, whatever it is buying. */
+function reserveFor(pi: number, fallback: number): number {
+  const style = styleOf(pi);
+  return style === 'cash' ? styles.cashReserve : style === 'investor' ? styles.investorReserve : fallback;
+}
 
 /** Buying policy for IPOs, ETFs, and IPO growth (switchable for sweeps). */
 export const markets = {
