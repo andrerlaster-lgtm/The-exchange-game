@@ -1,42 +1,13 @@
-// Board tile theme — parchment ("light") or slate ("dark").
-//
-// A view preference, not game state: it never enters GameState, is not part
-// of a save, and does not sync to the 3D board. It lives in localStorage so a
-// table that prefers dark tiles keeps them between sessions, and in a tiny
-// store so the header toggle and the board agree without prop-drilling
-// through the whole screen.
+// Board tile theme — parchment ("light") or slate ("dark"). A view
+// preference, not game state: it lives in the settings store (saved on this
+// device), so the header toggle and the board agree without prop-drilling.
 
-import { useSyncExternalStore } from 'react';
+import { useSettings } from '../../store/settingsStore';
+import type { BoardTheme } from '../../store/settingsStore';
 
-export type BoardTheme = 'light' | 'dark';
-
-const KEY = 'exchange.boardTheme';
-const listeners = new Set<() => void>();
-let current: BoardTheme = read();
-
-function read(): BoardTheme {
-  try {
-    return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light';
-  } catch {
-    // Private windows and blocked site data throw on access; the board just
-    // opens light in that case.
-    return 'light';
-  }
-}
-
-export function setBoardTheme(theme: BoardTheme): void {
-  current = theme;
-  try { localStorage.setItem(KEY, theme); } catch { /* preference simply isn't remembered */ }
-  listeners.forEach((fn) => fn());
-}
-
-export function useBoardTheme(): BoardTheme {
-  return useSyncExternalStore(
-    (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
-    () => current,
-    () => 'light' as const,
-  );
-}
+export type { BoardTheme };
+export const setBoardTheme = (theme: BoardTheme) => useSettings.getState().setBoardTheme(theme);
+export const useBoardTheme = (): BoardTheme => useSettings((st) => st.boardTheme);
 
 /** Every colour the board tiles differ on between the two themes. Sector,
     player and risk colours are deliberately NOT here — they are the point of

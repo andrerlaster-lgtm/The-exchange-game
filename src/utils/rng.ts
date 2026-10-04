@@ -5,6 +5,8 @@ export interface Rng {
   next(): number;                           // float in [0, 1)
   int(min: number, max: number): number;    // inclusive integer in [min, max]
   shuffle<T>(arr: readonly T[]): T[];       // returns new shuffled array
+  /** Internal position; makeRng(rng.state()) continues the exact same sequence (used to save a game). */
+  state?(): number;
 }
 
 function hash(s: string): number {
@@ -26,6 +28,7 @@ export function makeRng(seed: string | number = Date.now()): Rng {
 
   return {
     next,
+    state: () => state,
     int: (min, max) => min + Math.floor(next() * (max - min + 1)),
     shuffle: <T,>(arr: readonly T[]): T[] => {
       const a = arr.slice();

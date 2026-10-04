@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app/App';
+import SaveGuard from './app/SaveGuard';
 import './index.css';
 
 // Expose store for dev/QA tooling only.
@@ -12,6 +13,8 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <SaveGuard>
+      <App />
+    </SaveGuard>
   </React.StrictMode>,
 );

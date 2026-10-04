@@ -38,7 +38,7 @@ export default function GameScreen() {
       overflow: 'hidden',
       background: 'radial-gradient(ellipse 130% 90% at 50% -5%, #2e2010 0%, #1e1608 45%, var(--bg) 70%)',
     }}>
-      <div style={{ gridColumn: '1 / -1', minWidth: 0, marginRight: 128 }}>
+      <div style={{ gridColumn: '1 / -1', minWidth: 0, marginRight: 330 }}>
         <MarketTicker />
       </div>
 

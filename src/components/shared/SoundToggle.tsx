@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
-import { soundSettings } from '../../audio/sound';
+import { useSettings } from '../../store/settingsStore';
 
 /** Sound on/off, in the floating view bar. The choice is kept on this device. */
 export default function SoundToggle() {
-  const [muted, setMuted] = useState(soundSettings.get().muted);
-  useEffect(() => soundSettings.subscribe(() => setMuted(soundSettings.get().muted)), []);
+  const muted = useSettings((st) => st.muted);
+  const setMuted = useSettings((st) => st.setMuted);
   return (
     <button
-      onClick={() => soundSettings.setMuted(!muted)}
+      onClick={() => setMuted(!muted)}
       aria-pressed={!muted}
       aria-label={muted ? 'Turn sound on' : 'Turn sound off'}
       title={muted ? 'Sound is off — click to turn it on' : 'Sound is on — click to mute'}

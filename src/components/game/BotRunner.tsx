@@ -2,22 +2,18 @@
 // and shows who is playing. Human input is ignored by the store meanwhile.
 
 import { useEffect, useState } from 'react';
+import { useSettings } from '../../store/settingsStore';
 import { useGameStore } from '../../store';
 import { BOT_LABEL, decisionOwner, isBot } from '../../ai/controller';
 import { useStageHeld } from '../../anim/stage';
 
 const SPEEDS = { normal: 750, fast: 250 } as const;
-type Speed = keyof typeof SPEEDS;
-const KEY = 'exchange-bot-speed-v1';
-
-function loadSpeed(): Speed {
-  try { const v = localStorage.getItem(KEY); return v === 'fast' ? 'fast' : 'normal'; } catch { return 'normal'; }
-}
 
 export default function BotRunner() {
   const s = useGameStore((st) => st.state);
   const botStep = useGameStore((st) => st.botStep);
-  const [speed, setSpeed] = useState<Speed>(loadSpeed);
+  const speed = useSettings((st) => st.botSpeed);
+  const changeSpeed = useSettings((st) => st.setBotSpeed);
   const [paused, setPaused] = useState(false);
   const owner = decisionOwner(s);
   const active = isBot(s, owner) && s.phase !== 'over';
@@ -33,7 +29,6 @@ export default function BotRunner() {
 
   if (!active || owner === null) return null;
   const p = s.players[owner];
-  const changeSpeed = (v: Speed) => { setSpeed(v); try { localStorage.setItem(KEY, v); } catch { /* not saved */ } };
   return (
     <div role="status" aria-live="polite" style={{
       position: 'fixed', left: '50%', bottom: 14, transform: 'translateX(-50%)', zIndex: 600,

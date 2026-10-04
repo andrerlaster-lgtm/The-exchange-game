@@ -7,6 +7,7 @@ import InvestmentCardPreview from '../components/game/InvestmentCardPreview';
 import Board3DSync from '../components/game/Board3DSync';
 import { setBoardTheme, useBoardTheme } from '../components/game/useBoardTheme';
 import SoundToggle from '../components/shared/SoundToggle';
+import NewGameButton from '../components/shared/NewGameButton';
 import BotRunner from '../components/game/BotRunner';
 
 type ViewMode = '2d' | '3d';
@@ -78,6 +79,7 @@ export default function App() {
           </button>
         )}
 
+        <NewGameButton />
         <SoundToggle />
 
         {(['2d', '3d'] as const).map((v) => (

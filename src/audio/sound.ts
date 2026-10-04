@@ -5,6 +5,7 @@
 // action with the state before and after, so no component has to know about audio.
 
 import type { Action, GameState } from '../engine';
+import { useSettings } from '../store/settingsStore';
 import { DICE_MS, HOP_MS, pathBetween } from '../anim/stage';
 
 const NAMES = [
@@ -15,24 +16,12 @@ const NAMES = [
 ] as const;
 export type SoundName = (typeof NAMES)[number];
 
-const KEY = 'exchange-sound-v1';
-interface SoundSettings { muted: boolean; volume: number }
-const settings: SoundSettings = { muted: false, volume: 0.7 };
-try {
-  const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-  if (saved && typeof saved.muted === 'boolean') settings.muted = saved.muted;
-  if (saved && typeof saved.volume === 'number') settings.volume = Math.min(1, Math.max(0, saved.volume));
-} catch { /* defaults */ }
+// Mute and volume live in the settings store (saved on this device).
+const settings = () => useSettings.getState();
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 const buffers: Partial<Record<SoundName, AudioBuffer>> = {};
-const listeners = new Set<() => void>();
-
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* not saved */ }
-  listeners.forEach((l) => l());
-}
 
 /** Browsers only allow audio after a tap or key press, so the first one sets everything up. */
 function unlock() {
@@ -42,7 +31,7 @@ function unlock() {
     ctx = new AC();
   } catch { return; }
   master = ctx.createGain();
-  master.gain.value = settings.volume;
+  master.gain.value = settings().volume;
   master.connect(ctx.destination);
   for (const name of NAMES) {
     fetch(`${import.meta.env.BASE_URL}audio/${name}.m4a`)
@@ -58,7 +47,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function play(name: SoundName, { vol = 1, delay = 0, rate = 1 } = {}) {
-  if (settings.muted || !ctx || !master) return;
+  if (settings().muted || !ctx || !master) return;
   const buf = buffers[name];
   if (!buf) return;
   const src = ctx.createBufferSource();
@@ -70,12 +59,11 @@ export function play(name: SoundName, { vol = 1, delay = 0, rate = 1 } = {}) {
   src.start(ctx.currentTime + delay);
 }
 
-export const soundSettings = {
-  get: (): SoundSettings => ({ ...settings }),
-  setMuted(muted: boolean) { settings.muted = muted; save(); if (!muted) play('uiToggle', { vol: 0.6 }); },
-  setVolume(v: number) { settings.volume = Math.min(1, Math.max(0, v)); if (master && ctx) master.gain.setTargetAtTime(settings.volume, ctx.currentTime, 0.05); save(); },
-  subscribe(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; },
-};
+// Follow volume changes, and give a little click when sound is switched back on.
+useSettings.subscribe((now, prev) => {
+  if (master && ctx && now.volume !== prev.volume) master.gain.setTargetAtTime(now.volume, ctx.currentTime, 0.05);
+  if (prev.muted && !now.muted) play('uiToggle', { vol: 0.6 });
+});
 
 // ---------- What each move sounds like ----------
 const BUYS = new Set(['buy', 'buyCompanyShare', 'ipoBuyShare', 'buyEtf', 'buyOutstandingShares', 'pickKnownIpo', 'buyOpeningBell', 'buyMarketProtection', 'investIpoGrowth', 'auctionBid']);
