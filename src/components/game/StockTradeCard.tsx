@@ -14,6 +14,9 @@ import { useDispatch, useGameState } from '../../store';
 import TradeTicket from './TradeTicket';
 import FedSignalBadge from './FedSignalBadge';
 import { moveSize } from '../../utils/formatMoney';
+import { useRef } from 'react';
+import { useStageHeld } from '../../anim/stage';
+import { useEntrance } from '../../anim/hooks';
 
 const overlayStyle: CSSProperties = {
   position: 'fixed',
@@ -41,9 +44,13 @@ export default function StockTradeCard() {
     ? isStock ? [STOCK_BY_CODE[s.trade.code!]] : STOCKS
     : [];
 
-  // Only show while there's an active Trade Step to resolve and no forced draw pending.
-  if (nextDraw || tradeable.length === 0) return null;
-  if (!canTrade && !(isStock && actionsLeft === 0)) return null;
+  const held = useStageHeld();
+  const boxRef = useRef<HTMLDivElement>(null);
+  // Only show while there's an active Trade Step to resolve and no forced draw
+  // pending — and not until the piece has finished hopping to the space.
+  const visible = !held && !nextDraw && tradeable.length > 0 && (canTrade || (isStock && actionsLeft === 0));
+  useEntrance(boxRef, visible ? `${s.trade?.scope}-${s.trade?.code ?? ''}-${s.cur}-${s.lap}-${p.pos}` : null);
+  if (!visible) return null;
 
   const weakCount = isStock && s.trade?.code ? (s.skips[s.trade.code] ?? 0) : 0;
   const canAct = actionsLeft > 0;
@@ -51,7 +58,7 @@ export default function StockTradeCard() {
 
   return (
     <div style={overlayStyle}>
-      <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div ref={boxRef} className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <span className="slabel">{isStock ? 'Stock Space' : 'Free Trading Day'}</span>
 
         {/* Context bar */}

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import AnimatedNumber from '../../anim/AnimatedNumber';
+import { useFlipReorder } from '../../anim/hooks';
 import { getRankedPlayers } from '../../engine';
 import { useGameState } from '../../store';
 
@@ -7,9 +9,12 @@ export default function Leaderboard() {
   const ranked = getRankedPlayers(s);
   const [expanded, setExpanded] = useState<number | null>(null);
   const gainLossMode = s.opts.scoringMode === 'gainLoss';
+  // When someone overtakes, the rows slide past each other.
+  const listRef = useRef<HTMLDivElement>(null);
+  useFlipReorder(listRef, ranked.map((p) => p.playerIdx).join(','));
 
   return (
-    <div className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div ref={listRef} className="card-box" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <span className="slabel">{gainLossMode ? 'Gain / Loss Standings' : 'Net Worth Standings'}</span>
       {ranked.map((p) => {
         const isActive = p.playerIdx === s.cur;
@@ -21,7 +26,7 @@ export default function Leaderboard() {
           : delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--muted)';
 
         return (
-          <div key={p.playerIdx} style={{ borderRadius: 7, overflow: 'hidden' }}>
+          <div key={p.playerIdx} data-flip-id={p.playerIdx} style={{ borderRadius: 7, overflow: 'hidden' }}>
             <div
               onClick={() => setExpanded(isExpanded ? null : p.playerIdx)}
               style={{
@@ -72,7 +77,7 @@ export default function Leaderboard() {
 
               {/* Active winning score */}
               <span className="mono" style={{ fontSize: 11, color: gainLossMode ? scoreColor(p.marketGain) : 'var(--green)', fontWeight: 600, flexShrink: 0 }}>
-                {gainLossMode ? signedMoney(p.marketGain) : `$${p.nw.toLocaleString()}`}
+                <AnimatedNumber key={gainLossMode ? 'gain' : 'nw'} value={gainLossMode ? p.marketGain : p.nw} format={gainLossMode ? signedMoney : undefined} />
               </span>
               <span className="mono" title="Market Gain as a percent of starting cash — the whole-game investment return, salary excluded" style={{ fontSize: 9, color: scoreColor(p.marketReturnPct), flexShrink: 0, minWidth: 40, textAlign: 'right' }}>
                 {signedPct(p.marketReturnPct)}

@@ -1,6 +1,7 @@
 import { isDiversified, marketStanceMeta, netWorth } from '../../engine';
 import { PIECE_BY_KEY } from '../../data';
 import { useGameState } from '../../store';
+import AnimatedNumber from '../../anim/AnimatedNumber';
 
 export default function PlayerCards() {
   const s = useGameState();
@@ -80,7 +81,7 @@ export default function PlayerCards() {
               color: active ? 'var(--green)' : 'var(--text)',
               fontWeight: active ? 700 : 600,
               transition: 'all 0.25s',
-            }}>${nw.toLocaleString()}</span>
+            }}><AnimatedNumber value={nw} /></span>
             <span style={{ fontSize: 9, color: 'var(--muted)', fontFamily: 'IBM Plex Mono, monospace', minWidth: 20, textAlign: 'right', opacity: 0.9 }}>
               #{p.pos}
             </span>

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { gsap, reducedMotion, useStageHeld } from '../../anim/stage';
 import { IPO_BY_CODE, STOCK_BY_CODE, STOCKS, isIpoCode } from '../../data';
 import { circuitBreakerOptions, priceOf } from '../../engine';
 import type { Action, GameState, MarketSignal } from '../../engine';
@@ -47,23 +48,46 @@ export default function CardDisplay() {
   const prevKey = useRef<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const cardKey = s.card ? `${s.cardPreviewMode ?? 'draw'}-${s.card.deck}-${s.card.title}` : null;
+  const held = useStageHeld();
+  const boxRef = useRef<HTMLDivElement>(null);
+  // The card waits until the piece has landed, then flies in from the board.
+  const cardKey = s.card && !held ? `${s.cardPreviewMode ?? 'draw'}-${s.card.deck}-${s.card.title}` : null;
   // Anything the player must answer on the card itself holds it open.
   const awaitingDecision = !!s.circuitBreakerPrompt || (!!s.pick && s.pick.source !== 'investor');
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (cardKey && cardKey !== prevKey.current) {
       prevKey.current = cardKey;
       timers.current.forEach(clearTimeout);
       setDismissed(false);
-      setPhase('back');
-      timers.current = [
-        setTimeout(() => setPhase('reveal'), 320),
-        setTimeout(() => setPhase('idle'), 960),
-      ];
+      setPhase(reducedMotion() ? 'idle' : 'back');
     }
     return () => timers.current.forEach(clearTimeout);
   }, [cardKey]);
+
+  // Face-down card travels from the middle of the board to its place and
+  // grows; then it turns over (the 'reveal' phase below).
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (!box || reducedMotion()) return;
+    if (phase === 'back') {
+      const deck = document.querySelector<HTMLElement>('[data-deck-anchor]')?.getBoundingClientRect();
+      const r = box.getBoundingClientRect();
+      const dx = deck ? deck.left + deck.width / 2 - (r.left + r.width / 2) : 0;
+      const dy = deck ? deck.top + deck.height / 2 - (r.top + r.height / 2) : 160;
+      const tl = gsap.timeline({ onComplete: () => setPhase('reveal') });
+      tl.fromTo(box, { x: dx, y: dy, scale: 0.22, rotation: -14, opacity: 0.4 },
+        { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, duration: 0.55, ease: 'power3.out' })
+        .to(box, { rotationY: 90, duration: 0.16, ease: 'power1.in', transformPerspective: 900 });
+      return () => { tl.kill(); };
+    }
+    if (phase === 'reveal') {
+      const tl = gsap.timeline({ onComplete: () => setPhase('idle') });
+      tl.fromTo(box, { rotationY: -90, transformPerspective: 900 },
+        { rotationY: 0, duration: 0.34, ease: 'back.out(1.6)', clearProps: 'transform' });
+      return () => { tl.kill(); };
+    }
+  }, [phase]);
 
   useEffect(() => {
     if (!cardKey || awaitingDecision) return;
@@ -71,7 +95,7 @@ export default function CardDisplay() {
     return () => clearTimeout(timer);
   }, [cardKey, awaitingDecision]);
 
-  if (!s.card || dismissed) return null;
+  if (!s.card || dismissed || held) return null;
 
   const deckId = s.card.deck;
   const isInsiderPreview = s.cardPreviewMode === 'insider';
@@ -108,10 +132,9 @@ export default function CardDisplay() {
     // Face-down back — mirrors the 3D .card3d-back
     return (
       <div style={overlayStyle}>
-        <div className="card-box" style={{
+        <div ref={boxRef} className="card-box" style={{
           borderColor: `${deckColorHex}33`,
           borderWidth: 2, borderRadius: 12,
-          animation: 'cardBackOut 320ms ease-in forwards',
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           justifyContent: 'center', gap: 6, minHeight: 80,
           padding: '16px 14px',
@@ -132,13 +155,12 @@ export default function CardDisplay() {
   // A concise investor briefing: the card's outcome and the decision it calls for.
   return (
     <div style={overlayStyle}>
-      <div className="card-box"
+      <div ref={boxRef} className="card-box"
         onClick={() => { if (!awaitingDecision) setDismissed(true); }}
         title={awaitingDecision ? undefined : 'Click to close'}
         style={{
         borderColor: `${deckColorHex}66`, borderLeft: `4px solid ${deckColorHex}`,
         borderRadius: 10,
-        animation: phase === 'reveal' ? 'cardFlipReveal 380ms ease-out forwards' : 'none',
         padding: 0, overflow: 'hidden', flexShrink: 0, position: 'relative', cursor: 'pointer',
         background: 'var(--surface)',
         boxShadow: '0 12px 34px rgba(0,0,0,0.42)',

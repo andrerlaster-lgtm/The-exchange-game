@@ -12,6 +12,8 @@
     "sim": "vitest run --config vitest.sim.config.ts --reporter=basic"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "gsap": "^3.15.0",
     "immer": "^10.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

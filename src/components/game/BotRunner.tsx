@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../../store';
 import { BOT_LABEL, decisionOwner, isBot } from '../../ai/controller';
+import { useStageHeld } from '../../anim/stage';
 
 const SPEEDS = { normal: 750, fast: 250 } as const;
 type Speed = keyof typeof SPEEDS;
@@ -21,11 +22,14 @@ export default function BotRunner() {
   const owner = decisionOwner(s);
   const active = isBot(s, owner) && s.phase !== 'over';
 
+  // Wait for the last move to finish playing out (dice, hops, cards) so each
+  // computer move can be followed.
+  const held = useStageHeld();
   useEffect(() => {
-    if (!active || paused) return;
+    if (!active || paused || held) return;
     const t = window.setTimeout(() => { botStep(); }, SPEEDS[speed]);
     return () => window.clearTimeout(t);
-  }, [s, active, paused, speed, botStep]);
+  }, [s, active, paused, held, speed, botStep]);
 
   if (!active || owner === null) return null;
   const p = s.players[owner];

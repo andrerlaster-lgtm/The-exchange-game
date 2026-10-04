@@ -5,6 +5,7 @@
 // action with the state before and after, so no component has to know about audio.
 
 import type { Action, GameState } from '../engine';
+import { DICE_MS, HOP_MS, pathBetween } from '../anim/stage';
 
 const NAMES = [
   'diceShake', 'diceThrow1', 'diceThrow2', 'cardSlide', 'cardPlace', 'cardShuffle', 'cardFan',
@@ -85,7 +86,9 @@ const QUIET = new Set(['skipStock', 'skipIpo', 'skipEtf', 'skipPick', 'passOpeni
 // Cash going up from these is the move itself, not income.
 const CASH_FROM_MOVE = new Set([...SELLS, ...BORROWS, 'acceptP2POffer', 'declineP2POffer']);
 
-export function soundForAction(a: Action, before: GameState, after: GameState) {
+/** `wait` (seconds) is how long the move takes to play out on screen — the
+    piece's hops — so the sounds of what happened there arrive when it lands. */
+export function soundForAction(a: Action, before: GameState, after: GameState, wait = 0) {
   if (after === before) { if (!QUIET.has(a.t)) play('uiError', { vol: 0.5 }); return; }
   switch (a.t) {
     case 'roll':
@@ -112,13 +115,22 @@ export function soundForAction(a: Action, before: GameState, after: GameState) {
       else if (QUIET.has(a.t)) play('uiTick', { vol: 0.5 });
   }
 
+  // The piece's hops, one soft tick per space.
+  const hopper = before.cur;
+  const from = before.players[hopper]?.pos, to = after.players[hopper]?.pos;
+  if (wait > 0 && from != null && to != null && from !== to) {
+    const steps = pathBetween(from, to).length - 1;
+    const start = a.t === 'roll' ? DICE_MS / 1000 : 0;
+    for (let k = 1; k <= steps; k += 1) play('uiTick', { delay: start + (k * HOP_MS) / 1000, vol: 0.35, rate: 1 + k * 0.015 });
+  }
+
   // Things that happened as a result of the move.
-  if (before.phase !== 'over' && after.phase === 'over') { play('jWin', { delay: 0.3 }); return; }
-  if ((!before.marginCall && after.marginCall) || (!before.insolvency && after.insolvency)) play('jAlert', { delay: 0.25 });
-  else if (!before.payoutShortfallChoice && after.payoutShortfallChoice) play('jBad', { delay: 0.25 });
-  if (!before.marketOpenReport && after.marketOpenReport) play('jRound', { delay: 0.4, vol: 0.8 });
-  if (!before.landingNotice && after.landingNotice) play('pageFlip', { delay: 0.3, vol: 0.8 });
+  if (before.phase !== 'over' && after.phase === 'over') { play('jWin', { delay: wait + 0.3 }); return; }
+  if ((!before.marginCall && after.marginCall) || (!before.insolvency && after.insolvency)) play('jAlert', { delay: wait + 0.25 });
+  else if (!before.payoutShortfallChoice && after.payoutShortfallChoice) play('jBad', { delay: wait + 0.25 });
+  if (!before.marketOpenReport && after.marketOpenReport) play('jRound', { delay: wait + 0.4, vol: 0.8 });
+  if (!before.landingNotice && after.landingNotice) play('pageFlip', { delay: wait + 0.3, vol: 0.8 });
   const pi = before.cur;
   const gained = (after.players[pi]?.cash ?? 0) - (before.players[pi]?.cash ?? 0);
-  if (gained > 0 && !CASH_FROM_MOVE.has(a.t)) play(gained >= 5000 ? 'coins' : 'coins2', { delay: 0.45, vol: 0.85 });
+  if (gained > 0 && !CASH_FROM_MOVE.has(a.t)) play(gained >= 5000 ? 'coins' : 'coins2', { delay: wait + 0.45, vol: 0.85 });
 }

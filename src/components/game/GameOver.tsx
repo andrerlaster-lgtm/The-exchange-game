@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useGSAP } from '@gsap/react';
+import AnimatedNumber from '../../anim/AnimatedNumber';
+import { SplitText, gsap, reducedMotion } from '../../anim/stage';
 import { buildSessionDebrief, debriefShareText, getRankedPlayers } from '../../engine';
 import { useDispatch, useGameState } from '../../store';
 
@@ -22,6 +25,23 @@ export default function GameOver() {
     document.body.scrollLeft = 0;
   }, []);
 
+  // The closing bell: the winner's name rises letter by letter, then the
+  // summary cards and final standings come in one at a time while the
+  // scores count up from zero.
+  const pageRef = useRef<HTMLElement>(null);
+  useGSAP(() => {
+    if (reducedMotion()) return;
+    const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+    const split = SplitText.create('[data-winner-name]', { type: 'chars' });
+    tl.from('[data-winner-kicker]', { opacity: 0, y: -10, duration: 0.4 })
+      .from(split.chars, { opacity: 0, y: 46, rotationX: -90, transformOrigin: '50% 100%', duration: 0.7, stagger: 0.045, ease: 'back.out(1.8)' }, '-=0.1')
+      .from('[data-debrief-head]', { opacity: 0, y: 14, duration: 0.45 }, '-=0.25')
+      .from('[data-summary-card]', { opacity: 0, y: 24, scale: 0.94, duration: 0.45, stagger: 0.08 }, '-=0.2')
+      .from('[data-standing]', { opacity: 0, x: -36, duration: 0.5, stagger: 0.14 }, '-=0.15')
+      .fromTo('[data-standing="0"]', { boxShadow: '0 0 0 rgba(212,165,53,0)' }, { boxShadow: '0 0 28px rgba(212,165,53,0.35)', duration: 0.6, yoyo: true, repeat: 1 });
+    return () => split.revert();
+  }, { scope: pageRef });
+
   async function copyDebrief() {
     try {
       await navigator.clipboard.writeText(debriefShareText(s));
@@ -33,9 +53,19 @@ export default function GameOver() {
   }
 
   return (
-    <main style={styles.page}>
+    <main ref={pageRef} style={styles.page}>
       <div style={styles.shell}>
         <header style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+          {ranked[0] && (
+            <div style={{ marginBottom: 18 }}>
+              <div data-winner-kicker style={styles.eyebrow}>The closing bell · winner</div>
+              <div data-winner-name className="display" style={{
+                fontSize: 'clamp(40px, 8vw, 76px)', lineHeight: 1.05, fontWeight: 800, color: DEBRIEF_GOLD,
+                textShadow: '0 0 28px rgba(212,165,53,0.35), 0 3px 10px rgba(0,0,0,0.7)', perspective: 600,
+              }}>★ {ranked[0].name}</div>
+            </div>
+          )}
+          <div data-debrief-head>
           <div style={styles.eyebrow}>The Exchange · Post-Mortem</div>
           <h1 style={styles.title}>Session Debrief</h1>
           <p style={styles.subtitle}>
@@ -47,6 +77,7 @@ export default function GameOver() {
             <span>{gainLossMode ? 'Gain / Loss Mode' : 'Net Worth Mode'}</span>
             <span>•</span>
             <span>{debrief.summary.marketEvents} market signals</span>
+          </div>
           </div>
         </header>
 
@@ -84,7 +115,7 @@ export default function GameOver() {
           <SectionHeading id="final-standings-title" kicker="The Closing Bell" title="Final Standings" />
           <div style={{ display: 'grid', gap: 7 }}>
             {ranked.map((player, index) => (
-              <div key={player.playerIdx} style={{
+              <div key={player.playerIdx} data-standing={index} style={{
                 ...styles.standingRow,
                 ...(index === 0 ? styles.winnerRow : {}),
               }}>
@@ -102,7 +133,8 @@ export default function GameOver() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div className="mono" style={{ fontSize: 17, fontWeight: 900, color: gainLossMode ? gainColor(player.marketGain) : index === 0 ? DEBRIEF_GREEN : DEBRIEF_TEXT }}>
-                    {gainLossMode ? signedMoney(player.marketGain) : money(player.nw)}
+                    <AnimatedNumber value={gainLossMode ? player.marketGain : player.nw} from={0} flash={false} delay={1.7 + index * 0.14}
+                      format={gainLossMode ? signedMoney : money} />
                   </div>
                   <div style={styles.tinyLabel}>{gainLossMode ? 'MARKET GAIN' : 'NET WORTH'}</div>
                 </div>
@@ -193,7 +225,7 @@ function SummaryCard({ icon, label, value, note, danger = false, tone }: {
   tone?: string;
 }) {
   return (
-    <article style={styles.summaryCard}>
+    <article data-summary-card style={styles.summaryCard}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span aria-hidden="true" style={{ fontSize: 18 }}>{icon}</span>
         <span style={styles.tinyLabel}>{label}</span>

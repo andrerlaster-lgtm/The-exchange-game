@@ -5,6 +5,7 @@ import { immer } from 'zustand/middleware/immer';
 import { initialState, reduce } from '../engine';
 import { makeRng } from '../utils/rng';
 import { soundForAction } from '../audio/sound';
+import { beforeChange, stageForAction } from '../anim/stage';
 import { botAction, botTurn } from '../ai/controller';
 import type { Action, GameState } from '../engine';
 
@@ -25,10 +26,15 @@ export const useGameStore = create<GameStore>()(
   immer((set, get) => {
     const apply = (a: Action) => {
       const before = get().state;
+      const next = reduce(before, a, rng);
+      // Tell the motion layer first: it records layouts for Flip, starts the
+      // dice and piece hops, and says how long the move's results should wait.
+      if (next !== before) beforeChange();
+      const wait = next === before ? 0 : stageForAction(a, before, next);
       set((store) => {
-        store.state = reduce(store.state, a, rng) as typeof store.state;
+        store.state = next as typeof store.state;
       });
-      soundForAction(a, before, get().state);
+      soundForAction(a, before, next, wait);
     };
     return {
       state: initialState(rng),

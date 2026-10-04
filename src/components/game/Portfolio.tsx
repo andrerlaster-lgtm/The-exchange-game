@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import AnimatedNumber from '../../anim/AnimatedNumber';
+import { useFlipReorder } from '../../anim/hooks';
 import { BANK_LOAN_INCREMENT, CONTROL_DIVIDEND_MULTIPLIER, ETF_BY_CODE, ETF_DIVERSIFICATION_BONUS_BY_FUNDS, ETF_PRICE, FEE_DEBT_INSTALLMENT, PIECE_BY_KEY, IPO_GROWTH_INVESTMENTS, STOCK_BY_CODE, calcEtfPayout, distinctEtfFunds, etfDiversificationBonus, isIpoCode, totalEtfShares } from '../../data';
 import {
   diversificationBonus, diversificationTier,
@@ -68,6 +71,9 @@ export default function Portfolio() {
   const [companyRevealed, setCompanyRevealed] = useState(false);
   const [expandedHolding, setExpandedHolding] = useState<string | null>(null);
   const [tab, setTab] = useState<'holdings' | 'overview' | 'income' | 'debt'>('holdings');
+  // Holding tiles slide into place when a position is bought or sold out.
+  const holdingsRef = useRef<HTMLDivElement>(null);
+  useFlipReorder(holdingsRef, Object.entries(p.shares).filter(([, q]) => q > 0).map(([c]) => c).join(','), `${viewIdx}-${tab}`);
   const hasDebt = Boolean((s.opts.bankLoans && (loanBalance > 0 || (isOwnTurn && canBorrow > 0))) || feeDebt > 0 || debtsOwed.length > 0 || debtsReceivable.length > 0);
   // The tab badge flags money actually owed, not the option to borrow.
   const owesDebt = loanBalance > 0 || feeDebt > 0 || debtsOwed.length > 0 || companyLoanBalance(p) > 0;
@@ -174,7 +180,7 @@ export default function Portfolio() {
         borderRadius: 9, padding: '10px 12px',
         display: 'flex', flexDirection: 'column', gap: 5,
       }}>
-        <FinRow label="Cash" value={`$${bp.cash.toLocaleString()}`} color="var(--green)" />
+        <FinRow label="Cash" value={<AnimatedNumber key={viewIdx} value={bp.cash} />} color="var(--green)" />
         <FinRow label="Margin Balance" value={bp.marginBalance > 0 ? `−$${bp.marginBalance.toLocaleString()}` : '$0'} color={bp.marginBalance > 0 ? 'var(--red)' : 'var(--muted)'} />
         <FinRow label="Outstanding Fees" value={feeDebt > 0 ? `−$${feeDebt.toLocaleString()}` : '$0'} color={feeDebt > 0 ? 'var(--red)' : 'var(--muted)'} />
         <FinRow label="Buying Power" value={`$${bp.buyingPower.toLocaleString()}`} color="var(--accent)" bold />
@@ -182,7 +188,7 @@ export default function Portfolio() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Net Worth</span>
           <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
-            ${nw.toLocaleString()}
+            <AnimatedNumber key={viewIdx} value={nw} />
             <span style={{ fontSize: 10, color: nwColor }}>{nwGlyph}</span>
           </span>
         </div>
@@ -538,9 +544,9 @@ export default function Portfolio() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span className="slabel" style={{ marginBottom: 0 }}>Holdings</span>
-              <span style={{ color: 'var(--muted)', fontSize: 10 }}>{entries.length} position{entries.length === 1 ? '' : 's'} · ${totalStockValue.toLocaleString()}</span>
+              <span style={{ color: 'var(--muted)', fontSize: 10 }}>{entries.length} position{entries.length === 1 ? '' : 's'} · <AnimatedNumber key={viewIdx} value={totalStockValue} flash={false} /></span>
             </div>
-            <div role="listbox" aria-label="Holdings" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+            <div ref={holdingsRef} role="listbox" aria-label="Holdings" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
               {entries.map(([code, qty]) => {
                 const price = priceOf(s, code);
                 const total = qty * price;
@@ -550,7 +556,7 @@ export default function Portfolio() {
                 const isSel = code === selected;
                 const up = gl.unrealized > 0, down = gl.unrealized < 0;
                 return (
-                  <button key={code} role="option" aria-selected={isSel}
+                  <button key={code} data-flip-id={code} role="option" aria-selected={isSel}
                     title={`${STOCK_BY_CODE[code]?.name ?? code} · ${qty} shares · $${total.toLocaleString()}`}
                     onClick={() => setExpandedHolding(code)}
                     style={{
@@ -692,7 +698,7 @@ function gainColor(value: number): string {
   return value > 0 ? 'var(--green)' : value < 0 ? 'var(--red)' : 'var(--muted)';
 }
 
-function FinRow({ label, value, color, bold, title }: { label: string; value: string; color: string; bold?: boolean; title?: string }) {
+function FinRow({ label, value, color, bold, title }: { label: string; value: ReactNode; color: string; bold?: boolean; title?: string }) {
   return (
     <div title={title} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
       <span style={{ color: 'var(--muted)' }}>{label}</span>

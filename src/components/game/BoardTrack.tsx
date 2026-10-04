@@ -1,4 +1,9 @@
 import type { CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { HOP_MS, gsap, onHop, useStageHeld } from '../../anim/stage';
+import type { Hop } from '../../anim/stage';
+import { useEntrance } from '../../anim/hooks';
+import AnimatedNumber from '../../anim/AnimatedNumber';
 import { BOARD_SIDE, PRICE_MOVE_SOURCE_LABEL, REGULAR_SUPPLY, UPGRADE_LEVELS, PLAYER_COLORS, SECTORS, SECTOR_PAIRS, SECTOR_PAIR_BY_CODE, SPACES, STOCK_BY_CODE, PIECE_BY_KEY, WEAK_DEMAND_THRESHOLD } from '../../data';
 import { developmentOf, getStockMovementStatus, sectorPairOwner } from '../../engine';
 import { pctBp } from '../../utils/formatMoney';
@@ -83,7 +88,9 @@ function Keyline({ color = 'rgba(43,32,22,0.18)', inset = '5%' }: { color?: stri
 /** Who is standing on a space. Sits along the bottom edge rather than the
     corner: a token there covered the outstanding-shares badge, and at four
     or more players on one space the row wrapped over the ticker. */
-function PlayerTokens({ players, s }: { players: number[]; s: ReturnType<typeof useGameState> }) {
+function PlayerTokens({ players: all, s, hidden }: { players: number[]; s: ReturnType<typeof useGameState>; hidden: Set<number> }) {
+  // A piece that is still hopping here is drawn by the hop layer instead.
+  const players = all.filter((pi) => !hidden.has(pi));
   if (players.length === 0) return null;
   return (
     <div style={{
@@ -109,6 +116,59 @@ function PlayerTokens({ players, s }: { players: number[]; s: ReturnType<typeof 
         );
       })}
     </div>
+  );
+}
+
+/** A piece travelling between spaces: hops tile to tile in an arc, squashes
+    as it lands and gives the landing tile a bump. The real token on the
+    destination tile stays hidden until this finishes. */
+function HoppingToken({ hop, grid, s, onDone }: {
+  hop: Hop; grid: React.RefObject<HTMLDivElement>; s: ReturnType<typeof useGameState>; onDone: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const done = useRef(onDone);
+  done.current = onDone;
+  useLayoutEffect(() => {
+    const el = ref.current, g = grid.current;
+    if (!el || !g) { done.current(); return; }
+    const box = g.getBoundingClientRect();
+    const spot = (n: number) => {
+      const t = g.querySelector<HTMLElement>(`[data-space="${n}"]`);
+      if (!t) return null;
+      const r = t.getBoundingClientRect();
+      return { x: r.left - box.left + r.width / 2 - 6, y: r.bottom - box.top - 14, tile: t };
+    };
+    const pts = hop.path.map(spot);
+    if (pts.some((p) => !p)) { done.current(); return; }
+    const first = pts[0]!;
+    gsap.set(el, { x: first.x, y: first.y, opacity: 1 });
+    const step = HOP_MS / 1000;
+    const tl = gsap.timeline({ delay: hop.startDelayMs / 1000, onComplete: () => done.current() });
+    const glide = hop.path.length === 2 && Math.abs(hop.path[1] - hop.path[0]) > 1 && Math.abs(hop.path[1] - hop.path[0]) < 39;
+    for (let k = 1; k < pts.length; k += 1) {
+      const a = pts[k - 1]!, b = pts[k]!;
+      const lift = glide ? 46 : 13;
+      const d = glide ? 0.7 : step;
+      tl.to(el, { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - lift, duration: d / 2, ease: 'power1.out' })
+        .to(el, { x: b.x, y: b.y, duration: d / 2, ease: 'power1.in' });
+    }
+    const last = pts[pts.length - 1]!;
+    tl.to(el, { scaleY: 0.6, scaleX: 1.3, duration: 0.07, transformOrigin: '50% 100%' })
+      .to(el, { scaleY: 1, scaleX: 1, duration: 0.25, ease: 'back.out(3)' })
+      .fromTo(last.tile, { scale: 1.14, zIndex: 3 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.45)', clearProps: 'transform,zIndex' }, '<');
+    return () => { tl.kill(); };
+  }, [hop, grid]);
+
+  const color = PLAYER_COLORS[hop.player];
+  return (
+    <div ref={ref} aria-hidden="true" style={{
+      position: 'absolute', left: 0, top: 0, zIndex: 20, opacity: 0, pointerEvents: 'none',
+      width: 12, height: 12, borderRadius: '50%',
+      background: `radial-gradient(circle at 35% 30%, ${color}ff, ${color}99)`,
+      border: '1.5px solid #fffdf6',
+      boxShadow: `0 0 9px ${color}, 0 4px 6px rgba(0,0,0,0.45)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, lineHeight: 1,
+    }}>{PIECE_BY_KEY[s.players[hop.player]?.piece]?.emoji ?? ''}</div>
   );
 }
 
@@ -140,6 +200,14 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
   const INK = pal.ink, TILE_VIGNETTE = pal.vignette, LETTERPRESS = pal.letterpress;
   const byPos: Record<number, number[]> = {};
   s.players.forEach((p, i) => { if (!byPos[p.pos]) byPos[p.pos] = []; byPos[p.pos].push(i); });
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [hops, setHops] = useState<Record<number, Hop>>({});
+  const hopping = new Set(Object.keys(hops).map(Number));
+  const held = useStageHeld();
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const showBanner = !!s.landingNotice && !held;
+  useEntrance(bannerRef, showBanner ? `${s.landingNotice?.title}-${s.landingNotice?.amount}-${s.lap}-${s.cur}` : null);
+  useEffect(() => onHop((hop) => setHops((h) => ({ ...h, [hop.player]: hop }))), []);
 
   return (
     <div style={{
@@ -160,13 +228,18 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
 
       <SectorLegend />
 
-      <div style={{
+      <div ref={gridRef} style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${BOARD_SIDE}, 1fr)`,
         gridTemplateRows: `repeat(${BOARD_SIDE}, 1fr)`,
         gap: 3,
         aspectRatio: '1',
+        position: 'relative',
       }}>
+        {Object.values(hops).map((hop) => (
+          <HoppingToken key={hop.id} hop={hop} grid={gridRef} s={s}
+            onDone={() => setHops((h) => { if (h[hop.player]?.id !== hop.id) return h; const n = { ...h }; delete n[hop.player]; return n; })} />
+        ))}
         {/* Center panel — club-green felt well, brass bezel, bear-mascot medallion */}
         <div style={{
           gridColumn: `2 / ${BOARD_SIDE}`,
@@ -224,11 +297,13 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
             </div>
           )}
 
+          {/* Where drawn cards fly out from. */}
+          <div data-deck-anchor aria-hidden="true" style={{ position: 'absolute', left: '40%', top: '40%', width: '20%', height: '20%', pointerEvents: 'none' }} />
           <BoardDiceControls />
 
 
-          {s.landingNotice && (
-            <div style={{ position: 'absolute', left: '4%', right: '4%', top: '38%', zIndex: 9 }}>
+          {showBanner && (
+            <div ref={bannerRef} style={{ position: 'absolute', left: '4%', right: '4%', top: '38%', zIndex: 9 }}>
               <LandingResultBanner s={s} dispatch={dispatch} />
             </div>
           )}
@@ -276,7 +351,7 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
             // sector glyph upper-left, letterpress ticker, centered price + arrow,
             // centered risk chip, full-width sold-out claim band.
             return (
-              <div key={sp.n} role={canManage ? 'button' : undefined} tabIndex={canManage ? 0 : undefined}
+              <div key={sp.n} data-space={sp.n} role={canManage ? 'button' : undefined} tabIndex={canManage ? 0 : undefined}
                 aria-label={canManage ? `Manage ${stock.name}` : undefined}
                 title={canManage ? `Manage ${stock.name}: upgrades and Market Protection` : undefined}
                 onClick={canManage ? () => onManageCompany(sp.code!) : undefined}
@@ -351,7 +426,7 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, lineHeight: 1,
                 }}>
                   <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 8, fontWeight: 700, color: INK }}>
-                    ${price.toLocaleString('en-US')}
+                    <AnimatedNumber value={price} format={(v) => `$${Math.round(v).toLocaleString('en-US')}`} style={{ padding: '0 1px', margin: 0 }} />
                   </span>
                   {mvGlyph && <span style={{ fontSize: 7, color: mvColor, fontWeight: 700, lineHeight: 1 }}>{mvGlyph}</span>}
                 </div>
@@ -420,7 +495,7 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
                   }}>{weakCount}/{WEAK_DEMAND_THRESHOLD}</span>
                 )}
 
-                <PlayerTokens players={players} s={s} />
+                <PlayerTokens players={players} s={s} hidden={hopping} />
               </div>
             );
           }
@@ -439,7 +514,7 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
           const lines = def.label.split('\n');
 
           return (
-            <div key={sp.n} style={{
+            <div key={sp.n} data-space={sp.n} style={{
               gridColumn: col, gridRow: row,
               background: isCorner
                 ? [
@@ -495,7 +570,7 @@ export default function BoardTrack({ onManageCompany }: { onManageCompany?: (cod
                 }}>🔒</span>
               )}
 
-              <PlayerTokens players={players} s={s} />
+              <PlayerTokens players={players} s={s} hidden={hopping} />
             </div>
           );
         })}
