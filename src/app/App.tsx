@@ -6,6 +6,8 @@ import GameOver from '../components/game/GameOver';
 import InvestmentCardPreview from '../components/game/InvestmentCardPreview';
 import Board3DSync from '../components/game/Board3DSync';
 import { setBoardTheme, useBoardTheme } from '../components/game/useBoardTheme';
+import SoundToggle from '../components/shared/SoundToggle';
+import BotRunner from '../components/game/BotRunner';
 
 type ViewMode = '2d' | '3d';
 
@@ -42,6 +44,7 @@ export default function App() {
     <>
       {/* Always sync game state to 3D board, regardless of active view */}
       <Board3DSync />
+      <BotRunner />
 
       {/* View mode toggle — floats above both views */}
       <div style={{
@@ -74,6 +77,8 @@ export default function App() {
             {boardTheme === 'dark' ? '☾ DARK' : '☀ LIGHT'}
           </button>
         )}
+
+        <SoundToggle />
 
         {(['2d', '3d'] as const).map((v) => (
           <button

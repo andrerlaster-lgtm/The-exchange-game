@@ -122,6 +122,19 @@ export default function SetupScreen() {
                       style={{ flex: 1 }}
                       onChange={(e) => dispatch({ t: 'setName', i, name: e.target.value })}
                     />
+                    {/* Human or computer (computer players use the simulation bot, in one of three styles) */}
+                    <select
+                      aria-label={`Who plays seat ${i + 1}`}
+                      value={s.bots?.[i] ?? 'human'}
+                      onChange={(e) => dispatch({ t: 'setBot', i, style: e.target.value === 'human' ? null : (e.target.value as 'normal' | 'cash' | 'investor') })}
+                      title="Human, or a computer player with a play style"
+                      style={{ flex: '0 0 auto', width: 'auto', maxWidth: 170, fontSize: 12, padding: '6px 8px' }}
+                    >
+                      <option value="human">Human</option>
+                      <option value="normal">Computer · Steady</option>
+                      <option value="cash">Computer · Cautious</option>
+                      <option value="investor">Computer · Investor</option>
+                    </select>
                   </div>
                   {/* Piece picker */}
                   <div style={{ display: 'flex', gap: 5, paddingLeft: 38 }}>

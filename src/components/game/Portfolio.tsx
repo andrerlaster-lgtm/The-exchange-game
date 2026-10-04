@@ -67,6 +67,10 @@ export default function Portfolio() {
   const debtsReceivable = s.playerDebts.filter((d) => d.creditor === viewIdx);
   const [companyRevealed, setCompanyRevealed] = useState(false);
   const [expandedHolding, setExpandedHolding] = useState<string | null>(null);
+  const [tab, setTab] = useState<'holdings' | 'overview' | 'income' | 'debt'>('holdings');
+  const hasDebt = Boolean((s.opts.bankLoans && (loanBalance > 0 || (isOwnTurn && canBorrow > 0))) || feeDebt > 0 || debtsOwed.length > 0 || debtsReceivable.length > 0);
+  // The tab badge flags money actually owed, not the option to borrow.
+  const owesDebt = loanBalance > 0 || feeDebt > 0 || debtsOwed.length > 0 || companyLoanBalance(p) > 0;
   const companyLoan = companyLoanBalance(p);
   const companyMarketOpen = companyMarketTradingOpen(s);
   const companyLoanOffer = s.companyLoanOffer?.player === viewIdx ? s.companyLoanOffer.amount : null;
@@ -144,6 +148,23 @@ export default function Portfolio() {
         </div>
       </div>
 
+      {/* Tabs — Holdings / Overview / Income / Debt (inventory-style layout) */}
+      <div role="tablist" aria-label="Portfolio sections" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 3, padding: 3, borderRadius: 8, background: 'rgba(0,0,0,0.18)', border: '1px solid var(--border)' }}>
+        {([['holdings', 'Holdings', entries.length + etfEntries.length], ['overview', 'Overview', null], ['income', 'Income', null], ['debt', 'Debt', owesDebt ? '!' : null]] as const).map(([id, label, badge]) => (
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} style={{
+            position: 'relative', fontSize: 11, padding: '5px 2px', borderRadius: 6, cursor: 'pointer',
+            fontWeight: tab === id ? 800 : 600,
+            background: tab === id ? 'var(--surface-hi, rgba(255,255,255,0.08))' : 'transparent',
+            border: `1px solid ${tab === id ? 'var(--border-hi)' : 'transparent'}`,
+            color: tab === id ? 'var(--text)' : 'var(--muted)',
+          }}>
+            {label}
+            {badge !== null && badge !== 0 && <span style={{ marginLeft: 4, fontSize: 9, padding: '0 4px', borderRadius: 6, background: badge === '!' ? 'var(--red)' : 'rgba(255,255,255,0.12)', color: badge === '!' ? '#fff' : 'var(--muted)' }}>{badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (<>
       {/* Financials block — Cash, Margin Balance, Buying Power = Net Worth */}
       <RoundCloseRecap playerIndex={viewIdx} compact />
 
@@ -260,6 +281,8 @@ export default function Portfolio() {
         </div>
       )}
 
+      </>)}
+      {tab === 'debt' && (<>
       {s.opts.bankLoans && (loanBalance > 0 || (isOwnTurn && canBorrow > 0)) && (
         <div style={{
           display: 'flex', flexDirection: 'column', gap: 7,
@@ -409,6 +432,9 @@ export default function Portfolio() {
         </div>
       )}
 
+      {!hasDebt && <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>No debt. Nothing owed to the bank or other players.</div>}
+      </>)}
+      {tab === 'income' && (<>
       {/* Projected dividend on next Market Open pass (from current holdings) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '0 2px' }}>
         <span style={{ color: 'var(--muted)' }}>
@@ -456,71 +482,126 @@ export default function Portfolio() {
         </div>
       )}
 
-      {/* Holdings */}
-      {entries.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span className="slabel" style={{ marginBottom: 0 }}>Holdings</span>
-            <span style={{ color: 'var(--muted)', fontSize: 10 }}>{entries.length} position{entries.length === 1 ? '' : 's'} · Details for more</span>
+      {/* Taxes & Fees — margin calls, Market Open income, Audit Notice, Portfolio Tax, and forced-sale-settled Payout Claim payments */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span className="slabel">Taxes &amp; Fees</span>
+        {s.feeLog.length === 0 ? (
+          <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>
+            No taxes or fees yet
           </div>
-          {entries.map(([code, qty]) => {
-            const price = priceOf(s, code);
-            const total = qty * price;
-            const gl = holdingGainLoss(s, p, code);
-            const div = holdingDividendInfo(s, p, code);
-            const concentrationPct = totalStockValue > 0 ? (total / totalStockValue) * 100 : 0;
-            const mv = isIpoCode(code) ? null : getStockMovementStatus(code, s);
-            const mvColor = mv?.direction === 'up' ? 'var(--green)' : mv?.direction === 'down' ? 'var(--red)' : 'var(--muted)';
-            const mvGlyph = mv?.direction === 'up' ? '▲' : mv?.direction === 'down' ? '▼' : '—';
-            const sc = STOCK_BY_CODE[code]?.color ?? 'var(--accent)';
-            const isExpanded = expandedHolding === code;
-            return (
-              <div key={code} style={{
-                padding: '6px 8px', borderRadius: 6,
-                background: `linear-gradient(100deg, ${sc}0d, rgba(74,48,25,0.10))`,
-                border: `1px solid ${sc}28`,
-                borderLeft: `3px solid ${sc}`,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span className="mono" style={{ fontSize: 11, fontWeight: 700, color: sc }}>{code}</span>
-                    {div.isController && (
-                      <span title={`Controller · ${div.controlThreshold}+ shares · ${CONTROL_DIVIDEND_MULTIPLIER}× dividend`} style={{
-                        fontSize: 8, fontWeight: 800, letterSpacing: 0.3,
-                        color: 'var(--gold)', background: 'rgba(212,165,53,0.16)',
-                        border: '1px solid rgba(212,165,53,0.4)', borderRadius: 4, padding: '1px 5px',
-                      }}>★ CONTROLLER</span>
-                    )}
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ fontSize: 10, color: mvColor, fontWeight: 700 }}>
-                      {mvGlyph} {mv?.label ?? ''}{mv && mv.pctFromOpen !== 0 ? ` ${pctBp(mv.pctFromOpen)}` : ''}
-                    </span>
-                    <button aria-expanded={isExpanded} onClick={() => setExpandedHolding(isExpanded ? null : code)} style={{ fontSize: 9, padding: '2px 5px' }}>{isExpanded ? 'Less' : 'Details'}</button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
+            {s.feeLog.map((f, i) => {
+              const label = f.kind === 'marginCall' ? 'Margin Call'
+                : f.kind === 'audit' ? 'Audit Notice'
+                : f.kind === 'tax' ? 'Portfolio Tax'
+                : f.kind === 'payout' ? 'Payout Claim'
+                : f.kind === 'debt' ? 'Debt Payment'
+                : 'Income';
+              const amtColor = f.amount >= 0 ? 'var(--green)' : 'var(--red)';
+              return (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '6px 8px', borderRadius: 6,
+                  background: 'rgba(74,48,25,0.08)',
+                  border: '1px solid rgba(74,48,25,0.08)',
+                  borderLeft: `3px solid ${f.color}`,
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: f.color }}>{f.player}</span>
+                    <span style={{ fontSize: 9, color: 'var(--muted)' }}>{label} · Lap {f.lap}</span>
+                  </div>
+                  <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: amtColor }}>
+                    {f.amount >= 0 ? '+' : ''}${f.amount.toLocaleString()}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                  <span style={{ color: 'var(--muted)' }}>{qty}× ${price >= 1000 ? `${price / 1000}k` : price}</span>
-                  <span className="mono" style={{ color: gainColor(gl.unrealized), fontWeight: 700 }}>${total.toLocaleString()} · {signedMoney(gl.unrealized)}</span>
-                </div>
-                {isExpanded && <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 3 }}>
-                    <span style={{ color: 'var(--muted)' }}>Basis ${Math.round(gl.costBasis).toLocaleString()}</span>
-                    <span className="mono" style={{ color: gainColor(gl.unrealized), fontWeight: 700 }}>G/L {signedMoney(gl.unrealized)} · {signedPercent(gl.returnPct)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 2 }}>
-                    <span style={{ color: 'var(--muted)' }}>{concentrationPct.toFixed(1)}% of portfolio</span>
-                    {div.printed > 0 ? <span className="mono" title={`${toBps(div.yieldPct)} bps/lap on current price`} style={{ color: 'var(--muted)' }}>Yield (mkt) {div.yieldPct.toFixed(1)}%/lap</span> : <span style={{ color: 'var(--muted)', opacity: 0.7, fontStyle: 'italic' }}>No dividend</span>}
-                  </div>
-                  {div.printed > 0 && gl.costBasis > 0 && <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 9.5, marginTop: 1 }}><span className="mono" title={`${toBps(div.yieldOnCostPct)} bps/lap on what you actually paid`} style={{ color: 'var(--muted)', opacity: 0.85 }}>Yield (cost) {div.yieldOnCostPct.toFixed(1)}%/lap</span></div>}
-                  {!div.isController && <div style={{ fontSize: 9, color: 'var(--muted)', opacity: 0.75, fontStyle: 'italic', marginTop: 1 }}>{div.sharesToControl} more share{div.sharesToControl === 1 ? '' : 's'} → Controller ({CONTROL_DIVIDEND_MULTIPLIER}× dividend)</div>}
-                  {isIpoCode(code) && <IpoGrowthRow code={code} s={s} isOwnTurn={isOwnTurn} dispatch={dispatch} />}
-                </>}
+              );
+            })}
+          </div>
+        )}
+      </div>
+      </>)}
+      {tab === 'holdings' && (<>
+      {/* Holdings — an inventory-style grid (idea from GodotDynamicInventorySystem):
+          tiles for every position, and a detail card for the selected one. */}
+      {entries.length > 0 && (() => {
+        const selected = entries.find(([c]) => c === expandedHolding)?.[0] ?? entries[0][0];
+        const qtySel = p.shares[selected] ?? 0;
+        const priceSel = priceOf(s, selected);
+        const totalSel = qtySel * priceSel;
+        const glSel = holdingGainLoss(s, p, selected);
+        const divSel = holdingDividendInfo(s, p, selected);
+        const concSel = totalStockValue > 0 ? (totalSel / totalStockValue) * 100 : 0;
+        const mvSel = isIpoCode(selected) ? null : getStockMovementStatus(selected, s);
+        const scSel = STOCK_BY_CODE[selected]?.color ?? 'var(--accent)';
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span className="slabel" style={{ marginBottom: 0 }}>Holdings</span>
+              <span style={{ color: 'var(--muted)', fontSize: 10 }}>{entries.length} position{entries.length === 1 ? '' : 's'} · ${totalStockValue.toLocaleString()}</span>
+            </div>
+            <div role="listbox" aria-label="Holdings" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+              {entries.map(([code, qty]) => {
+                const price = priceOf(s, code);
+                const total = qty * price;
+                const gl = holdingGainLoss(s, p, code);
+                const div = holdingDividendInfo(s, p, code);
+                const sc = STOCK_BY_CODE[code]?.color ?? 'var(--accent)';
+                const isSel = code === selected;
+                const up = gl.unrealized > 0, down = gl.unrealized < 0;
+                return (
+                  <button key={code} role="option" aria-selected={isSel}
+                    title={`${STOCK_BY_CODE[code]?.name ?? code} · ${qty} shares · $${total.toLocaleString()}`}
+                    onClick={() => setExpandedHolding(code)}
+                    style={{
+                      position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
+                      padding: '7px 7px 6px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                      background: `linear-gradient(160deg, ${sc}26, rgba(74,48,25,0.12))`,
+                      border: `1px solid ${isSel ? sc : sc + '33'}`,
+                      boxShadow: isSel ? `0 0 0 2px ${sc}55` : 'none',
+                      transform: isSel ? 'translateY(-1px)' : 'none',
+                      transition: 'transform .15s, box-shadow .15s, border-color .15s',
+                    }}>
+                    <span className="mono" style={{ fontSize: 11, fontWeight: 800, color: sc }}>{code}</span>
+                    <span className="mono" style={{ fontSize: 12, fontWeight: 700 }}>${total >= 1000 ? `${(total / 1000).toFixed(total >= 10000 ? 0 : 1)}k` : total}</span>
+                    <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>×{qty}</span>
+                    <span aria-hidden="true" style={{ position: 'absolute', right: 6, bottom: 5, fontSize: 10, fontWeight: 800, color: up ? 'var(--green)' : down ? 'var(--red)' : 'var(--muted)' }}>{up ? '▲' : down ? '▼' : '—'}</span>
+                    {div.isController && <span aria-label="Controller" title={`Controller · ${CONTROL_DIVIDEND_MULTIPLIER}× dividend`} style={{ position: 'absolute', right: 6, top: 5, fontSize: 10, color: 'var(--gold)' }}>★</span>}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Detail card for the selected holding */}
+            <div style={{
+              padding: '9px 10px', borderRadius: 8,
+              background: `linear-gradient(100deg, ${scSel}14, rgba(74,48,25,0.10))`,
+              border: `1px solid ${scSel}40`, borderLeft: `3px solid ${scSel}`,
+              display: 'flex', flexDirection: 'column', gap: 3,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ minWidth: 0 }}>
+                  <span className="mono" style={{ fontSize: 12, fontWeight: 800, color: scSel }}>{selected}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--muted)', marginLeft: 6 }}>{STOCK_BY_CODE[selected]?.name ?? ''}</span>
+                </span>
+                {mvSel && <span style={{ fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap', color: mvSel.direction === 'up' ? 'var(--green)' : mvSel.direction === 'down' ? 'var(--red)' : 'var(--muted)' }}>
+                  {mvSel.direction === 'up' ? '▲' : mvSel.direction === 'down' ? '▼' : '—'} {mvSel.label}{mvSel.pctFromOpen !== 0 ? ` ${pctBp(mvSel.pctFromOpen)}` : ''}
+                </span>}
               </div>
-            );
-          })}
-        </div>
-      )}
+              <FinRow label={`${qtySel} × $${priceSel.toLocaleString()}`} value={`$${totalSel.toLocaleString()}`} color="var(--text)" bold />
+              <FinRow label="Cost basis" value={`$${Math.round(glSel.costBasis).toLocaleString()}`} color="var(--muted)" />
+              <FinRow label="Gain / Loss" value={`${signedMoney(glSel.unrealized)} · ${signedPercent(glSel.returnPct)}`} color={gainColor(glSel.unrealized)} bold />
+              <FinRow label="Share of portfolio" value={`${concSel.toFixed(1)}%`} color="var(--muted)" />
+              {divSel.printed > 0
+                ? <FinRow label="Dividend yield" value={`${divSel.yieldPct.toFixed(1)}%/lap${glSel.costBasis > 0 ? ` · ${divSel.yieldOnCostPct.toFixed(1)}% on cost` : ''}`} color="var(--muted)" title={`${toBps(divSel.yieldPct)} bps/lap on current price`} />
+                : <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>No dividend</div>}
+              {divSel.isController
+                ? <div style={{ fontSize: 10, color: 'var(--gold)', fontWeight: 700 }}>★ Controller · {CONTROL_DIVIDEND_MULTIPLIER}× dividend</div>
+                : <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>{divSel.sharesToControl} more share{divSel.sharesToControl === 1 ? '' : 's'} → Controller ({CONTROL_DIVIDEND_MULTIPLIER}× dividend)</div>}
+              {isIpoCode(selected) && <IpoGrowthRow code={selected} s={s} isOwnTurn={isOwnTurn} dispatch={dispatch} />}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ETF Holdings — previously invisible here entirely. Fixed price (no
           movement arrow), and a lock badge marking them un-sellable / immune to
@@ -564,44 +645,7 @@ export default function Portfolio() {
         </div>
       )}
 
-      {/* Taxes & Fees — margin calls, Market Open income, Audit Notice, Portfolio Tax, and forced-sale-settled Payout Claim payments */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span className="slabel">Taxes &amp; Fees</span>
-        {s.feeLog.length === 0 ? (
-          <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>
-            No taxes or fees yet
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
-            {s.feeLog.map((f, i) => {
-              const label = f.kind === 'marginCall' ? 'Margin Call'
-                : f.kind === 'audit' ? 'Audit Notice'
-                : f.kind === 'tax' ? 'Portfolio Tax'
-                : f.kind === 'payout' ? 'Payout Claim'
-                : f.kind === 'debt' ? 'Debt Payment'
-                : 'Income';
-              const amtColor = f.amount >= 0 ? 'var(--green)' : 'var(--red)';
-              return (
-                <div key={i} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '6px 8px', borderRadius: 6,
-                  background: 'rgba(74,48,25,0.08)',
-                  border: '1px solid rgba(74,48,25,0.08)',
-                  borderLeft: `3px solid ${f.color}`,
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: f.color }}>{f.player}</span>
-                    <span style={{ fontSize: 9, color: 'var(--muted)' }}>{label} · Lap {f.lap}</span>
-                  </div>
-                  <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: amtColor }}>
-                    {f.amount >= 0 ? '+' : ''}${f.amount.toLocaleString()}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      </>)}
 
       {/* Footer actions — repaying margin always acts on whoever's turn it
           actually is, so this is only offered while viewing your own portfolio.

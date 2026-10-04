@@ -118,7 +118,7 @@ export function resetPlayers(s: GameState): void {
   for (let i = 0; i < s.numPlayers; i++) {
     const name = (s.names[i] || `Player ${i + 1}`).trim() || `Player ${i + 1}`;
     s.players.push({
-      name, color: PLAYER_COLORS[i], piece: s.pieces[i] ?? DEFAULT_PIECES[i],
+      name, color: PLAYER_COLORS[i], piece: s.pieces[i] ?? DEFAULT_PIECES[i], bot: s.bots?.[i] ?? null,
       cash: s.opts.startCash, pos: 1, hasCompletedLap: false, shares: {}, stockCostBasis: {}, realizedStockGain: 0, dividendCuts: {},
       etfShares: {}, salaryCollected: 0, margin: 0, bankLoanPrincipal: 0, bankLoanInterest: 0,
       feeDebtPrincipal: 0, feeDebtInterest: 0,

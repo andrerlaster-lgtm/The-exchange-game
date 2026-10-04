@@ -541,6 +541,13 @@ export function resolveAction(s: GameState, action: Action, rng: Rng): void {
     case 'setPiece':
       s.pieces[action.i] = action.piece;
       break;
+    case 'setBot': {
+      if (s.phase !== 'setup') break;
+      const bots = s.bots ? [...s.bots] : [];
+      bots[action.i] = action.style;
+      s.bots = bots;
+      break;
+    }
     case 'setOpt':
       Object.assign(s.opts, action.opt);
       break;

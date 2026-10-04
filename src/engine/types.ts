@@ -40,8 +40,12 @@ export interface TradeEntry {
   t: number;        // lap number
 }
 
+export type BotStyle = 'normal' | 'cash' | 'investor';
+
 export interface Player {
   name: string;
+  /** Computer-controlled player and its play style; absent/null for a human. */
+  bot?: BotStyle | null;
   color: string;
   piece: string;                     // piece key (see PIECES in data/pieces.ts)
   cash: number;
@@ -447,6 +451,7 @@ export interface GameState {
   numPlayers: number;
   names: string[];
   pieces: string[];                    // selected piece key per player slot
+  bots?: (BotStyle | null)[];          // computer player style per slot (null = human)
   players: Player[];
   orderRoll: OrderRollState | null;    // active only while phase === 'orderRoll'
   cur: number;                         // current player index
@@ -546,6 +551,7 @@ export type Action =
   | { t: 'setNum'; n: number }
   | { t: 'setName'; i: number; name: string }
   | { t: 'setPiece'; i: number; piece: string }
+  | { t: 'setBot'; i: number; style: BotStyle | null }
   | { t: 'setOpt'; opt: Partial<GameOptions> }
   | { t: 'startGame' }
   | { t: 'rollForOrder' }
