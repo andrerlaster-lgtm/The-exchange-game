@@ -3,7 +3,7 @@
 
 import {
   AUDIT_MARGIN_MINIMUM, AUDIT_MARGIN_RATE, AUDIT_MINIMUM, AUDIT_RATE, TAX_RATE,
-  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_DEFS, ETF_PRICE, etfLandingFee, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
+  CARDS, DECK_META, ETF_BY_SPACE, ETF_BY_CODE, ETF_PRICE, IPO_BY_CODE, IPO_DEFS, MOVE_BP, PAYOUT_CLAIM_TOTAL_CAP, upgradeLevel,
   MARGIN_INCREMENT, MARGIN_MAX, MARGIN_DEFAULT_PENALTY, MAX_TRADE_QTY, WEAK_DEMAND_THRESHOLD, STRONG_DEMAND_THRESHOLD,
   REGULAR_SUPPLY, SPACES, STOCK_BY_CODE, IPO_INDEX, isEtfCode, isIpoCode,
   SECTOR_PAIR_BY_CODE, SECTOR_PAIRS, BANK_LOAN_INCREMENT, BOARD_SIZE, RATE_DECISION_BY_ROLL_BP, rateShockMoves,
@@ -169,27 +169,6 @@ function resolveP2POffer(s: GameState, offer: GameState['p2pOffers'][number]): b
   if (!primaryIsEtf) recomputeAndLogClaim(s, offer.code);
   if (hasCounter && !isEtfCode(offer.counterCode!)) recomputeAndLogClaim(s, offer.counterCode!);
   return true;
-}
-
-/**
- * Sole largest holder of one fund among players other than `exclude`, or null
- * when nobody holds it or the top is tied (Contested — nobody collects). Mirrors
- * {@link topOwner} for stock Payout Claims; funds previously paid whichever
- * owner sat earliest in turn order, which handed every landing fee on a shared
- * fund to the same player regardless of how much of it anyone held.
- */
-function etfTopOwner(s: GameState, code: string, exclude: number): number | null {
-  let best = -1;
-  let bestQty = 0;
-  let tie = false;
-  s.players.forEach((player, i) => {
-    if (i === exclude) return;
-    const qty = player.etfShares[code] ?? 0;
-    if (qty <= 0) return;
-    if (qty > bestQty) { best = i; bestQty = qty; tie = false; }
-    else if (qty === bestQty) tie = true;
-  });
-  return best < 0 || tie ? null : best;
 }
 
 /** Log a Payout Claim handover after ownership shifts (fires only on real changes). */
@@ -442,29 +421,9 @@ function resolveLanding(s: GameState, pi: number): void {
     case 'etf': {
       const etf = ETF_BY_SPACE[p.pos];
       if (etf) {
-        // Fee goes to the SOLE largest holder of this fund, not to whoever
-        // happens to sit earliest in turn order — a tie is Contested and pays
-        // nobody, same rule topOwner applies to stock Payout Claims.
-        const owner = etfTopOwner(s, etf.code, pi);
-        if (owner !== null && p.hasCompletedLap !== false) {
-          const distinctFunds = ETF_DEFS.filter((fund) => (s.players[owner].etfShares[fund.code] ?? 0) > 0).length;
-          const fee = etfLandingFee(distinctFunds);
-          s.landingNotice = {
-            kind: 'fund', title: `${etf.name} Landing Fee`, player: p.name,
-            amount: fee, paidFromCash: 0, remaining: fee, canDefer: true, payTo: owner,
-            detail: `${s.players[owner].name} controls ${distinctFunds} distinct fund${distinctFunds === 1 ? '' : 's'} — pay the ${money(fee)} landing fee now or carry it as Outstanding Fees debt.`,
-          };
-          addLog(s, `${p.name} lands on ${etf.name} and owes ${money(fee)} to ${s.players[owner].name}. Pay now or carry it as debt.`, 'r');
-        } else if (owner !== null && p.hasCompletedLap === false) {
-          addLog(s, `${p.name} lands on ${etf.name} during the first lap — no landing fee is owed yet.`, 'y');
-        }
-        // Funds are always on sale to whoever lands here. Gating the offer on
-        // "no other player owns a share" let the first buyer of each fund lock
-        // everyone else out of it permanently, which made the 2/3/4-share rows
-        // of ETF_PAYOUT unreachable for most players and the all-4-funds bonus
-        // unobtainable for everyone the moment two players split the funds.
-        // Paying the landing fee comes first — buyEtf refuses while a notice
-        // is still open — so the fee can't be dodged by spending the cash.
+        // ETF spaces charge nothing: landing only offers a share (2026-10-17 rule change; the
+        // railroad-style landing fee to the fund's largest holder was removed). Funds are always on
+        // sale to whoever lands here, whoever else already holds them.
         s.etfPick = etf.code;
         addLog(s, `${etf.name} — buy 1 share @ ${money(ETF_PRICE)} or skip.`, 'b');
       }

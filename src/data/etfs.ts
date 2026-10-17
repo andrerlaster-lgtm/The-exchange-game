@@ -25,13 +25,6 @@ export const ETF_FUND_DISTRIBUTION = [0, 250, 500, 750] as const;
 // paid only when all 4 were held.
 export const ETF_DIVERSIFICATION_BONUS_BY_FUNDS: Record<number, number> = { 2: 250, 3: 500, 4: 750 };
 
-// Railroad-style landing fee paid to the player who controls a fund space.
-export const ETF_LANDING_FEES = [0, 750, 1_500, 2_500, 4_000];
-
-export function etfLandingFee(distinctFunds: number): number {
-  return ETF_LANDING_FEES[Math.max(0, Math.min(4, distinctFunds))];
-}
-
 export const ETF_DEFS: EtfDef[] = [
   { code: 'GRW',  name: 'Growth Fund',   space:  4, price: ETF_PRICE, color: '#4DA3FF', glyph: '◆' },
   { code: 'INC',  name: 'Income Fund',   space: 13, price: ETF_PRICE, color: '#3ED598', glyph: '■' },
