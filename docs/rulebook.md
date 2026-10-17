@@ -116,7 +116,7 @@ The board has 40 spaces, matching a Monopoly board's shape: four corners and nin
 | Space type | Count | Purpose |
 |---|---|---|
 | Regular stock | 24 | Buy shares, build ownership, sell out companies, create Payout Claims, earn dividends |
-| ETF | 4 | Diversification-style investment route that pays at Market Open and can charge a landing fee |
+| ETF | 4 | Diversification-style investment route that pays at Market Open; landing never costs anything |
 | The Fed | 1 | Draw and resolve a Fed card; space 7 |
 | Market Swing | 1 | Roll a d6 to decide Bull Run or Bear Run, then resolve it and every player's locked stance; space 21 |
 | IPO | 1 | Reveal and access IPO opportunities (shared queue of 3); space 11 |
@@ -152,7 +152,7 @@ Each turn follows the same order unless a card or special rule changes it.
 11. If the round just completed (every player has taken a turn), resolve the round-end market: the round's Market Theme lifts its tailwind sectors and presses its headwind sectors, by risk tier, across every public company (Section 21). Then draw the next round's theme.
 12. Pass play to the next player.
 
-**First-lap grace:** Any Payout Claim (Section 11), Sector Rent (Section 12), or ETF landing fee (Section 18) that would otherwise be owed is skipped entirely for a player who has not yet completed one full lap of the board — no charge, no marker, no effect on the claim/fee holder. The purchase or other option that space offers is unaffected; only the payment to another player is waived. Once a player completes their first lap, every later landing is charged normally.
+**First-lap grace:** Any Payout Claim (Section 11) or Sector Rent (Section 12) that would otherwise be owed is skipped entirely for a player who has not yet completed one full lap of the board — no charge, no marker, no effect on the claim/fee holder. The purchase or other option that space offers is unaffected; only the payment to another player is waived. Once a player completes their first lap, every later landing is charged normally.
 
 ## 6. Market Open
 
@@ -495,8 +495,8 @@ ETFs are a diversification route and Market Open income source. They should not 
 **ETF rules**
 - There are 4 ETF spaces/cards in the current board structure.
 - ETFs pay at Market Open according to the distribution table below.
-- ETFs do not have ownership tiers, Controllers, Sector Portfolio status, or Weak/Strong Demand. They do have their own landing fee, described below — a separate mechanic from the regular-stock Payout Claim system, not a duplicate of it.
-- ETFs cannot be sold back to the bank. They may be traded **player-to-player** during legal trading windows (Section 13), on their own or as either side of a swap, at whatever price the two players agree. A trade can change who controls a fund's landing fee.
+- ETFs do not have ownership tiers, Controllers, Sector Portfolio status, or Weak/Strong Demand. Landing on an ETF space never charges a fee (see below).
+- ETFs cannot be sold back to the bank. They may be traded **player-to-player** during legal trading windows (Section 13), on their own or as either side of a swap, at whatever price the two players agree.
 - ETF payouts should remain clear and simple so they act as a lower-conflict strategy path.
 - ETFs have no live market price. For all net-worth calculations (Final Portfolio Value and Portfolio Tax), owned ETF holdings are valued at their fixed purchase/card price.
 
@@ -510,13 +510,9 @@ Fixed purchase price $3,000/share. At every Market Open, **each fund** pays by h
 
 Add up the funds you hold. A fund stops paying more at 3 shares, so spreading across funds earns more than stacking one.
 
-**ETF landing fee**
-- Landing on an ETF space already controlled by another player — that player is the sole holder with strictly more shares of that fund than anyone else — charges the landing player a landing fee, paid to that fund's controller.
-- The fee scales with how many of the 4 distinct funds the controller holds at least 1 share of (not total shares of one fund): 0 distinct funds → $0, 1 → $750, 2 → $1,500, 3 → $2,500, 4 → $4,000.
-- If ownership of a fund is tied between two or more players, it is Contested and no landing fee is charged.
-- The fee can be paid immediately or carried as Outstanding Fees debt (Section 24), same as Portfolio Tax and Audit Notice.
-- Buying a share of the fund is always offered on landing regardless of who else already owns it — only the landing fee, not the purchase itself, depends on ownership.
-- A landing during the landing player's first-lap grace period (Section 5) owes no landing fee, but the purchase offer is unaffected.
+**Landing on an ETF space**
+- Landing on an ETF space never charges a fee, whoever else holds that fund. (Until 2026-10-17 the fund's largest holder collected a landing fee; that rule was removed.)
+- Buying 1 share of the fund is always offered on landing, regardless of who else already owns it.
 
 **ETF diversification bonus**
 - Holding *different* funds (at least 1 share each) pays an extra bonus at Market Open, on top of the distributions: **2 funds +$250, 3 funds +$500, all 4 funds +$750**.
@@ -630,7 +626,7 @@ Margin (renamed from Loans) is an advanced-mode borrowing system, distinct from 
 
 **Outstanding Fees and Payout Claim Forced Sale (standard mode)**
 
-Audit Notice, Portfolio Tax, and ETF landing fees are bank/player fees a player may carry. After landing, the player chooses **Pay Now** or **Carry as Debt**. If the player cannot afford the full fee, carrying it is required.
+Audit Notice and Portfolio Tax are bank fees a player may carry. After landing, the player chooses **Pay Now** or **Carry as Debt**. If the player cannot afford the full fee, carrying it is required.
 
 - Carried charges appear in the player's Portfolio as **Outstanding Fees**.
 - At the beginning of each of that player's later turns, the current balance adds interest at the **Bank Rate + 2%** (5% at the starting 3% rate), rounded to the nearest $10 with a $100 minimum increase. The rate used is whatever the Bank Rate is at that moment.
@@ -933,7 +929,7 @@ Use this checklist when sending the rules to code.
 | Sector Control | 9 fixed within-sector groups of regular stocks, each with a flat rent ($200/$350 for a two-company group, $300/$525/$825 for a three-company group); rent is added on top of a Payout Claim only when the claim holder exclusively owns every company in the group |
 | Round-end market | Draw a Market Theme as each round begins. At the end of every non-final round: public companies in tailwind sectors rise and in headwind sectors fall, 250/500/750 bp by Low/Med/High risk; untouched companies and unnamed sectors do not move; a single roll or a card never triggers it |
 | Market Conditions | One random condition active at a time, independent of both card decks; rerolled every time a player reaches Market Open; never stacks |
-| Outstanding Fees | Audit Notice, Portfolio Tax, and ETF landing fees may be paid immediately or carried as debt; add the Bank Rate + 2% each debtor turn, rounded to $10 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
+| Outstanding Fees | Audit Notice and Portfolio Tax may be paid immediately or carried as debt; add the Bank Rate + 2% each debtor turn, rounded to $10 with a $100 minimum; allow $500/full payments; subtract all unpaid fees from scoring |
 | Insolvency | Payout Claim only: if the landing player can't pay another player, offer a Player Loan, or force-sell regular stock (not IPO/ETF) until covered or exhausted; waive any remaining shortfall, cash floors at $0, no elimination |
 | Market Open | Pay salary, dividends, ETF payouts and diversification bonus, Market Condition income, Recovery Bonus (if pre-payout cash was under $3,000), resolve Margin repayment, continue or roll a personal Market Condition, then open Market Open Trading Window |
 | Circuit Breaker | One held Market Event card; on a later negative Market Event or Bear Run, holder may protect 1 affected owned company from that effect's entire downward move, then discard it |
