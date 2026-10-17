@@ -31,3 +31,30 @@ npm run build
 7. **Stay inside this app.** Don't edit other apps' folders or repos. If two apps need to share something, ask first.
 8. **Keep notes current.** Update the README or project notes when behavior changes, and say what you didn't verify.
 9. **After a merge,** check https://studio.lasterlab.app/deploys. This app should show Live. If it shows Failed or No deploy reported, find out why before doing anything else.
+10. **Write commit notes.** End each commit message with the notes described in "Commit messages" below, so Studio's Change History can explain the change.
+
+## Commit messages: notes for Studio's Change History
+
+Studio (Bug Log → Change history) reads this repo's commits so Andre, who is learning to code, can see what changed, why, and where to look if it breaks. Git supplies the facts (files, lines, diff). You supply what only you know, as notes at the end of the commit message, one per line, before any `Co-Authored-By` line:
+
+```
+Short title of the change
+
+What changed and why, in a sentence or two.
+
+Feature: Landing space rules
+Change-Type: rule-change
+Fixes-Bug: 14
+Tested: npm test (557 passed), npm run build
+Plain English: Landing on a fund space used to charge you a fee. Now it only offers a share.
+If-This-Breaks: Look at the 'etf' case in resolveLanding (src/engine/actionResolver.ts). You'd see a fee on a fund space, or a locked Buy button.
+```
+
+- **Feature:** the part of the app this belongs to, in plain words. Reuse a name already used in Change history when it fits.
+- **Change-Type:** one of `fix`, `feature`, `rule-change`, `ui`, `refactor`, `performance`, `docs`, `tests`, `chore`. Use `fix` only for a real bug fix.
+- **Fixes-Bug:** the Bug Log number(s), only when this commit fixes that bug. Leave it out otherwise.
+- **Tested:** the commands you actually ran and their results. If you didn't test, write `not tested`.
+- **Plain English:** what the change does for someone using the app, without jargon. Required for any change to behaviour.
+- **If-This-Breaks:** the file and function to look at, and what someone would notice if this change goes wrong.
+
+Only write what you know from the work you did. Don't guess a reason, and don't call something a bug fix unless it fixes a bug. A small commit (a typo, a version bump) can skip the notes.
